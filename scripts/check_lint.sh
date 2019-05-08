@@ -16,7 +16,7 @@ echo "Running golangci-lint :: pwd" $PWD
 cd ./extensions
 echo "extensions project path" `pwd`
 
-$GOLANGCI_LINT_CMD run -c "$GOPATH/src/github.com/trustbloc/fabric-peer-ext/golangci.yml"
+$GOLANGCI_LINT_CMD run -c "$GOPATH/src/github.com/trustbloc/fabric-peer-ext/.golangci.yml"
 
 cd $PWD
 

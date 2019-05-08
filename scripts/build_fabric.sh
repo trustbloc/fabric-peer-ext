@@ -13,7 +13,7 @@ trap finish EXIT
 function finish {
    echo "Remove tmp directory is $TMP ..."
    chmod -f -R +rw $TMP || :
-   #rm -Rf $TMP
+   rm -Rf $TMP
 }
 
 MY_PATH="`dirname \"$0\"`"              # relative
