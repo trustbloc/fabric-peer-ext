@@ -8,7 +8,7 @@ service:
   project-path: github.com/trustbloc/fabric-peer-ext
   golangci-lint-version: 1.16.x
   prepare:
-    - cd mod/peer;GO111MODULE=on go mod vendor
+    - GO111MODULE=on go mod vendor;cd mod/peer;GO111MODULE=on go mod vendor
 
 run:
   concurrency: 4
