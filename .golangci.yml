@@ -1,8 +1,14 @@
 #
-# Copyright SecureKey Technologies Inc.
-# This file contains software code that is the intellectual property of SecureKey.
-# SecureKey reserves all rights in the code and you may not use it without written permission from SecureKey.
+# Copyright SecureKey Technologies Inc. All Rights Reserved.
 #
+# SPDX-License-Identifier: Apache-2.0
+#
+
+service:
+  project-path: github.com/trustbloc/fabric-peer-ext
+  golangci-lint-version: 1.16.x
+  prepare:
+    - cd mod/peer;GO111MODULE=on go mod vendor
 
 run:
   concurrency: 4
@@ -90,4 +96,3 @@ linters:
   fast: false
 issues:
   exclude-use-default: false
-
