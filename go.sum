@@ -182,8 +182,12 @@ github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc/go.mod h1:eyZnKCc955u
 github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/trustbloc/fabric-mod v0.0.0-20190508134351-4beae6ee306b h1:xZCwe/MyQYmCGZglxiayosPeDkM49OrLj9QwWyz/Wfw=
 github.com/trustbloc/fabric-mod v0.0.0-20190508134351-4beae6ee306b/go.mod h1:y/yp/cF5M9+xddNmn6f24tz/PrDjgGCzOk5/0WCKLkU=
+github.com/trustbloc/fabric-mod v0.0.0-20190510235640-ff89b7580e81 h1:CWmIqCQjIOmc12d8/byYfAYJjwwlUXIVJlRANX+syUE=
+github.com/trustbloc/fabric-mod v0.0.0-20190510235640-ff89b7580e81/go.mod h1:y/yp/cF5M9+xddNmn6f24tz/PrDjgGCzOk5/0WCKLkU=
 github.com/trustbloc/fabric-mod/extensions v0.0.0-20190508134351-4beae6ee306b h1:40O0t+2qIGqVKE6SMkx5FmKCcS4rsDF7QS3QGAHYIVw=
 github.com/trustbloc/fabric-mod/extensions v0.0.0-20190508134351-4beae6ee306b/go.mod h1:SnMkFTM0DFEsFcZqZp4P0Gqm+ryD8iwx9cEGW8qrju0=
+github.com/trustbloc/fabric-mod/extensions v0.0.0-20190510235640-ff89b7580e81 h1:eD2FCLOj1PWiqRM9NadS+LeHMu5UbiqE9D/cPN8bOUA=
+github.com/trustbloc/fabric-mod/extensions v0.0.0-20190510235640-ff89b7580e81/go.mod h1:SnMkFTM0DFEsFcZqZp4P0Gqm+ryD8iwx9cEGW8qrju0=
 github.com/ugorji/go v1.1.1/go.mod h1:hnLbHMwcvSihnDhEfx2/BzKp2xb0Y+ErdfYcrs9tkJQ=
 github.com/urfave/cli v1.18.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/vishvananda/netlink v1.0.0 h1:bqNY2lgheFIu1meHUFSH3d7vG93AFyqg3oGbJCOJgSM=

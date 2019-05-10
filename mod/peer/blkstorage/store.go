@@ -9,14 +9,19 @@ package blkstorage
 import (
 	"github.com/hyperledger/fabric/common/ledger/blkstorage"
 	"github.com/hyperledger/fabric/common/ledger/blkstorage/fsblkstorage"
+	"github.com/trustbloc/fabric-peer-ext/pkg/blkstorage/cdbblkstorage"
 )
 
-//NewProvider is redirect hook for fabric/fsblkstorage NewProvider()
+//NewProvider returns couchdb blockstorage provider
 func NewProvider(conf *fsblkstorage.Conf, indexConfig *blkstorage.IndexConfig) blkstorage.BlockStoreProvider {
-	return fsblkstorage.NewProvider(conf, indexConfig)
+	pvdr, err := cdbblkstorage.NewProvider(indexConfig)
+	if err != nil {
+		panic(err)
+	}
+	return pvdr
 }
 
-//NewConf is redirect hook for fabric/fsblkstorage NewConf()
+//NewConf is returns file system based blockstorage conf
 func NewConf(blockStorageDir string, maxBlockfileSize int) *fsblkstorage.Conf {
 	return fsblkstorage.NewConf(blockStorageDir, maxBlockfileSize)
 }
