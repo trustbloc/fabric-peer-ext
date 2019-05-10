@@ -2,7 +2,7 @@
 
 [![codecov](https://codecov.io/gh/trustbloc/fabric-peer-ext/branch/master/graph/badge.svg)](https://codecov.io/gh/trustbloc/fabric-peer-ext)
 [![Go Report Card](https://goreportcard.com/badge/github.com/trustbloc/fabric-peer-ext?style=flat-square)](https://goreportcard.com/report/github.com/trustbloc/fabric-peer-ext)
-[![codebeat](https://codebeat.co/badges/16512202-9758-4e2e-b0b8-4121724680b8)](https://codebeat.co/projects/github-com-trustbloc-fabric-peer-ext-master)
+[![codebeat badge](https://codebeat.co/badges/fad74203-ae47-4acf-a0be-dc22696df874)](https://codebeat.co/projects/github-com-trustbloc-fabric-peer-ext-master)
 [![GolangCI](https://golangci.com/badges/github.com/trustbloc/fabric-peer-ext.svg)](https://golangci.com/r/github.com/trustbloc/fabric-peer-ext)
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://raw.githubusercontent.com/trustbloc/fabric-peer-ext/master/LICENSE)
