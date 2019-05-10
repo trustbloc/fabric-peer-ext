@@ -7,7 +7,7 @@ replace github.com/hyperledger/fabric/extensions => ./
 replace github.com/trustbloc/fabric-peer-ext => ../..
 
 require (
-	github.com/hyperledger/fabric v0.0.0-20190313191403-aa14c142d8c7
+	github.com/hyperledger/fabric v1.4.1
 	github.com/hyperledger/fabric/extensions v0.0.0
 	github.com/spf13/viper v0.0.0-20150908122457-1967d93db724
 	github.com/stretchr/testify v1.3.0
