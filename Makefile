@@ -29,6 +29,7 @@ all: checks fabric-unit-test
 
 unit-test: export FABRIC_COMMAND=unit-test
 unit-test: checks
+	@scripts/unit.sh
 	@scripts/build_fabric.sh
 
 version:
