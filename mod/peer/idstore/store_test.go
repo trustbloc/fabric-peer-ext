@@ -7,19 +7,14 @@ SPDX-License-Identifier: Apache-2.0
 package idstore
 
 import (
-	"io/ioutil"
-	"os"
 	"testing"
 
-	"github.com/spf13/viper"
-
+	"github.com/hyperledger/fabric/extensions/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestOpenIDStore(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "idstore")
-	require.NoError(t, err)
-	viper.Set("peer.fileSystemPath", tempDir)
-	defer os.RemoveAll(tempDir)
-	require.NotEmpty(t, OpenIDStore(tempDir))
+	_, _, destroy := testutil.SetupExtTestEnv()
+	defer destroy()
+	require.NotEmpty(t, OpenIDStore(""))
 }

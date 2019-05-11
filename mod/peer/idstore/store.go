@@ -8,9 +8,10 @@ package idstore
 
 import (
 	"github.com/hyperledger/fabric/core/ledger/kvledger/idstore"
+	s "github.com/trustbloc/fabric-peer-ext/pkg/idstore"
 )
 
 // OpenIDStore open idstore
 func OpenIDStore(path string) idstore.IDStore {
-	return idstore.OpenIDStore(path)
+	return s.OpenIDStore(path)
 }
