@@ -10,6 +10,7 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v0.0.0-20150908122457-1967d93db724
 	github.com/stretchr/testify v1.3.0
+	github.com/willf/bitset v1.1.9
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 
 )
