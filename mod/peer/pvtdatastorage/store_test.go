@@ -11,14 +11,16 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hyperledger/fabric/extensions/testutil"
 	"github.com/spf13/viper"
-
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewProvider(t *testing.T) {
 	cleanup := setupPath(t)
 	defer cleanup()
+	_, _, destroy := testutil.SetupExtTestEnv()
+	defer destroy()
 	require.NotEmpty(t, NewProvider())
 }
 
