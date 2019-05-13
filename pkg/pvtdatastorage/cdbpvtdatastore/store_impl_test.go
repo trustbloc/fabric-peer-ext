@@ -1,3 +1,9 @@
+/*
+Copyright IBM Corp, SecureKey Technologies Inc. All Rights Reserved.
+
+SPDX-License-Identifier: Apache-2.0
+*/
+
 package pvtdatastorage
 
 import (

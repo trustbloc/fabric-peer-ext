@@ -21,3 +21,16 @@ func TestGetRoles(t *testing.T) {
 	viper.Set(confRoles, roles)
 	assert.Equal(t, roles, GetRoles())
 }
+
+func TestGetPvtDataCacheSize(t *testing.T) {
+	oldVal := viper.Get(confPvtDataCacheSize)
+	defer viper.Set(confPvtDataCacheSize, oldVal)
+
+	val := GetPvtDataCacheSize()
+	assert.Equal(t, val, 10)
+
+	viper.Set(confPvtDataCacheSize, 99)
+	val = GetPvtDataCacheSize()
+	assert.Equal(t, val, 99)
+
+}
