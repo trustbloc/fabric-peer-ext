@@ -8,14 +8,10 @@ package pvtdatastorage
 
 import (
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
-	cdbpvtdatastore "github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/cdbpvtdatastore"
+	s "github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage"
 )
 
 // NewProvider instantiates a StoreProvider
 func NewProvider() pvtdatastorage.Provider {
-	provider, err := cdbpvtdatastore.NewProvider()
-	if err != nil {
-		panic(err)
-	}
-	return provider
+	return s.NewProvider()
 }
