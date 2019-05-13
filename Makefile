@@ -21,10 +21,13 @@ export GO111MODULE=on
 depend: version
 	@scripts/dependencies.sh
 
-checks: version depend lint
+checks: version depend license lint
 
 lint:
 	@scripts/check_lint.sh
+
+license: version
+	@scripts/check_license.sh
 
 all: checks unit-test
 
@@ -50,4 +53,4 @@ ifneq ($(strip $(DEV_IMAGES)),)
 endif
 	@docker rmi $(docker images securekey/* -aq)
 
-.PHONY: all version clean-images unit-test docker-thirdparty
+.PHONY: all version clean-images unit-test docker-thirdparty license
