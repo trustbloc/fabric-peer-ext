@@ -1,3 +1,7 @@
+// Copyright SecureKey Technologies Inc. All Rights Reserved.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 module github.com/trustbloc/fabric-peer-ext/mod/peer
 
 replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.0.0-20190510235640-ff89b7580e81
