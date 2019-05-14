@@ -6,10 +6,18 @@ SPDX-License-Identifier: Apache-2.0
 
 package config
 
-import "github.com/spf13/viper"
+import (
+	"path/filepath"
 
-const confRoles = "ledger.roles"
-const confPvtDataCacheSize = "ledger.blockchain.pvtDataStorage.cacheSize"
+	"github.com/hyperledger/fabric/core/ledger/ledgerconfig"
+	"github.com/spf13/viper"
+)
+
+const (
+	confRoles                = "ledger.roles"
+	confPvtDataCacheSize     = "ledger.blockchain.pvtDataStorage.cacheSize"
+	confTransientDataLeveldb = "transientDataLeveldb"
+)
 
 // GetRoles returns the roles of the peer. Empty return value indicates that the peer has all roles.
 func GetRoles() string {
@@ -23,4 +31,9 @@ func GetPvtDataCacheSize() int {
 		pvtDataCacheSize = 10
 	}
 	return pvtDataCacheSize
+}
+
+// GetTransientDataLevelDBPath returns the filesystem path that is used to maintain the transient data level db
+func GetTransientDataLevelDBPath() string {
+	return filepath.Join(ledgerconfig.GetRootPath(), confTransientDataLeveldb)
 }
