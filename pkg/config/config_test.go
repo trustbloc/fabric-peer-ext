@@ -8,6 +8,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -33,4 +34,24 @@ func TestGetPvtDataCacheSize(t *testing.T) {
 	val = GetPvtDataCacheSize()
 	assert.Equal(t, val, 99)
 
+}
+
+func TestGetTransientDataLevelDBPath(t *testing.T) {
+	oldVal := viper.Get("peer.fileSystemPath")
+	defer viper.Set("peer.fileSystemPath", oldVal)
+
+	viper.Set("peer.fileSystemPath", "/tmp123")
+
+	assert.Equal(t, "/tmp123/ledgersData/transientDataLeveldb", GetTransientDataLevelDBPath())
+}
+
+func TestGetTransientDataExpiredIntervalTime(t *testing.T) {
+	oldVal := viper.Get(confTransientDataCleanupIntervalTime)
+	defer viper.Set(confTransientDataCleanupIntervalTime, oldVal)
+
+	viper.Set(confTransientDataCleanupIntervalTime, "")
+	assert.Equal(t, defaultTransientDataCleanupIntervalTime, GetTransientDataExpiredIntervalTime())
+
+	viper.Set(confTransientDataCleanupIntervalTime, 111*time.Second)
+	assert.Equal(t, 111*time.Second, GetTransientDataExpiredIntervalTime())
 }
