@@ -15,6 +15,8 @@ import (
 	"github.com/hyperledger/fabric/gossip/protoext"
 	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/rwset"
+	"github.com/pkg/errors"
+	tdissemination "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/dissemination"
 )
 
 type gossipAdapter interface {
@@ -23,7 +25,16 @@ type gossipAdapter interface {
 	IdentityInfo() gossipapi.PeerIdentitySet
 }
 
-// ComputeDisseminationPlan returns the dissemination plan for extensions collection types
+var computeTransientDataDisseminationPlan = func(
+	channelID, ns string,
+	rwSet *rwset.CollectionPvtReadWriteSet,
+	colAP privdata.CollectionAccessPolicy,
+	pvtDataMsg *protoext.SignedGossipMessage,
+	gossipAdapter gossipAdapter) ([]*dissemination.Plan, bool, error) {
+	return tdissemination.ComputeDisseminationPlan(channelID, ns, rwSet, colAP, pvtDataMsg, gossipAdapter)
+}
+
+// ComputeDisseminationPlan returns the dissemination plan for various collection types
 func ComputeDisseminationPlan(
 	channelID, ns string,
 	rwSet *rwset.CollectionPvtReadWriteSet,
@@ -31,5 +42,16 @@ func ComputeDisseminationPlan(
 	colAP privdata.CollectionAccessPolicy,
 	pvtDataMsg *protoext.SignedGossipMessage,
 	gossipAdapter gossipAdapter) ([]*dissemination.Plan, bool, error) {
-	panic("not implemented")
+
+	collConfig := colCP.GetStaticCollectionConfig()
+	if collConfig == nil {
+		return nil, false, errors.New("static collection config not defined")
+	}
+
+	switch collConfig.Type {
+	case cb.CollectionType_COL_TRANSIENT:
+		return computeTransientDataDisseminationPlan(channelID, ns, rwSet, colAP, pvtDataMsg, gossipAdapter)
+	default:
+		return nil, false, errors.Errorf("unsupported collection type: [%s]", collConfig.Type)
+	}
 }
