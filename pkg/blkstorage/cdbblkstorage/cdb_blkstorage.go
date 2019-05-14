@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
+
 	"github.com/hyperledger/fabric/protoutil"
 
 	"github.com/hyperledger/fabric/common/ledger"
@@ -66,6 +68,11 @@ func newCDBBlockStore(blockStore *couchdb.CouchDatabase, txnStore *couchdb.Couch
 
 // AddBlock adds a new block
 func (s *cdbBlockStore) AddBlock(block *common.Block) error {
+
+	if !roles.IsCommitter() {
+		// Nothing to do if not a committer
+		return nil
+	}
 
 	err := s.validateBlock(block)
 	if err != nil {
