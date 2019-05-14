@@ -11,6 +11,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hyperledger/fabric/common/metrics/disabled"
+	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
+
 	"github.com/golang/protobuf/proto"
 
 	"github.com/hyperledger/fabric/common/ledger/blkstorage"
@@ -23,10 +27,20 @@ import (
 	xtestutil "github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
 
+var cdbInstance *couchdb.CouchInstance
+
 func TestMain(m *testing.M) {
 
 	//setup extension test environment
 	_, _, destroy := xtestutil.SetupExtTestEnv()
+
+	couchDBDef := couchdb.GetCouchDBDefinition()
+	var err error
+	cdbInstance, err = couchdb.CreateCouchInstance(couchDBDef.URL, couchDBDef.Username, couchDBDef.Password,
+		couchDBDef.MaxRetries, couchDBDef.MaxRetriesOnStartup, couchDBDef.RequestTimeout, couchDBDef.CreateGlobalChangesDB, &disabled.Provider{})
+	if err != nil {
+		panic(err.Error())
+	}
 
 	code := m.Run()
 
@@ -155,6 +169,145 @@ func TestBlockStoreProvider(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, false, exists)
 
+}
+
+func TestBlockStoreAsCommitter(t *testing.T) {
+
+	const ledgerID = "ledger-committer-test"
+
+	//make sure store doesn't exists in couch db
+	assert.False(t, couchdbExists(cdbInstance, couchdb.ConstructBlockchainDBName(ledgerID, blockStoreName)))
+	assert.False(t, couchdbExists(cdbInstance, couchdb.ConstructBlockchainDBName(ledgerID, txnStoreName)))
+
+	//make sure roles is committer not endorser
+	if roles.IsEndorser() {
+		rolesValue := make(map[roles.Role]struct{})
+		rolesValue[roles.CommitterRole] = struct{}{}
+		roles.SetRoles(rolesValue)
+		defer func() { roles.SetRoles(nil) }()
+	}
+
+	//make sure role is 'committer' only
+	assert.True(t, roles.IsCommitter())
+	assert.False(t, roles.IsEndorser())
+
+	env := newTestEnv(t)
+	defer env.Cleanup()
+
+	//create block store as committer
+	provider := env.provider
+	store, err := provider.OpenBlockStore(ledgerID)
+	assert.NoError(t, err)
+	defer store.Shutdown()
+
+	//committer creates store in db, if it doesn't exists
+	assert.True(t, couchdbExists(cdbInstance, couchdb.ConstructBlockchainDBName(ledgerID, blockStoreName)))
+	assert.True(t, couchdbExists(cdbInstance, couchdb.ConstructBlockchainDBName(ledgerID, txnStoreName)))
+
+	blocks := testutil.ConstructTestBlocks(t, 5)
+	for _, b := range blocks {
+		store.AddBlock(b)
+	}
+
+	//test block store
+	checkBlocks(t, blocks, store)
+	checkWithWrongInputs(t, store, 5)
+}
+
+func TestBlockStoreAsEndorser(t *testing.T) {
+
+	const ledgerID = "ledger-endorser-test"
+
+	//make sure store doesn't exists in couch db
+	assert.False(t, couchdbExists(cdbInstance, couchdb.ConstructBlockchainDBName(ledgerID, blockStoreName)))
+	assert.False(t, couchdbExists(cdbInstance, couchdb.ConstructBlockchainDBName(ledgerID, txnStoreName)))
+
+	//make sure roles is endorser not committer
+	if roles.IsCommitter() {
+		rolesValue := make(map[roles.Role]struct{})
+		rolesValue[roles.EndorserRole] = struct{}{}
+		roles.SetRoles(rolesValue)
+		defer func() { roles.SetRoles(nil) }()
+	}
+
+	//make sure role is 'endorser' only
+	assert.True(t, roles.IsEndorser())
+	assert.False(t, roles.IsCommitter())
+
+	env := newTestEnv(t)
+	defer env.Cleanup()
+
+	//create block store as endorser
+	provider := env.provider
+	store, err := provider.OpenBlockStore(ledgerID)
+	assert.EqualError(t, err, fmt.Sprintf("DB not found: [%s]", couchdb.ConstructBlockchainDBName(ledgerID, blockStoreName)))
+	assert.Nil(t, store)
+
+	//create block store manually
+	bdb, err := couchdb.CreateCouchDatabase(cdbInstance, couchdb.ConstructBlockchainDBName(ledgerID, blockStoreName))
+	assert.NoError(t, err)
+
+	//expect error for missing db index
+	store, err = provider.OpenBlockStore(ledgerID)
+	assert.EqualError(t, err, fmt.Sprintf("DB index not found: [%s]", couchdb.ConstructBlockchainDBName(ledgerID, blockStoreName)))
+	assert.Nil(t, store)
+
+	//create block store index manually
+	err = provider.createBlockStoreIndices(bdb)
+	assert.NoError(t, err)
+
+	//expect error for missing txn store
+	store, err = provider.OpenBlockStore(ledgerID)
+	assert.EqualError(t, err, fmt.Sprintf("DB not found: [%s]", couchdb.ConstructBlockchainDBName(ledgerID, txnStoreName)))
+	assert.Nil(t, store)
+
+	//create block store manually
+	_, err = couchdb.CreateCouchDatabase(cdbInstance, couchdb.ConstructBlockchainDBName(ledgerID, txnStoreName))
+	assert.NoError(t, err)
+
+	//open store should be successful
+	store, err = provider.OpenBlockStore(ledgerID)
+	assert.NoError(t, err)
+	assert.NotNil(t, store)
+	defer store.Shutdown()
+
+	//add block shouldn't add any new blocks to store for endorser
+	blocks := testutil.ConstructTestBlocks(t, 5)
+	for _, b := range blocks {
+		store.AddBlock(b)
+	}
+
+	itr, err := store.RetrieveBlocks(0)
+	assert.NoError(t, err)
+
+	var blksCount int
+	for {
+		blk, err := itr.Next()
+		if err != nil && blk == nil {
+			break
+		}
+		blksCount++
+	}
+	assert.Empty(t, blksCount)
+
+}
+
+//couchdbExists checks if given dbname exists in couchdb
+func couchdbExists(cdbInstance *couchdb.CouchInstance, dbName string) bool {
+
+	//create new store db
+	cdb, err := couchdb.NewCouchDatabase(cdbInstance, dbName)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	//check if store db exists
+	dbExists, err := cdb.ExistsWithRetry()
+	if err != nil {
+		panic(err.Error())
+	}
+
+	return dbExists
 }
 
 func constructLedgerid(id int) string {
