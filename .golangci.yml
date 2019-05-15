@@ -16,7 +16,7 @@ run:
   issues-exit-code: 1
   tests: true
   build-tags: ["testing"]
-  skip-dirs:  ["pvtdatastorage/common"]
+  skip-dirs:  ["nch pvtdatastorage/common"]
   skip-files:
     - ^(.*_test.go.*$)$
 
