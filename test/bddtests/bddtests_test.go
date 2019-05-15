@@ -18,7 +18,7 @@ import (
 	"github.com/DATA-DOG/godog"
 	"github.com/hyperledger/fabric/common/util"
 	"github.com/spf13/viper"
-	"github.com/trustbloc/fabric-peer-test-lib/bddtests"
+	"github.com/trustbloc/fabric-peer-test-common/bddtests"
 )
 
 var composition *bddtests.Composition
