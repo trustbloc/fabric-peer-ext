@@ -15,6 +15,6 @@ require (
 	github.com/hyperledger/fabric v1.4.1
 	github.com/spf13/viper v1.0.2
 	github.com/sykesm/zap-logfmt v0.0.2 // indirect
-	github.com/trustbloc/fabric-peer-test-lib v0.0.0-20190513193433-d695a095c78e
+	github.com/trustbloc/fabric-peer-test-common v0.0.0-20190515153005-67b33fd24540
 	go.uber.org/zap v1.10.0 // indirect
 )
