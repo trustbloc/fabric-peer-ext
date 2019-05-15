@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://raw.githubusercontent.com/trustbloc/fabric-peer-ext/master/LICENSE)
 
 # fabric-peer-lib
-Set of libraries that extends the core peer capabilities.
+1Set of libraries that extends the core peer capabilities.
 
 ```
 git clone https://github.com/trustbloc/fabric-peer-ext.git
