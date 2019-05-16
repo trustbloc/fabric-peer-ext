@@ -105,7 +105,7 @@ func (cc *ExampleCC) del(stub shim.ChaincodeStubInterface, args []string) pb.Res
 		return shim.Error("Invalid args. Expecting key")
 	}
 
-	key := args[1]
+	key := args[0]
 
 	err := stub.DelState(key)
 	if err != nil {
