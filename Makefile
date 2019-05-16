@@ -35,10 +35,7 @@ FABRIC_TOOLS_VERSION ?= 2.0.0-alpha
 FABRIC_TOOLS_TAG     ?= $(ARCH)-$(FABRIC_TOOLS_VERSION)
 
 
-depend: version
-	@scripts/dependencies.sh
-
-checks: version depend license lint
+checks: version license lint
 
 lint:
 	@scripts/check_lint.sh
