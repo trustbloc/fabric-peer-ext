@@ -55,3 +55,23 @@ func TestGetTransientDataExpiredIntervalTime(t *testing.T) {
 	viper.Set(confTransientDataCleanupIntervalTime, 111*time.Second)
 	assert.Equal(t, 111*time.Second, GetTransientDataExpiredIntervalTime())
 }
+
+func TestGetOLLevelDBPath(t *testing.T) {
+	oldVal := viper.Get("peer.fileSystemPath")
+	defer viper.Set("peer.fileSystemPath", oldVal)
+
+	viper.Set("peer.fileSystemPath", "/tmp123")
+
+	assert.Equal(t, "/tmp123/ledgersData/offLedgerLeveldb", GetOLCollLevelDBPath())
+}
+
+func TestGetOLCollExpiredIntervalTime(t *testing.T) {
+	oldVal := viper.Get(confOLCollCleanupIntervalTime)
+	defer viper.Set(confOLCollCleanupIntervalTime, oldVal)
+
+	viper.Set(confOLCollCleanupIntervalTime, "")
+	assert.Equal(t, defaultOLCollCleanupIntervalTime, GetOLCollExpirationCheckInterval())
+
+	viper.Set(confOLCollCleanupIntervalTime, 111*time.Second)
+	assert.Equal(t, 111*time.Second, GetOLCollExpirationCheckInterval())
+}
