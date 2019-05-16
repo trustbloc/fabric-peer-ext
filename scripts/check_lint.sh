@@ -8,18 +8,7 @@
 set -e
 
 
-GOLANGCI_LINT_CMD=golangci-lint
+DOCKER_CMD=docker
 
-PWD=`pwd`
-echo "Running golangci-lint :: pwd" $PWD
 
-$GOLANGCI_LINT_CMD run -c "$GOPATH/src/github.com/trustbloc/fabric-peer-ext/.golangci.yml"
-
-cd ./mod/peer
-echo "extensions project path" `pwd`
-
-$GOLANGCI_LINT_CMD run -c "$GOPATH/src/github.com/trustbloc/fabric-peer-ext/.golangci.yml"
-
-cd $PWD
-
-echo "golangci-lint finished successfully :: pwd" $PWD
+${DOCKER_CMD} run --rm -v $(pwd):/goapp -e RUN=1 -e REPO=github.com/trustbloc/bloc-node golangci/build-runner goenvbuild
