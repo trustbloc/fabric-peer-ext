@@ -55,3 +55,14 @@ func TestGetTransientDataExpiredIntervalTime(t *testing.T) {
 	viper.Set(confTransientDataCleanupIntervalTime, 111*time.Second)
 	assert.Equal(t, 111*time.Second, GetTransientDataExpiredIntervalTime())
 }
+
+func TestGetTransientDataCacheSize(t *testing.T) {
+	oldVal := viper.Get(confTransientDataCacheSize)
+	defer viper.Set(confTransientDataCacheSize, oldVal)
+
+	viper.Set(confTransientDataCacheSize, 0)
+	assert.Equal(t, defaultTransientDataCacheSize, GetTransientDataCacheSize())
+
+	viper.Set(confTransientDataCacheSize, 10)
+	assert.Equal(t, 10, GetTransientDataCacheSize())
+}
