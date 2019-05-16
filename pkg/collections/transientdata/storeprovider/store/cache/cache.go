@@ -30,7 +30,6 @@ type transientDB interface {
 	AddKey(api.Key, *api.Value) error
 	DeleteExpiredKeys() error
 	GetKey(key api.Key) (*api.Value, error)
-	Close()
 }
 
 // New return a new in-memory key-value cache

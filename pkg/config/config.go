@@ -20,8 +20,10 @@ const (
 
 	confTransientDataLeveldb             = "transientDataLeveldb"
 	confTransientDataCleanupIntervalTime = "coll.transientdata.cleanupExpired.Interval"
+	confTransientDataCacheSize           = "coll.transientdata.cacheSize"
 
 	defaultTransientDataCleanupIntervalTime = 5 * time.Second
+	defaultTransientDataCacheSize           = 100000
 )
 
 // GetRoles returns the roles of the peer. Empty return value indicates that the peer has all roles.
@@ -50,4 +52,13 @@ func GetTransientDataExpiredIntervalTime() time.Duration {
 		return defaultTransientDataCleanupIntervalTime
 	}
 	return timeout
+}
+
+// GetTransientDataCacheSize returns the size of the transient data cache
+func GetTransientDataCacheSize() int {
+	size := viper.GetInt(confTransientDataCacheSize)
+	if size <= 0 {
+		return defaultTransientDataCacheSize
+	}
+	return size
 }

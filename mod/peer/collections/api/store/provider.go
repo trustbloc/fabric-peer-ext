@@ -26,6 +26,12 @@ type Store interface {
 	// Persist stores the private write set of a transaction.
 	Persist(txid string, privateSimulationResultsWithConfig *proto.TxPvtReadWriteSetWithConfigInfo) error
 
+	// GetTransientData gets the value for the given transient data item
+	GetTransientData(key *Key) (*ExpiringValue, error)
+
+	// GetTransientDataMultipleKeys gets the values for the multiple transient data items in a single call
+	GetTransientDataMultipleKeys(key *MultiKey) (ExpiringValues, error)
+
 	// Close closes the store
 	Close()
 }

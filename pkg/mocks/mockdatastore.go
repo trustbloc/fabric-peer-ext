@@ -17,7 +17,7 @@ type DataStore struct {
 	err           error
 }
 
-// NewDataStore returns a mock data store
+// NewDataStore returns a mock transient data store
 func NewDataStore() *DataStore {
 	return &DataStore{
 		transientData: make(map[storeapi.Key]*storeapi.ExpiringValue),
