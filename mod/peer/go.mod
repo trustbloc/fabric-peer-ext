@@ -4,7 +4,7 @@
 
 module github.com/trustbloc/fabric-peer-ext/mod/peer
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.0.0-20190510235640-ff89b7580e81
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.0.0-20190516131545-60d0b3b2375b
 
 replace github.com/hyperledger/fabric/extensions => ./
 

@@ -20,11 +20,13 @@ const (
 
 	confTransientDataLeveldb             = "transientDataLeveldb"
 	confTransientDataCleanupIntervalTime = "coll.transientdata.cleanupExpired.Interval"
+	confTransientDataCacheSize           = "coll.transientdata.cacheSize"
 
 	confOLCollLeveldb             = "offLedgerLeveldb"
 	confOLCollCleanupIntervalTime = "coll.offledger.cleanupExpired.Interval"
 
 	defaultTransientDataCleanupIntervalTime = 5 * time.Second
+	defaultTransientDataCacheSize           = 100000
 	defaultOLCollCleanupIntervalTime        = 5 * time.Second
 )
 
@@ -54,6 +56,15 @@ func GetTransientDataExpiredIntervalTime() time.Duration {
 		return defaultTransientDataCleanupIntervalTime
 	}
 	return timeout
+}
+
+// GetTransientDataCacheSize returns the size of the transient data cache
+func GetTransientDataCacheSize() int {
+	size := viper.GetInt(confTransientDataCacheSize)
+	if size <= 0 {
+		return defaultTransientDataCacheSize
+	}
+	return size
 }
 
 // GetOLCollLevelDBPath returns the filesystem path that is used to maintain the off-ledger level db

@@ -56,6 +56,17 @@ func TestGetTransientDataExpiredIntervalTime(t *testing.T) {
 	assert.Equal(t, 111*time.Second, GetTransientDataExpiredIntervalTime())
 }
 
+func TestGetTransientDataCacheSize(t *testing.T) {
+	oldVal := viper.Get(confTransientDataCacheSize)
+	defer viper.Set(confTransientDataCacheSize, oldVal)
+
+	viper.Set(confTransientDataCacheSize, 0)
+	assert.Equal(t, defaultTransientDataCacheSize, GetTransientDataCacheSize())
+
+	viper.Set(confTransientDataCacheSize, 10)
+	assert.Equal(t, 10, GetTransientDataCacheSize())
+}
+
 func TestGetOLLevelDBPath(t *testing.T) {
 	oldVal := viper.Get("peer.fileSystemPath")
 	defer viper.Set("peer.fileSystemPath", oldVal)
