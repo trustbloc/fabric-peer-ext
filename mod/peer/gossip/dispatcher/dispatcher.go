@@ -13,7 +13,7 @@ import (
 	gossip "github.com/hyperledger/fabric/gossip/api"
 	"github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/gossip/discovery"
-	"github.com/hyperledger/fabric/gossip/protoext"
+	extdispatcher "github.com/trustbloc/fabric-peer-ext/pkg/gossip/dispatcher"
 )
 
 type gossipAdapter interface {
@@ -32,16 +32,6 @@ func New(
 	dataStore storeapi.Store,
 	gossipAdapter gossipAdapter,
 	ledger ledger.PeerLedger,
-	blockPublisher blockPublisher) *Dispatcher {
-	return &Dispatcher{}
-}
-
-// Dispatcher is a extensions Gossip message dispatcher
-type Dispatcher struct {
-}
-
-// Dispatch is a noop implementation
-func (s *Dispatcher) Dispatch(msg protoext.ReceivedMessage) bool {
-	// Nothing to handle
-	return false
+	_ blockPublisher) *extdispatcher.Dispatcher {
+	return extdispatcher.New(channelID, dataStore, gossipAdapter, ledger)
 }
