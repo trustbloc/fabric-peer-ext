@@ -22,8 +22,12 @@ const (
 	confTransientDataCleanupIntervalTime = "coll.transientdata.cleanupExpired.Interval"
 	confTransientDataCacheSize           = "coll.transientdata.cacheSize"
 
+	confOLCollLeveldb             = "offLedgerLeveldb"
+	confOLCollCleanupIntervalTime = "coll.offledger.cleanupExpired.Interval"
+
 	defaultTransientDataCleanupIntervalTime = 5 * time.Second
 	defaultTransientDataCacheSize           = 100000
+	defaultOLCollCleanupIntervalTime        = 5 * time.Second
 )
 
 // GetRoles returns the roles of the peer. Empty return value indicates that the peer has all roles.
@@ -61,4 +65,18 @@ func GetTransientDataCacheSize() int {
 		return defaultTransientDataCacheSize
 	}
 	return size
+}
+
+// GetOLCollLevelDBPath returns the filesystem path that is used to maintain the off-ledger level db
+func GetOLCollLevelDBPath() string {
+	return filepath.Join(ledgerconfig.GetRootPath(), confOLCollLeveldb)
+}
+
+// GetOLCollExpirationCheckInterval is time when background routine check expired collection data in db to cleanup.
+func GetOLCollExpirationCheckInterval() time.Duration {
+	timeout := viper.GetDuration(confOLCollCleanupIntervalTime)
+	if timeout == 0 {
+		return defaultOLCollCleanupIntervalTime
+	}
+	return timeout
 }
