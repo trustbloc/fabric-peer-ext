@@ -14,6 +14,7 @@ import (
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/extensions/collections/api/store"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
+	extgossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	ledgerconfig "github.com/hyperledger/fabric/extensions/roles"
 	gossipapi "github.com/hyperledger/fabric/gossip/api"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
@@ -37,6 +38,10 @@ type gossipAdapter interface {
 	IdentityInfo() gossipapi.PeerIdentitySet
 }
 
+type blockPublisher interface {
+	AddCCUpgradeHandler(handler extgossipapi.ChaincodeUpgradeHandler)
+}
+
 type ccRetriever interface {
 	Config(ns, coll string) (*cb.StaticCollectionConfig, error)
 	Policy(ns, coll string) (privdata.CollectionAccessPolicy, error)
@@ -52,9 +57,10 @@ func New(
 	channelID string,
 	dataStore storeapi.Store,
 	gossipAdapter gossipAdapter,
-	ledger ledger.PeerLedger) *Dispatcher {
+	ledger ledger.PeerLedger,
+	blockPublisher blockPublisher) *Dispatcher {
 	return &Dispatcher{
-		ccRetriever: supp.NewCollectionConfigRetriever(channelID, ledger),
+		ccRetriever: supp.NewCollectionConfigRetriever(channelID, ledger, blockPublisher),
 		channelID:   channelID,
 		reqMgr:      requestmgr.Get(channelID),
 		dataStore:   dataStore,

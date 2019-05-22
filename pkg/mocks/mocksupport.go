@@ -9,7 +9,6 @@ package mocks
 import (
 	"github.com/hyperledger/fabric/core/common/privdata"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
-	gmocks "github.com/hyperledger/fabric/extensions/gossip/mocks"
 	cb "github.com/hyperledger/fabric/protos/common"
 )
 
@@ -18,13 +17,13 @@ type MockSupport struct {
 	CollPolicy privdata.CollectionAccessPolicy
 	CollConfig *cb.StaticCollectionConfig
 	Err        error
-	Publisher  gossipapi.BlockPublisher
+	Publisher  *MockBlockPublisher
 }
 
 // NewMockSupport returns a new MockSupport
 func NewMockSupport() *MockSupport {
 	return &MockSupport{
-		Publisher: gmocks.NewBlockPublisher(),
+		Publisher: NewBlockPublisher(),
 	}
 }
 

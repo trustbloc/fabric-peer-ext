@@ -27,7 +27,7 @@ func TestRetriever(t *testing.T) {
 		return &tdatamocks.TransientDataProvider{}
 	}
 
-	p := NewProvider(nil, nil, nil)
+	p := NewProvider(nil, nil, nil, nil)
 	require.NotNil(t, p)
 
 	retriever := p.RetrieverForChannel(channelID)

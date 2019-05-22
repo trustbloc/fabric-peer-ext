@@ -14,6 +14,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/core/ledger"
+	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	mspmgmt "github.com/hyperledger/fabric/msp/mgmt"
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
@@ -33,8 +34,12 @@ type CollectionConfigRetriever struct {
 	cache     gcache.Cache
 }
 
+type blockPublisher interface {
+	AddCCUpgradeHandler(handler gossipapi.ChaincodeUpgradeHandler)
+}
+
 // NewCollectionConfigRetriever returns a new collection configuration retriever
-func NewCollectionConfigRetriever(channelID string, ledger peerLedger) *CollectionConfigRetriever {
+func NewCollectionConfigRetriever(channelID string, ledger peerLedger, blockPublisher blockPublisher) *CollectionConfigRetriever {
 	r := &CollectionConfigRetriever{
 		channelID: channelID,
 		ledger:    ledger,
@@ -50,6 +55,14 @@ func NewCollectionConfigRetriever(channelID string, ledger peerLedger) *Collecti
 			}
 			return configs, nil
 		}).Build()
+
+	// Add a handler to remove the collection configs from cache when the chaincode is upgraded
+	blockPublisher.AddCCUpgradeHandler(func(blockNum uint64, txID string, chaincodeName string) error {
+		if r.cache.Remove(chaincodeName) {
+			logger.Infof("Chaincode [%s] was upgraded. Removed collection configs from cache.", chaincodeName)
+		}
+		return nil
+	})
 
 	return r
 }

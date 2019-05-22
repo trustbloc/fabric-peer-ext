@@ -13,7 +13,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/common"
 )
 
-var logger = flogging.MustGetLogger("kevlar-common")
+var logger = flogging.MustGetLogger("ext_multirequest")
 
 // Request is the request to execute
 type Request func(ctxt context.Context) (common.Values, error)

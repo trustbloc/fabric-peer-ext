@@ -12,6 +12,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/core/ledger"
+	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,7 +46,11 @@ func TestSupport(t *testing.T) {
 		}
 	}
 
-	s := New(ledgerProvider)
+	blockPublisherProvider := func(channelID string) gossipapi.BlockPublisher {
+		return mocks.NewBlockPublisher()
+	}
+
+	s := New(ledgerProvider, blockPublisherProvider)
 	require.NotNil(t, s)
 
 	t.Run("Policy", func(t *testing.T) {
@@ -61,5 +66,10 @@ func TestSupport(t *testing.T) {
 		assert.Equal(t, int32(3), config.RequiredPeerCount)
 		assert.Equal(t, common.CollectionType_COL_TRANSIENT, config.Type)
 		assert.Equal(t, "1m", config.TimeToLive)
+	})
+
+	t.Run("BlockPublisher", func(t *testing.T) {
+		p := s.BlockPublisher(channelID)
+		require.NotNil(t, p)
 	})
 }

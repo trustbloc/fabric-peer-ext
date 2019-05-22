@@ -65,6 +65,7 @@ func TestDispatchUnhandled(t *testing.T) {
 		&mocks.DataStore{},
 		mocks.NewMockGossipAdapter(),
 		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor(nil)},
+		mocks.NewBlockPublisher(),
 	)
 
 	var response *gproto.GossipMessage
@@ -124,6 +125,7 @@ func TestDispatchDataRequest(t *testing.T) {
 		mocks.NewDataStore().TransientData(key1, value1).TransientData(key2, value2),
 		gossipAdapter,
 		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor(state)},
+		mocks.NewBlockPublisher(),
 	)
 	require.NotNil(t, dispatcher)
 
@@ -227,6 +229,7 @@ func TestDispatchDataResponse(t *testing.T) {
 		mocks.NewDataStore().TransientData(key1, value1).TransientData(key2, value2),
 		gossip,
 		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor(nil)},
+		mocks.NewBlockPublisher(),
 	)
 	require.NotNil(t, dispatcher)
 

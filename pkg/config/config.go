@@ -21,6 +21,7 @@ const (
 	confTransientDataLeveldb             = "transientDataLeveldb"
 	confTransientDataCleanupIntervalTime = "coll.transientdata.cleanupExpired.Interval"
 	confTransientDataCacheSize           = "coll.transientdata.cacheSize"
+	confBlockPublisherBufferSize         = "blockpublisher.buffersize"
 
 	confOLCollLeveldb             = "offLedgerLeveldb"
 	confOLCollCleanupIntervalTime = "coll.offledger.cleanupExpired.Interval"
@@ -28,6 +29,7 @@ const (
 	defaultTransientDataCleanupIntervalTime = 5 * time.Second
 	defaultTransientDataCacheSize           = 100000
 	defaultOLCollCleanupIntervalTime        = 5 * time.Second
+	defaultBlockPublisherBufferSize         = 100
 )
 
 // GetRoles returns the roles of the peer. Empty return value indicates that the peer has all roles.
@@ -79,4 +81,13 @@ func GetOLCollExpirationCheckInterval() time.Duration {
 		return defaultOLCollCleanupIntervalTime
 	}
 	return timeout
+}
+
+// GetBlockPublisherBufferSize returns the size of the block publisher channel buffer for various block events
+func GetBlockPublisherBufferSize() int {
+	size := viper.GetInt(confBlockPublisherBufferSize)
+	if size == 0 {
+		return defaultBlockPublisherBufferSize
+	}
+	return size
 }

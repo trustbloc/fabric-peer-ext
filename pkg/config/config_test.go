@@ -86,3 +86,14 @@ func TestGetOLCollExpiredIntervalTime(t *testing.T) {
 	viper.Set(confOLCollCleanupIntervalTime, 111*time.Second)
 	assert.Equal(t, 111*time.Second, GetOLCollExpirationCheckInterval())
 }
+
+func TestGetBlockPublisherBufferSize(t *testing.T) {
+	oldVal := viper.Get(confBlockPublisherBufferSize)
+	defer viper.Set(confBlockPublisherBufferSize, oldVal)
+
+	viper.Set(confBlockPublisherBufferSize, "")
+	assert.Equal(t, defaultBlockPublisherBufferSize, GetBlockPublisherBufferSize())
+
+	viper.Set(confBlockPublisherBufferSize, 1234)
+	assert.Equal(t, 1234, GetBlockPublisherBufferSize())
+}

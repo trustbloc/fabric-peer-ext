@@ -23,7 +23,7 @@ func TestProvider(t *testing.T) {
 		&mocks.DataStore{},
 		mocks.NewMockGossipAdapter(),
 		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor(nil)},
-		nil,
+		mocks.NewBlockPublisher(),
 	)
 
 	var response *gproto.GossipMessage
