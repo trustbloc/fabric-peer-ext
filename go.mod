@@ -17,7 +17,7 @@ require (
 
 )
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.0.0-20190516131545-60d0b3b2375b
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.0.0-20190522001819-bbf763a5c881
 
 replace github.com/hyperledger/fabric/extensions => ./mod/peer
 
