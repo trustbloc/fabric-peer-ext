@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
+	statedbext "github.com/trustbloc/fabric-peer-ext/pkg/statedb"
 	"github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
 
@@ -21,5 +22,5 @@ func SetupExtTestEnv() (addr string, cleanup func(string), stop func()) {
 
 // GetExtStateDBProvider returns the implementation of the versionedDBProvider
 func GetExtStateDBProvider(t testing.TB, dbProvider statedb.VersionedDBProvider) statedb.VersionedDBProvider {
-	return nil
+	return statedbext.GetExtStateDBProvider(t, dbProvider)
 }

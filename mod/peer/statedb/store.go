@@ -8,9 +8,10 @@ package privacyenabledstate
 
 import (
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
+	statedbext "github.com/trustbloc/fabric-peer-ext/pkg/statedb"
 )
 
 // NewVersionedDBProvider instantiates VersionedDBProvider
 func NewVersionedDBProvider(vdbProvider statedb.VersionedDBProvider) statedb.VersionedDBProvider {
-	return vdbProvider
+	return statedbext.NewVersionedDBProvider(vdbProvider)
 }

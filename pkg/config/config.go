@@ -28,6 +28,10 @@ const (
 	defaultTransientDataCleanupIntervalTime = 5 * time.Second
 	defaultTransientDataCacheSize           = 100000
 	defaultOLCollCleanupIntervalTime        = 5 * time.Second
+
+	// state cache
+	stateDataCacheSize        = "ledger.state.cache.size"
+	defaultStateDataCacheSize = 100
 )
 
 // GetRoles returns the roles of the peer. Empty return value indicates that the peer has all roles.
@@ -79,4 +83,13 @@ func GetOLCollExpirationCheckInterval() time.Duration {
 		return defaultOLCollCleanupIntervalTime
 	}
 	return timeout
+}
+
+// GetStateDataCacheSize returns the state data cache size value. If not set, the default value is 100.
+func GetStateDataCacheSize() int {
+	cap := viper.GetInt(stateDataCacheSize)
+	if cap <= 0 {
+		cap = defaultStateDataCacheSize
+	}
+	return cap
 }

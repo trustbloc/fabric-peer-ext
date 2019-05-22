@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
@@ -85,4 +87,13 @@ func TestGetOLCollExpiredIntervalTime(t *testing.T) {
 
 	viper.Set(confOLCollCleanupIntervalTime, 111*time.Second)
 	assert.Equal(t, 111*time.Second, GetOLCollExpirationCheckInterval())
+}
+
+func TestStateCacheConfig(t *testing.T) {
+	// test for default value
+	require.Equal(t, 100, GetStateDataCacheSize())
+
+	// set value and verify
+	viper.Set("ledger.state.cache.size", 200)
+	require.Equal(t, 200, GetStateDataCacheSize())
 }
