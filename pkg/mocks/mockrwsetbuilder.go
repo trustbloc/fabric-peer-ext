@@ -15,6 +15,42 @@ import (
 	"github.com/hyperledger/fabric/protos/transientstore"
 )
 
+// ReadWriteSetBuilder is a utility that builds a TxReadWriteSet for unit testing
+type ReadWriteSetBuilder struct {
+	namespaces []*NamespaceBuilder
+}
+
+// NewReadWriteSetBuilder returns a new ReadWriteSetBuilder
+func NewReadWriteSetBuilder() *ReadWriteSetBuilder {
+	return &ReadWriteSetBuilder{}
+}
+
+// Namespace returns a new NamespaceBuilder
+func (b *ReadWriteSetBuilder) Namespace(name string) *NamespaceBuilder {
+	ns := NewNamespaceBuilder(name)
+	b.namespaces = append(b.namespaces, ns)
+	return ns
+}
+
+// Build builds the read-write sets
+func (b *ReadWriteSetBuilder) Build() *rwset.TxReadWriteSet {
+	txRWSet := &rwset.TxReadWriteSet{
+		DataModel: rwset.TxReadWriteSet_KV,
+	}
+
+	for _, ns := range b.namespaces {
+		txRWSet.NsRwset = append(txRWSet.NsRwset,
+			&rwset.NsReadWriteSet{
+				Namespace:             ns.name,
+				Rwset:                 ns.BuildNSReadWriteSets(),
+				CollectionHashedRwset: ns.BuildCollectionHashedRWSets(),
+			},
+		)
+	}
+
+	return txRWSet
+}
+
 // PvtReadWriteSetBuilder is a utility that builds a TxPvtReadWriteSetWithConfigInfo for unit testing
 type PvtReadWriteSetBuilder struct {
 	namespaces []*NamespaceBuilder
@@ -70,14 +106,37 @@ func (b *PvtReadWriteSetBuilder) BuildCollectionConfigs() map[string]*common.Col
 // NamespaceBuilder is a utility that builds a CollectionPvtReadWriteSet and CollectionConfigPackage for unit testing
 type NamespaceBuilder struct {
 	name        string
+	reads       map[string]*kvrwset.Version
+	writes      map[string][]byte
 	collections []*CollectionBuilder
+	marshalErr  bool
 }
 
 // NewNamespaceBuilder returns a new namespace builder
 func NewNamespaceBuilder(name string) *NamespaceBuilder {
 	return &NamespaceBuilder{
-		name: name,
+		name:   name,
+		reads:  make(map[string]*kvrwset.Version),
+		writes: make(map[string][]byte),
 	}
+}
+
+// Read adds a new read to the namespace
+func (b *NamespaceBuilder) Read(key string, blockNum uint64, txIdx uint64) *NamespaceBuilder {
+	b.reads[key] = &kvrwset.Version{BlockNum: blockNum, TxNum: txIdx}
+	return b
+}
+
+// Write adds a new write to the namespace
+func (b *NamespaceBuilder) Write(key string, value []byte) *NamespaceBuilder {
+	b.writes[key] = value
+	return b
+}
+
+// Delete adds a new write with 'IsDelete=true' to the namespace
+func (b *NamespaceBuilder) Delete(key string) *NamespaceBuilder {
+	b.writes[key] = nil
+	return b
 }
 
 // Collection adds a new collection
@@ -87,6 +146,12 @@ func (b *NamespaceBuilder) Collection(name string) *CollectionBuilder {
 	return cb
 }
 
+// WithMarshalError simulates a marshalling error
+func (b *NamespaceBuilder) WithMarshalError() *NamespaceBuilder {
+	b.marshalErr = true
+	return b
+}
+
 // BuildReadWriteSets builds the collection read-write sets for the namespace
 func (b *NamespaceBuilder) BuildReadWriteSets() []*rwset.CollectionPvtReadWriteSet {
 	var rwSets []*rwset.CollectionPvtReadWriteSet
@@ -94,6 +159,40 @@ func (b *NamespaceBuilder) BuildReadWriteSets() []*rwset.CollectionPvtReadWriteS
 		rwSets = append(rwSets, coll.Build())
 	}
 	return rwSets
+}
+
+// BuildNSReadWriteSets builds the read-write sets
+func (b *NamespaceBuilder) BuildNSReadWriteSets() []byte {
+	kvRWSet := &kvrwset.KVRWSet{}
+	for key, version := range b.reads {
+		kvRWSet.Reads = append(kvRWSet.Reads, &kvrwset.KVRead{Key: key, Version: version})
+	}
+	for key, value := range b.writes {
+		kvRWSet.Writes = append(kvRWSet.Writes, &kvrwset.KVWrite{Key: key, Value: value, IsDelete: value == nil})
+	}
+
+	if b.marshalErr {
+		return []byte("invalid proto buf")
+	}
+
+	bytes, err := proto.Marshal(kvRWSet)
+	if err != nil {
+		panic(err.Error())
+	}
+	return bytes
+}
+
+// BuildCollectionHashedRWSets builds the collection-hashed read-write sets
+func (b *NamespaceBuilder) BuildCollectionHashedRWSets() []*rwset.CollectionHashedReadWriteSet {
+	var collHashedRWSets []*rwset.CollectionHashedReadWriteSet
+	for _, coll := range b.collections {
+		collHashedRWSets = append(collHashedRWSets, &rwset.CollectionHashedReadWriteSet{
+			CollectionName: coll.name,
+			HashedRwset:    []byte("hashed-rw-set"),
+			PvtRwsetHash:   []byte("pvt-rw-set-hash"),
+		})
+	}
+	return collHashedRWSets
 }
 
 // BuildCollectionConfig builds the collection config package for the namespace
