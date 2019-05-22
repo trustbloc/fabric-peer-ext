@@ -202,6 +202,7 @@ github.com/trustbloc/fabric-mod v0.0.0-20190510235640-ff89b7580e81 h1:CWmIqCQjIO
 github.com/trustbloc/fabric-mod v0.0.0-20190510235640-ff89b7580e81/go.mod h1:y/yp/cF5M9+xddNmn6f24tz/PrDjgGCzOk5/0WCKLkU=
 github.com/trustbloc/fabric-mod v0.0.0-20190516131545-60d0b3b2375b h1:+37TqHVP9N4lskaayl3ebv5JeIJ7mNOE3/JfvFsXdkU=
 github.com/trustbloc/fabric-mod v0.0.0-20190516131545-60d0b3b2375b/go.mod h1:y/yp/cF5M9+xddNmn6f24tz/PrDjgGCzOk5/0WCKLkU=
+github.com/trustbloc/fabric-mod v0.0.0-20190522001819-bbf763a5c881/go.mod h1:y/yp/cF5M9+xddNmn6f24tz/PrDjgGCzOk5/0WCKLkU=
 github.com/ugorji/go v1.1.1/go.mod h1:hnLbHMwcvSihnDhEfx2/BzKp2xb0Y+ErdfYcrs9tkJQ=
 github.com/urfave/cli v1.18.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/vishvananda/netlink v1.0.0 h1:bqNY2lgheFIu1meHUFSH3d7vG93AFyqg3oGbJCOJgSM=
