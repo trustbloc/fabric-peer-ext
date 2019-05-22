@@ -9,15 +9,19 @@ package retriever
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	supportapi "github.com/hyperledger/fabric/extensions/collections/api/support"
 	"github.com/stretchr/testify/require"
+	extretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/retriever"
+	tdataapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
+	tdatamocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/mocks"
 )
 
 func TestNewProvider(t *testing.T) {
+	extretriever.SetTransientDataProvider(func(storeProvider func(channelID string) tdataapi.Store, support extretriever.Support, gossipProvider func() supportapi.GossipAdapter) tdataapi.Provider {
+		return &tdatamocks.TransientDataProvider{}
+	})
+
 	p := NewProvider(nil, nil, nil, nil)
 	require.NotNil(t, p)
-
-	assert.PanicsWithValue(t, "not implemented", func() {
-		p.RetrieverForChannel("testchannel")
-	})
+	require.NotNil(t, p.RetrieverForChannel("testchannel"))
 }

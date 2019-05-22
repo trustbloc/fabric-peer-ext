@@ -13,6 +13,7 @@ require (
 	github.com/spf13/viper v0.0.0-20150908122457-1967d93db724
 	github.com/stretchr/testify v1.3.0
 	github.com/willf/bitset v1.1.9
+	go.uber.org/zap v1.9.1
 
 )
 

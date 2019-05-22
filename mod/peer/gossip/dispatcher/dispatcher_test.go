@@ -9,12 +9,30 @@ package dispatcher
 import (
 	"testing"
 
+	gproto "github.com/hyperledger/fabric/protos/gossip"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
 func TestProvider(t *testing.T) {
-	p := New("testchannel", nil, nil, nil, nil)
-	require.NotNil(t, p)
-	assert.Falsef(t, p.Dispatch(nil), "should always return false since this is a noop dispatcher")
+	const channelID = "testchannel"
+
+	dispatcher := New(
+		channelID,
+		&mocks.DataStore{},
+		mocks.NewMockGossipAdapter(),
+		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor(nil)},
+		nil,
+	)
+
+	var response *gproto.GossipMessage
+	msg := &mocks.MockReceivedMessage{
+		Message: mocks.NewDataMsg(channelID),
+		RespondTo: func(msg *gproto.GossipMessage) {
+			response = msg
+		},
+	}
+	assert.False(t, dispatcher.Dispatch(msg))
+	require.Nil(t, response)
 }

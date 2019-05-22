@@ -11,23 +11,15 @@ import (
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	supportapi "github.com/hyperledger/fabric/extensions/collections/api/support"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
+	extretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/retriever"
 )
 
-// Provider is a private data provider.
-type Provider struct {
-}
-
-// NewProvider returns a new private data provider
+// NewProvider returns a new private data Retriever provider
 func NewProvider(
 	storeProvider func(channelID string) storeapi.Store,
 	ledgerProvider func(channelID string) ledger.PeerLedger,
 	gossipProvider func() supportapi.GossipAdapter,
-	blockPublisherProvider func(channelID string) gossipapi.BlockPublisher) storeapi.Provider {
+	_ func(channelID string) gossipapi.BlockPublisher) storeapi.Provider {
 
-	return &Provider{}
-}
-
-// RetrieverForChannel returns the private data dataRetriever for the given channel
-func (p *Provider) RetrieverForChannel(channelID string) storeapi.Retriever {
-	panic("not implemented")
+	return extretriever.NewProvider(storeProvider, ledgerProvider, gossipProvider)
 }
