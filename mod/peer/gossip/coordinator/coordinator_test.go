@@ -9,11 +9,10 @@ package coordinator
 import (
 	"testing"
 
-	"github.com/hyperledger/fabric/extensions/mocks"
 	"github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	extmocks "github.com/trustbloc/fabric-peer-ext/pkg/mocks"
+	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
 const (
@@ -34,7 +33,7 @@ func TestCoordinator_StorePvtData(t *testing.T) {
 	c := New(channelID, tStore, collStore)
 	require.NotNil(t, c)
 
-	b := extmocks.NewPvtReadWriteSetBuilder()
+	b := mocks.NewPvtReadWriteSetBuilder()
 	nsBuilder := b.Namespace(ns1)
 	nsBuilder.Collection(coll1).StaticConfig(policy1, 2, 5, 1000)
 	nsBuilder.Collection(coll2).TransientConfig(policy1, 2, 5, "1m")

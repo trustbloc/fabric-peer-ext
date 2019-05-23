@@ -87,6 +87,17 @@ func TestGetOLCollExpiredIntervalTime(t *testing.T) {
 	assert.Equal(t, 111*time.Second, GetOLCollExpirationCheckInterval())
 }
 
+func TestGetOLCacheSize(t *testing.T) {
+	oldVal := viper.Get(confOLCollCacheSize)
+	defer viper.Set(confOLCollCacheSize, oldVal)
+
+	viper.Set(confOLCollCacheSize, 0)
+	assert.Equal(t, defaultOLCollCacheSize, GetOLCollCacheSize())
+
+	viper.Set(confOLCollCacheSize, 10)
+	assert.Equal(t, 10, GetOLCollCacheSize())
+}
+
 func TestGetTransientDataPullTimeout(t *testing.T) {
 	oldVal := viper.Get(confTransientDataPullTimeout)
 	defer viper.Set(confTransientDataPullTimeout, oldVal)

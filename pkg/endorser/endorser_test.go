@@ -31,7 +31,7 @@ func TestFilterPubSimulationResults(t *testing.T) {
 	pvtNSBuilder1.Collection(coll1).StaticConfig("OR('Org1.member','Org2.member')", 2, 3, 100)
 	pvtNSBuilder1.Collection(coll2).TransientConfig("OR('Org1.member','Org2.member')", 2, 3, "1m")
 	pvtNSBuilder3 := pvtBuilder.Namespace(ns3)
-	pvtNSBuilder3.Collection(coll2).TransientConfig("OR('Org1.member','Org2.member')", 2, 3, "1m")
+	pvtNSBuilder3.Collection(coll2).OffLedgerConfig("OR('Org1.member','Org2.member')", 2, 3, "1m")
 
 	builder := mocks.NewReadWriteSetBuilder()
 	nsBuilder1 := builder.Namespace(ns1)

@@ -9,13 +9,12 @@ package pvtdatastore
 import (
 	"testing"
 
-	"github.com/hyperledger/fabric/extensions/mocks"
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	extmocks "github.com/trustbloc/fabric-peer-ext/pkg/mocks"
+	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
 const (
@@ -40,7 +39,7 @@ func TestStore_StorePvtData(t *testing.T) {
 		c := New(channelID, tStore, collStore)
 		require.NotNil(t, c)
 
-		b := extmocks.NewPvtReadWriteSetBuilder()
+		b := mocks.NewPvtReadWriteSetBuilder()
 		b.Namespace(ns1).Collection(coll1).StaticConfig(policy1, 2, 5, 1000)
 		pvtData := b.Build()
 
@@ -56,7 +55,7 @@ func TestStore_StorePvtData(t *testing.T) {
 		c := New(channelID, tStore, collStore)
 		require.NotNil(t, c)
 
-		b := extmocks.NewPvtReadWriteSetBuilder()
+		b := mocks.NewPvtReadWriteSetBuilder()
 		b.Namespace(ns1).Collection(coll2).DCASConfig(policy1, 2, 5, "10m")
 		pvtData := b.Build()
 
@@ -71,7 +70,7 @@ func TestStore_StorePvtData(t *testing.T) {
 		c := New(channelID, tStore, collStore)
 		require.NotNil(t, c)
 
-		b := extmocks.NewPvtReadWriteSetBuilder()
+		b := mocks.NewPvtReadWriteSetBuilder()
 		nsb := b.Namespace(ns1)
 		nsb.Collection(coll1).StaticConfig(policy1, 2, 5, 1000)
 		nsb.Collection(coll2).TransientConfig(policy1, 2, 5, "10m")
@@ -101,7 +100,7 @@ func TestStore_StorePvtData_error(t *testing.T) {
 		c := New(channelID, tStore, collStore)
 		require.NotNil(t, c)
 
-		b := extmocks.NewPvtReadWriteSetBuilder()
+		b := mocks.NewPvtReadWriteSetBuilder()
 		b.Namespace(ns1).Collection(coll1).StaticConfig(policy1, 2, 5, 1000).WithMarshalError()
 		pvtData := b.Build()
 
@@ -118,7 +117,7 @@ func TestStore_StorePvtData_error(t *testing.T) {
 		c := New(channelID, tStore, collStore)
 		require.NotNil(t, c)
 
-		b := extmocks.NewPvtReadWriteSetBuilder()
+		b := mocks.NewPvtReadWriteSetBuilder()
 		b.Namespace(ns1).Collection(coll1).StaticConfig(policy1, 2, 5, 1000)
 		pvtData := b.Build()
 

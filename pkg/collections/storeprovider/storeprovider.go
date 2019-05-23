@@ -10,6 +10,8 @@ import (
 	"sync"
 
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
+	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
+	olstoreprovider "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider"
 	tdapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider"
 )
@@ -18,6 +20,7 @@ import (
 func New() *StoreProvider {
 	return &StoreProvider{
 		transientDataProvider: newTransientDataProvider(),
+		olProvider:            newOffLedgerProvider(),
 		stores:                make(map[string]*store),
 	}
 }
@@ -27,6 +30,7 @@ func New() *StoreProvider {
 // For example, transient data store, Off-ledger store, etc.
 type StoreProvider struct {
 	transientDataProvider tdapi.StoreProvider
+	olProvider            olapi.StoreProvider
 	stores                map[string]*store
 	sync.RWMutex
 }
@@ -49,9 +53,14 @@ func (sp *StoreProvider) OpenStore(channelID string) (storeapi.Store, error) {
 		if err != nil {
 			return nil, err
 		}
+		olStore, err := sp.olProvider.OpenStore(channelID)
+		if err != nil {
+			return nil, err
+		}
 		store = newDelegatingStore(channelID,
 			targetStores{
 				transientDataStore: tdataStore,
+				offLedgerStore:     olStore,
 			},
 		)
 		sp.stores[channelID] = store
@@ -69,4 +78,9 @@ func (sp *StoreProvider) Close() {
 // newTransientDataProvider may be overridden in unit tests
 var newTransientDataProvider = func() tdapi.StoreProvider {
 	return storeprovider.New()
+}
+
+// newOffLedgerProviderFactory may be overridden in unit tests
+var newOffLedgerProvider = func() olapi.StoreProvider {
+	return olstoreprovider.New()
 }

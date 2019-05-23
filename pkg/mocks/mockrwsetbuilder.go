@@ -265,6 +265,16 @@ func (c *CollectionBuilder) StaticConfig(policy string, requiredPeerCount, maxim
 	return c
 }
 
+// OffLedgerConfig sets the off-ledger collection config
+func (c *CollectionBuilder) OffLedgerConfig(policy string, requiredPeerCount, maximumPeerCount int32, ttl string) *CollectionBuilder {
+	c.policy = policy
+	c.requiredPeerCount = requiredPeerCount
+	c.maximumPeerCount = maximumPeerCount
+	c.collType = common.CollectionType_COL_OFFLEDGER
+	c.ttl = ttl
+	return c
+}
+
 // DCASConfig sets the DCAS collection config
 func (c *CollectionBuilder) DCASConfig(policy string, requiredPeerCount, maximumPeerCount int32, ttl string) *CollectionBuilder {
 	c.policy = policy
