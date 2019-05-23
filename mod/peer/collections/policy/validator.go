@@ -11,6 +11,7 @@ import (
 
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
+	olpolicy "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/policy"
 	tdatapolicy "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/policy"
 )
 
@@ -33,6 +34,8 @@ func (v *Validator) Validate(collConfig *common.CollectionConfig) error {
 	switch config.Type {
 	case common.CollectionType_COL_TRANSIENT:
 		return tdatapolicy.ValidateConfig(config)
+	case common.CollectionType_COL_OFFLEDGER:
+		return olpolicy.ValidateConfig(config)
 	default:
 		// Nothing to do
 		return nil
@@ -72,6 +75,8 @@ func getCollType(config *common.StaticCollectionConfig) common.CollectionType {
 	switch config.Type {
 	case common.CollectionType_COL_TRANSIENT:
 		return common.CollectionType_COL_TRANSIENT
+	case common.CollectionType_COL_OFFLEDGER:
+		return common.CollectionType_COL_OFFLEDGER
 	case common.CollectionType_COL_PRIVATE:
 		fallthrough
 	default:
