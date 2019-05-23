@@ -23,16 +23,20 @@ const (
 	confTransientDataCacheSize           = "coll.transientdata.cacheSize"
 	confTransientDataPullTimeout         = "peer.gossip.transientData.pullTimeout"
 
-	confOLCollLeveldb             = "offLedgerLeveldb"
-	confOLCollCleanupIntervalTime = "coll.offledger.cleanupExpired.Interval"
+	confOLCollLeveldb              = "offLedgerLeveldb"
+	confOLCollCleanupIntervalTime  = "coll.offledger.cleanupExpired.Interval"
+	confOLCollMaxPeersForRetrieval = "coll.offledger.maxpeers"
 
 	confBlockPublisherBufferSize = "blockpublisher.buffersize"
 
 	defaultTransientDataCleanupIntervalTime = 5 * time.Second
 	defaultTransientDataCacheSize           = 100000
-	defaultOLCollCleanupIntervalTime        = 5 * time.Second
 	defaultTransientDataPullTimeout         = 5 * time.Second
-	defaultBlockPublisherBufferSize         = 100
+
+	defaultOLCollCleanupIntervalTime  = 5 * time.Second
+	defaultOLCollMaxPeersForRetrieval = 2
+
+	defaultBlockPublisherBufferSize = 100
 )
 
 // GetRoles returns the roles of the peer. Empty return value indicates that the peer has all roles.
@@ -102,4 +106,14 @@ func GetBlockPublisherBufferSize() int {
 		return defaultBlockPublisherBufferSize
 	}
 	return size
+}
+
+// GetOLCollMaxPeersForRetrieval returns the number of peers that should be messaged
+// to retrieve collection data that is not stored locally.
+func GetOLCollMaxPeersForRetrieval() int {
+	maxPeers := viper.GetInt(confOLCollMaxPeersForRetrieval)
+	if maxPeers <= 0 {
+		maxPeers = defaultOLCollMaxPeersForRetrieval
+	}
+	return maxPeers
 }
