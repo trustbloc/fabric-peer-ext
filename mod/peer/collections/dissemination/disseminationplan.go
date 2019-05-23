@@ -16,6 +16,7 @@ import (
 	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/rwset"
 	"github.com/pkg/errors"
+	oldissemination "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dissemination"
 	tdissemination "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/dissemination"
 )
 
@@ -32,6 +33,16 @@ var computeTransientDataDisseminationPlan = func(
 	pvtDataMsg *protoext.SignedGossipMessage,
 	gossipAdapter gossipAdapter) ([]*dissemination.Plan, bool, error) {
 	return tdissemination.ComputeDisseminationPlan(channelID, ns, rwSet, colAP, pvtDataMsg, gossipAdapter)
+}
+
+var computeOffLedgerDisseminationPlan = func(
+	channelID, ns string,
+	rwSet *rwset.CollectionPvtReadWriteSet,
+	collConfig *cb.StaticCollectionConfig,
+	colAP privdata.CollectionAccessPolicy,
+	pvtDataMsg *protoext.SignedGossipMessage,
+	gossipAdapter gossipAdapter) ([]*dissemination.Plan, bool, error) {
+	return oldissemination.ComputeDisseminationPlan(channelID, ns, rwSet, collConfig, colAP, pvtDataMsg, gossipAdapter)
 }
 
 // ComputeDisseminationPlan returns the dissemination plan for various collection types
@@ -51,6 +62,8 @@ func ComputeDisseminationPlan(
 	switch collConfig.Type {
 	case cb.CollectionType_COL_TRANSIENT:
 		return computeTransientDataDisseminationPlan(channelID, ns, rwSet, colAP, pvtDataMsg, gossipAdapter)
+	case cb.CollectionType_COL_OFFLEDGER:
+		return computeOffLedgerDisseminationPlan(channelID, ns, rwSet, collConfig, colAP, pvtDataMsg, gossipAdapter)
 	default:
 		return nil, false, errors.Errorf("unsupported collection type: [%s]", collConfig.Type)
 	}
