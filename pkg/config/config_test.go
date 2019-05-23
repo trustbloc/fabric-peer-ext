@@ -87,6 +87,17 @@ func TestGetOLCollExpiredIntervalTime(t *testing.T) {
 	assert.Equal(t, 111*time.Second, GetOLCollExpirationCheckInterval())
 }
 
+func TestGetTransientDataPullTimeout(t *testing.T) {
+	oldVal := viper.Get(confTransientDataPullTimeout)
+	defer viper.Set(confTransientDataPullTimeout, oldVal)
+
+	viper.Set(confTransientDataPullTimeout, "")
+	assert.Equal(t, defaultTransientDataPullTimeout, GetTransientDataPullTimeout())
+
+	viper.Set(confTransientDataPullTimeout, 111*time.Second)
+	assert.Equal(t, 111*time.Second, GetTransientDataPullTimeout())
+}
+
 func TestGetBlockPublisherBufferSize(t *testing.T) {
 	oldVal := viper.Get(confBlockPublisherBufferSize)
 	defer viper.Set(confBlockPublisherBufferSize, oldVal)

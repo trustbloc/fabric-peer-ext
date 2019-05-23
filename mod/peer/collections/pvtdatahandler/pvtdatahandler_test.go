@@ -18,7 +18,6 @@ func TestHandler_HandleGetPrivateData(t *testing.T) {
 
 	config := &common.StaticCollectionConfig{
 		Name: "coll1",
-		Type: common.CollectionType_COL_TRANSIENT,
 	}
 
 	value, handled, err := h.HandleGetPrivateData("tx1", "ns1", config, "key1")
@@ -32,7 +31,6 @@ func TestHandler_HandleGetPrivateDataMultipleKeys(t *testing.T) {
 
 	config := &common.StaticCollectionConfig{
 		Name: "coll1",
-		Type: common.CollectionType_COL_TRANSIENT,
 	}
 
 	value, handled, err := h.HandleGetPrivateDataMultipleKeys("tx1", "ns1", config, []string{"key1", "key2"})

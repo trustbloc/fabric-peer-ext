@@ -21,14 +21,17 @@ const (
 	confTransientDataLeveldb             = "transientDataLeveldb"
 	confTransientDataCleanupIntervalTime = "coll.transientdata.cleanupExpired.Interval"
 	confTransientDataCacheSize           = "coll.transientdata.cacheSize"
-	confBlockPublisherBufferSize         = "blockpublisher.buffersize"
+	confTransientDataPullTimeout         = "peer.gossip.transientData.pullTimeout"
 
 	confOLCollLeveldb             = "offLedgerLeveldb"
 	confOLCollCleanupIntervalTime = "coll.offledger.cleanupExpired.Interval"
 
+	confBlockPublisherBufferSize = "blockpublisher.buffersize"
+
 	defaultTransientDataCleanupIntervalTime = 5 * time.Second
 	defaultTransientDataCacheSize           = 100000
 	defaultOLCollCleanupIntervalTime        = 5 * time.Second
+	defaultTransientDataPullTimeout         = 5 * time.Second
 	defaultBlockPublisherBufferSize         = 100
 )
 
@@ -79,6 +82,15 @@ func GetOLCollExpirationCheckInterval() time.Duration {
 	timeout := viper.GetDuration(confOLCollCleanupIntervalTime)
 	if timeout == 0 {
 		return defaultOLCollCleanupIntervalTime
+	}
+	return timeout
+}
+
+// GetTransientDataPullTimeout is the amount of time a peer waits for a response from another peer for transient data.
+func GetTransientDataPullTimeout() time.Duration {
+	timeout := viper.GetDuration(confTransientDataPullTimeout)
+	if timeout == 0 {
+		timeout = defaultTransientDataPullTimeout
 	}
 	return timeout
 }
