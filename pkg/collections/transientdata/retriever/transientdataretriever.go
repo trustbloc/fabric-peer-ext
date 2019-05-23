@@ -14,6 +14,7 @@ import (
 	"github.com/hyperledger/fabric/core/common/privdata"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	supportapi "github.com/hyperledger/fabric/extensions/collections/api/support"
+	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/gossip/comm"
 	mspmgmt "github.com/hyperledger/fabric/msp/mgmt"
 	gproto "github.com/hyperledger/fabric/protos/gossip"
@@ -30,6 +31,7 @@ var logger = flogging.MustGetLogger("transientdata")
 
 type support interface {
 	Policy(channel, ns, collection string) (privdata.CollectionAccessPolicy, error)
+	BlockPublisher(channelID string) gossipapi.BlockPublisher
 }
 
 // Provider is a transient data provider.
@@ -50,7 +52,7 @@ func NewProvider(storeProvider func(channelID string) tdataapi.Store, support su
 
 // RetrieverForChannel returns the transient data dataRetriever for the given channel
 func (p *Provider) RetrieverForChannel(channelID string) tdataapi.Retriever {
-	return &retriever{
+	r := &retriever{
 		support:       p.support,
 		gossipAdapter: p.gossipAdapter(),
 		store:         p.storeForChannel(channelID),
@@ -58,6 +60,15 @@ func (p *Provider) RetrieverForChannel(channelID string) tdataapi.Retriever {
 		reqMgr:        requestmgr.Get(channelID),
 		resolvers:     make(map[collKey]resolver),
 	}
+
+	// Add a handler so that we can remove the resolver for a chaincode that has been upgraded
+	p.support.BlockPublisher(channelID).AddCCUpgradeHandler(func(blockNum uint64, txID string, chaincodeID string) error {
+		logger.Infof("[%s] Chaincode [%s] has been upgraded. Clearing resolver cache for chaincode.", channelID, chaincodeID)
+		r.removeResolvers(chaincodeID)
+		return nil
+	})
+
+	return r
 }
 
 // ResolveEndorsers resolves to a set of endorsers to which transient data should be disseminated

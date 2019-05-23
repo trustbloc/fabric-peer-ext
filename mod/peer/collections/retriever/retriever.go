@@ -19,7 +19,7 @@ func NewProvider(
 	storeProvider func(channelID string) storeapi.Store,
 	ledgerProvider func(channelID string) ledger.PeerLedger,
 	gossipProvider func() supportapi.GossipAdapter,
-	_ func(channelID string) gossipapi.BlockPublisher) storeapi.Provider {
+	blockPublisherProvider func(channelID string) gossipapi.BlockPublisher) storeapi.Provider {
 
-	return extretriever.NewProvider(storeProvider, ledgerProvider, gossipProvider)
+	return extretriever.NewProvider(storeProvider, ledgerProvider, gossipProvider, blockPublisherProvider)
 }

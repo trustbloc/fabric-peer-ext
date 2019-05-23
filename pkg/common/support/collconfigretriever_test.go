@@ -37,9 +37,11 @@ func TestConfigRetriever(t *testing.T) {
 	state[lscc] = make(map[string][]byte)
 	state[lscc][privdata.BuildCollectionKVSKey(ns1)] = configPkgBytes
 
+	blockPublisher := mocks.NewBlockPublisher()
+
 	r := NewCollectionConfigRetriever(channelID, &mocks.Ledger{
 		QueryExecutor: mocks.NewQueryExecutor(state),
-	})
+	}, blockPublisher)
 	require.NotNil(t, r)
 
 	t.Run("Policy", func(t *testing.T) {
@@ -77,6 +79,38 @@ func TestConfigRetriever(t *testing.T) {
 		assert.Contains(t, err.Error(), "configuration not found")
 		assert.Nil(t, config)
 	})
+
+	t.Run("Chaincode upgraded", func(t *testing.T) {
+		nsBuilder := mocks.NewNamespaceBuilder(ns1)
+		nsBuilder.Collection(coll1).StaticConfig("OR ('Org1.member','Org2.member','Org3.member')", 3, 3, 100)
+		nsBuilder.Collection(coll2).TransientConfig("OR ('Org1.member','Org2.member','Org3.member')", 4, 3, "10m")
+
+		configPkgBytes, err := proto.Marshal(nsBuilder.BuildCollectionConfig())
+		require.NoError(t, err)
+
+		state[lscc][privdata.BuildCollectionKVSKey(ns1)] = configPkgBytes
+
+		err = blockPublisher.HandleUpgrade(1001, "tx1", ns1)
+		assert.NoError(t, err)
+
+		// Make sure the new config is loaded
+		config, err := r.Config(ns1, coll2)
+		require.NoError(t, err)
+		assert.Equal(t, coll2, config.Name)
+		assert.Equal(t, int32(4), config.RequiredPeerCount)
+		assert.Equal(t, common.CollectionType_COL_TRANSIENT, config.Type)
+		assert.Equal(t, "10m", config.TimeToLive)
+
+		policy, err := r.Policy(ns1, coll2)
+		require.NoError(t, err)
+		require.NotNil(t, policy)
+		assert.Equal(t, 3, len(policy.MemberOrgs()))
+
+		policy, err = r.Policy(ns1, coll1)
+		require.NoError(t, err)
+		require.NotNil(t, policy)
+		assert.Equal(t, 3, len(policy.MemberOrgs()))
+	})
 }
 
 func TestConfigRetrieverError(t *testing.T) {
@@ -84,10 +118,12 @@ func TestConfigRetrieverError(t *testing.T) {
 
 	state := make(map[string]map[string][]byte)
 
+	blockPublisher := mocks.NewBlockPublisher()
+
 	expectedErr := fmt.Errorf("injected error")
 	r := NewCollectionConfigRetriever(channelID, &mocks.Ledger{
 		QueryExecutor: mocks.NewQueryExecutor(state).WithError(expectedErr),
-	})
+	}, blockPublisher)
 	require.NotNil(t, r)
 
 	t.Run("Policy", func(t *testing.T) {

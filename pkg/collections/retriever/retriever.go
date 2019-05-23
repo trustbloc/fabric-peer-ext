@@ -14,6 +14,7 @@ import (
 	"github.com/hyperledger/fabric/core/ledger"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	supportapi "github.com/hyperledger/fabric/extensions/collections/api/support"
+	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	cb "github.com/hyperledger/fabric/protos/common"
 	tdataapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
 	tretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/retriever"
@@ -31,9 +32,10 @@ type Provider struct {
 func NewProvider(
 	storeProvider func(channelID string) storeapi.Store,
 	ledgerProvider func(channelID string) ledger.PeerLedger,
-	gossipProvider func() supportapi.GossipAdapter) storeapi.Provider {
+	gossipProvider func() supportapi.GossipAdapter,
+	blockPublisherProvider func(channelID string) gossipapi.BlockPublisher) storeapi.Provider {
 
-	support := supp.New(ledgerProvider)
+	support := supp.New(ledgerProvider, blockPublisherProvider)
 
 	tdataStoreProvider := func(channelID string) tdataapi.Store { return storeProvider(channelID) }
 
@@ -89,6 +91,7 @@ func (r *retriever) GetTransientDataMultipleKeys(ctxt context.Context, key *stor
 type Support interface {
 	Config(channelID, ns, coll string) (*cb.StaticCollectionConfig, error)
 	Policy(channel, ns, collection string) (privdata.CollectionAccessPolicy, error)
+	BlockPublisher(channelID string) gossipapi.BlockPublisher
 }
 
 var getTransientDataProvider = func(storeProvider func(channelID string) tdataapi.Store, support Support, gossipProvider func() supportapi.GossipAdapter) tdataapi.Provider {

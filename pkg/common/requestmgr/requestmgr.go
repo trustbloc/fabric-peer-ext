@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-var logger = flogging.MustGetLogger("kevlar-common")
+var logger = flogging.MustGetLogger("ext_requestmgr")
 
 // Element contains transient data for a single key
 type Element struct {

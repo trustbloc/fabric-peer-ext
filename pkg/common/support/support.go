@@ -11,29 +11,33 @@ import (
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/core/ledger"
+	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/protos/common"
 )
 
-var logger = flogging.MustGetLogger("kevlar-common")
+var logger = flogging.MustGetLogger("ext_support")
 
 type ledgerProvider func(channelID string) ledger.PeerLedger
+type blockPublisherProvider func(channelID string) gossipapi.BlockPublisher
 
 // Support holds the ledger provider and the cache
 type Support struct {
-	getLedger            ledgerProvider
-	configRetrieverCache gcache.Cache
+	getLedger              ledgerProvider
+	configRetrieverCache   gcache.Cache
+	blockPublisherProvider blockPublisherProvider
 }
 
 // New creates a new Support using the ledger provider
-func New(ledgerProvider ledgerProvider) *Support {
+func New(ledgerProvider ledgerProvider, blockPublisherProvider blockPublisherProvider) *Support {
 	s := &Support{
-		getLedger: ledgerProvider,
+		getLedger:              ledgerProvider,
+		blockPublisherProvider: blockPublisherProvider,
 	}
 	s.configRetrieverCache = gcache.New(0).Simple().LoaderFunc(
 		func(key interface{}) (interface{}, error) {
 			channelID := key.(string)
 			logger.Debugf("[%s] Creating collection config retriever", channelID)
-			return NewCollectionConfigRetriever(channelID, s.getLedger(channelID)), nil
+			return NewCollectionConfigRetriever(channelID, s.getLedger(channelID), blockPublisherProvider(channelID)), nil
 		}).Build()
 	return s
 }
@@ -54,4 +58,9 @@ func (s *Support) Policy(channelID, ns, coll string) (privdata.CollectionAccessP
 		return nil, err
 	}
 	return ccRetriever.(*CollectionConfigRetriever).Policy(ns, coll)
+}
+
+// BlockPublisher returns the block publisher for the given channel
+func (s *Support) BlockPublisher(channelID string) gossipapi.BlockPublisher {
+	return s.blockPublisherProvider(channelID)
 }

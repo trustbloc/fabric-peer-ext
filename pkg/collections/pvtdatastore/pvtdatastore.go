@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-var logger = flogging.MustGetLogger("kevlar_gossip_state")
+var logger = flogging.MustGetLogger("ext_pvtdatastore")
 
 type transientStore interface {
 	// PersistWithConfig stores the private write set of a transaction along with the collection config
