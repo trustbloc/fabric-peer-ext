@@ -77,7 +77,7 @@ func GetOLCollLevelDBPath() string {
 	return filepath.Join(ledgerconfig.GetRootPath(), confOLCollLeveldb)
 }
 
-// GetOLCollExpirationCheckInterval is time when background routine check expired collection data in db to cleanup.
+// GetOLCollExpirationCheckInterval is time when the background routine checks expired collection data in db to cleanup.
 func GetOLCollExpirationCheckInterval() time.Duration {
 	timeout := viper.GetDuration(confOLCollCleanupIntervalTime)
 	if timeout == 0 {
