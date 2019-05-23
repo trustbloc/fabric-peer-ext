@@ -9,10 +9,10 @@ package endorser
 import (
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/rwset"
+	extendorser "github.com/trustbloc/fabric-peer-ext/pkg/endorser"
 )
 
 // FilterPubSimulationResults filters the public simulation results and returns the filtered results or error.
-// TODO: Filter out transient data R/W sets (Issue #88).
-func FilterPubSimulationResults(_ map[string]*common.CollectionConfigPackage, pubSimulationResults *rwset.TxReadWriteSet) (*rwset.TxReadWriteSet, error) {
-	return pubSimulationResults, nil
+func FilterPubSimulationResults(collConfigs map[string]*common.CollectionConfigPackage, pubSimulationResults *rwset.TxReadWriteSet) (*rwset.TxReadWriteSet, error) {
+	return extendorser.FilterPubSimulationResults(collConfigs, pubSimulationResults)
 }
