@@ -10,9 +10,11 @@ import (
 	"testing"
 
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
+	"github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
 	spmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/storeprovider/mocks"
 	tdapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
@@ -20,9 +22,14 @@ import (
 
 func TestStoreProvider(t *testing.T) {
 	tdataProvider := spmocks.NewTransientDataStoreProvider()
+	olProvider := spmocks.NewOffLedgerStoreProvider()
 
 	newTransientDataProvider = func() tdapi.StoreProvider {
 		return tdataProvider
+	}
+
+	newOffLedgerProvider = func() olapi.StoreProvider {
+		return olProvider
 	}
 
 	t.Run("OpenStore - success", func(t *testing.T) {
@@ -71,20 +78,27 @@ func TestStore_PutAndGetData(t *testing.T) {
 		tx1   = "tx1"
 		ns1   = "ns1"
 		coll1 = "coll1"
+		coll2 = "coll2"
 		key1  = "key1"
 		key2  = "key2"
 	)
 
 	k1 := storeapi.NewKey(tx1, ns1, coll1, key1)
 	k2 := storeapi.NewKey(tx1, ns1, coll1, key2)
+	k3 := storeapi.NewKey(tx1, ns1, coll2, key1)
 
 	v1 := &storeapi.ExpiringValue{Value: []byte("value1")}
 	v2 := &storeapi.ExpiringValue{Value: []byte("value1")}
 
 	tdataProvider := spmocks.NewTransientDataStoreProvider()
+	olProvider := spmocks.NewOffLedgerStoreProvider()
 
 	newTransientDataProvider = func() tdapi.StoreProvider {
 		return tdataProvider.Data(k1, v1).Data(k2, v2)
+	}
+
+	newOffLedgerProvider = func() olapi.StoreProvider {
+		return olProvider.Data(k1, v2).Data(k2, v1)
 	}
 
 	p := New()
@@ -104,7 +118,28 @@ func TestStore_PutAndGetData(t *testing.T) {
 		assert.Equal(t, 2, len(values))
 	})
 
+	t.Run("GetData", func(t *testing.T) {
+		value, err := s.GetData(k1)
+		require.NoError(t, err)
+		require.NotNil(t, value)
+
+		values, err := s.GetDataMultipleKeys(storeapi.NewMultiKey(tx1, ns1, coll1, key1, key2))
+		require.NoError(t, err)
+		assert.Equal(t, 2, len(values))
+	})
+
+	t.Run("PutData", func(t *testing.T) {
+		collConfig := &common.StaticCollectionConfig{
+			Type: common.CollectionType_COL_DCAS,
+			Name: coll2,
+		}
+		err := s.PutData(collConfig, k3, v1)
+		require.NoError(t, err)
+	})
+
 	t.Run("Persist", func(t *testing.T) {
+		isCommitter = func() bool { return true }
+
 		err := s.Persist(tx1, mocks.NewPvtReadWriteSetBuilder().Build())
 		assert.NoError(t, err)
 
@@ -114,5 +149,12 @@ func TestStore_PutAndGetData(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), expectedErr.Error())
 		tdataProvider.StoreError(nil)
+
+		expectedErr = errors.New("DCAS error")
+		olProvider.StoreError(expectedErr)
+		err = s.Persist(tx1, mocks.NewPvtReadWriteSetBuilder().Build())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), expectedErr.Error())
+		olProvider.StoreError(nil)
 	})
 }

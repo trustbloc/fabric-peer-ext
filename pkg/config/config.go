@@ -26,6 +26,7 @@ const (
 	confOLCollLeveldb              = "offLedgerLeveldb"
 	confOLCollCleanupIntervalTime  = "coll.offledger.cleanupExpired.Interval"
 	confOLCollMaxPeersForRetrieval = "coll.offledger.maxpeers"
+	confOLCollCacheSize            = "coll.offledger.cacheSize"
 
 	confBlockPublisherBufferSize = "blockpublisher.buffersize"
 
@@ -35,6 +36,7 @@ const (
 
 	defaultOLCollCleanupIntervalTime  = 5 * time.Second
 	defaultOLCollMaxPeersForRetrieval = 2
+	defaultOLCollCacheSize            = 10000
 
 	defaultBlockPublisherBufferSize = 100
 )
@@ -116,4 +118,13 @@ func GetOLCollMaxPeersForRetrieval() int {
 		maxPeers = defaultOLCollMaxPeersForRetrieval
 	}
 	return maxPeers
+}
+
+// GetOLCollCacheSize returns the size of the off-ledger cache
+func GetOLCollCacheSize() int {
+	size := viper.GetInt(confOLCollCacheSize)
+	if size <= 0 {
+		return defaultOLCollCacheSize
+	}
+	return size
 }

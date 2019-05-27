@@ -10,6 +10,7 @@ import (
 	"context"
 	"time"
 
+	cb "github.com/hyperledger/fabric/protos/common"
 	proto "github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common"
 )
@@ -33,6 +34,15 @@ type Store interface {
 
 	// GetTransientDataMultipleKeys gets the values for the multiple transient data items in a single call
 	GetTransientDataMultipleKeys(key *MultiKey) (ExpiringValues, error)
+
+	// GetData gets the value for the given item
+	GetData(key *Key) (*ExpiringValue, error)
+
+	// GetDataMultipleKeys gets the values for the multiple items in a single call
+	GetDataMultipleKeys(key *MultiKey) (ExpiringValues, error)
+
+	// PutData stores the key/value.
+	PutData(config *cb.StaticCollectionConfig, key *Key, value *ExpiringValue) error
 
 	// Close closes the store
 	Close()
