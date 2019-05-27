@@ -120,7 +120,7 @@ func TestGetBlockPublisherBufferSize(t *testing.T) {
 	assert.Equal(t, 1234, GetBlockPublisherBufferSize())
 }
 
-func TestGetCollMaxPeersForRetrieval(t *testing.T) {
+func TestGetOLCollMaxPeersForRetrieval(t *testing.T) {
 	oldVal := viper.Get(confOLCollMaxPeersForRetrieval)
 	defer viper.Set(confOLCollMaxPeersForRetrieval, oldVal)
 
@@ -129,4 +129,15 @@ func TestGetCollMaxPeersForRetrieval(t *testing.T) {
 
 	viper.Set(confOLCollMaxPeersForRetrieval, 7)
 	assert.Equal(t, 7, GetOLCollMaxPeersForRetrieval())
+}
+
+func TestGetOLCollPullTimeout(t *testing.T) {
+	oldVal := viper.Get(confOLCollPullTimeout)
+	defer viper.Set(confOLCollPullTimeout, oldVal)
+
+	viper.Set(confOLCollPullTimeout, "")
+	assert.Equal(t, defaultOLCollPullTimeout, GetOLCollPullTimeout())
+
+	viper.Set(confOLCollPullTimeout, 111*time.Second)
+	assert.Equal(t, 111*time.Second, GetOLCollPullTimeout())
 }

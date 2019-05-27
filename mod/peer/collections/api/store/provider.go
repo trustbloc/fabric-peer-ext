@@ -55,6 +55,12 @@ type Retriever interface {
 
 	// GetTransientDataMultipleKeys gets the values for the multiple transient data items in a single call
 	GetTransientDataMultipleKeys(ctxt context.Context, key *MultiKey) (ExpiringValues, error)
+
+	// GetData gets the value for the given data item
+	GetData(ctxt context.Context, key *Key) (*ExpiringValue, error)
+
+	// GetDataMultipleKeys gets the values for the multiple data items in a single call
+	GetDataMultipleKeys(ctxt context.Context, key *MultiKey) (ExpiringValues, error)
 }
 
 // Provider provides private data retrievers

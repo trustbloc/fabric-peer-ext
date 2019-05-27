@@ -16,6 +16,8 @@ import (
 	supportapi "github.com/hyperledger/fabric/extensions/collections/api/support"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	cb "github.com/hyperledger/fabric/protos/common"
+	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
+	olretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/retriever"
 	tdataapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
 	tretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/retriever"
 	supp "github.com/trustbloc/fabric-peer-ext/pkg/common/support"
@@ -24,6 +26,7 @@ import (
 // Provider is a transient data provider.
 type Provider struct {
 	transientDataProvider tdataapi.Provider
+	offLedgerProvider     olapi.Provider
 	retrievers            map[string]*retriever
 	mutex                 sync.RWMutex
 }
@@ -38,9 +41,11 @@ func NewProvider(
 	support := supp.New(ledgerProvider, blockPublisherProvider)
 
 	tdataStoreProvider := func(channelID string) tdataapi.Store { return storeProvider(channelID) }
+	offLedgerStoreProvider := func(channelID string) olapi.Store { return storeProvider(channelID) }
 
 	return &Provider{
 		transientDataProvider: getTransientDataProvider(tdataStoreProvider, support, gossipProvider),
+		offLedgerProvider:     getOffLedgerProvider(offLedgerStoreProvider, support, gossipProvider),
 		retrievers:            make(map[string]*retriever),
 	}
 }
@@ -66,6 +71,7 @@ func (p *Provider) getOrCreateRetriever(channelID string) storeapi.Retriever {
 	if !ok {
 		r = &retriever{
 			transientDataRetriever: p.transientDataProvider.RetrieverForChannel(channelID),
+			offLedgerRetriever:     p.offLedgerProvider.RetrieverForChannel(channelID),
 		}
 		p.retrievers[channelID] = r
 	}
@@ -75,6 +81,7 @@ func (p *Provider) getOrCreateRetriever(channelID string) storeapi.Retriever {
 
 type retriever struct {
 	transientDataRetriever tdataapi.Retriever
+	offLedgerRetriever     olapi.Retriever
 }
 
 // GetTransientData returns the transient data for the given key
@@ -87,6 +94,16 @@ func (r *retriever) GetTransientDataMultipleKeys(ctxt context.Context, key *stor
 	return r.transientDataRetriever.GetTransientDataMultipleKeys(ctxt, key)
 }
 
+// GetData gets the value for the given data item
+func (r *retriever) GetData(ctxt context.Context, key *storeapi.Key) (*storeapi.ExpiringValue, error) {
+	return r.offLedgerRetriever.GetData(ctxt, key)
+}
+
+// GetDataMultipleKeys gets the values for the multiple data items in a single call
+func (r *retriever) GetDataMultipleKeys(ctxt context.Context, key *storeapi.MultiKey) (storeapi.ExpiringValues, error) {
+	return r.offLedgerRetriever.GetDataMultipleKeys(ctxt, key)
+}
+
 // Support defines the supporting functions required by the transient data provider
 type Support interface {
 	Config(channelID, ns, coll string) (*cb.StaticCollectionConfig, error)
@@ -96,4 +113,8 @@ type Support interface {
 
 var getTransientDataProvider = func(storeProvider func(channelID string) tdataapi.Store, support Support, gossipProvider func() supportapi.GossipAdapter) tdataapi.Provider {
 	return tretriever.NewProvider(storeProvider, support, gossipProvider)
+}
+
+var getOffLedgerProvider = func(storeProvider func(channelID string) olapi.Store, support Support, gossipProvider func() supportapi.GossipAdapter) olapi.Provider {
+	return olretriever.NewProvider(storeProvider, support, gossipProvider)
 }

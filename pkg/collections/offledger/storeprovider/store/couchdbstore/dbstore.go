@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	logger          = flogging.MustGetLogger("offledgerstore")
+	logger          = flogging.MustGetLogger("ext_offledger")
 	compositeKeySep = "!"
 )
 

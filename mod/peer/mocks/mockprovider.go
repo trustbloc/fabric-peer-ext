@@ -37,3 +37,17 @@ func (m *dataRetriever) GetTransientDataMultipleKeys(ctxt context.Context, key *
 	}
 	return values, nil
 }
+
+// GetData returns the data for the given context and key
+func (m *dataRetriever) GetData(ctxt context.Context, key *storeapi.Key) (*storeapi.ExpiringValue, error) {
+	return &storeapi.ExpiringValue{Value: []byte(key.Key)}, nil
+}
+
+// GetDataMultipleKeys returns the  data with multiple keys for the given context and key
+func (m *dataRetriever) GetDataMultipleKeys(ctxt context.Context, key *storeapi.MultiKey) (storeapi.ExpiringValues, error) {
+	values := make(storeapi.ExpiringValues, len(key.Keys))
+	for i, k := range key.Keys {
+		values[i] = &storeapi.ExpiringValue{Value: []byte(k)}
+	}
+	return values, nil
+}
