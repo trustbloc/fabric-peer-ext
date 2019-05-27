@@ -12,6 +12,11 @@ bddtest:
       anchorTxPath:
         peerorg1: "./fixtures/fabric/channel/mychannelOrg1MSPanchors.tx"
         peerorg2: "./fixtures/fabric/channel/mychannelOrg2MSPanchors.tx"
+    yourchannel:
+      txPath: "./fixtures/fabric/channel/yourchannel.tx"
+      anchorTxPath:
+        peerorg1: "./fixtures/fabric/channel/yourchannelOrg1MSPanchors.tx"
+        peerorg2: "./fixtures/fabric/channel/yourchannelOrg2MSPanchors.tx"
 
 client:
 
@@ -93,6 +98,35 @@ client:
 channels:
   # name of the channel
   mychannel:
+    orderers:
+      - orderer.example.com
+    # Required. list of peers from participating orgs
+    peers:
+      peer0.org1.example.com:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
+
+      peer1.org1.example.com:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
+
+      peer0.org2.example.com:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
+
+      peer1.org2.example.com:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
+
+  yourchannel:
     orderers:
       - orderer.example.com
     # Required. list of peers from participating orgs

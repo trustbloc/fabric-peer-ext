@@ -11,6 +11,8 @@ Feature:
   @transient_data_s1
   Scenario: Put and get transient data
     Given the channel "mychannel" is created and all peers have joined
+    And the channel "yourchannel" is created and all peers have joined
+
     And transient collection config "tdata_coll1" is defined for collection "collection1" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=5s
     And transient collection config "tdata_coll2" is defined for collection "collection2" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=10m
     And collection config "coll3" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and blocksToLive=1000
@@ -66,7 +68,7 @@ Feature:
     When client invokes chaincode "tdata_examplecc" with args "putprivatemultiple,collection1,pvtKey1,pvtVal1,collection2,pvtKey2,pvtVal2,collection3,pvtKey3,pvtVal3" on the "mychannel" channel
     And we wait 2 seconds
     And client queries chaincode "tdata_examplecc" with args "getprivatemultiple,collection1,pvtKey1,collection2,pvtKey2,collection3,pvtKey3" on a single peer in the "peerorg1" org on the "mychannel" channel
-    Then response from "ol_examplecc" to client equal value "pvtVal1,pvtVal2,pvtVal3"
+    Then response from "tdata_examplecc" to client equal value "pvtVal1,pvtVal2,pvtVal3"
 
     # Test Chaincode Upgrade and Cache Expiration
     #   When the chaincode is upgraded with a new policy, all caches should be refreshed
@@ -97,3 +99,28 @@ Feature:
     # Should have expired
     When client queries chaincode "tdata_examplecc" with args "getprivate,collection2,keyB" on the "mychannel" channel
     Then response from "tdata_examplecc" to client equal value ""
+
+    # Test chaincode-to-chaincode invocation (same channel)
+    Given "test" chaincode "tdata_examplecc_2" is installed from path "github.com/trustbloc/e2e_cc" to all peers
+    And "test" chaincode "tdata_examplecc_2" is instantiated from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll2"
+    And chaincode "tdata_examplecc_2" is warmed up on all peers on the "mychannel" channel
+    # Set the transient data on the target chaincode using a chaincode-to-chaincode invocation
+    When client queries chaincode "tdata_examplecc" with args "invokecc,tdata_examplecc_2,,{`Args`:[`putprivate`|`collection2`|`keyC`|`valueC`]}" on the "mychannel" channel
+    # Query the target chaincode directly
+    And client queries chaincode "tdata_examplecc_2" with args "getprivate,collection2,keyC" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "valueC"
+    # Query the target chaincode using a chaincode-to-chaincode invocation (same channel)
+    When client queries chaincode "tdata_examplecc" with args "invokecc,tdata_examplecc_2,,{`Args`:[`getprivate`|`collection2`|`keyC`]}" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "valueC"
+
+    # Test chaincode-to-chaincode invocation (different channel)
+    Given "test" chaincode "tdata_examplecc_2" is instantiated from path "github.com/trustbloc/e2e_cc" on the "yourchannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll2"
+    And chaincode "tdata_examplecc_2" is warmed up on all peers on the "yourchannel" channel
+    # Set the transient data on a different channel
+    When client queries chaincode "tdata_examplecc_2" with args "putprivate,collection2,keyD,valueD" on the "yourchannel" channel
+    # Query the target chaincode directly
+    And client queries chaincode "tdata_examplecc_2" with args "getprivate,collection2,keyD" on the "yourchannel" channel
+    Then response from "tdata_examplecc_2" to client equal value "valueD"
+    # Query the target chaincode using a chaincode-to-chaincode invocation
+    When client queries chaincode "tdata_examplecc" with args "invokecc,tdata_examplecc_2,yourchannel,{`Args`:[`getprivate`|`collection2`|`keyD`]}" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "valueD"

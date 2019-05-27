@@ -15,7 +15,7 @@ if [ -z "$FABRIC_VERSION_DIR" ]; then
   exit 1
 fi
 
-declare -a twoOrgChannels=("mychannel")
+declare -a twoOrgChannels=("mychannel" "yourchannel")
 declare -a orgs=("Org1MSP" "Org2MSP")
 
 FIXTURES_CHANNEL_PATH=${FIXTURES_PATH}${FABRIC_VERSION_DIR}${CHANNEL_DIR}

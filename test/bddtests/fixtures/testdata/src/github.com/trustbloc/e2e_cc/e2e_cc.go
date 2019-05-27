@@ -343,23 +343,21 @@ func asBytes(args []string) [][]byte {
 }
 
 func (cc *ExampleCC) invokeCC(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	if len(args) < 2 {
-		return shim.Error(`Invalid args. Expecting name of chaincode to invoke and chaincode args in the format {"Args":["arg1","arg2",...]}`)
+	if len(args) < 3 {
+		return shim.Error(`Invalid args. Expecting target chaincode, target channel (blank if same channel), and chaincode args in the format {"Args":["arg1","arg2",...]}`)
 	}
 
 	ccName := args[0]
-	invokeArgsJSON := strings.Replace(args[1], "`", `"`, -1)
+	channelID := args[1]
+	invokeArgsJSON := strings.Replace(args[2], "`", `"`, -1)
+	invokeArgsJSON = strings.Replace(invokeArgsJSON, "|", `,`, -1)
 
 	argStruct := argStruct{}
 	if err := json.Unmarshal([]byte(invokeArgsJSON), &argStruct); err != nil {
 		return shim.Error(fmt.Sprintf("Invalid invoke args: %s", err))
 	}
 
-	if err := stub.PutState(stub.GetTxID()+"_invokedcc", []byte(ccName)); err != nil {
-		return shim.Error(fmt.Sprintf("Error putting state: %s", err))
-	}
-
-	return stub.InvokeChaincode(ccName, asBytes(argStruct.Args), "")
+	return stub.InvokeChaincode(ccName, asBytes(argStruct.Args), channelID)
 }
 
 func (cc *ExampleCC) initRegistry() {
