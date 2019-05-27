@@ -310,6 +310,23 @@ func TestProvider_AccessDenied(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, value)
 	})
+
+	t.Run("GetData - From remote peer after CC upgrade -> success", func(t *testing.T) {
+		gossip.MessageHandler(
+			newMockGossipMsgHandler(channelID).
+				Value(key2, value4).
+				Handle)
+
+		support.CollectionPolicy(&mocks.MockAccessPolicy{
+			MaxPeerCount: 2,
+			Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
+		})
+		require.NoError(t, support.Publisher.HandleUpgrade(1001, txID, ns1))
+		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
+		value, err := retriever.GetData(ctx, storeapi.NewKey(txID, ns1, coll1, key2))
+		assert.NoError(t, err)
+		assert.NotNil(t, value)
+	})
 }
 
 type mockGossipMsgHandler struct {
