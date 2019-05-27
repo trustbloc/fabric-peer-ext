@@ -14,7 +14,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
-var logger = flogging.MustGetLogger("offledgerstore")
+var logger = flogging.MustGetLogger("ext_offledger")
 
 // Disseminator disseminates collection data to other endorsers
 type Disseminator struct {

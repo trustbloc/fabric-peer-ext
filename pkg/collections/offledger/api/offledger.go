@@ -7,6 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package api
 
 import (
+	"context"
+
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	cb "github.com/hyperledger/fabric/protos/common"
 	proto "github.com/hyperledger/fabric/protos/transientstore"
@@ -37,4 +39,18 @@ type StoreProvider interface {
 
 	// Close cleans up the provider
 	Close()
+}
+
+// Retriever retrieves data
+type Retriever interface {
+	// GetData gets the value for the given data item
+	GetData(ctxt context.Context, key *storeapi.Key) (*storeapi.ExpiringValue, error)
+
+	// GetDataMultipleKeys gets the values for the multiple data items in a single call
+	GetDataMultipleKeys(ctxt context.Context, key *storeapi.MultiKey) (storeapi.ExpiringValues, error)
+}
+
+// Provider provides data retrievers
+type Provider interface {
+	RetrieverForChannel(channel string) Retriever
 }

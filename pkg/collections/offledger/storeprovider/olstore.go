@@ -23,7 +23,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 )
 
-var logger = flogging.MustGetLogger("offledgerstore")
+var logger = flogging.MustGetLogger("ext_offledger")
 
 type store struct {
 	channelID   string

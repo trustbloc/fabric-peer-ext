@@ -41,6 +41,13 @@ func (h *Handler) HandleGetPrivateData(txID, ns string, config *common.StaticCol
 			return nil, true, err
 		}
 		return value, true, nil
+	case common.CollectionType_COL_OFFLEDGER:
+		logger.Debugf("Collection [%s:%s] is an off-ledger store. Returning data for key [%s]", ns, config.Name, key)
+		value, err := h.getData(txID, ns, config.Name, key)
+		if err != nil {
+			return nil, true, err
+		}
+		return value, true, nil
 	default:
 		return nil, false, nil
 	}
@@ -52,6 +59,13 @@ func (h *Handler) HandleGetPrivateDataMultipleKeys(txID, ns string, config *comm
 	case common.CollectionType_COL_TRANSIENT:
 		logger.Debugf("Collection [%s:%s] is of type TransientData. Returning transient data for keys [%s]", ns, config.Name, keys)
 		values, err := h.getTransientDataMultipleKeys(txID, ns, config.Name, keys)
+		if err != nil {
+			return nil, true, err
+		}
+		return values, true, nil
+	case common.CollectionType_COL_OFFLEDGER:
+		logger.Debugf("Collection [%s:%s] is of an off-ledger store. Returning data for keys [%s]", ns, config.Name, keys)
+		values, err := h.getDataMultipleKeys(txID, ns, config.Name, keys)
 		if err != nil {
 			return nil, true, err
 		}
@@ -84,6 +98,44 @@ func (h *Handler) getTransientDataMultipleKeys(txID, ns, coll string, keys []str
 
 	vals, err := h.collDataProvider.RetrieverForChannel(h.channelID).
 		GetTransientDataMultipleKeys(ctxt, storeapi.NewMultiKey(txID, ns, coll, keys...))
+	if err != nil {
+		return nil, err
+	}
+
+	values := make([][]byte, len(vals))
+	for i, v := range vals {
+		if v == nil {
+			values[i] = nil
+		} else {
+			values[i] = v.Value
+		}
+	}
+	return values, nil
+}
+
+func (h *Handler) getData(txID, ns, coll, key string) ([]byte, error) {
+	ctxt, cancel := context.WithTimeout(context.Background(), config.GetOLCollPullTimeout())
+	defer cancel()
+
+	v, err := h.collDataProvider.RetrieverForChannel(h.channelID).
+		GetData(ctxt, storeapi.NewKey(txID, ns, coll, key))
+	if err != nil {
+		return nil, err
+	}
+
+	if v == nil {
+		return nil, nil
+	}
+
+	return v.Value, nil
+}
+
+func (h *Handler) getDataMultipleKeys(txID, ns, coll string, keys []string) ([][]byte, error) {
+	ctxt, cancel := context.WithTimeout(context.Background(), config.GetOLCollPullTimeout())
+	defer cancel()
+
+	vals, err := h.collDataProvider.RetrieverForChannel(h.channelID).
+		GetDataMultipleKeys(ctxt, storeapi.NewMultiKey(txID, ns, coll, keys...))
 	if err != nil {
 		return nil, err
 	}

@@ -18,7 +18,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
 )
 
-var logger = flogging.MustGetLogger("offledgerstore")
+var logger = flogging.MustGetLogger("ext_offledger")
 
 var compositeKeySep = "!"
 
