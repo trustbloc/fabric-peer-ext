@@ -241,6 +241,11 @@ func (s *Dispatcher) getDataForKey(key *storeapi.Key) (*storeapi.ExpiringValue, 
 	case cb.CollectionType_COL_TRANSIENT:
 		logger.Debugf("[%s] Getting transient data for key [%s]", s.channelID, key)
 		return s.dataStore.GetTransientData(key)
+	case cb.CollectionType_COL_DCAS:
+		fallthrough
+	case cb.CollectionType_COL_OFFLEDGER:
+		logger.Debugf("[%s] Getting off-ledger data for key [%s]", s.channelID, key)
+		return s.dataStore.GetData(key)
 	default:
 		return nil, errors.Errorf("unsupported collection type: [%s]", config.Type)
 	}
