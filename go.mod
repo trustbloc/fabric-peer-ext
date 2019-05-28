@@ -6,6 +6,7 @@ module github.com/trustbloc/fabric-peer-ext
 
 require (
 	github.com/bluele/gcache v0.0.0-20190301044115-79ae3b2d8680
+	github.com/btcsuite/btcutil v0.0.0-20170419141449-a5ecb5d9547a
 	github.com/golang/protobuf v1.2.0
 	github.com/hyperledger/fabric v1.4.1
 	github.com/hyperledger/fabric/extensions v0.0.0
@@ -14,7 +15,6 @@ require (
 	github.com/stretchr/testify v1.3.0
 	github.com/willf/bitset v1.1.9
 	go.uber.org/zap v1.9.1
-
 )
 
 replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.0.0-20190522001819-bbf763a5c881

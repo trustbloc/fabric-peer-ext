@@ -15,6 +15,7 @@ import (
 	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 	olstoreapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
 	olmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
@@ -36,6 +37,10 @@ const (
 
 	org1MSP = "Org1MSP"
 	org2MSP = "Org2MSP"
+
+	key1 = "key1"
+	key2 = "key2"
+	key3 = "key3"
 )
 
 var (
@@ -45,14 +50,17 @@ var (
 	value3_1 = []byte("value3_1")
 	value4_1 = []byte("value4_1")
 
-	key1 = "key1"
-	key2 = "key2"
-	key3 = "key3"
+	casKey1_1 = dcas.GetCASKey(value1_1)
+	casKey1_2 = dcas.GetCASKey(value1_2)
+
+	typeConfig = map[cb.CollectionType]*collTypeConfig{
+		cb.CollectionType_COL_OFFLEDGER: {},
+		cb.CollectionType_COL_DCAS:      {decorator: dcas.Decorator},
+	}
 )
 
 func TestStore_Close(t *testing.T) {
-	collTypeConfig := map[cb.CollectionType]*collTypeConfig{cb.CollectionType_COL_OFFLEDGER: {}}
-	s := newStore(channelID, olmocks.NewDBProvider(), collTypeConfig)
+	s := newStore(channelID, olmocks.NewDBProvider(), typeConfig)
 	require.NotNil(t, s)
 
 	s.Close()
@@ -64,8 +72,7 @@ func TestStore_Close(t *testing.T) {
 }
 
 func TestStore_PutAndGet(t *testing.T) {
-	collTypeConfig := map[cb.CollectionType]*collTypeConfig{cb.CollectionType_COL_OFFLEDGER: {}}
-	s := newStore(channelID, olmocks.NewDBProvider(), collTypeConfig)
+	s := newStore(channelID, olmocks.NewDBProvider(), typeConfig)
 	require.NotNil(t, s)
 	defer s.Close()
 
@@ -182,14 +189,56 @@ func TestStore_PutAndGet(t *testing.T) {
 	})
 }
 
+func TestStore_PutAndGet_DCAS(t *testing.T) {
+	s := newStore(channelID, olmocks.NewDBProvider(), typeConfig)
+	require.NotNil(t, s)
+	defer s.Close()
+
+	getLocalMSPID = func() (string, error) { return org1MSP, nil }
+
+	t.Run("Persist invalid CAS key -> fail", func(t *testing.T) {
+		b := mocks.NewPvtReadWriteSetBuilder()
+		ns1Builder := b.Namespace(ns1)
+		coll1Builder := ns1Builder.Collection(coll1)
+		coll1Builder.
+			DCASConfig("OR('Org1MSP.member')", 1, 2, "1m").
+			Write(key1, value1_1)
+		err := s.Persist(txID1, b.Build())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "the key should be the hash of the value")
+	})
+
+	t.Run("GetData -> success", func(t *testing.T) {
+		b := mocks.NewPvtReadWriteSetBuilder()
+		ns1Builder := b.Namespace(ns1)
+		coll1Builder := ns1Builder.Collection(coll1)
+		coll1Builder.
+			DCASConfig("OR('Org1MSP.member')", 1, 2, "1m").
+			Write(casKey1_1, value1_1). // The key should be validated
+			Write("", value1_2)         // The key should be generated
+
+		err := s.Persist(txID1, b.Build())
+		require.NoError(t, err)
+
+		value, err := s.GetData(storeapi.NewKey(txID2, ns1, coll1, casKey1_1))
+		assert.NoError(t, err)
+		require.NotNil(t, value)
+		assert.Equal(t, value1_1, value.Value)
+
+		value, err = s.GetData(storeapi.NewKey(txID2, ns1, coll1, casKey1_2))
+		assert.NoError(t, err)
+		require.NotNil(t, value)
+		assert.Equal(t, value1_2, value.Value)
+	})
+}
+
 func TestStore_LoadFromDB(t *testing.T) {
 	getLocalMSPID = func() (string, error) { return org1MSP, nil }
 
 	dbProvider := olmocks.NewDBProvider().
 		WithValue(ns1, coll1, key1, &olstoreapi.Value{Value: value1_1})
 
-	collTypeConfig := map[cb.CollectionType]*collTypeConfig{cb.CollectionType_COL_OFFLEDGER: {}}
-	s := newStore(channelID, dbProvider, collTypeConfig)
+	s := newStore(channelID, dbProvider, typeConfig)
 	require.NotNil(t, s)
 	defer s.Close()
 
@@ -203,8 +252,7 @@ func TestStore_LoadFromDB(t *testing.T) {
 func TestStore_PersistError(t *testing.T) {
 	getLocalMSPID = func() (string, error) { return org1MSP, nil }
 
-	collTypeConfig := map[cb.CollectionType]*collTypeConfig{cb.CollectionType_COL_OFFLEDGER: {}}
-	s := newStore(channelID, olmocks.NewDBProvider(), collTypeConfig)
+	s := newStore(channelID, olmocks.NewDBProvider(), typeConfig)
 	require.NotNil(t, s)
 
 	defer s.Close()
@@ -237,8 +285,7 @@ func TestStore_PersistError(t *testing.T) {
 func TestStore_PutData(t *testing.T) {
 	getLocalMSPID = func() (string, error) { return org1MSP, nil }
 
-	collTypeConfig := map[cb.CollectionType]*collTypeConfig{cb.CollectionType_COL_OFFLEDGER: {}}
-	s := newStore(channelID, olmocks.NewDBProvider(), collTypeConfig)
+	s := newStore(channelID, olmocks.NewDBProvider(), typeConfig)
 	require.NotNil(t, s)
 
 	defer s.Close()
@@ -302,14 +349,38 @@ func TestStore_PutData(t *testing.T) {
 		assert.NoError(t, err)
 		require.Nil(t, v)
 	})
+
+	t.Run("Invalid CAS key -> fail", func(t *testing.T) {
+		dcasCollConfig := &cb.StaticCollectionConfig{
+			Type: cb.CollectionType_COL_DCAS,
+			Name: coll1,
+		}
+		err := s.PutData(
+			dcasCollConfig,
+			&storeapi.Key{
+				EndorsedAtTxID: txID1,
+				Namespace:      ns1,
+				Collection:     coll1,
+				Key:            key1,
+			},
+			&storeapi.ExpiringValue{
+				Value: value1_1,
+			},
+		)
+		assert.Error(t, err)
+
+		v, err := s.GetData(&storeapi.Key{EndorsedAtTxID: txID2, Namespace: ns1, Collection: coll1, Key: key1})
+		assert.NoError(t, err)
+		require.NotNil(t, v)
+		assert.Equal(t, value1_1, v.Value)
+	})
 }
 
 func TestStore_DBError(t *testing.T) {
 	getLocalMSPID = func() (string, error) { return org1MSP, nil }
 
 	dbProvider := olmocks.NewDBProvider()
-	collTypeConfig := map[cb.CollectionType]*collTypeConfig{cb.CollectionType_COL_OFFLEDGER: {}}
-	s := newStore(channelID, dbProvider, collTypeConfig)
+	s := newStore(channelID, dbProvider, typeConfig)
 	require.NotNil(t, s)
 
 	t.Run("GetData -> error", func(t *testing.T) {
@@ -395,8 +466,7 @@ func TestStore_DBError(t *testing.T) {
 func TestStore_PersistNotAuthorized(t *testing.T) {
 	getLocalMSPID = func() (string, error) { return org2MSP, nil }
 
-	collTypeConfig := map[cb.CollectionType]*collTypeConfig{cb.CollectionType_COL_OFFLEDGER: {}}
-	s := newStore(channelID, olmocks.NewDBProvider(), collTypeConfig)
+	s := newStore(channelID, olmocks.NewDBProvider(), typeConfig)
 	require.NotNil(t, s)
 	defer s.Close()
 

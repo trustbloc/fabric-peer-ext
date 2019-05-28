@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
+	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 	spmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/storeprovider/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/requestmgr"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
@@ -30,6 +31,7 @@ const (
 	channelID = "testchannel"
 	ns1       = "chaincode1"
 	coll1     = "collection1"
+	coll2     = "collection2"
 
 	org1MSPID = "Org1MSP"
 	org2MSPID = "Org2MSP"
@@ -75,9 +77,11 @@ var (
 	value4 = &storeapi.ExpiringValue{Value: []byte("value4")}
 
 	txID = "tx1"
+
+	casKey1 = dcas.GetCASKey(value1.Value)
 )
 
-func TestProvider(t *testing.T) {
+func TestRetriever(t *testing.T) {
 	support := mocks.NewMockSupport().
 		CollectionPolicy(&mocks.MockAccessPolicy{
 			MaxPeerCount: 2,
@@ -86,6 +90,10 @@ func TestProvider(t *testing.T) {
 		CollectionConfig(&cb.StaticCollectionConfig{
 			Type: cb.CollectionType_COL_OFFLEDGER,
 			Name: coll1,
+		}).
+		CollectionConfig(&cb.StaticCollectionConfig{
+			Type: cb.CollectionType_COL_DCAS,
+			Name: coll2,
 		})
 
 	getLocalMSPID = func() (string, error) { return org1MSPID, nil }
@@ -102,12 +110,14 @@ func TestProvider(t *testing.T) {
 		Member(org3MSPID, mocks.NewMember(p3Org3Endpoint, p3Org3PKIID, endorserRole))
 
 	localStore := spmocks.NewStore().
-		Data(storeapi.NewKey(txID, ns1, coll1, key1), value1)
+		Data(storeapi.NewKey(txID, ns1, coll1, key1), value1).
+		Data(storeapi.NewKey(txID, ns1, coll2, key1), value1).
+		Data(storeapi.NewKey(txID, ns1, coll2, casKey1), value1)
 
 	storeProvider := func(channelID string) olapi.Store { return localStore }
 	gossipProvider := func() supportapi.GossipAdapter { return gossip }
 
-	p := NewProvider(storeProvider, support, gossipProvider)
+	p := NewProvider(storeProvider, support, gossipProvider, WithValidator(cb.CollectionType_COL_DCAS, dcas.Validator))
 
 	retriever := p.RetrieverForChannel(channelID)
 	require.NotNil(t, retriever)
@@ -131,6 +141,19 @@ func TestProvider(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, value)
 		require.Equal(t, value2, value)
+	})
+
+	t.Run("GetData (DCAS) - From local peer", func(t *testing.T) {
+		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
+		value, err := retriever.GetData(ctx, storeapi.NewKey(txID, ns1, coll2, key1))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "the key should be the hash of the value")
+		require.Nil(t, value)
+
+		value, err = retriever.GetData(ctx, storeapi.NewKey(txID, ns1, coll2, casKey1))
+		require.NoError(t, err)
+		require.NotNil(t, value)
+		require.Equal(t, value1, value)
 	})
 
 	t.Run("GetData - No response from remote peer", func(t *testing.T) {
@@ -251,11 +274,15 @@ func TestProvider(t *testing.T) {
 	})
 }
 
-func TestProvider_AccessDenied(t *testing.T) {
+func TestRetriever_AccessDenied(t *testing.T) {
 	support := mocks.NewMockSupport().
 		CollectionPolicy(&mocks.MockAccessPolicy{
 			MaxPeerCount: 2,
 			Orgs:         []string{org1MSPID, org2MSPID},
+		}).
+		CollectionConfig(&cb.StaticCollectionConfig{
+			Type: cb.CollectionType_COL_OFFLEDGER,
+			Name: coll1,
 		})
 
 	getLocalMSPID = func() (string, error) { return org3MSPID, nil }

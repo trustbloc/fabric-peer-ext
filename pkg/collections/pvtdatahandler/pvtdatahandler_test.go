@@ -52,6 +52,13 @@ func TestHandler_HandleGetPrivateData(t *testing.T) {
 			Name: coll1,
 		})
 	})
+
+	t.Run("DCAS Data", func(t *testing.T) {
+		testHandleGetPrivateData(t, &common.StaticCollectionConfig{
+			Type: common.CollectionType_COL_DCAS,
+			Name: coll1,
+		})
+	})
 }
 
 func TestHandler_HandleGetPrivateDataMultipleKeys(t *testing.T) {
@@ -78,6 +85,13 @@ func TestHandler_HandleGetPrivateDataMultipleKeys(t *testing.T) {
 	t.Run("Off-ledger Data", func(t *testing.T) {
 		testHandleGetPrivateDataMultipleKeys(t, &common.StaticCollectionConfig{
 			Type: common.CollectionType_COL_OFFLEDGER,
+			Name: coll1,
+		})
+	})
+
+	t.Run("DCAS Data", func(t *testing.T) {
+		testHandleGetPrivateDataMultipleKeys(t, &common.StaticCollectionConfig{
+			Type: common.CollectionType_COL_DCAS,
 			Name: coll1,
 		})
 	})

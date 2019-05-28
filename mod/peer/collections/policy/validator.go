@@ -34,6 +34,8 @@ func (v *Validator) Validate(collConfig *common.CollectionConfig) error {
 	switch config.Type {
 	case common.CollectionType_COL_TRANSIENT:
 		return tdatapolicy.ValidateConfig(config)
+	case common.CollectionType_COL_DCAS:
+		fallthrough
 	case common.CollectionType_COL_OFFLEDGER:
 		return olpolicy.ValidateConfig(config)
 	default:
@@ -77,6 +79,8 @@ func getCollType(config *common.StaticCollectionConfig) common.CollectionType {
 		return common.CollectionType_COL_TRANSIENT
 	case common.CollectionType_COL_OFFLEDGER:
 		return common.CollectionType_COL_OFFLEDGER
+	case common.CollectionType_COL_DCAS:
+		return common.CollectionType_COL_DCAS
 	case common.CollectionType_COL_PRIVATE:
 		fallthrough
 	default:

@@ -62,6 +62,8 @@ func ComputeDisseminationPlan(
 	switch collConfig.Type {
 	case cb.CollectionType_COL_TRANSIENT:
 		return computeTransientDataDisseminationPlan(channelID, ns, rwSet, colAP, pvtDataMsg, gossipAdapter)
+	case cb.CollectionType_COL_DCAS:
+		fallthrough
 	case cb.CollectionType_COL_OFFLEDGER:
 		return computeOffLedgerDisseminationPlan(channelID, ns, rwSet, collConfig, colAP, pvtDataMsg, gossipAdapter)
 	default:
