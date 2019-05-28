@@ -20,6 +20,7 @@ import (
 	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 )
 
 type gossipAdapter interface {
@@ -84,9 +85,15 @@ func validateAll(collType cb.CollectionType, kvRWSet *kvrwset.KVRWSet) error {
 	return nil
 }
 
-func validate(_ cb.CollectionType, ws *kvrwset.KVWrite) error {
+func validate(collType cb.CollectionType, ws *kvrwset.KVWrite) error {
 	if ws.Value == nil {
 		return errors.Errorf("attempt to store nil value for key [%s]", ws.Key)
+	}
+	if collType == cb.CollectionType_COL_DCAS {
+		expectedKey := dcas.GetCASKey(ws.Value)
+		if ws.Key != expectedKey {
+			return errors.Errorf("invalid CAS key [%s] - the key should be the hash of the value", ws.Key)
+		}
 	}
 	return nil
 }

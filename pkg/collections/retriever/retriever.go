@@ -17,6 +17,7 @@ import (
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	cb "github.com/hyperledger/fabric/protos/common"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
+	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 	olretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/retriever"
 	tdataapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
 	tretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/retriever"
@@ -116,5 +117,7 @@ var getTransientDataProvider = func(storeProvider func(channelID string) tdataap
 }
 
 var getOffLedgerProvider = func(storeProvider func(channelID string) olapi.Store, support Support, gossipProvider func() supportapi.GossipAdapter) olapi.Provider {
-	return olretriever.NewProvider(storeProvider, support, gossipProvider)
+	return olretriever.NewProvider(storeProvider, support, gossipProvider,
+		olretriever.WithValidator(cb.CollectionType_COL_DCAS, dcas.Validator),
+	)
 }

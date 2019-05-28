@@ -41,6 +41,8 @@ func (h *Handler) HandleGetPrivateData(txID, ns string, config *common.StaticCol
 			return nil, true, err
 		}
 		return value, true, nil
+	case common.CollectionType_COL_DCAS:
+		fallthrough
 	case common.CollectionType_COL_OFFLEDGER:
 		logger.Debugf("Collection [%s:%s] is an off-ledger store. Returning data for key [%s]", ns, config.Name, key)
 		value, err := h.getData(txID, ns, config.Name, key)
@@ -63,6 +65,8 @@ func (h *Handler) HandleGetPrivateDataMultipleKeys(txID, ns string, config *comm
 			return nil, true, err
 		}
 		return values, true, nil
+	case common.CollectionType_COL_DCAS:
+		fallthrough
 	case common.CollectionType_COL_OFFLEDGER:
 		logger.Debugf("Collection [%s:%s] is of an off-ledger store. Returning data for keys [%s]", ns, config.Name, keys)
 		values, err := h.getDataMultipleKeys(txID, ns, config.Name, keys)

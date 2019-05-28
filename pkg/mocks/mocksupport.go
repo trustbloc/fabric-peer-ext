@@ -10,14 +10,15 @@ import (
 	"github.com/hyperledger/fabric/core/common/privdata"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	cb "github.com/hyperledger/fabric/protos/common"
+	"github.com/pkg/errors"
 )
 
 // MockSupport is a holder of policy, config and error
 type MockSupport struct {
-	CollPolicy privdata.CollectionAccessPolicy
-	CollConfig *cb.StaticCollectionConfig
-	Err        error
-	Publisher  *MockBlockPublisher
+	CollPolicy  privdata.CollectionAccessPolicy
+	CollConfigs []*cb.StaticCollectionConfig
+	Err         error
+	Publisher   *MockBlockPublisher
 }
 
 // NewMockSupport returns a new MockSupport
@@ -35,7 +36,7 @@ func (s *MockSupport) CollectionPolicy(collPolicy privdata.CollectionAccessPolic
 
 // CollectionConfig sets the collection config for the given collection
 func (s *MockSupport) CollectionConfig(collConfig *cb.StaticCollectionConfig) *MockSupport {
-	s.CollConfig = collConfig
+	s.CollConfigs = append(s.CollConfigs, collConfig)
 	return s
 }
 
@@ -46,7 +47,12 @@ func (s *MockSupport) Policy(channelID, ns, coll string) (privdata.CollectionAcc
 
 // Config returns the collection config for the given collection
 func (s *MockSupport) Config(channelID, ns, coll string) (*cb.StaticCollectionConfig, error) {
-	return s.CollConfig, s.Err
+	for _, config := range s.CollConfigs {
+		if config.Name == coll {
+			return config, nil
+		}
+	}
+	return nil, errors.Errorf("config not found for collection: %s", coll)
 }
 
 // BlockPublisher returns a mock block publisher for the given channel

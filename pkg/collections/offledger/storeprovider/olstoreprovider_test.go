@@ -12,13 +12,15 @@ import (
 	"testing"
 
 	"github.com/hyperledger/fabric/common/flogging"
+	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/hyperledger/fabric/extensions/testutil"
+	"github.com/hyperledger/fabric/protos/common"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestStore(t *testing.T) {
+func TestStoreProvider_OpenStore(t *testing.T) {
 	channel1 := "channel1"
 	channel2 := "channel2"
 
@@ -40,6 +42,20 @@ func TestStore(t *testing.T) {
 	assert.NotPanics(t, func() {
 		f.Close()
 	})
+}
+
+func TestStoreProvider_WithDecorator(t *testing.T) {
+	f := New(
+		WithCollectionType(
+			common.CollectionType_COL_DCAS,
+			WithDecorator(func(key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key, *storeapi.ExpiringValue, error) {
+				return key, value, nil
+			}),
+		))
+	require.NotNil(t, f)
+	config, ok := f.collConfigs[common.CollectionType_COL_DCAS]
+	assert.True(t, ok)
+	assert.NotNil(t, config)
 }
 
 func TestMain(m *testing.M) {

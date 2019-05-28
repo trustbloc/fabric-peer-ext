@@ -10,7 +10,9 @@ import (
 	"sync"
 
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
+	cb "github.com/hyperledger/fabric/protos/common"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
+	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 	olstoreprovider "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider"
 	tdapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider"
@@ -80,7 +82,11 @@ var newTransientDataProvider = func() tdapi.StoreProvider {
 	return storeprovider.New()
 }
 
-// newOffLedgerProviderFactory may be overridden in unit tests
+// newOffLedgerProvider may be overridden in unit tests
 var newOffLedgerProvider = func() olapi.StoreProvider {
-	return olstoreprovider.New()
+	return olstoreprovider.New(
+		olstoreprovider.WithCollectionType(
+			cb.CollectionType_COL_DCAS, olstoreprovider.WithDecorator(dcas.Decorator),
+		),
+	)
 }

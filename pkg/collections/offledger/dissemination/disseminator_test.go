@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
@@ -245,6 +246,49 @@ func TestComputeDisseminationPlan(t *testing.T) {
 		assert.False(t, handled)
 		assert.Nil(t, dPlan)
 		assert.Contains(t, err.Error(), "attempt to store nil value for key")
+	})
+
+	t.Run("Invalid CAS Key", func(t *testing.T) {
+		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
+			Write(key1, []byte("value1")).
+			Build()
+		colConfig := &cb.StaticCollectionConfig{
+			Type: cb.CollectionType_COL_DCAS,
+		}
+
+		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colConfig, colAP, nil, gossip)
+		require.Error(t, err)
+		assert.False(t, handled)
+		assert.Nil(t, dPlan)
+		assert.Contains(t, err.Error(), "the key should be the hash of the value")
+	})
+
+	t.Run("Valid CAS Key", func(t *testing.T) {
+		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
+			Write(dcas.GetCASKey([]byte("value1")), []byte("value1")).
+			Build()
+		colConfig := &cb.StaticCollectionConfig{
+			Type: cb.CollectionType_COL_DCAS,
+		}
+
+		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colConfig, colAP, nil, gossip)
+		require.NoError(t, err)
+		require.True(t, handled)
+		require.Equal(t, 1, len(dPlan))
+
+		criteria := dPlan[0].Criteria
+
+		assert.Equal(t, 2, criteria.MaxPeers)
+
+		assert.False(t, criteria.IsEligible(p1Org1))
+		assert.False(t, criteria.IsEligible(p2Org1))
+		assert.False(t, criteria.IsEligible(p3Org1))
+		assert.False(t, criteria.IsEligible(p1Org2))
+		assert.True(t, criteria.IsEligible(p2Org2))
+		assert.False(t, criteria.IsEligible(p3Org2))
+		assert.False(t, criteria.IsEligible(p1Org3))
+		assert.True(t, criteria.IsEligible(p2Org3))
+		assert.False(t, criteria.IsEligible(p3Org3))
 	})
 }
 

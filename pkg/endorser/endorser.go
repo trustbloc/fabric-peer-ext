@@ -107,5 +107,6 @@ func (f *collRWSetFilter) isOffLedger(ns, coll string) (bool, error) {
 
 func isCollOffLedger(collConfig *common.StaticCollectionConfig) bool {
 	return collConfig.Type == common.CollectionType_COL_TRANSIENT ||
-		collConfig.Type == common.CollectionType_COL_OFFLEDGER
+		collConfig.Type == common.CollectionType_COL_OFFLEDGER ||
+		collConfig.Type == common.CollectionType_COL_DCAS
 }

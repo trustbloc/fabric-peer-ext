@@ -23,6 +23,7 @@ const (
 
 	coll1 = "coll1"
 	coll2 = "coll2"
+	coll3 = "coll3"
 )
 
 func TestFilterPubSimulationResults(t *testing.T) {
@@ -32,6 +33,7 @@ func TestFilterPubSimulationResults(t *testing.T) {
 	pvtNSBuilder1.Collection(coll2).TransientConfig("OR('Org1.member','Org2.member')", 2, 3, "1m")
 	pvtNSBuilder3 := pvtBuilder.Namespace(ns3)
 	pvtNSBuilder3.Collection(coll2).OffLedgerConfig("OR('Org1.member','Org2.member')", 2, 3, "1m")
+	pvtNSBuilder3.Collection(coll3).DCASConfig("OR('Org1.member','Org2.member')", 2, 3, "1m")
 
 	builder := mocks.NewReadWriteSetBuilder()
 	nsBuilder1 := builder.Namespace(ns1)
@@ -44,6 +46,7 @@ func TestFilterPubSimulationResults(t *testing.T) {
 
 	nsBuilder3 := builder.Namespace(ns3)
 	nsBuilder3.Collection(coll2)
+	nsBuilder3.Collection(coll3)
 
 	results := builder.Build()
 	require.NotNil(t, results)
@@ -65,7 +68,7 @@ func TestFilterPubSimulationResults(t *testing.T) {
 
 	// ns3 should have no rw-set and 1 coll-hashed rw-sets
 	assert.Equal(t, ns3, results.NsRwset[2].Namespace)
-	require.Equal(t, 1, len(results.NsRwset[2].CollectionHashedRwset))
+	require.Equal(t, 2, len(results.NsRwset[2].CollectionHashedRwset))
 	assert.Empty(t, len(results.NsRwset[2].Rwset))
 
 	filteredResults, err := FilterPubSimulationResults(pvtBuilder.BuildCollectionConfigs(), results)

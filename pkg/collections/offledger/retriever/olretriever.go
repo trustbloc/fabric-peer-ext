@@ -45,15 +45,33 @@ type Provider struct {
 	support
 	storeForChannel func(channelID string) olapi.Store
 	gossipAdapter   func() supportapi.GossipAdapter
+	validators      map[cb.CollectionType]Validator
+}
+
+// Option is a provider option
+type Option func(p *Provider)
+
+// WithValidator sets the key/value validator
+func WithValidator(collType cb.CollectionType, validator Validator) Option {
+	return func(p *Provider) {
+		p.validators[collType] = validator
+	}
 }
 
 // NewProvider returns a new collection data provider
-func NewProvider(storeProvider func(channelID string) olapi.Store, support support, gossipProvider func() supportapi.GossipAdapter) olapi.Provider {
-	return &Provider{
+func NewProvider(storeProvider func(channelID string) olapi.Store, support support, gossipProvider func() supportapi.GossipAdapter, opts ...Option) olapi.Provider {
+	p := &Provider{
 		support:         support,
 		storeForChannel: storeProvider,
 		gossipAdapter:   gossipProvider,
+		validators:      make(map[cb.CollectionType]Validator),
 	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(p)
+	}
+	return p
 }
 
 // RetrieverForChannel returns the collection data retriever for the given channel
@@ -65,6 +83,7 @@ func (p *Provider) RetrieverForChannel(channelID string) olapi.Retriever {
 		channelID:     channelID,
 		reqMgr:        requestmgr.Get(channelID),
 		resolvers:     make(map[collKey]resolver),
+		validators:    p.validators,
 	}
 
 	// Add a handler so that we can remove the resolver for a chaincode that has been upgraded
@@ -99,6 +118,7 @@ type retriever struct {
 	resolvers     map[collKey]resolver
 	lock          sync.RWMutex
 	reqMgr        requestmgr.RequestMgr
+	validators    map[cb.CollectionType]Validator
 }
 
 // GetData gets the values for the data item
@@ -131,6 +151,11 @@ func (r *retriever) GetDataMultipleKeys(ctxt context.Context, key *storeapi.Mult
 		return nil, err
 	}
 	if localValues.Values().AllSet() {
+		err = r.validateValues(key, localValues)
+		if err != nil {
+			logger.Warningf(err.Error())
+			return nil, err
+		}
 		return localValues, nil
 	}
 
@@ -150,6 +175,12 @@ func (r *retriever) GetDataMultipleKeys(ctxt context.Context, key *storeapi.Mult
 
 	// Merge the values with the values received locally
 	values := asExpiringValues(localValues.Values().Merge(response.Values))
+
+	if err := r.validateValues(key, values); err != nil {
+		logger.Warningf(err.Error())
+		return nil, err
+	}
+
 	if roles.IsCommitter() {
 		r.persistMissingKeys(key, localValues, values)
 	}
@@ -202,6 +233,29 @@ func (r *retriever) persistMissingKey(k *storeapi.Key, val *storeapi.ExpiringVal
 	if err := r.store.PutData(collConfig, k, val); err != nil {
 		logger.Warningf("Error persisting key [%s] that was missing from the local store: %s", k, err)
 	}
+}
+
+func (r *retriever) validateValues(key *storeapi.MultiKey, values storeapi.ExpiringValues) error {
+	config, err := r.Config(r.channelID, key.Namespace, key.Collection)
+	if err != nil {
+		return err
+	}
+
+	validate, ok := r.validators[config.Type]
+	if !ok {
+		// No validator for config
+		return nil
+	}
+
+	for i, v := range values {
+		if v != nil && v.Value != nil {
+			err := validate(key.EndorsedAtTxID, key.Namespace, key.Collection, key.Keys[i], v.Value)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (r *retriever) getDataFromPeer(key *storeapi.MultiKey, endorser *discovery.Member) multirequest.Request {

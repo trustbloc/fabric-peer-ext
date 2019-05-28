@@ -74,10 +74,23 @@ func TestDisseminationPlan(t *testing.T) {
 	})
 
 	t.Run("Off-Ledger config", func(t *testing.T) {
-		dcasConfig := &common.CollectionConfig{
+		olConfig := &common.CollectionConfig{
 			Payload: &common.CollectionConfig_StaticCollectionConfig{
 				StaticCollectionConfig: &common.StaticCollectionConfig{
 					Type: common.CollectionType_COL_OFFLEDGER,
+				},
+			},
+		}
+		_, _, err := ComputeDisseminationPlan(
+			channelID, ns, nil, olConfig, nil, nil, nil)
+		assert.NoError(t, err)
+	})
+
+	t.Run("DCAS config", func(t *testing.T) {
+		dcasConfig := &common.CollectionConfig{
+			Payload: &common.CollectionConfig_StaticCollectionConfig{
+				StaticCollectionConfig: &common.StaticCollectionConfig{
+					Type: common.CollectionType_COL_DCAS,
 				},
 			},
 		}
