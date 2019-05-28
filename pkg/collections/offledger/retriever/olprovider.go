@@ -58,7 +58,7 @@ func NewProvider(storeProvider func(channelID string) olapi.Store, support suppo
 
 // RetrieverForChannel returns the collection data retriever for the given channel
 func (p *Provider) RetrieverForChannel(channelID string) olapi.Retriever {
-	return &retriever{
+	r := &retriever{
 		support:       p.support,
 		gossipAdapter: p.gossipAdapter(),
 		store:         p.storeForChannel(channelID),
@@ -66,6 +66,15 @@ func (p *Provider) RetrieverForChannel(channelID string) olapi.Retriever {
 		reqMgr:        requestmgr.Get(channelID),
 		resolvers:     make(map[collKey]resolver),
 	}
+
+	// Add a handler so that we can remove the resolver for a chaincode that has been upgraded
+	p.support.BlockPublisher(channelID).AddCCUpgradeHandler(func(blockNum uint64, txID string, chaincodeID string) error {
+		logger.Infof("[%s] Chaincode [%s] has been upgraded. Clearing resolver cache for chaincode.", channelID, chaincodeID)
+		r.removeResolvers(chaincodeID)
+		return nil
+	})
+
+	return r
 }
 
 type resolver interface {
