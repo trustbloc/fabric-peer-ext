@@ -89,15 +89,21 @@ func TestDispatchDataRequest(t *testing.T) {
 
 	key1 := store.NewKey("txID1", ns1, coll1, "key1")
 	key2 := store.NewKey("txID1", ns2, coll2, "key2")
+	key3 := store.NewKey("txID1", ns1, coll2, "key3")
+	key4 := store.NewKey("txID1", ns2, coll1, "key4")
 
 	value1 := &store.ExpiringValue{Value: []byte("value1")}
 	value2 := &store.ExpiringValue{Value: []byte("value2")}
+	value3 := &store.ExpiringValue{Value: []byte("value3")}
+	value4 := &store.ExpiringValue{Value: []byte("value4")}
 
 	nsBuilder1 := mocks.NewNamespaceBuilder(ns1)
 	nsBuilder1.Collection(coll1).TransientConfig("OR ('Org1MSP.member','Org2MSP.member')", 3, 3, "1m")
+	nsBuilder1.Collection(coll2).DCASConfig("OR ('Org1MSP.member','Org2MSP.member')", 3, 3, "1m")
 
 	nsBuilder2 := mocks.NewNamespaceBuilder(ns2)
 	nsBuilder2.Collection(coll2).TransientConfig("OR ('Org1MSP.member','Org2MSP.member','Org3MSP.member')", 3, 3, "1m")
+	nsBuilder2.Collection(coll1).DCASConfig("OR ('Org1MSP.member','Org2MSP.member','Org3MSP.member')", 3, 3, "1m")
 
 	configPkgBytes1, err := proto.Marshal(nsBuilder1.BuildCollectionConfig())
 	require.NoError(t, err)
@@ -122,7 +128,7 @@ func TestDispatchDataRequest(t *testing.T) {
 
 	dispatcher := New(
 		channelID,
-		mocks.NewDataStore().TransientData(key1, value1).TransientData(key2, value2),
+		mocks.NewDataStore().TransientData(key1, value1).TransientData(key2, value2).Data(key3, value3).Data(key4, value4),
 		gossipAdapter,
 		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor(state)},
 		mocks.NewBlockPublisher(),
@@ -134,7 +140,7 @@ func TestDispatchDataRequest(t *testing.T) {
 
 		var response *gproto.GossipMessage
 		msg := &mocks.MockReceivedMessage{
-			Message: mocks.NewCollDataReqMsg(channelID, reqID1, key1, key2),
+			Message: mocks.NewCollDataReqMsg(channelID, reqID1, key1, key2, key3, key4),
 			RespondTo: func(msg *gproto.GossipMessage) {
 				response = msg
 			},
@@ -148,7 +154,7 @@ func TestDispatchDataRequest(t *testing.T) {
 		res := response.GetCollDataRes()
 		require.NotNil(t, res)
 		assert.Equal(t, reqID1, res.Nonce)
-		require.Equal(t, 2, len(res.Elements))
+		require.Equal(t, 4, len(res.Elements))
 
 		element := res.Elements[0]
 		require.NotNil(t, element.Digest)
@@ -163,6 +169,20 @@ func TestDispatchDataRequest(t *testing.T) {
 		assert.Equal(t, key2.Collection, element.Digest.Collection)
 		assert.Equal(t, key2.Key, element.Digest.Key)
 		assert.Equal(t, value2.Value, element.Value)
+
+		element = res.Elements[2]
+		require.NotNil(t, element.Digest)
+		assert.Equal(t, key3.Namespace, element.Digest.Namespace)
+		assert.Equal(t, key3.Collection, element.Digest.Collection)
+		assert.Equal(t, key3.Key, element.Digest.Key)
+		assert.Equal(t, value3.Value, element.Value)
+
+		element = res.Elements[3]
+		require.NotNil(t, element.Digest)
+		assert.Equal(t, key4.Namespace, element.Digest.Namespace)
+		assert.Equal(t, key4.Collection, element.Digest.Collection)
+		assert.Equal(t, key4.Key, element.Digest.Key)
+		assert.Equal(t, value4.Value, element.Value)
 	})
 
 	t.Run("Non-Endorser -> no response", func(t *testing.T) {
@@ -188,7 +208,7 @@ func TestDispatchDataRequest(t *testing.T) {
 
 		var response *gproto.GossipMessage
 		msg := &mocks.MockReceivedMessage{
-			Message: mocks.NewCollDataReqMsg(channelID, reqID2, key1, key2),
+			Message: mocks.NewCollDataReqMsg(channelID, reqID2, key1, key2, key3, key4),
 			RespondTo: func(msg *gproto.GossipMessage) {
 				response = msg
 			},
@@ -197,7 +217,7 @@ func TestDispatchDataRequest(t *testing.T) {
 		assert.True(t, dispatcher.Dispatch(msg))
 		require.NotNil(t, response)
 		require.NotNil(t, response.GetCollDataRes())
-		require.Equal(t, 2, len(response.GetCollDataRes().Elements))
+		require.Equal(t, 4, len(response.GetCollDataRes().Elements))
 
 		// Org3 doesn't have access to ns1:collection1
 		require.NotNil(t, response.GetCollDataRes().Elements[0])
@@ -206,6 +226,14 @@ func TestDispatchDataRequest(t *testing.T) {
 		// Org3 has access to ns2:collection2
 		require.NotNil(t, response.GetCollDataRes().Elements[1])
 		assert.NotNil(t, response.GetCollDataRes().Elements[1].Value)
+
+		// Org3 doesn't have access to ns1:collection2
+		require.NotNil(t, response.GetCollDataRes().Elements[2])
+		assert.Nil(t, response.GetCollDataRes().Elements[2].Value)
+
+		// Org3 has access to ns2:collection1
+		require.NotNil(t, response.GetCollDataRes().Elements[3])
+		assert.NotNil(t, response.GetCollDataRes().Elements[3].Value)
 	})
 }
 
