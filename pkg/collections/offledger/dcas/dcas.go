@@ -31,13 +31,27 @@ func Decorator(key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key,
 		return nil, nil, err
 	}
 
-	if dcasKey == key.Key {
-		return key, value, nil
+	// The key needs to be base58 encoded since Fabric doesn't allow
+	// certain characters to be used in the key.
+	newKey := &storeapi.Key{
+		EndorsedAtTxID: key.EndorsedAtTxID,
+		Namespace:      key.Namespace,
+		Collection:     key.Collection,
+		Key:            Base58Encode(dcasKey),
 	}
 
-	newKey := *key
-	newKey.Key = dcasKey
-	return &newKey, value, nil
+	return newKey, value, nil
+}
+
+// KeyDecorator is an off-ledger decorator that ensures the given key is base58 encoded
+// since Fabric doesn't allow certain characters to be used in the key.
+func KeyDecorator(key *storeapi.Key) (*storeapi.Key, error) {
+	return &storeapi.Key{
+		EndorsedAtTxID: key.EndorsedAtTxID,
+		Namespace:      key.Namespace,
+		Collection:     key.Collection,
+		Key:            Base58Encode(key.Key),
+	}, nil
 }
 
 func validateCASKey(key string, value []byte) (string, error) {
