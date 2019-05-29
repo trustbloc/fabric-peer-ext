@@ -15,20 +15,16 @@ import (
 
 // GetCASKey returns the content-addressable key for the given content.
 func GetCASKey(content []byte) string {
-	address := calculateAddress(content)
-
-	// Address above is as per CAS spec(sha256 hash + base64 URL encoding),
-	// however since fabric/couchdb doesn't support keys that start with _
-	// we have to do additional transformation
-	return base58.Encode(address)
-}
-
-func calculateAddress(content []byte) []byte {
 	hash := getHash(content)
 	buf := make([]byte, base64.URLEncoding.EncodedLen(len(hash)))
 	base64.URLEncoding.Encode(buf, hash)
+	return string(buf)
+}
 
-	return buf
+// GetFabricCASKey returns the content-addressable key for the given content,
+// encoded in base58 so that it may be used as a key in Fabric.
+func GetFabricCASKey(content []byte) string {
+	return Base58Encode(GetCASKey(content))
 }
 
 // getHash will compute the hash for the supplied bytes using SHA256
@@ -38,4 +34,9 @@ func getHash(bytes []byte) []byte {
 	// error cannot be produced, checked google source
 	h.Write(bytes) //nolint
 	return h.Sum(nil)
+}
+
+// Base58Encode encodes the given string in base 58
+func Base58Encode(s string) string {
+	return base58.Encode([]byte(s))
 }

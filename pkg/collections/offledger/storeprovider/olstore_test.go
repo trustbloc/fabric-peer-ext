@@ -220,12 +220,12 @@ func TestStore_PutAndGet_DCAS(t *testing.T) {
 		err := s.Persist(txID1, b.Build())
 		require.NoError(t, err)
 
-		value, err := s.GetData(storeapi.NewKey(txID2, ns1, coll1, casKey1_1))
+		value, err := s.GetData(storeapi.NewKey(txID2, ns1, coll1, dcas.GetFabricCASKey(value1_1)))
 		assert.NoError(t, err)
 		require.NotNil(t, value)
 		assert.Equal(t, value1_1, value.Value)
 
-		value, err = s.GetData(storeapi.NewKey(txID2, ns1, coll1, casKey1_2))
+		value, err = s.GetData(storeapi.NewKey(txID2, ns1, coll1, dcas.GetFabricCASKey(value1_2)))
 		assert.NoError(t, err)
 		require.NotNil(t, value)
 		assert.Equal(t, value1_2, value.Value)

@@ -111,13 +111,16 @@ func TestRetriever(t *testing.T) {
 
 	localStore := spmocks.NewStore().
 		Data(storeapi.NewKey(txID, ns1, coll1, key1), value1).
-		Data(storeapi.NewKey(txID, ns1, coll2, key1), value1).
-		Data(storeapi.NewKey(txID, ns1, coll2, casKey1), value1)
+		Data(storeapi.NewKey(txID, ns1, coll2, dcas.Base58Encode(key1)), value1).           // Invalid CAS key
+		Data(storeapi.NewKey(txID, ns1, coll2, dcas.GetFabricCASKey(value1.Value)), value1) // Valid CAS key
 
 	storeProvider := func(channelID string) olapi.Store { return localStore }
 	gossipProvider := func() supportapi.GossipAdapter { return gossip }
 
-	p := NewProvider(storeProvider, support, gossipProvider, WithValidator(cb.CollectionType_COL_DCAS, dcas.Validator))
+	p := NewProvider(storeProvider, support, gossipProvider,
+		WithValidator(cb.CollectionType_COL_DCAS, dcas.Validator),
+		WithKeyDecorator(cb.CollectionType_COL_DCAS, dcas.KeyDecorator),
+	)
 
 	retriever := p.RetrieverForChannel(channelID)
 	require.NotNil(t, retriever)

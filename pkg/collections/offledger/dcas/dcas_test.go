@@ -51,7 +51,7 @@ func TestDecorator(t *testing.T) {
 		key := storeapi.NewKey(txID1, ns1, coll1, GetCASKey(value1_1))
 		k, v, err := Decorator(key, value)
 		assert.NoError(t, err)
-		assert.Equal(t, key, k)
+		assert.Equal(t, Base58Encode(key.Key), k.Key)
 		assert.Equal(t, value, v)
 	})
 
@@ -59,7 +59,7 @@ func TestDecorator(t *testing.T) {
 		key := storeapi.NewKey(txID1, ns1, coll1, "")
 		k, v, err := Decorator(key, value)
 		assert.NoError(t, err)
-		assert.Equal(t, GetCASKey(value1_1), k.Key)
+		assert.Equal(t, GetFabricCASKey(value1_1), k.Key)
 		assert.Equal(t, value, v)
 	})
 

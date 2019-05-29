@@ -119,5 +119,6 @@ var getTransientDataProvider = func(storeProvider func(channelID string) tdataap
 var getOffLedgerProvider = func(storeProvider func(channelID string) olapi.Store, support Support, gossipProvider func() supportapi.GossipAdapter) olapi.Provider {
 	return olretriever.NewProvider(storeProvider, support, gossipProvider,
 		olretriever.WithValidator(cb.CollectionType_COL_DCAS, dcas.Validator),
+		olretriever.WithKeyDecorator(cb.CollectionType_COL_DCAS, dcas.KeyDecorator),
 	)
 }

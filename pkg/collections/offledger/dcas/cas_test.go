@@ -16,3 +16,8 @@ func TestGetCASKey(t *testing.T) {
 	k := GetCASKey([]byte("value1"))
 	assert.NotEmpty(t, k)
 }
+
+func TestGetFabricCASKey(t *testing.T) {
+	k := GetFabricCASKey([]byte("value1"))
+	assert.NotEmpty(t, k)
+}
