@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
@@ -23,7 +25,7 @@ import (
 	xtestutil "github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
 
-var couchDBDef *couchdb.CouchDBDef
+var couchDBConfig *couchdb.Config
 
 func TestMain(m *testing.M) {
 	//setup extension test environment
@@ -32,7 +34,7 @@ func TestMain(m *testing.M) {
 	viper.Set("peer.fileSystemPath", "/tmp/fabric/core/ledger/pvtdatastore")
 
 	// Create CouchDB definition from config parameters
-	couchDBDef = couchdb.GetCouchDBDefinition()
+	couchDBConfig = config.GetCouchDBConfig()
 
 	code := m.Run()
 	destroy()
@@ -40,7 +42,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestEmptyStore(t *testing.T) {
-	env := NewTestStoreEnv(t, "testempty", nil, couchDBDef)
+	env := NewTestStoreEnv(t, "testempty", nil, couchDBConfig)
 	req := require.New(t)
 	store := env.TestStore
 	testEmpty(true, req, store)
@@ -60,7 +62,7 @@ func TestStoreBasicCommitAndRetrieval(t *testing.T) {
 		},
 	)
 
-	env := NewTestStoreEnv(t, "testbasiccommitandretrieval", btlPolicy, couchDBDef)
+	env := NewTestStoreEnv(t, "testbasiccommitandretrieval", btlPolicy, couchDBConfig)
 	req := require.New(t)
 	store := env.TestStore
 	testData := []*ledger.TxPvtData{
@@ -148,7 +150,7 @@ func TestStoreState(t *testing.T) {
 			{"ns-1", "coll-2"}: 0,
 		},
 	)
-	env := NewTestStoreEnv(t, "teststate", btlPolicy, couchDBDef)
+	env := NewTestStoreEnv(t, "teststate", btlPolicy, couchDBConfig)
 	req := require.New(t)
 	store := env.TestStore
 	testData := []*ledger.TxPvtData{
@@ -166,7 +168,7 @@ func TestStoreState(t *testing.T) {
 }
 
 func TestInitLastCommittedBlock(t *testing.T) {
-	env := NewTestStoreEnv(t, "testinitlastcommittedblock", nil, couchDBDef)
+	env := NewTestStoreEnv(t, "testinitlastcommittedblock", nil, couchDBConfig)
 	req := require.New(t)
 	store := env.TestStore
 	existingLastBlockNum := uint64(25)

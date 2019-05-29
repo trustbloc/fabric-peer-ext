@@ -9,6 +9,8 @@ package idstore
 import (
 	"fmt"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/metrics/disabled"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/idstore"
@@ -106,9 +108,8 @@ func createIndices(db *couchdb.CouchDatabase) error {
 
 func createCouchInstance() (*couchdb.CouchInstance, error) {
 	logger.Debugf("constructing CouchDB block storage provider")
-	couchDBDef := couchdb.GetCouchDBDefinition()
-	couchInstance, err := couchdb.CreateCouchInstance(couchDBDef.URL, couchDBDef.Username, couchDBDef.Password,
-		couchDBDef.MaxRetries, couchDBDef.MaxRetriesOnStartup, couchDBDef.RequestTimeout, couchDBDef.CreateGlobalChangesDB, &disabled.Provider{})
+	couchDBConfig := config.GetCouchDBConfig()
+	couchInstance, err := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {
 		return nil, errors.WithMessage(err, "obtaining CouchDB instance failed")
 	}

@@ -7,11 +7,12 @@ SPDX-License-Identifier: Apache-2.0
 package pvtdatastorage
 
 import (
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 	s "github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage"
 )
 
 // NewProvider instantiates a StoreProvider
-func NewProvider() pvtdatastorage.Provider {
-	return s.NewProvider()
+func NewProvider(conf *ledger.PrivateData) pvtdatastorage.Provider {
+	return s.NewProvider(conf)
 }

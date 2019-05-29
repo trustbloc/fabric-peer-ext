@@ -10,8 +10,11 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hyperledger/fabric/core/ledger"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+
 	"github.com/hyperledger/fabric/common/metrics/disabled"
-	"github.com/hyperledger/fabric/core/ledger/ledgerconfig"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
@@ -25,19 +28,23 @@ type StoreEnv struct {
 	TestStore         pvtdatastorage.Store
 	ledgerid          string
 	btlPolicy         pvtdatapolicy.BTLPolicy
-	couchDBDef        *couchdb.CouchDBDef
+	couchDBConfig     *couchdb.Config
 }
 
 // NewTestStoreEnv construct a StoreEnv for testing
-func NewTestStoreEnv(t *testing.T, ledgerid string, btlPolicy pvtdatapolicy.BTLPolicy, couchDBDef *couchdb.CouchDBDef) *StoreEnv {
+func NewTestStoreEnv(t *testing.T, ledgerid string, btlPolicy pvtdatapolicy.BTLPolicy, couchDBConfig *couchdb.Config) *StoreEnv {
 	removeStorePath()
 	req := require.New(t)
-	testStoreProvider, err := NewProvider()
+	conf := &ledger.PrivateData{
+		StorePath:     config.GetPvtdataStorePath(),
+		PurgeInterval: 1,
+	}
+	testStoreProvider, err := NewProvider(conf)
 	req.NoError(err)
 	testStore, err := testStoreProvider.OpenStore(ledgerid)
 	req.NoError(err)
 	testStore.Init(btlPolicy)
-	s := &StoreEnv{t, testStoreProvider, testStore, ledgerid, btlPolicy, couchDBDef}
+	s := &StoreEnv{t, testStoreProvider, testStore, ledgerid, btlPolicy, couchDBConfig}
 	return s
 }
 
@@ -45,7 +52,11 @@ func NewTestStoreEnv(t *testing.T, ledgerid string, btlPolicy pvtdatapolicy.BTLP
 func (env *StoreEnv) CloseAndReopen() {
 	var err error
 	env.TestStoreProvider.Close()
-	env.TestStoreProvider, err = NewProvider()
+	conf := &ledger.PrivateData{
+		StorePath:     config.GetPvtdataStorePath(),
+		PurgeInterval: 1,
+	}
+	env.TestStoreProvider, err = NewProvider(conf)
 	require.NoError(env.t, err)
 	env.TestStore, err = env.TestStoreProvider.OpenStore(env.ledgerid)
 	env.TestStore.Init(env.btlPolicy)
@@ -55,8 +66,7 @@ func (env *StoreEnv) CloseAndReopen() {
 //Cleanup env test
 func (env *StoreEnv) Cleanup(ledgerid string) {
 	//create a new connection
-	couchInstance, err := couchdb.CreateCouchInstance(env.couchDBDef.URL, env.couchDBDef.Username, env.couchDBDef.Password,
-		env.couchDBDef.MaxRetries, env.couchDBDef.MaxRetriesOnStartup, env.couchDBDef.RequestTimeout, env.couchDBDef.CreateGlobalChangesDB, &disabled.Provider{})
+	couchInstance, err := couchdb.CreateCouchInstance(env.couchDBConfig, &disabled.Provider{})
 	if err != nil {
 		panic(err.Error())
 	}
@@ -70,7 +80,7 @@ func (env *StoreEnv) Cleanup(ledgerid string) {
 }
 
 func removeStorePath() {
-	dbPath := ledgerconfig.GetPvtdataStorePath()
+	dbPath := config.GetPvtdataStorePath()
 	if err := os.RemoveAll(dbPath); err != nil {
 		panic(err.Error())
 	}

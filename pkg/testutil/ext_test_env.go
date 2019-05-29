@@ -11,6 +11,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/metrics/disabled"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
@@ -41,7 +43,7 @@ func SetupExtTestEnv() (addr string, cleanup func(string), stop func()) {
 
 	return couchDB.Address(),
 		func(name string) {
-			cleanupCouchDB(name, couchDB)
+			cleanupCouchDB(name)
 		}, func() {
 			//reset viper cdb config
 			updateConfig(oldAddr)
@@ -51,10 +53,9 @@ func SetupExtTestEnv() (addr string, cleanup func(string), stop func()) {
 		}
 }
 
-func cleanupCouchDB(name string, couchDB *runner.CouchDB) {
-	couchDBDef := couchdb.GetCouchDBDefinition()
-	couchInstance, _ := couchdb.CreateCouchInstance(couchDB.Address(), couchDBDef.Username, couchDBDef.Password,
-		couchDBDef.MaxRetries, couchDBDef.MaxRetriesOnStartup, couchDBDef.RequestTimeout, couchDBDef.CreateGlobalChangesDB, &disabled.Provider{})
+func cleanupCouchDB(name string) {
+	couchDBConfig := config.GetCouchDBConfig()
+	couchInstance, _ := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 
 	blkdb := couchdb.CouchDatabase{CouchInstance: couchInstance, DBName: fmt.Sprintf("%s$$blocks_", name)}
 	pvtdb := couchdb.CouchDatabase{CouchInstance: couchInstance, DBName: fmt.Sprintf("%s$$pvtdata_", name)}

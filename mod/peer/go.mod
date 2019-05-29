@@ -4,15 +4,16 @@
 
 module github.com/trustbloc/fabric-peer-ext/mod/peer
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.0.0-20190522001819-bbf763a5c881
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.0.0-20190529180635-90bc805776ba
 
 replace github.com/hyperledger/fabric/extensions => ./
 
 replace github.com/trustbloc/fabric-peer-ext => ../..
 
 require (
-	github.com/hyperledger/fabric v1.4.1
+	github.com/hyperledger/fabric v2.0.0-alpha+incompatible
 	github.com/hyperledger/fabric/extensions v0.0.0
+	github.com/magiconair/properties v1.8.1
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper v0.0.0-20150908122457-1967d93db724
 	github.com/stretchr/testify v1.3.0

@@ -12,31 +12,30 @@ import (
 
 	"github.com/hyperledger/fabric/common/metrics/disabled"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/idstore"
-	"github.com/hyperledger/fabric/core/ledger/ledgerconfig"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 )
 
 // StoreEnv provides the  store env for testing
 type StoreEnv struct {
-	t          testing.TB
-	TestStore  idstore.IDStore
-	ledgerid   string
-	couchDBDef *couchdb.CouchDBDef
+	t             testing.TB
+	TestStore     idstore.IDStore
+	ledgerid      string
+	couchDBConfig *couchdb.Config
 }
 
 // NewTestStoreEnv construct a StoreEnv for testing
-func NewTestStoreEnv(t *testing.T, ledgerid string, couchDBDef *couchdb.CouchDBDef) *StoreEnv {
+func NewTestStoreEnv(t *testing.T, ledgerid string, couchDBConfig *couchdb.Config) *StoreEnv {
 	removeStorePath()
 	testStore := OpenIDStore(ledgerid)
-	s := &StoreEnv{t, testStore, ledgerid, couchDBDef}
+	s := &StoreEnv{t, testStore, ledgerid, couchDBConfig}
 	return s
 }
 
 //Cleanup env test
 func (env *StoreEnv) Cleanup(ledgerid string) {
 	//create a new connection
-	couchInstance, err := couchdb.CreateCouchInstance(env.couchDBDef.URL, env.couchDBDef.Username, env.couchDBDef.Password,
-		env.couchDBDef.MaxRetries, env.couchDBDef.MaxRetriesOnStartup, env.couchDBDef.RequestTimeout, env.couchDBDef.CreateGlobalChangesDB, &disabled.Provider{})
+	couchInstance, err := couchdb.CreateCouchInstance(env.couchDBConfig, &disabled.Provider{})
 	if err != nil {
 		panic(err.Error())
 	}
@@ -52,7 +51,7 @@ func (env *StoreEnv) Cleanup(ledgerid string) {
 }
 
 func removeStorePath() {
-	dbPath := ledgerconfig.GetPvtdataStorePath()
+	dbPath := config.GetPvtdataStorePath()
 	if err := os.RemoveAll(dbPath); err != nil {
 		panic(err.Error())
 	}

@@ -9,6 +9,8 @@ package cdbblkstorage
 import (
 	"strings"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 
 	"github.com/hyperledger/fabric/common/flogging"
@@ -34,9 +36,8 @@ type CDBBlockstoreProvider struct {
 // NewProvider creates a new CouchDB BlockStoreProvider
 func NewProvider(indexConfig *blkstorage.IndexConfig) (blkstorage.BlockStoreProvider, error) {
 	logger.Debugf("constructing CouchDB block storage provider")
-	couchDBDef := couchdb.GetCouchDBDefinition()
-	couchInstance, err := couchdb.CreateCouchInstance(couchDBDef.URL, couchDBDef.Username, couchDBDef.Password,
-		couchDBDef.MaxRetries, couchDBDef.MaxRetriesOnStartup, couchDBDef.RequestTimeout, couchDBDef.CreateGlobalChangesDB, &disabled.Provider{})
+	couchDBConfig := config.GetCouchDBConfig()
+	couchInstance, err := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {
 		return nil, errors.WithMessage(err, "obtaining CouchDB instance failed")
 	}

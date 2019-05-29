@@ -42,10 +42,9 @@ type CouchDBProvider struct {
 
 // NewDBProvider creates a CouchDB Provider
 func NewDBProvider() *CouchDBProvider {
-	couchDBDef := couchdb.GetCouchDBDefinition()
+	couchDBConfig := config.GetCouchDBConfig()
 
-	couchInstance, err := couchdb.CreateCouchInstance(couchDBDef.URL, couchDBDef.Username, couchDBDef.Password,
-		couchDBDef.MaxRetries, couchDBDef.MaxRetriesOnStartup, couchDBDef.RequestTimeout, couchDBDef.CreateGlobalChangesDB, &disabled.Provider{})
+	couchInstance, err := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {
 		logger.Error(err)
 		return nil

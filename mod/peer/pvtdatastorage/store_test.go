@@ -9,8 +9,11 @@ package pvtdatastorage
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
+	coreconfig "github.com/hyperledger/fabric/core/config"
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/extensions/testutil"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
@@ -21,7 +24,11 @@ func TestNewProvider(t *testing.T) {
 	defer cleanup()
 	_, _, destroy := testutil.SetupExtTestEnv()
 	defer destroy()
-	require.NotEmpty(t, NewProvider())
+	conf := &ledger.PrivateData{
+		StorePath:     filepath.Join(coreconfig.GetPath("peer.fileSystemPath"), "store"),
+		PurgeInterval: 1,
+	}
+	require.NotEmpty(t, NewProvider(conf))
 }
 
 func setupPath(t *testing.T) (cleanup func()) {

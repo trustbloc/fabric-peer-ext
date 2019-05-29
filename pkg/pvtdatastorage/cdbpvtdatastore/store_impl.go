@@ -19,11 +19,11 @@ import (
 	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
 	"github.com/hyperledger/fabric/common/metrics/disabled"
 	"github.com/hyperledger/fabric/core/ledger"
-	"github.com/hyperledger/fabric/core/ledger/ledgerconfig"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/pkg/errors"
+	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 	"github.com/willf/bitset"
@@ -77,21 +77,20 @@ type lastUpdatedOldBlocksList []uint64
 //////////////////////////////////////////
 
 // NewProvider instantiates a private data storage provider backed by CouchDB
-func NewProvider() (pvtdatastorage.Provider, error) {
+func NewProvider(conf *ledger.PrivateData) (pvtdatastorage.Provider, error) {
 	logger.Debugf("constructing CouchDB private data storage provider")
-	couchDBDef := couchdb.GetCouchDBDefinition()
+	couchDBConfig := config.GetCouchDBConfig()
 
-	return newProviderWithDBDef(couchDBDef)
+	return newProviderWithDBDef(couchDBConfig, conf)
 }
 
-func newProviderWithDBDef(couchDBDef *couchdb.CouchDBDef) (pvtdatastorage.Provider, error) {
-	couchInstance, err := couchdb.CreateCouchInstance(couchDBDef.URL, couchDBDef.Username, couchDBDef.Password,
-		couchDBDef.MaxRetries, couchDBDef.MaxRetriesOnStartup, couchDBDef.RequestTimeout, couchDBDef.CreateGlobalChangesDB, &disabled.Provider{})
+func newProviderWithDBDef(couchDBConfig *couchdb.Config, conf *ledger.PrivateData) (pvtdatastorage.Provider, error) {
+	couchInstance, err := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {
 		return nil, errors.WithMessage(err, "obtaining CouchDB instance failed")
 	}
 
-	dbPath := ledgerconfig.GetPvtdataStorePath()
+	dbPath := conf.StorePath
 	missingKeysIndexProvider := leveldbhelper.NewProvider(&leveldbhelper.Conf{DBPath: dbPath})
 
 	return &provider{couchInstance, missingKeysIndexProvider}, nil
@@ -765,7 +764,7 @@ func (s *store) nextBlockNum() uint64 {
 }
 
 func (s *store) performPurgeIfScheduled(latestCommittedBlk uint64) {
-	if latestCommittedBlk%ledgerconfig.GetPvtdataStorePurgeInterval() != 0 {
+	if latestCommittedBlk%config.GetPvtdataStorePurgeInterval() != 0 {
 		return
 	}
 	go func() {

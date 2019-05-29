@@ -10,6 +10,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/hyperledger/fabric/protos/common"
@@ -18,14 +20,14 @@ import (
 	xtestutil "github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
 
-var couchDBDef *couchdb.CouchDBDef
+var couchDBConfig *couchdb.Config
 
 func TestMain(m *testing.M) {
 	//setup extension test environment
 	_, _, destroy := xtestutil.SetupExtTestEnv()
 
 	// Create CouchDB definition from config parameters
-	couchDBDef = couchdb.GetCouchDBDefinition()
+	couchDBConfig = config.GetCouchDBConfig()
 
 	code := m.Run()
 	destroy()
@@ -34,7 +36,7 @@ func TestMain(m *testing.M) {
 
 func TestUnderConstructionFlag(t *testing.T) {
 	ledgerID := "testunderconstructionglag"
-	env := NewTestStoreEnv(t, ledgerID, couchDBDef)
+	env := NewTestStoreEnv(t, ledgerID, couchDBConfig)
 	req := require.New(t)
 	store := env.TestStore
 
@@ -59,7 +61,7 @@ func TestUnderConstructionFlag(t *testing.T) {
 func TestLedgerID(t *testing.T) {
 	ledgerID := "testledgerid"
 	ledgerID1 := "testledgerid1"
-	env := NewTestStoreEnv(t, ledgerID, couchDBDef)
+	env := NewTestStoreEnv(t, ledgerID, couchDBConfig)
 	req := require.New(t)
 	store := env.TestStore
 
@@ -97,14 +99,14 @@ func TestLedgerID(t *testing.T) {
 func TestOpenStoreWithEndorserRole(t *testing.T) {
 	// create committer store
 	ledgerID := "Testopenstorewithendorserrole"
-	env := NewTestStoreEnv(t, ledgerID, couchDBDef)
+	env := NewTestStoreEnv(t, ledgerID, couchDBConfig)
 
 	// create endorser store
 	rolesValue := make(map[roles.Role]struct{})
 	rolesValue[roles.EndorserRole] = struct{}{}
 	roles.SetRoles(rolesValue)
 	defer func() { roles.SetRoles(nil) }()
-	env = NewTestStoreEnv(t, ledgerID, couchDBDef)
+	env = NewTestStoreEnv(t, ledgerID, couchDBConfig)
 	req := require.New(t)
 	endorserStore := env.TestStore
 

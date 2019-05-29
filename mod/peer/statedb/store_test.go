@@ -20,7 +20,7 @@ func TestNewProvider(t *testing.T) {
 	cleanup := setupPath(t)
 	defer cleanup()
 
-	require.NotEmpty(t, NewVersionedDBProvider(stateleveldb.NewVersionedDBProvider()))
+	require.NotEmpty(t, NewVersionedDBProvider(stateleveldb.NewVersionedDBProvider("teststatedb")))
 
 	require.Empty(t, NewVersionedDBProvider(nil))
 }
