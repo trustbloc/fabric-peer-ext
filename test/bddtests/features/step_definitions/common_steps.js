@@ -13,15 +13,6 @@ defineSupportCode(function ({And, But, Given, Then, When}) {
     And(/^collection config "([^"]*)" is defined for collection "([^"]*)" as policy="([^"]*)", requiredPeerCount=(\d+), maxPeerCount=(\d+), and blocksToLive=(\d+)$/, function (arg1, arg2, arg3, arg4, arg5, arg6, callback) {
         callback.pending();
     });
-    And(/^transient collection config "([^"]*)" is defined for collection "([^"]*)" as policy="([^"]*)", requiredPeerCount=(\d+), maxPeerCount=(\d+), and timeToLive=([^"]*)$/, function (arg1, arg2, arg3, arg4, arg5, arg6, callback) {
-        callback.pending();
-    });
-    And(/^off-ledger collection config "([^"]*)" is defined for collection "([^"]*)" as policy="([^"]*)", requiredPeerCount=(\d+), maxPeerCount=(\d+), and timeToLive=([^"]*)$/, function (arg1, arg2, arg3, arg4, arg5, arg6, callback) {
-        callback.pending();
-    });
-    And(/^DCAS collection config "([^"]*)" is defined for collection "([^"]*)" as policy="([^"]*)", requiredPeerCount=(\d+), maxPeerCount=(\d+), and timeToLive=([^"]*)$/, function (arg1, arg2, arg3, arg4, arg5, arg6, callback) {
-        callback.pending();
-    });
     Given(/^"([^"]*)" chaincode "([^"]*)" is installed from path "([^"]*)" to all peers$/, function (arg1, arg2, arg3, callback) {
         callback.pending();
     });

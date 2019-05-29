@@ -37,7 +37,7 @@ Feature:
     # The third is a private data collection, so the data should not persist.
     When client queries chaincode "tdata_examplecc" with args "putprivatemultiple,collection1,keyX,valX,collection2,keyY,valY,collection3,keyZ,valZ" on the "mychannel" channel
     And client queries chaincode "tdata_examplecc" with args "getprivatemultiple,collection1,keyX,collection2,keyY,collection3,keyZ" on the "mychannel" channel
-    Then response from "dcas_examplecc" to client equal value "valX,valY,"
+    Then response from "tdata_examplecc" to client equal value "valX,valY,"
 
     # Test for the case where get transient data should not return data that was stored in the current transaction.
     # When multiple peers are involved in an endorsement then one endorser may already have propagated the private

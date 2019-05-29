@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/godog"
-	"github.com/hyperledger/fabric/common/util"
 	"github.com/spf13/viper"
 	"github.com/trustbloc/fabric-peer-test-common/bddtests"
 )
@@ -42,7 +41,7 @@ func TestMain(m *testing.M) {
 			if os.Getenv("DISABLE_COMPOSITION") != "true" {
 
 				// Need a unique name, but docker does not allow '-' in names
-				composeProjectName := strings.Replace(util.GenerateUUID(), "-", "", -1)
+				composeProjectName := strings.Replace(GenerateUUID(), "-", "", -1)
 				newComposition, err := bddtests.NewComposition(composeProjectName, "docker-compose.yml", "./fixtures")
 				if err != nil {
 					panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
@@ -100,6 +99,7 @@ func FeatureContext(s *godog.Suite) {
 	// Note: Each test after NewcommonSteps. should add unique steps only
 	bddtests.NewCommonSteps(context).RegisterSteps(s)
 
+	NewTransientDataSteps(context).RegisterSteps(s)
 }
 
 func initBDDConfig() {

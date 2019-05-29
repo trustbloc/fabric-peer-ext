@@ -213,8 +213,12 @@ github.com/trustbloc/fabric-mod v0.0.0-20190522001819-bbf763a5c881/go.mod h1:y/y
 github.com/trustbloc/fabric-mod/extensions v0.0.0-20190510235640-ff89b7580e81/go.mod h1:SnMkFTM0DFEsFcZqZp4P0Gqm+ryD8iwx9cEGW8qrju0=
 github.com/trustbloc/fabric-peer-test-common v0.0.0-20190515153005-67b33fd24540 h1:4rgtLmmyJANek8//Mw7uBlsA6f1QJagOM3xGINiDuGU=
 github.com/trustbloc/fabric-peer-test-common v0.0.0-20190515153005-67b33fd24540/go.mod h1:nx69thq0BddIJIfvK3RZz9Eue1ieGD6w/VY6DW34D2o=
+github.com/trustbloc/fabric-peer-test-common v0.0.0-20190528215613-a7959c5ba3e1 h1:sIzaOlqGBI8I6/CMemFE1g+IRECZYwar25EvoQL0V88=
+github.com/trustbloc/fabric-peer-test-common v0.0.0-20190528215613-a7959c5ba3e1/go.mod h1:WkMYVPBLYZVYmkoke8/KmwBnGxeQQTeZafbV3FVexew=
 github.com/trustbloc/fabric-sdk-go-ext/fabric v0.0.0-20190507173756-f4404fb70f73 h1:xgxZkInAT/jbAoZq4vfISGnPdVPv2hknaSFYc2Xdkww=
 github.com/trustbloc/fabric-sdk-go-ext/fabric v0.0.0-20190507173756-f4404fb70f73/go.mod h1:24RzLAEPTcvxFatT0GLRXZTPkvkYyiBlp8yNxEwg2ig=
+github.com/trustbloc/fabric-sdk-go-ext/fabric v0.0.0-20190528182243-b95c24511993 h1:iQH8rOUokmkMRuaXS9SwzGvJeuZ3rb1V9o6yXHjCdL4=
+github.com/trustbloc/fabric-sdk-go-ext/fabric v0.0.0-20190528182243-b95c24511993/go.mod h1:24RzLAEPTcvxFatT0GLRXZTPkvkYyiBlp8yNxEwg2ig=
 github.com/ugorji/go v1.1.1/go.mod h1:hnLbHMwcvSihnDhEfx2/BzKp2xb0Y+ErdfYcrs9tkJQ=
 github.com/urfave/cli v1.18.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/vishvananda/netlink v1.0.0 h1:bqNY2lgheFIu1meHUFSH3d7vG93AFyqg3oGbJCOJgSM=
