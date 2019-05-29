@@ -10,9 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
-	"github.com/hyperledger/fabric/core/ledger/ledgerconfig"
 )
 
 // todo add pinning script to include copied code into this file, original file from fabric is found in fabric/core/ledger/pvtdatastorage/store_imp.go
@@ -61,8 +62,8 @@ func (c *CollElgProc) WaitForDone() {
 }
 
 func (c *CollElgProc) LaunchCollElgProc() {
-	maxBatchSize := ledgerconfig.GetPvtdataStoreCollElgProcMaxDbBatchSize()
-	batchesInterval := ledgerconfig.GetPvtdataStoreCollElgProcDbBatchesInterval()
+	maxBatchSize := config.GetPvtdataStoreCollElgProcMaxDbBatchSize()
+	batchesInterval := config.GetPvtdataStoreCollElgProcDbBatchesInterval()
 	go func() {
 		c.processCollElgEvents(maxBatchSize, batchesInterval) // process collection eligibility events when store is opened - in case there is an unprocessed events from previous run
 		for {

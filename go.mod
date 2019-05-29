@@ -7,17 +7,17 @@ module github.com/trustbloc/fabric-peer-ext
 require (
 	github.com/bluele/gcache v0.0.0-20190301044115-79ae3b2d8680
 	github.com/btcsuite/btcutil v0.0.0-20170419141449-a5ecb5d9547a
-	github.com/golang/protobuf v1.2.0
-	github.com/hyperledger/fabric v1.4.1
+	github.com/golang/protobuf v1.3.1
+	github.com/hyperledger/fabric v2.0.0-alpha+incompatible
 	github.com/hyperledger/fabric/extensions v0.0.0
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper v0.0.0-20150908122457-1967d93db724
 	github.com/stretchr/testify v1.3.0
-	github.com/willf/bitset v1.1.9
-	go.uber.org/zap v1.9.1
+	github.com/willf/bitset v1.1.10
+	go.uber.org/zap v1.10.0
 )
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.0.0-20190522001819-bbf763a5c881
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.0.0-20190529180635-90bc805776ba
 
 replace github.com/hyperledger/fabric/extensions => ./mod/peer
 

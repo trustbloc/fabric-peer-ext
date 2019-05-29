@@ -15,10 +15,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
-	"github.com/hyperledger/fabric/core/ledger/ledgerconfig"
 	btltestutil "github.com/hyperledger/fabric/core/ledger/pvtdatapolicy/testutil"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
@@ -34,7 +35,7 @@ import (
 // 1- setup couchdb
 // 2- add TestLookupLastBlock unit test
 
-var couchDBDef *couchdb.CouchDBDef
+var couchDBConfig *couchdb.Config
 
 func TestMain(m *testing.M) {
 	//setup extension test environment
@@ -42,7 +43,7 @@ func TestMain(m *testing.M) {
 
 	viper.Set("peer.fileSystemPath", "/tmp/fabric/core/ledger/pvtdatastorage")
 	// Create CouchDB definition from config parameters
-	couchDBDef = couchdb.GetCouchDBDefinition()
+	couchDBConfig = config.GetCouchDBConfig()
 
 	code := m.Run()
 	//stop couchdb
@@ -63,7 +64,7 @@ func TestStorePurge(t *testing.T) {
 			{"ns-3", "coll-2"}: 0,
 		},
 	)
-	env := NewTestStoreEnv(t, ledgerid, btlPolicy, couchDBDef)
+	env := NewTestStoreEnv(t, ledgerid, btlPolicy, couchDBConfig)
 	defer env.Cleanup(ledgerid)
 	req := require.New(t)
 	s := env.TestStore
@@ -171,7 +172,7 @@ func testWaitForPurgerRoutineToFinish(s pvtdatastorage.Store) {
 }
 
 func TestEmptyStore(t *testing.T) {
-	env := NewTestStoreEnv(t, "testemptystore", nil, couchDBDef)
+	env := NewTestStoreEnv(t, "testemptystore", nil, couchDBConfig)
 	defer env.Cleanup("testemptystore")
 	req := require.New(t)
 	store := env.TestStore
@@ -191,7 +192,7 @@ func TestEndorserRole(t *testing.T) {
 			{"ns-4", "coll-2"}: 0,
 		},
 	)
-	env := NewTestStoreEnv(t, "testendorserrole", btlPolicy, couchDBDef)
+	env := NewTestStoreEnv(t, "testendorserrole", btlPolicy, couchDBConfig)
 	defer env.Cleanup("testendorserrole")
 	req := require.New(t)
 	committerStore := env.TestStore
@@ -212,7 +213,7 @@ func TestEndorserRole(t *testing.T) {
 	rolesValue[roles.EndorserRole] = struct{}{}
 	roles.SetRoles(rolesValue)
 	defer func() { roles.SetRoles(nil) }()
-	endorserStore := NewTestStoreEnv(t, "testendorserrole", btlPolicy, couchDBDef).TestStore
+	endorserStore := NewTestStoreEnv(t, "testendorserrole", btlPolicy, couchDBConfig).TestStore
 
 	var nilFilter ledger.PvtNsCollFilter
 	retrievedData, err := endorserStore.GetPvtDataByBlockNum(0, nilFilter)
@@ -242,7 +243,7 @@ func TestStoreBasicCommitAndRetrieval(t *testing.T) {
 		},
 	)
 
-	env := NewTestStoreEnv(t, "teststorebasiccommitandretrieval", btlPolicy, couchDBDef)
+	env := NewTestStoreEnv(t, "teststorebasiccommitandretrieval", btlPolicy, couchDBConfig)
 	defer env.Cleanup("teststorebasiccommitandretrieval")
 	req := require.New(t)
 	store := env.TestStore
@@ -369,7 +370,7 @@ func TestCommitPvtDataOfOldBlocks(t *testing.T) {
 			{"ns-4", "coll-2"}: 0,
 		},
 	)
-	env := NewTestStoreEnv(t, "testcommitpvtdataofoldblocks", btlPolicy, couchDBDef)
+	env := NewTestStoreEnv(t, "testcommitpvtdataofoldblocks", btlPolicy, couchDBConfig)
 	defer env.Cleanup("testcommitpvtdataofoldblocks")
 	req := require.New(t)
 	store := env.TestStore
@@ -593,7 +594,7 @@ func TestExpiryDataNotIncluded(t *testing.T) {
 			{"ns-3", "coll-2"}: 0,
 		},
 	)
-	env := NewTestStoreEnv(t, ledgerid, btlPolicy, couchDBDef)
+	env := NewTestStoreEnv(t, ledgerid, btlPolicy, couchDBConfig)
 	defer env.Cleanup(ledgerid)
 	req := require.New(t)
 	store := env.TestStore
@@ -719,7 +720,7 @@ func TestLookupLastBlock(t *testing.T) {
 			{"ns-1", "coll-2"}: 0,
 		},
 	)
-	env := NewTestStoreEnv(t, "teststorestate", btlPolicy, couchDBDef)
+	env := NewTestStoreEnv(t, "teststorestate", btlPolicy, couchDBConfig)
 	defer env.Cleanup("teststorestate")
 	req := require.New(t)
 	s := env.TestStore
@@ -763,7 +764,7 @@ func TestStoreState(t *testing.T) {
 			{"ns-1", "coll-2"}: 0,
 		},
 	)
-	env := NewTestStoreEnv(t, "teststorestate", btlPolicy, couchDBDef)
+	env := NewTestStoreEnv(t, "teststorestate", btlPolicy, couchDBConfig)
 	defer env.Cleanup("teststorestate")
 	req := require.New(t)
 	store := env.TestStore
@@ -782,7 +783,7 @@ func TestStoreState(t *testing.T) {
 }
 
 func TestInitLastCommittedBlock(t *testing.T) {
-	env := NewTestStoreEnv(t, "teststorestate", nil, couchDBDef)
+	env := NewTestStoreEnv(t, "teststorestate", nil, couchDBConfig)
 	defer env.Cleanup("teststorestate")
 	req := require.New(t)
 	store := env.TestStore
@@ -805,8 +806,8 @@ func TestInitLastCommittedBlock(t *testing.T) {
 
 func TestCollElgEnabled(t *testing.T) {
 	testCollElgEnabled(t)
-	defaultValBatchSize := ledgerconfig.GetPvtdataStoreCollElgProcMaxDbBatchSize()
-	defaultValInterval := ledgerconfig.GetPvtdataStoreCollElgProcDbBatchesInterval()
+	defaultValBatchSize := config.GetPvtdataStoreCollElgProcMaxDbBatchSize()
+	defaultValInterval := config.GetPvtdataStoreCollElgProcDbBatchesInterval()
 	defer func() {
 		viper.Set("ledger.pvtdataStore.collElgProcMaxDbBatchSize", defaultValBatchSize)
 		viper.Set("ledger.pvtdataStore.collElgProcMaxDbBatchSize", defaultValInterval)
@@ -826,7 +827,7 @@ func testCollElgEnabled(t *testing.T) {
 			{"ns-2", "coll-2"}: 0,
 		},
 	)
-	env := NewTestStoreEnv(t, ledgerid, btlPolicy, couchDBDef)
+	env := NewTestStoreEnv(t, ledgerid, btlPolicy, couchDBConfig)
 	defer env.Cleanup(ledgerid)
 	req := require.New(t)
 	store := env.TestStore
@@ -911,7 +912,7 @@ func TestRollBack(t *testing.T) {
 			{"ns-1", "coll-2"}: 0,
 		},
 	)
-	env := NewTestStoreEnv(t, "testrollback", btlPolicy, couchDBDef)
+	env := NewTestStoreEnv(t, "testrollback", btlPolicy, couchDBConfig)
 	defer env.Cleanup("testrollback")
 	req := require.New(t)
 	store := env.TestStore
