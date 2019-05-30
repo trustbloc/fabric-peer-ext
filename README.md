@@ -24,7 +24,7 @@ make unit-test
 
 ## Build dependencies
 
-* Go `1.11.5`
+* Go `1.12.5`
 * Docker `18.09.x` or above
 
 # Contributing
