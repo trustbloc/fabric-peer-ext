@@ -7,6 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package main
 
 import (
+	"crypto"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -34,6 +36,9 @@ const (
 	getAndPutBothFunc      = "getandputboth"
 	invokeCCFunc           = "invokecc"
 	getPrivateByRangeFunc  = "getprivatebyrange"
+	putCASFunc             = "putcas"
+	putCASMultipleFunc     = "putcasmultiple"
+	getAndPutCASFunc       = "getandputcas"
 )
 
 // ExampleCC example chaincode that puts and gets state and private data
@@ -330,6 +335,78 @@ func (cc *ExampleCC) getAndPutPrivate(stub shim.ChaincodeStubInterface, args []s
 	return shim.Success(nil)
 }
 
+func (cc *ExampleCC) putCAS(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	if len(args) != 2 {
+		return shim.Error("Invalid args. Expecting collection and value")
+	}
+
+	coll := args[0]
+	value := args[1]
+
+	key := getCASKey([]byte(value))
+
+	if err := stub.PutPrivateData(coll, key, []byte(value)); err != nil {
+		return shim.Error(fmt.Sprintf("Error putting private data for collection [%s] and key [%s]: %s", coll, key, err))
+	}
+
+	return shim.Success([]byte(key))
+}
+
+func (cc *ExampleCC) putCASMultiple(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	if len(args) < 2 {
+		return shim.Error("Invalid args. Expecting collection1, value1, collection2, value2, etc.")
+	}
+
+	ckvs, err := asTuples2(args)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	var keys string
+	for _, ckv := range ckvs {
+		coll := ckv.v1
+		value := ckv.v2
+
+		key := getCASKey([]byte(value))
+		if keys == "" {
+			keys = key
+		} else {
+			keys += "," + key
+		}
+
+		if err := stub.PutPrivateData(coll, key, []byte(value)); err != nil {
+			return shim.Error(fmt.Sprintf("Error putting CAS data for collection [%s] and key [%s]: %s", coll, key, err))
+		}
+	}
+
+	return shim.Success([]byte(keys))
+}
+
+func (cc *ExampleCC) getAndPutCAS(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	if len(args) != 2 {
+		return shim.Error("Invalid args. Expecting collection and value")
+	}
+
+	coll := args[0]
+	privValue := args[1]
+
+	privKey := getCASKey([]byte(privValue))
+
+	oldPrivValue, err := stub.GetPrivateData(coll, privKey)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Error getting DCAS data for collection [%s] and key [%s]: %s", coll, privKey, err))
+	}
+	if oldPrivValue != nil {
+		return shim.Success([]byte(privKey))
+	}
+
+	if err := stub.PutPrivateData(coll, privKey, []byte(privValue)); err != nil {
+		return shim.Error(fmt.Sprintf("Error putting DCAS data for collection [%s] and key [%s]: %s", coll, privKey, err))
+	}
+
+	return shim.Success([]byte(privKey))
+}
+
 type argStruct struct {
 	Args []string `json:"Args"`
 }
@@ -375,6 +452,9 @@ func (cc *ExampleCC) initRegistry() {
 	cc.funcRegistry[getAndPutBothFunc] = cc.getAndPutBoth
 	cc.funcRegistry[invokeCCFunc] = cc.invokeCC
 	cc.funcRegistry[getPrivateByRangeFunc] = cc.getPrivateByRange
+	cc.funcRegistry[putCASFunc] = cc.putCAS
+	cc.funcRegistry[putCASMultipleFunc] = cc.putCASMultiple
+	cc.funcRegistry[getAndPutCASFunc] = cc.getAndPutCAS
 }
 
 func (cc *ExampleCC) functions() []string {
@@ -383,6 +463,24 @@ func (cc *ExampleCC) functions() []string {
 		funcs = append(funcs, key)
 	}
 	return funcs
+}
+
+// getCASKey returns the content-addressable key for the given content
+// (sha256 hash + base64 URL encoding).
+func getCASKey(content []byte) string {
+	hash := getHash(content)
+	buf := make([]byte, base64.URLEncoding.EncodedLen(len(hash)))
+	base64.URLEncoding.Encode(buf, hash)
+	return string(buf)
+}
+
+// getHash will compute the hash for the supplied bytes using SHA256
+func getHash(bytes []byte) []byte {
+	h := crypto.SHA256.New()
+	// added no lint directive because there's no error from source code
+	// error cannot be produced, checked google source
+	h.Write(bytes) //nolint
+	return h.Sum(nil)
 }
 
 type tuple2 struct {
