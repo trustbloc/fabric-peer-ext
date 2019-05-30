@@ -56,16 +56,20 @@ func newDBStore(db *couchdb.CouchDatabase, dbName string) *dbstore {
 //-----------------Interface implementation functions--------------------//
 // AddKey adds dataModel to db
 func (s *dbstore) Put(keyVal ...*api.KeyValue) error {
-	docs := make([]*couchdb.CouchDoc, 0)
+	var docs []*couchdb.CouchDoc
 	for _, kv := range keyVal {
-
-		dataDoc, err := createCouchDoc(string(encodeKey(kv.Key, time.Time{})), kv.Value)
+		dataDoc, err := s.createCouchDoc(string(encodeKey(kv.Key, time.Time{})), kv.Value)
 		if err != nil {
 			return err
 		}
 		if dataDoc != nil {
 			docs = append(docs, dataDoc)
 		}
+	}
+
+	if len(docs) == 0 {
+		logger.Debugf("[%s] Nothing to do", s.dbName)
+		return nil
 	}
 
 	_, err := s.db.BatchUpdateDocuments(docs)
@@ -119,7 +123,7 @@ func (s *dbstore) DeleteExpiredKeys() error {
 	docs := make([]*couchdb.CouchDoc, 0)
 	docIDs := make([]string, 0)
 	for _, doc := range data {
-		updateDoc := &dataModel{ID: doc.ID, Data: doc.Data, TxnID: doc.TxnID, Expiry: doc.Expiry, Rev: doc.Rev, Deleted: true}
+		updateDoc := &dataModel{ID: doc.ID, Rev: doc.Rev, Deleted: true}
 		jsonBytes, err := json.Marshal(updateDoc)
 		if err != nil {
 			return err
@@ -175,8 +179,24 @@ func fetchData(db *couchdb.CouchDatabase, key string) (*dataModel, error) {
 	return &data, nil
 }
 
-func createCouchDoc(key string, value *api.Value) (*couchdb.CouchDoc, error) {
-	data := &dataModel{ID: key, Data: string(value.Value), TxnID: value.TxID, Expiry: value.ExpiryTime.UnixNano() / int64(time.Millisecond)}
+func (s *dbstore) createCouchDoc(key string, value *api.Value) (*couchdb.CouchDoc, error) {
+	var data *dataModel
+	if value == nil {
+		logger.Debugf("[%s] Deleting key [%s]", s.dbName, key)
+
+		// Get the revision on the current doc
+		current, err := fetchData(s.db, string(encodeKey(key, time.Time{})))
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to load key [%s] from db", key)
+		}
+		if current == nil {
+			logger.Debugf("[%s] Current key not found to delete [%s]", s.dbName, key)
+			return nil, nil
+		}
+		data = &dataModel{ID: key, Rev: current.Rev, Deleted: true}
+	} else {
+		data = &dataModel{ID: key, Data: string(value.Value), TxnID: value.TxID, Expiry: value.ExpiryTime.UnixNano() / int64(time.Millisecond)}
+	}
 
 	jsonBytes, err := json.Marshal(data)
 	if err != nil {

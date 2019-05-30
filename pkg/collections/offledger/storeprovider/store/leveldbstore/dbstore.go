@@ -36,21 +36,36 @@ func newDBStore(db *leveldbhelper.DBHandle, dbName string) *store {
 func (s *store) Put(keyVal ...*api.KeyValue) error {
 	batch := leveldbhelper.NewUpdateBatch()
 	for _, kv := range keyVal {
-		encodedVal, err := encodeVal(kv.Value)
+		err := s.addToBatch(batch, kv)
 		if err != nil {
-			return errors.WithMessagef(err, "failed to encode value for key [%s]", kv.Value)
-		}
-		batch.Put(encodeKey(kv.Key, time.Time{}), encodedVal)
-
-		if !kv.ExpiryTime.IsZero() {
-			// put same previous key with prefix expiryTime so the clean up can remove all expired keys
-			err = s.db.Put(encodeKey(kv.Key, kv.ExpiryTime), []byte(""), true)
-			if err != nil {
-				return errors.Wrapf(err, "failed to save key [%s] in db", kv.Key)
-			}
+			return err
 		}
 	}
 	return s.db.WriteBatch(batch, true)
+}
+
+func (s *store) addToBatch(batch *leveldbhelper.UpdateBatch, kv *api.KeyValue) error {
+	if kv.Value == nil {
+		logger.Debugf("Deleting key [%s]", kv.Key)
+		batch.Delete(encodeKey(kv.Key, time.Time{}))
+		return nil
+	}
+
+	logger.Debugf("Adding key [%s]", kv.Key)
+	encodedVal, err := encodeVal(kv.Value)
+	if err != nil {
+		return errors.WithMessagef(err, "failed to encode value for key [%s]", kv.Value)
+	}
+	batch.Put(encodeKey(kv.Key, time.Time{}), encodedVal)
+
+	if !kv.ExpiryTime.IsZero() {
+		// put same previous key with prefix expiryTime so the clean up can remove all expired keys
+		err = s.db.Put(encodeKey(kv.Key, kv.ExpiryTime), []byte(""), true)
+		if err != nil {
+			return errors.Wrapf(err, "failed to save key [%s] in db", kv.Key)
+		}
+	}
+	return nil
 }
 
 // GetKey get cache key from db

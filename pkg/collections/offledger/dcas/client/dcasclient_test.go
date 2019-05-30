@@ -60,6 +60,11 @@ func TestDCASClient_Put(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, dcas.GetCASKey(value1), key)
 	})
+
+	t.Run("Delete", func(t *testing.T) {
+		err := c.Delete(ns1, coll1, dcas.GetCASKey(value1))
+		require.NoError(t, err)
+	})
 }
 
 func TestDCASClient_Get(t *testing.T) {

@@ -72,6 +72,13 @@ func TestCache_PutAndGet(t *testing.T) {
 	assert.Equal(t, v4, values[3])
 	assert.Nil(t, values[4]) // Should not have been added
 
+	c.Delete(ns1, coll1, key1)
+	require.NoError(t, err)
+
+	v, err = c.Get(ns1, coll1, key1)
+	require.NoError(t, err)
+	require.Nil(t, v)
+
 	time.Sleep(100 * time.Millisecond)
 
 	v, err = c.Get(ns1, coll1, key4)

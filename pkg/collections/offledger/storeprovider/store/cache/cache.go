@@ -78,6 +78,17 @@ func (c *Cache) Put(ns, coll, key string, value *api.Value) {
 	}
 }
 
+// Delete deletes the given key.
+func (c *Cache) Delete(ns, coll, key string) {
+	cKey := cacheKey{
+		namespace:  ns,
+		collection: coll,
+		key:        key,
+	}
+	logger.Debugf("[%s] Removing key [%s]", c.channelID, cKey)
+	c.cache.Remove(cKey)
+}
+
 // Get returns the values for the given keys
 func (c *Cache) Get(ns, coll, key string) (*api.Value, error) {
 	cKey := cacheKey{

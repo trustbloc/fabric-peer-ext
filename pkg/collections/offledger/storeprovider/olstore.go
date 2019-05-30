@@ -16,6 +16,7 @@ import (
 	mspmgmt "github.com/hyperledger/fabric/msp/mgmt"
 	"github.com/hyperledger/fabric/protos/common"
 	cb "github.com/hyperledger/fabric/protos/common"
+	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	pb "github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/pkg/errors"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
@@ -159,8 +160,13 @@ func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*c
 	}
 
 	for _, kv := range batch {
-		logger.Debugf("[%s] Putting key [%s:%s:%s] in Tx [%s]", s.channelID, ns, collRWSet.CollectionName, kv.Key, kv.TxID)
-		s.cache.Put(ns, collRWSet.CollectionName, kv.Key, kv.Value)
+		if kv.Value != nil {
+			logger.Infof("[%s] Putting key [%s:%s:%s] in Tx [%s]", s.channelID, ns, collRWSet.CollectionName, kv.Key, kv.TxID)
+			s.cache.Put(ns, collRWSet.CollectionName, kv.Key, kv.Value)
+		} else {
+			logger.Infof("[%s] Deleting key [%s:%s:%s]", s.channelID, ns, collRWSet.CollectionName, kv.Key)
+			s.cache.Delete(ns, collRWSet.CollectionName, kv.Key)
+		}
 	}
 
 	return nil
@@ -214,25 +220,36 @@ func (s *store) getDataMultipleKeys(txID, ns, coll string, keys ...string) (stor
 
 func (s *store) createBatch(txID, ns string, config *cb.StaticCollectionConfig, collRWSet *rwsetutil.CollPvtRwSet, expiryTime time.Time) ([]*api.KeyValue, error) {
 	var batch []*api.KeyValue
-	for _, wSet := range collRWSet.KvRwSet.Writes {
-		if wSet.IsDelete {
-			return nil, errors.Errorf("[%s] Attempt to delete key [%s] in collection [%s:%s]", s.channelID, wSet.Key, ns, collRWSet.CollectionName)
-		}
-
-		key := storeapi.NewKey(txID, ns, collRWSet.CollectionName, wSet.Key)
-		value := &storeapi.ExpiringValue{
-			Value:  wSet.Value,
-			Expiry: expiryTime,
-		}
-
-		key, value, err := s.decorate(config, key, value)
+	for _, w := range collRWSet.KvRwSet.Writes {
+		kv, err := s.newKeyValue(txID, ns, config, expiryTime, w)
 		if err != nil {
 			return nil, err
 		}
-
-		batch = append(batch, api.NewKeyValue(key.Key, value.Value, txID, value.Expiry))
+		batch = append(batch, kv)
 	}
 	return batch, nil
+}
+
+func (s *store) newKeyValue(txID, ns string, config *cb.StaticCollectionConfig, expiryTime time.Time, w *kvrwset.KVWrite) (*api.KeyValue, error) {
+	key := storeapi.NewKey(txID, ns, config.Name, w.Key)
+	if w.IsDelete {
+		dKey, err := s.decorateKey(config, key)
+		if err != nil {
+			return nil, err
+		}
+		return &api.KeyValue{Key: dKey.Key}, nil
+	}
+
+	dKey, value, err := s.decorate(config, key,
+		&storeapi.ExpiringValue{
+			Value:  w.Value,
+			Expiry: expiryTime,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return api.NewKeyValue(dKey.Key, value.Value, txID, value.Expiry), nil
 }
 
 func (s *store) isAuthorized(ns string, config *common.StaticCollectionConfig) (bool, error) {
@@ -303,6 +320,14 @@ func (s *store) decorate(config *cb.StaticCollectionConfig, key *storeapi.Key, v
 		return key, value, nil
 	}
 	return cfg.decorator(key, value)
+}
+
+func (s *store) decorateKey(config *cb.StaticCollectionConfig, key *storeapi.Key) (*storeapi.Key, error) {
+	cfg, ok := s.collConfigs[config.Type]
+	if !ok || cfg.keyDecorator == nil {
+		return key, nil
+	}
+	return cfg.keyDecorator(key)
 }
 
 func (s *store) collTypeSupported(collType cb.CollectionType) bool {

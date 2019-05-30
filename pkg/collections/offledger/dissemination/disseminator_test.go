@@ -222,6 +222,7 @@ func TestComputeDisseminationPlan(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
 			Write(key1, []byte("value1")).
+			Delete(key2).
 			Build()
 		colConfig := &cb.StaticCollectionConfig{
 			Type: cb.CollectionType_COL_OFFLEDGER,
@@ -231,21 +232,6 @@ func TestComputeDisseminationPlan(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, handled)
 		assert.NotNil(t, dPlan)
-	})
-
-	t.Run("Nil value", func(t *testing.T) {
-		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
-			Write(key1, nil).
-			Build()
-		colConfig := &cb.StaticCollectionConfig{
-			Type: cb.CollectionType_COL_OFFLEDGER,
-		}
-
-		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colConfig, colAP, nil, gossip)
-		require.Error(t, err)
-		assert.False(t, handled)
-		assert.Nil(t, dPlan)
-		assert.Contains(t, err.Error(), "attempt to store nil value for key")
 	})
 
 	t.Run("Invalid CAS Key", func(t *testing.T) {
@@ -266,6 +252,7 @@ func TestComputeDisseminationPlan(t *testing.T) {
 	t.Run("Valid CAS Key", func(t *testing.T) {
 		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
 			Write(dcas.GetCASKey([]byte("value1")), []byte("value1")).
+			Delete(dcas.GetCASKey([]byte("value2"))).
 			Build()
 		colConfig := &cb.StaticCollectionConfig{
 			Type: cb.CollectionType_COL_DCAS,

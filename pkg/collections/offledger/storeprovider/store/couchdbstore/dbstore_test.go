@@ -101,6 +101,20 @@ func TestGetKeysFromDB(t *testing.T) {
 	require.Equal(t, 2, len(vals))
 	require.Equal(t, value1, vals[0].Value)
 	require.Equal(t, value2, vals[1].Value)
+
+	// Delete
+	err = db2.Put(&api.KeyValue{Key: key1})
+	require.NoError(t, err)
+	v, err = db2.Get(key1)
+	require.NoError(t, err)
+	require.Nil(t, v)
+
+	// Delete again
+	err = db2.Put(&api.KeyValue{Key: key1})
+	require.NoError(t, err)
+	v, err = db2.Get(key1)
+	require.NoError(t, err)
+	require.Nil(t, v)
 }
 
 func TestDeleteExpiredKeysFromDB(t *testing.T) {
