@@ -150,6 +150,15 @@ func (d *Client) PutMultipleValues(ns, coll string, kvs []*KeyValue) error {
 	return nil
 }
 
+// Delete deletes the given key(s)
+func (d *Client) Delete(ns, coll string, keys ...string) error {
+	kvs := make([]*KeyValue, len(keys))
+	for i, key := range keys {
+		kvs[i] = &KeyValue{Key: key}
+	}
+	return d.PutMultipleValues(ns, coll, kvs)
+}
+
 // Get retrieves the value for the given key
 func (d *Client) Get(ns, coll, key string) ([]byte, error) {
 	qe, err := d.ledger.NewQueryExecutor()

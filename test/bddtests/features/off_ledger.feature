@@ -20,9 +20,6 @@ Feature: off-ledger
     And "test" chaincode "ol_examplecc" is instantiated from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_coll2,coll3"
     And chaincode "ol_examplecc" is warmed up on all peers on the "mychannel" channel
 
-    # Test for nil value
-    When client queries chaincode "ol_examplecc" with args "putcas,collection1," on the "mychannel" channel then the error response should contain "attempt to store nil value"
-
     # Test for invalid CAS key
     When client queries chaincode "ol_examplecc" with args "putprivate,collection2,key1,value1" on the "mychannel" channel then the error response should contain "the key should be the hash of the value"
 
@@ -35,6 +32,8 @@ Feature: off-ledger
     When client queries chaincode "ol_examplecc" with args "putcas,collection2,value2" on a single peer in the "peerorg2" org on the "mychannel" channel
     And the response is saved to variable "key2"
     And client queries chaincode "ol_examplecc" with args "getprivate,collection2,${key2}" on a single peer in the "peerorg1" org on the "mychannel" channel
+    Then response from "ol_examplecc" to client equal value "value2"
+    And client queries chaincode "ol_examplecc" with args "getprivate,collection2,${key2}" on a single peer in the "peerorg2" org on the "mychannel" channel
     Then response from "ol_examplecc" to client equal value "value2"
 
     # Test for put of keys on multiple collections. The first two collections are off-ledger/DCAS type so they should persist. The third
@@ -64,6 +63,13 @@ Feature: off-ledger
     # Should still be there
     When client queries chaincode "ol_examplecc" with args "getprivate,collection2,${key2}" on the "mychannel" channel
     Then response from "ol_examplecc" to client equal value "value2"
+
+    # Delete the data on one peer - should be deleted from both peers
+    When client queries chaincode "ol_examplecc" with args "delprivate,collection2,${key2}" on a single peer in the "peerorg1" org on the "mychannel" channel
+    And client queries chaincode "ol_examplecc" with args "getprivate,collection2,${key2}" on a single peer in the "peerorg1" org on the "mychannel" channel
+    Then response from "ol_examplecc" to client equal value ""
+    And client queries chaincode "ol_examplecc" with args "getprivate,collection2,${key2}" on a single peer in the "peerorg2" org on the "mychannel" channel
+    Then response from "ol_examplecc" to client equal value ""
 
     # Test to make sure private data collections still persist in a transaction and that off-ledger reads/writes work with transactions
     Given variable "pvtKey2" is assigned the CAS key of value "pvtVal2"

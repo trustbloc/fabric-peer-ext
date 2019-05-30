@@ -27,8 +27,10 @@ const (
 	txID1 = "txid1"
 	txID2 = "txid2"
 	txID3 = "txid3"
+	txID4 = "txid4"
 
 	ns1 = "ns1"
+	ns2 = "ns2"
 
 	coll0 = "coll0"
 	coll1 = "coll1"
@@ -55,7 +57,10 @@ var (
 
 	typeConfig = map[cb.CollectionType]*collTypeConfig{
 		cb.CollectionType_COL_OFFLEDGER: {},
-		cb.CollectionType_COL_DCAS:      {decorator: dcas.Decorator},
+		cb.CollectionType_COL_DCAS: {
+			decorator:    dcas.Decorator,
+			keyDecorator: dcas.KeyDecorator,
+		},
 	}
 )
 
@@ -153,16 +158,22 @@ func TestStore_PutAndGet(t *testing.T) {
 		assert.Equal(t, value1_2, values[1].Value)
 	})
 
-	t.Run("Disallow delete data", func(t *testing.T) {
+	t.Run("Delete data", func(t *testing.T) {
+		value, err := s.GetData(storeapi.NewKey(txID4, ns1, coll1, key1))
+		assert.NoError(t, err)
+		assert.NotNil(t, value)
+
 		b := mocks.NewPvtReadWriteSetBuilder()
 		ns1Builder := b.Namespace(ns1)
 		coll1Builder := ns1Builder.Collection(coll1)
 		coll1Builder.
 			OffLedgerConfig("OR('Org1MSP.member')", 1, 2, "1m").
 			Delete(key1)
+		err = s.Persist(txID3, b.Build())
 
-		err = s.Persist(txID2, b.Build())
-		assert.Error(t, err)
+		value, err = s.GetData(storeapi.NewKey(txID4, ns1, coll1, key1))
+		assert.NoError(t, err)
+		assert.Nil(t, value)
 	})
 
 	t.Run("Expire data", func(t *testing.T) {
@@ -229,6 +240,34 @@ func TestStore_PutAndGet_DCAS(t *testing.T) {
 		assert.NoError(t, err)
 		require.NotNil(t, value)
 		assert.Equal(t, value1_2, value.Value)
+	})
+
+	t.Run("Delete data", func(t *testing.T) {
+		b := mocks.NewPvtReadWriteSetBuilder()
+		ns1Builder := b.Namespace(ns2)
+		coll1Builder := ns1Builder.Collection(coll1)
+		coll1Builder.
+			DCASConfig("OR('Org1MSP.member')", 1, 2, "1m").
+			Write("", value1_1)
+
+		err := s.Persist(txID1, b.Build())
+		require.NoError(t, err)
+
+		value, err := s.GetData(storeapi.NewKey(txID2, ns2, coll1, dcas.GetFabricCASKey(value1_1)))
+		assert.NoError(t, err)
+		assert.NotNil(t, value)
+
+		b = mocks.NewPvtReadWriteSetBuilder()
+		ns1Builder = b.Namespace(ns2)
+		coll1Builder = ns1Builder.Collection(coll1)
+		coll1Builder.
+			DCASConfig("OR('Org1MSP.member')", 1, 2, "1m").
+			Delete(dcas.GetCASKey(value1_1))
+		err = s.Persist(txID3, b.Build())
+
+		value, err = s.GetData(storeapi.NewKey(txID4, ns2, coll1, dcas.GetFabricCASKey(value1_1)))
+		assert.NoError(t, err)
+		assert.Nil(t, value)
 	})
 }
 

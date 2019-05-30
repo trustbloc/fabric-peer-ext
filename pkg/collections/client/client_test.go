@@ -122,6 +122,11 @@ func TestClient_Put(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "error getting collection config")
 	})
+
+	t.Run("Delete", func(t *testing.T) {
+		err := c.Delete(ns1, coll1, key1, key2)
+		require.NoError(t, err)
+	})
 }
 
 func TestClient_Get(t *testing.T) {

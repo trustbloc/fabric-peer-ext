@@ -86,7 +86,9 @@ var newTransientDataProvider = func() tdapi.StoreProvider {
 var newOffLedgerProvider = func() olapi.StoreProvider {
 	return olstoreprovider.New(
 		olstoreprovider.WithCollectionType(
-			cb.CollectionType_COL_DCAS, olstoreprovider.WithDecorator(dcas.Decorator),
+			cb.CollectionType_COL_DCAS,
+			olstoreprovider.WithDecorator(dcas.Decorator),
+			olstoreprovider.WithKeyDecorator(dcas.KeyDecorator),
 		),
 	)
 }

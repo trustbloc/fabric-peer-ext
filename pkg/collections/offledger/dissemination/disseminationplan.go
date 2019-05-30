@@ -86,10 +86,7 @@ func validateAll(collType cb.CollectionType, kvRWSet *kvrwset.KVRWSet) error {
 }
 
 func validate(collType cb.CollectionType, ws *kvrwset.KVWrite) error {
-	if ws.Value == nil {
-		return errors.Errorf("attempt to store nil value for key [%s]", ws.Key)
-	}
-	if collType == cb.CollectionType_COL_DCAS {
+	if collType == cb.CollectionType_COL_DCAS && ws.Value != nil {
 		expectedKey := dcas.GetCASKey(ws.Value)
 		if ws.Key != expectedKey {
 			return errors.Errorf("invalid CAS key [%s] - the key should be the hash of the value", ws.Key)

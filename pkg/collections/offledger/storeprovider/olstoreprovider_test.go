@@ -51,6 +51,9 @@ func TestStoreProvider_WithDecorator(t *testing.T) {
 			WithDecorator(func(key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key, *storeapi.ExpiringValue, error) {
 				return key, value, nil
 			}),
+			WithKeyDecorator(func(key *storeapi.Key) (*storeapi.Key, error) {
+				return key, nil
+			}),
 		))
 	require.NotNil(t, f)
 	config, ok := f.collConfigs[common.CollectionType_COL_DCAS]
