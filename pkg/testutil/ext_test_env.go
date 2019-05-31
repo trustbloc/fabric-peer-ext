@@ -9,9 +9,11 @@ package testutil
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
-	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+	coreconfig "github.com/hyperledger/fabric/core/config"
+	"github.com/hyperledger/fabric/core/ledger"
 
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/metrics/disabled"
@@ -54,7 +56,7 @@ func SetupExtTestEnv() (addr string, cleanup func(string), stop func()) {
 }
 
 func cleanupCouchDB(name string) {
-	couchDBConfig := config.GetCouchDBConfig()
+	couchDBConfig := TestLedgerConf().StateDB.CouchDB
 	couchInstance, _ := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 
 	blkdb := couchdb.CouchDatabase{CouchInstance: couchInstance, DBName: fmt.Sprintf("%s$$blocks_", name)}
@@ -79,6 +81,7 @@ func cleanupCouchDB(name string) {
 //updateConfig updates 'couchAddress' in config
 func updateConfig(couchAddress string) {
 
+	viper.Set("ledger.state.stateDatabase", "CouchDB")
 	viper.Set("ledger.state.couchDBConfig.couchDBAddress", couchAddress)
 	// Replace with correct username/password such as
 	// admin/admin if user security is enabled on couchdb.
@@ -89,4 +92,68 @@ func updateConfig(couchAddress string) {
 	viper.Set("ledger.state.couchDBConfig.requestTimeout", time.Second*35)
 	viper.Set("ledger.state.couchDBConfig.createGlobalChangesDB", false)
 
+}
+
+// TestLedgerConf return the ledger configs
+func TestLedgerConf() *ledger.Config {
+	// set defaults
+	warmAfterNBlocks := 1
+	if viper.IsSet("ledger.state.couchDBConfig.warmIndexesAfterNBlocks") {
+		warmAfterNBlocks = viper.GetInt("ledger.state.couchDBConfig.warmIndexesAfterNBlocks")
+	}
+	internalQueryLimit := 1000
+	if viper.IsSet("ledger.state.couchDBConfig.internalQueryLimit") {
+		internalQueryLimit = viper.GetInt("ledger.state.couchDBConfig.internalQueryLimit")
+	}
+	maxBatchUpdateSize := 500
+	if viper.IsSet("ledger.state.couchDBConfig.maxBatchUpdateSize") {
+		maxBatchUpdateSize = viper.GetInt("ledger.state.couchDBConfig.maxBatchUpdateSize")
+	}
+	collElgProcMaxDbBatchSize := 5000
+	if viper.IsSet("ledger.pvtdataStore.collElgProcMaxDbBatchSize") {
+		collElgProcMaxDbBatchSize = viper.GetInt("ledger.pvtdataStore.collElgProcMaxDbBatchSize")
+	}
+	collElgProcDbBatchesInterval := 1000
+	if viper.IsSet("ledger.pvtdataStore.collElgProcDbBatchesInterval") {
+		collElgProcDbBatchesInterval = viper.GetInt("ledger.pvtdataStore.collElgProcDbBatchesInterval")
+	}
+	purgeInterval := 100
+	if viper.IsSet("ledger.pvtdataStore.purgeInterval") {
+		purgeInterval = viper.GetInt("ledger.pvtdataStore.purgeInterval")
+	}
+
+	rootFSPath := filepath.Join(coreconfig.GetPath("peer.fileSystemPath"), "ledgersData")
+	conf := &ledger.Config{
+		RootFSPath: rootFSPath,
+		StateDB: &ledger.StateDB{
+			StateDatabase: viper.GetString("ledger.state.stateDatabase"),
+			LevelDBPath:   filepath.Join(rootFSPath, "stateLeveldb"),
+			CouchDB:       &couchdb.Config{},
+		},
+		PrivateData: &ledger.PrivateData{
+			StorePath:       filepath.Join(rootFSPath, "pvtdataStore"),
+			MaxBatchSize:    collElgProcMaxDbBatchSize,
+			BatchesInterval: collElgProcDbBatchesInterval,
+			PurgeInterval:   purgeInterval,
+		},
+		HistoryDB: &ledger.HistoryDB{
+			Enabled: viper.GetBool("ledger.history.enableHistoryDatabase"),
+		},
+	}
+
+	conf.StateDB.CouchDB = &couchdb.Config{
+		Address:                 viper.GetString("ledger.state.couchDBConfig.couchDBAddress"),
+		Username:                viper.GetString("ledger.state.couchDBConfig.username"),
+		Password:                viper.GetString("ledger.state.couchDBConfig.password"),
+		MaxRetries:              viper.GetInt("ledger.state.couchDBConfig.maxRetries"),
+		MaxRetriesOnStartup:     viper.GetInt("ledger.state.couchDBConfig.maxRetriesOnStartup"),
+		RequestTimeout:          viper.GetDuration("ledger.state.couchDBConfig.requestTimeout"),
+		InternalQueryLimit:      internalQueryLimit,
+		MaxBatchUpdateSize:      maxBatchUpdateSize,
+		WarmIndexesAfterNBlocks: warmAfterNBlocks,
+		CreateGlobalChangesDB:   viper.GetBool("ledger.state.couchDBConfig.createGlobalChangesDB"),
+		RedoLogPath:             filepath.Join(rootFSPath, "couchdbRedoLogs"),
+	}
+
+	return conf
 }

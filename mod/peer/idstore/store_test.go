@@ -16,5 +16,5 @@ import (
 func TestOpenIDStore(t *testing.T) {
 	_, _, destroy := testutil.SetupExtTestEnv()
 	defer destroy()
-	require.NotEmpty(t, OpenIDStore(""))
+	require.NotEmpty(t, OpenIDStore("", testutil.TestLedgerConf()))
 }

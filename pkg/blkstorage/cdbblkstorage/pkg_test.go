@@ -9,6 +9,8 @@ package cdbblkstorage
 import (
 	"testing"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/testutil"
+
 	"github.com/hyperledger/fabric/protoutil"
 
 	"github.com/hyperledger/fabric/common/ledger/blkstorage"
@@ -36,7 +38,7 @@ func newTestEnv(t testing.TB) *testEnv {
 
 func newTestEnvSelectiveIndexing(t testing.TB, attrsToIndex []blkstorage.IndexableAttr) (*testEnv, error) {
 	indexConfig := &blkstorage.IndexConfig{AttrsToIndex: attrsToIndex}
-	privider, err := NewProvider(indexConfig)
+	privider, err := NewProvider(indexConfig, testutil.TestLedgerConf())
 	if err != nil {
 		return nil, err
 	}

@@ -10,8 +10,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/trustbloc/fabric-peer-ext/pkg/config"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/hyperledger/fabric/protos/common"
@@ -27,7 +25,7 @@ func TestMain(m *testing.M) {
 	_, _, destroy := xtestutil.SetupExtTestEnv()
 
 	// Create CouchDB definition from config parameters
-	couchDBConfig = config.GetCouchDBConfig()
+	couchDBConfig = xtestutil.TestLedgerConf().StateDB.CouchDB
 
 	code := m.Run()
 	destroy()

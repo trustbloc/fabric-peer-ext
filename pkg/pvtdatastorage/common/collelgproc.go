@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+	"github.com/hyperledger/fabric/core/ledger"
 
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
@@ -25,15 +25,17 @@ type CollElgProc struct {
 	notification, procComplete chan bool
 	purgerLock                 *sync.Mutex
 	db                         *leveldbhelper.DBHandle
+	ledgerconfig               *ledger.Config
 }
 
-func NewCollElgProc(purgerLock *sync.Mutex, missingKeysIndexDB *leveldbhelper.DBHandle) *CollElgProc {
+func NewCollElgProc(purgerLock *sync.Mutex, missingKeysIndexDB *leveldbhelper.DBHandle, ledgerconfig *ledger.Config) *CollElgProc {
 
 	return &CollElgProc{
 		notification: make(chan bool, 1),
 		procComplete: make(chan bool, 1),
 		purgerLock:   purgerLock,
 		db:           missingKeysIndexDB,
+		ledgerconfig: ledgerconfig,
 	}
 }
 
@@ -62,8 +64,8 @@ func (c *CollElgProc) WaitForDone() {
 }
 
 func (c *CollElgProc) LaunchCollElgProc() {
-	maxBatchSize := config.GetPvtdataStoreCollElgProcMaxDbBatchSize()
-	batchesInterval := config.GetPvtdataStoreCollElgProcDbBatchesInterval()
+	maxBatchSize := c.ledgerconfig.PrivateData.MaxBatchSize
+	batchesInterval := c.ledgerconfig.PrivateData.BatchesInterval
 	go func() {
 		c.processCollElgEvents(maxBatchSize, batchesInterval) // process collection eligibility events when store is opened - in case there is an unprocessed events from previous run
 		for {

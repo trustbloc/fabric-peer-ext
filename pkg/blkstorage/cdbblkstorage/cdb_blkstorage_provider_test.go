@@ -11,8 +11,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/trustbloc/fabric-peer-ext/pkg/config"
-
 	"github.com/hyperledger/fabric/common/metrics/disabled"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
@@ -36,7 +34,7 @@ func TestMain(m *testing.M) {
 	//setup extension test environment
 	_, _, destroy := xtestutil.SetupExtTestEnv()
 
-	couchDBConfig := config.GetCouchDBConfig()
+	couchDBConfig := xtestutil.TestLedgerConf().StateDB.CouchDB
 	var err error
 	cdbInstance, err = couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {

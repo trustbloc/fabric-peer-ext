@@ -20,5 +20,5 @@ func TestNewProvider(t *testing.T) {
 	_, _, destroy := testutil.SetupExtTestEnv()
 	defer destroy()
 	require.NotEmpty(t, NewProvider(NewConf(filepath.Join(coreconfig.GetPath("peer.fileSystemPath"), "chains"),
-		-1), &blkstorage.IndexConfig{}))
+		-1), &blkstorage.IndexConfig{}, testutil.TestLedgerConf()))
 }
