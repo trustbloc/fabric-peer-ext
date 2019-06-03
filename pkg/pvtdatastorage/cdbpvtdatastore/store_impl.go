@@ -23,7 +23,6 @@ import (
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/pkg/errors"
-	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 	"github.com/willf/bitset"
@@ -38,6 +37,7 @@ const (
 type provider struct {
 	couchInstance            *couchdb.CouchInstance
 	missingKeysIndexProvider *leveldbhelper.Provider
+	ledgerConfig             *ledger.Config
 }
 
 type store struct {
@@ -61,6 +61,7 @@ type store struct {
 	// in the stateDB needs to be updated before finishing the
 	// recovery operation.
 	isLastUpdatedOldBlocksSet bool
+	ledgerConfig              *ledger.Config
 }
 
 type pendingPvtData struct {
@@ -77,14 +78,14 @@ type lastUpdatedOldBlocksList []uint64
 //////////////////////////////////////////
 
 // NewProvider instantiates a private data storage provider backed by CouchDB
-func NewProvider(conf *ledger.PrivateData) (pvtdatastorage.Provider, error) {
+func NewProvider(conf *ledger.PrivateData, ledgerconfig *ledger.Config) (pvtdatastorage.Provider, error) {
 	logger.Debugf("constructing CouchDB private data storage provider")
-	couchDBConfig := config.GetCouchDBConfig()
+	couchDBConfig := ledgerconfig.StateDB.CouchDB
 
-	return newProviderWithDBDef(couchDBConfig, conf)
+	return newProviderWithDBDef(couchDBConfig, conf, ledgerconfig)
 }
 
-func newProviderWithDBDef(couchDBConfig *couchdb.Config, conf *ledger.PrivateData) (pvtdatastorage.Provider, error) {
+func newProviderWithDBDef(couchDBConfig *couchdb.Config, conf *ledger.PrivateData, ledgerconfig *ledger.Config) (pvtdatastorage.Provider, error) {
 	couchInstance, err := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {
 		return nil, errors.WithMessage(err, "obtaining CouchDB instance failed")
@@ -93,7 +94,7 @@ func newProviderWithDBDef(couchDBConfig *couchdb.Config, conf *ledger.PrivateDat
 	dbPath := conf.StorePath
 	missingKeysIndexProvider := leveldbhelper.NewProvider(&leveldbhelper.Conf{DBPath: dbPath})
 
-	return &provider{couchInstance, missingKeysIndexProvider}, nil
+	return &provider{couchInstance, missingKeysIndexProvider, ledgerconfig}, nil
 }
 
 // OpenStore returns a handle to a store
@@ -112,10 +113,11 @@ func (p *provider) OpenStore(ledgerid string) (pvtdatastorage.Store, error) {
 
 		purgerLock := &sync.Mutex{}
 		s := &store{db: db, ledgerid: ledgerid,
-			collElgProc:        common.NewCollElgProc(purgerLock, missingKeysIndexDB),
+			collElgProc:        common.NewCollElgProc(purgerLock, missingKeysIndexDB, p.ledgerConfig),
 			purgerLock:         purgerLock,
 			missingKeysIndexDB: missingKeysIndexDB,
 			pendingPvtData:     &pendingPvtData{BatchPending: false},
+			ledgerConfig:       p.ledgerConfig,
 		}
 
 		if errInitState := s.initState(); errInitState != nil {
@@ -764,7 +766,7 @@ func (s *store) nextBlockNum() uint64 {
 }
 
 func (s *store) performPurgeIfScheduled(latestCommittedBlk uint64) {
-	if latestCommittedBlk%config.GetPvtdataStorePurgeInterval() != 0 {
+	if latestCommittedBlk%uint64(s.ledgerConfig.PrivateData.PurgeInterval) != 0 {
 		return
 	}
 	go func() {

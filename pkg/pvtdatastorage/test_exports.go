@@ -10,9 +10,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hyperledger/fabric/core/ledger"
+	"github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 
-	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+	"github.com/hyperledger/fabric/core/ledger"
 
 	"github.com/hyperledger/fabric/common/metrics/disabled"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
@@ -35,11 +35,8 @@ type StoreEnv struct {
 func NewTestStoreEnv(t *testing.T, ledgerid string, btlPolicy pvtdatapolicy.BTLPolicy, couchDBConfig *couchdb.Config) *StoreEnv {
 	removeStorePath()
 	req := require.New(t)
-	conf := &ledger.PrivateData{
-		StorePath:     config.GetPvtdataStorePath(),
-		PurgeInterval: 1,
-	}
-	testStoreProvider := NewProvider(conf)
+	conf := testutil.TestLedgerConf().PrivateData
+	testStoreProvider := NewProvider(conf, testutil.TestLedgerConf())
 	testStore, err := testStoreProvider.OpenStore(ledgerid)
 	req.NoError(err)
 	testStore.Init(btlPolicy)
@@ -52,10 +49,10 @@ func (env *StoreEnv) CloseAndReopen() {
 	var err error
 	env.TestStoreProvider.Close()
 	conf := &ledger.PrivateData{
-		StorePath:     config.GetPvtdataStorePath(),
+		StorePath:     testutil.TestLedgerConf().PrivateData.StorePath,
 		PurgeInterval: 1,
 	}
-	env.TestStoreProvider = NewProvider(conf)
+	env.TestStoreProvider = NewProvider(conf, testutil.TestLedgerConf())
 	env.TestStore, err = env.TestStoreProvider.OpenStore(env.ledgerid)
 	env.TestStore.Init(env.btlPolicy)
 	require.NoError(env.t, err)
@@ -80,7 +77,7 @@ func (env *StoreEnv) Cleanup(ledgerid string) {
 }
 
 func removeStorePath() {
-	dbPath := config.GetPvtdataStorePath()
+	dbPath := testutil.TestLedgerConf().PrivateData.StorePath
 	if err := os.RemoveAll(dbPath); err != nil {
 		panic(err.Error())
 	}

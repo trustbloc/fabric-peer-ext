@@ -15,8 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/trustbloc/fabric-peer-ext/pkg/config"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
@@ -43,7 +41,7 @@ func TestMain(m *testing.M) {
 
 	viper.Set("peer.fileSystemPath", "/tmp/fabric/core/ledger/pvtdatastorage")
 	// Create CouchDB definition from config parameters
-	couchDBConfig = config.GetCouchDBConfig()
+	couchDBConfig = xtestutil.TestLedgerConf().StateDB.CouchDB
 
 	code := m.Run()
 	//stop couchdb
@@ -806,8 +804,8 @@ func TestInitLastCommittedBlock(t *testing.T) {
 
 func TestCollElgEnabled(t *testing.T) {
 	testCollElgEnabled(t)
-	defaultValBatchSize := config.GetPvtdataStoreCollElgProcMaxDbBatchSize()
-	defaultValInterval := config.GetPvtdataStoreCollElgProcDbBatchesInterval()
+	defaultValBatchSize := xtestutil.TestLedgerConf().PrivateData.MaxBatchSize
+	defaultValInterval := xtestutil.TestLedgerConf().PrivateData.BatchesInterval
 	defer func() {
 		viper.Set("ledger.pvtdataStore.collElgProcMaxDbBatchSize", defaultValBatchSize)
 		viper.Set("ledger.pvtdataStore.collElgProcMaxDbBatchSize", defaultValInterval)

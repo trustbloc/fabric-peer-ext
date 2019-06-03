@@ -9,6 +9,7 @@ package testutil
 import (
 	"testing"
 
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
 	"github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
@@ -22,4 +23,10 @@ func SetupExtTestEnv() (addr string, cleanup func(string), stop func()) {
 // GetExtStateDBProvider returns the implementation of the versionedDBProvider
 func GetExtStateDBProvider(t testing.TB, dbProvider statedb.VersionedDBProvider) statedb.VersionedDBProvider {
 	return nil
+}
+
+// TestLedgerConf return the ledger configs
+func TestLedgerConf() *ledger.Config {
+	return testutil.TestLedgerConf()
+
 }

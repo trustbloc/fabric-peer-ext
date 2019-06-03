@@ -25,9 +25,9 @@ type PvtDataProvider struct {
 }
 
 // NewProvider creates a new PvtDataStoreProvider that combines a cache provider and a backing storage provider
-func NewProvider(conf *ledger.PrivateData) *PvtDataProvider {
+func NewProvider(conf *ledger.PrivateData, ledgerconfig *ledger.Config) *PvtDataProvider {
 	// create couchdb pvt date store provider
-	storageProvider, err := cdbpvtdatastore.NewProvider(conf)
+	storageProvider, err := cdbpvtdatastore.NewProvider(conf, ledgerconfig)
 	if err != nil {
 		panic(err)
 	}

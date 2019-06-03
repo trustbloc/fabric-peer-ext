@@ -12,8 +12,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/trustbloc/fabric-peer-ext/pkg/config"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
@@ -34,7 +32,7 @@ func TestMain(m *testing.M) {
 	viper.Set("peer.fileSystemPath", "/tmp/fabric/core/ledger/pvtdatastore")
 
 	// Create CouchDB definition from config parameters
-	couchDBConfig = config.GetCouchDBConfig()
+	couchDBConfig = xtestutil.TestLedgerConf().StateDB.CouchDB
 
 	code := m.Run()
 	destroy()

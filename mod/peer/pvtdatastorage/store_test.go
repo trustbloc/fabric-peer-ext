@@ -28,7 +28,7 @@ func TestNewProvider(t *testing.T) {
 		StorePath:     filepath.Join(coreconfig.GetPath("peer.fileSystemPath"), "store"),
 		PurgeInterval: 1,
 	}
-	require.NotEmpty(t, NewProvider(conf))
+	require.NotEmpty(t, NewProvider(conf, testutil.TestLedgerConf()))
 }
 
 func setupPath(t *testing.T) (cleanup func()) {
