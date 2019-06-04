@@ -37,7 +37,7 @@ func New(r ...Role) Roles {
 func FromStrings(r ...string) Roles {
 	rls := make(Roles, len(r))
 	for i, s := range r {
-		rls[i] = Role(s)
+		rls[i] = Role(strings.ToLower(s))
 	}
 	return rls
 }
