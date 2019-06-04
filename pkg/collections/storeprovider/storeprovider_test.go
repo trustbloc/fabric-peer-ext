@@ -9,6 +9,10 @@ package storeprovider
 import (
 	"testing"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/testutil"
+
+	"github.com/hyperledger/fabric/core/ledger"
+
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
@@ -28,12 +32,12 @@ func TestStoreProvider(t *testing.T) {
 		return tdataProvider
 	}
 
-	newOffLedgerProvider = func() olapi.StoreProvider {
+	newOffLedgerProvider = func(ledgerconfig *ledger.Config) olapi.StoreProvider {
 		return olProvider
 	}
 
 	t.Run("OpenStore - success", func(t *testing.T) {
-		p := New()
+		p := New(testutil.TestLedgerConf())
 		require.NotNil(t, p)
 
 		s, err := p.OpenStore("testchannel")
@@ -45,7 +49,7 @@ func TestStoreProvider(t *testing.T) {
 	})
 
 	t.Run("OpenStore - transient data error", func(t *testing.T) {
-		p := New()
+		p := New(testutil.TestLedgerConf())
 		require.NotNil(t, p)
 
 		expectedErr := errors.New("transientdata error")
@@ -58,7 +62,7 @@ func TestStoreProvider(t *testing.T) {
 	})
 
 	t.Run("Close - success", func(t *testing.T) {
-		p := New()
+		p := New(testutil.TestLedgerConf())
 		require.NotNil(t, p)
 
 		s, err := p.OpenStore("testchannel")
@@ -97,11 +101,11 @@ func TestStore_PutAndGetData(t *testing.T) {
 		return tdataProvider.Data(k1, v1).Data(k2, v2)
 	}
 
-	newOffLedgerProvider = func() olapi.StoreProvider {
+	newOffLedgerProvider = func(ledgerconfig *ledger.Config) olapi.StoreProvider {
 		return olProvider.Data(k1, v2).Data(k2, v1)
 	}
 
-	p := New()
+	p := New(testutil.TestLedgerConf())
 	require.NotNil(t, p)
 
 	s, err := p.OpenStore("testchannel")

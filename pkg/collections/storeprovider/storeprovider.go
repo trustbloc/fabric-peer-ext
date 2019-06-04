@@ -9,6 +9,8 @@ package storeprovider
 import (
 	"sync"
 
+	"github.com/hyperledger/fabric/core/ledger"
+
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	cb "github.com/hyperledger/fabric/protos/common"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
@@ -19,10 +21,10 @@ import (
 )
 
 // New returns a new store provider factory
-func New() *StoreProvider {
+func New(ledgerconfig *ledger.Config) *StoreProvider {
 	return &StoreProvider{
 		transientDataProvider: newTransientDataProvider(),
-		olProvider:            newOffLedgerProvider(),
+		olProvider:            newOffLedgerProvider(ledgerconfig),
 		stores:                make(map[string]*store),
 	}
 }
@@ -83,8 +85,8 @@ var newTransientDataProvider = func() tdapi.StoreProvider {
 }
 
 // newOffLedgerProvider may be overridden in unit tests
-var newOffLedgerProvider = func() olapi.StoreProvider {
-	return olstoreprovider.New(
+var newOffLedgerProvider = func(ledgerconfig *ledger.Config) olapi.StoreProvider {
+	return olstoreprovider.New(ledgerconfig,
 		olstoreprovider.WithCollectionType(
 			cb.CollectionType_COL_DCAS,
 			olstoreprovider.WithDecorator(dcas.Decorator),

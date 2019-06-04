@@ -58,7 +58,7 @@ func testMain(m *testing.M) int {
 }
 
 func TestGetKeysFromDB(t *testing.T) {
-	provider := NewDBProvider()
+	provider := NewDBProvider(testutil.TestLedgerConf())
 	defer provider.Close()
 
 	db1, err := provider.GetDB(ns1, coll1)
@@ -118,7 +118,7 @@ func TestGetKeysFromDB(t *testing.T) {
 }
 
 func TestDeleteExpiredKeysFromDB(t *testing.T) {
-	provider := NewDBProvider()
+	provider := NewDBProvider(testutil.TestLedgerConf())
 	defer provider.Close()
 
 	db, err := provider.GetDB(ns1, coll3)

@@ -9,6 +9,7 @@ package storeprovider
 import (
 	"sync"
 
+	"github.com/hyperledger/fabric/core/ledger"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/hyperledger/fabric/protos/common"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
@@ -61,10 +62,10 @@ type collTypeConfig struct {
 }
 
 // New returns a store provider factory
-func New(opts ...Option) *StoreProvider {
+func New(ledgerconfig *ledger.Config, opts ...Option) *StoreProvider {
 	p := &StoreProvider{
 		stores:      make(map[string]olapi.Store),
-		dbProvider:  getDBProvider(),
+		dbProvider:  getDBProvider(ledgerconfig),
 		collConfigs: make(map[common.CollectionType]*collTypeConfig),
 	}
 
@@ -114,6 +115,6 @@ func (sp *StoreProvider) Close() {
 }
 
 // getDBProvider returns the DB provider. This var may be overridden by unit tests
-var getDBProvider = func() api.DBProvider {
-	return couchdbstore.NewDBProvider()
+var getDBProvider = func(ledgerconfig *ledger.Config) api.DBProvider {
+	return couchdbstore.NewDBProvider(ledgerconfig)
 }

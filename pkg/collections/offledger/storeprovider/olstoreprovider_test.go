@@ -24,7 +24,7 @@ func TestStoreProvider_OpenStore(t *testing.T) {
 	channel1 := "channel1"
 	channel2 := "channel2"
 
-	f := New()
+	f := New(testutil.TestLedgerConf())
 	require.NotNil(t, f)
 
 	s1, err := f.OpenStore(channel1)
@@ -46,6 +46,7 @@ func TestStoreProvider_OpenStore(t *testing.T) {
 
 func TestStoreProvider_WithDecorator(t *testing.T) {
 	f := New(
+		testutil.TestLedgerConf(),
 		WithCollectionType(
 			common.CollectionType_COL_DCAS,
 			WithDecorator(func(key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key, *storeapi.ExpiringValue, error) {

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/trustbloc/fabric-peer-ext/pkg/testutil"
+	"github.com/hyperledger/fabric/core/ledger"
 
 	"github.com/hyperledger/fabric/common/metrics/disabled"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
@@ -43,8 +43,8 @@ type CouchDBProvider struct {
 }
 
 // NewDBProvider creates a CouchDB Provider
-func NewDBProvider() *CouchDBProvider {
-	couchDBConfig := testutil.TestLedgerConf().StateDB.CouchDB
+func NewDBProvider(ledgerconfig *ledger.Config) *CouchDBProvider {
+	couchDBConfig := ledgerconfig.StateDB.CouchDB
 
 	couchInstance, err := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {
