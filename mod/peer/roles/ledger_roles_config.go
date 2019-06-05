@@ -28,3 +28,9 @@ func IsValidator() bool {
 func RolesAsString() []string {
 	return roles.AsString()
 }
+
+// HasEndorserRole returns true if given set of roles has endorser role
+func HasEndorserRole(r []string) bool {
+	allRoles := roles.FromStrings(r...)
+	return allRoles.Contains(roles.EndorserRole)
+}

@@ -61,19 +61,19 @@ func (m *MockBlockHandler) NumConfigUpdates() int {
 }
 
 // HandleRead handles a read event by incrementing the read counter
-func (m *MockBlockHandler) HandleRead(blockNum uint64, txID string, namespace string, kvRead *kvrwset.KVRead) error {
+func (m *MockBlockHandler) HandleRead(blockNum uint64, channelID string, txID string, namespace string, kvRead *kvrwset.KVRead) error {
 	atomic.AddInt32(&m.numReads, 1)
 	return m.err
 }
 
 // HandleWrite handles a write event by incrementing the write counter
-func (m *MockBlockHandler) HandleWrite(blockNum uint64, txID string, namespace string, kvWrite *kvrwset.KVWrite) error {
+func (m *MockBlockHandler) HandleWrite(blockNum uint64, channelID string, txID string, namespace string, kvWrite *kvrwset.KVWrite) error {
 	atomic.AddInt32(&m.numWrites, 1)
 	return m.err
 }
 
 // HandleChaincodeEvent handle a chaincode event by incrementing the CC event counter
-func (m *MockBlockHandler) HandleChaincodeEvent(blockNum uint64, txID string, event *pb.ChaincodeEvent) error {
+func (m *MockBlockHandler) HandleChaincodeEvent(blockNum uint64, channelID string, txID string, event *pb.ChaincodeEvent) error {
 	atomic.AddInt32(&m.numCCEvents, 1)
 	return m.err
 }

@@ -170,7 +170,7 @@ func (p *Publisher) AddCCEventHandler(handler api.ChaincodeEventHandler) {
 // AddCCUpgradeHandler adds a handler for chaincode upgrade events
 func (p *Publisher) AddCCUpgradeHandler(handler api.ChaincodeUpgradeHandler) {
 	logger.Debugf("[%s] Adding chaincode upgrade", p.channelID)
-	p.AddCCEventHandler(newChaincodeUpgradeHandler(p.channelID, handler))
+	p.AddCCEventHandler(newChaincodeUpgradeHandler(handler))
 }
 
 // Publish publishes a block
@@ -199,7 +199,7 @@ func (p *Publisher) listen() {
 func (p *Publisher) handleRead(r *read) {
 	logger.Debugf("[%s] Handling read: [%s]", p.channelID, r)
 	for _, handleRead := range p.getReadHandlers() {
-		if err := handleRead(r.blockNum, r.txID, r.namespace, r.r); err != nil {
+		if err := handleRead(r.blockNum, p.channelID, r.txID, r.namespace, r.r); err != nil {
 			logger.Warningf("[%s] Error returned from KV read handler: %s", p.channelID, err)
 		}
 	}
@@ -208,7 +208,7 @@ func (p *Publisher) handleRead(r *read) {
 func (p *Publisher) handleWrite(w *write) {
 	logger.Debugf("[%s] Handling write: [%s]", p.channelID, w)
 	for _, handleWrite := range p.getWriteHandlers() {
-		if err := handleWrite(w.blockNum, w.txID, w.namespace, w.w); err != nil {
+		if err := handleWrite(w.blockNum, p.channelID, w.txID, w.namespace, w.w); err != nil {
 			logger.Warningf("[%s] Error returned from KV write handler: %s", p.channelID, err)
 		}
 	}
@@ -217,7 +217,7 @@ func (p *Publisher) handleWrite(w *write) {
 func (p *Publisher) handleCCEvent(event *ccEvent) {
 	logger.Debugf("[%s] Handling chaincode event: [%s]", p.channelID, event)
 	for _, handleCCEvent := range p.getCCEventHandlers() {
-		if err := handleCCEvent(event.blockNum, event.txID, event.event); err != nil {
+		if err := handleCCEvent(event.blockNum, p.channelID, event.txID, event.event); err != nil {
 			logger.Warningf("[%s] Error returned from CC event handler: %s", p.channelID, err)
 		}
 	}
@@ -490,8 +490,8 @@ func (p *configUpdateEvent) publish() {
 	}
 }
 
-func newChaincodeUpgradeHandler(channelID string, handleUpgrade api.ChaincodeUpgradeHandler) api.ChaincodeEventHandler {
-	return func(blockNum uint64, txID string, event *pb.ChaincodeEvent) error {
+func newChaincodeUpgradeHandler(handleUpgrade api.ChaincodeUpgradeHandler) api.ChaincodeEventHandler {
+	return func(blockNum uint64, channelID string, txID string, event *pb.ChaincodeEvent) error {
 		logger.Debugf("[%s] Handling chaincode event: %s", channelID, event)
 		if event.ChaincodeId != lsccID {
 			logger.Debugf("[%s] Chaincode event is not from 'lscc'", channelID)
