@@ -7,13 +7,14 @@ package couchdbstore
 
 import (
 	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
 
-	"github.com/trustbloc/fabric-peer-ext/pkg/testutil"
-
 	"github.com/hyperledger/fabric/common/metrics/disabled"
+	coreconfig "github.com/hyperledger/fabric/core/config"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	"github.com/spf13/viper"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 )
@@ -44,7 +45,7 @@ type CouchDBProvider struct {
 
 // NewDBProvider creates a CouchDB Provider
 func NewDBProvider() *CouchDBProvider {
-	couchDBConfig := testutil.TestLedgerConf().StateDB.CouchDB
+	couchDBConfig := getCouchDBConfig()
 
 	couchInstance, err := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {
@@ -143,4 +144,40 @@ func (p *CouchDBProvider) getStores() []*dbstore {
 
 func dbName(ns, coll string) string {
 	return fmt.Sprintf("%s$%s", ns, coll)
+}
+
+// getCouchDBConfig return the couchdb config
+// TODO The ledgerconfig can't be passed to offledger provider as cscc calls the createChain which inturn initiates
+// CollectionDataStoreFactory(https://github.com/trustbloc/fabric-mod/blob/f195099d41db44623724131f2f487474707e84f2/core/peer/peer.go#L471).
+// More over this is using state couchdb configurations. Need to have configs specific to feature/functionality(blockstorage/offledger).
+// Created an issue https://github.com/trustbloc/fabric-peer-ext/issues/149. Also, added this as private function to avoid access from external packages.
+func getCouchDBConfig() *couchdb.Config {
+	// set defaults
+	warmAfterNBlocks := 1
+	if viper.IsSet("ledger.state.couchDBConfig.warmIndexesAfterNBlocks") {
+		warmAfterNBlocks = viper.GetInt("ledger.state.couchDBConfig.warmIndexesAfterNBlocks")
+	}
+	internalQueryLimit := 1000
+	if viper.IsSet("ledger.state.couchDBConfig.internalQueryLimit") {
+		internalQueryLimit = viper.GetInt("ledger.state.couchDBConfig.internalQueryLimit")
+	}
+	maxBatchUpdateSize := 500
+	if viper.IsSet("ledger.state.couchDBConfig.maxBatchUpdateSize") {
+		maxBatchUpdateSize = viper.GetInt("ledger.state.couchDBConfig.maxBatchUpdateSize")
+	}
+	rootFSPath := filepath.Join(coreconfig.GetPath("peer.fileSystemPath"), "ledgersData")
+
+	return &couchdb.Config{
+		Address:                 viper.GetString("ledger.state.couchDBConfig.couchDBAddress"),
+		Username:                viper.GetString("ledger.state.couchDBConfig.username"),
+		Password:                viper.GetString("ledger.state.couchDBConfig.password"),
+		MaxRetries:              viper.GetInt("ledger.state.couchDBConfig.maxRetries"),
+		MaxRetriesOnStartup:     viper.GetInt("ledger.state.couchDBConfig.maxRetriesOnStartup"),
+		RequestTimeout:          viper.GetDuration("ledger.state.couchDBConfig.requestTimeout"),
+		InternalQueryLimit:      internalQueryLimit,
+		MaxBatchUpdateSize:      maxBatchUpdateSize,
+		WarmIndexesAfterNBlocks: warmAfterNBlocks,
+		CreateGlobalChangesDB:   viper.GetBool("ledger.state.couchDBConfig.createGlobalChangesDB"),
+		RedoLogPath:             filepath.Join(rootFSPath, "couchdbRedoLogs"),
+	}
 }
