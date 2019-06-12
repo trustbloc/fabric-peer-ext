@@ -23,6 +23,7 @@ type invokeFunc func(stub shim.ChaincodeStubInterface, args []string) pb.Respons
 type funcMap map[string]invokeFunc
 
 const (
+	warmupFunc             = "warmup"
 	getFunc                = "get"
 	putFunc                = "put"
 	delFunc                = "del"
@@ -216,8 +217,14 @@ func (cc *ExampleCC) putPrivateMultiple(stub shim.ChaincodeStubInterface, args [
 			keys += "," + key
 		}
 
-		if err := stub.PutPrivateData(coll, key, []byte(value)); err != nil {
-			return shim.Error(fmt.Sprintf("Error putting private data for collection [%s] and key [%s]: %s", coll, key, err))
+		if value != "" {
+			if err := stub.PutPrivateData(coll, key, []byte(value)); err != nil {
+				return shim.Error(fmt.Sprintf("Error putting private data for collection [%s] and key [%s]: %s", coll, key, err))
+			}
+		} else {
+			if _, err := stub.GetPrivateData(coll, key); err != nil {
+				return shim.Error(fmt.Sprintf("Error getting private data for collection [%s] and key [%s]: %s", coll, key, err))
+			}
 		}
 	}
 
@@ -290,22 +297,27 @@ func (cc *ExampleCC) getAndPutBoth(stub shim.ChaincodeStubInterface, args []stri
 	if err != nil {
 		return shim.Error(fmt.Sprintf("Error getting state for key [%s]: %s", key, err))
 	}
-	if oldValue != nil {
+	if oldValue != nil && value != "" {
 		value = value + "_" + string(oldValue)
 	}
+
 	oldPrivValue, err := stub.GetPrivateData(coll, privKey)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("Error getting private data for collection [%s] and key [%s]: %s", coll, privKey, err))
 	}
-	if oldPrivValue != nil {
+	if oldPrivValue != nil && privValue != "" {
 		privValue = privValue + "_" + string(oldPrivValue)
 	}
 
-	if err := stub.PutState(key, []byte(value)); err != nil {
-		return shim.Error(fmt.Sprintf("Error putting state for key [%s]: %s", key, err))
+	if value != "" {
+		if err := stub.PutState(key, []byte(value)); err != nil {
+			return shim.Error(fmt.Sprintf("Error putting state for key [%s]: %s", key, err))
+		}
 	}
-	if err := stub.PutPrivateData(coll, privKey, []byte(privValue)); err != nil {
-		return shim.Error(fmt.Sprintf("Error putting private data for collection [%s] and key [%s]: %s", coll, privKey, err))
+	if privValue != "" {
+		if err := stub.PutPrivateData(coll, privKey, []byte(privValue)); err != nil {
+			return shim.Error(fmt.Sprintf("Error putting private data for collection [%s] and key [%s]: %s", coll, privKey, err))
+		}
 	}
 
 	return shim.Success(nil)
@@ -437,8 +449,13 @@ func (cc *ExampleCC) invokeCC(stub shim.ChaincodeStubInterface, args []string) p
 	return stub.InvokeChaincode(ccName, asBytes(argStruct.Args), channelID)
 }
 
+func (cc *ExampleCC) warmup(shim.ChaincodeStubInterface, []string) pb.Response {
+	return shim.Success(nil)
+}
+
 func (cc *ExampleCC) initRegistry() {
 	cc.funcRegistry = make(map[string]invokeFunc)
+	cc.funcRegistry[warmupFunc] = cc.warmup
 	cc.funcRegistry[getFunc] = cc.get
 	cc.funcRegistry[putFunc] = cc.put
 	cc.funcRegistry[delFunc] = cc.del
