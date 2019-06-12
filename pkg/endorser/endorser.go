@@ -7,37 +7,43 @@ SPDX-License-Identifier: Apache-2.0
 package endorser
 
 import (
+	"github.com/bluele/gcache"
 	"github.com/hyperledger/fabric/common/flogging"
+	"github.com/hyperledger/fabric/extensions/endorser/api"
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/rwset"
-	"github.com/pkg/errors"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
 )
 
 var endorserLogger = flogging.MustGetLogger("ext_endorser")
 
-// FilterPubSimulationResults filters out all off-ledger (including transient data) read-write sets from the simulation results
+type collConfigRetriever interface {
+	Config(ns, coll string) (*common.StaticCollectionConfig, error)
+}
+
+// CollRWSetFilter filters out all off-ledger (including transient data) read-write sets from the simulation results
 // so that they won't be included in the block.
-func FilterPubSimulationResults(collConfigs map[string]*common.CollectionConfigPackage, pubSimulationResults *rwset.TxReadWriteSet) (*rwset.TxReadWriteSet, error) {
-	if collConfigs != nil {
-		// Filter out all off-ledger hashed read/write sets
-		return newFilter(collConfigs).filter(pubSimulationResults)
-	}
-
-	endorserLogger.Debugf("No collection r/w sets.")
-	return pubSimulationResults, nil
+type CollRWSetFilter struct {
+	qepf                     api.QueryExecutorProviderFactory
+	bpp                      api.BlockPublisherProvider
+	collConfigRetrieverCache gcache.Cache
 }
 
-type collRWSetFilter struct {
-	collConfigs map[string]*common.CollectionConfigPackage
-}
-
-func newFilter(collConfigs map[string]*common.CollectionConfigPackage) *collRWSetFilter {
-	return &collRWSetFilter{
-		collConfigs: collConfigs,
+// NewCollRWSetFilter returns a new collection RW set filter
+func NewCollRWSetFilter(qepf api.QueryExecutorProviderFactory, bpp api.BlockPublisherProvider) *CollRWSetFilter {
+	return &CollRWSetFilter{
+		qepf: qepf,
+		bpp:  bpp,
+		collConfigRetrieverCache: gcache.New(0).LoaderFunc(func(chID interface{}) (interface{}, error) {
+			channelID := chID.(string)
+			return support.NewCollectionConfigRetriever(channelID, qepf.GetQueryExecutorProvider(channelID), bpp.ForChannel(channelID)), nil
+		}).Build(),
 	}
 }
 
-func (f *collRWSetFilter) filter(pubSimulationResults *rwset.TxReadWriteSet) (*rwset.TxReadWriteSet, error) {
+// Filter filters out all off-ledger (including transient data) read-write sets from the simulation results
+// so that they won't be included in the block.
+func (f *CollRWSetFilter) Filter(channelID string, pubSimulationResults *rwset.TxReadWriteSet) (*rwset.TxReadWriteSet, error) {
 	endorserLogger.Debugf("Filtering off-ledger collection types...")
 	filteredResults := &rwset.TxReadWriteSet{
 		DataModel: pubSimulationResults.DataModel,
@@ -47,7 +53,7 @@ func (f *collRWSetFilter) filter(pubSimulationResults *rwset.TxReadWriteSet) (*r
 	for _, rwSet := range pubSimulationResults.NsRwset {
 		endorserLogger.Debugf("Checking chaincode [%s] for off-ledger collection types...", rwSet.Namespace)
 
-		filteredRWSet, err := f.filterNamespace(rwSet)
+		filteredRWSet, err := f.filterNamespace(channelID, rwSet)
 		if err != nil {
 			return nil, err
 		}
@@ -63,19 +69,19 @@ func (f *collRWSetFilter) filter(pubSimulationResults *rwset.TxReadWriteSet) (*r
 	return filteredResults, nil
 }
 
-func (f *collRWSetFilter) filterNamespace(nsRWSet *rwset.NsReadWriteSet) (*rwset.NsReadWriteSet, error) {
+func (f *CollRWSetFilter) filterNamespace(channelID string, nsRWSet *rwset.NsReadWriteSet) (*rwset.NsReadWriteSet, error) {
 	var filteredCollRWSets []*rwset.CollectionHashedReadWriteSet
 	for _, collRWSet := range nsRWSet.CollectionHashedRwset {
-		endorserLogger.Debugf("Checking collection [%s:%s] to see if it is an off-ledger type...", nsRWSet.Namespace, collRWSet.CollectionName)
-		offLedger, err := f.isOffLedger(nsRWSet.Namespace, collRWSet.CollectionName)
+		endorserLogger.Debugf("[%s] Checking collection [%s:%s] to see if it is an off-ledger type...", channelID, nsRWSet.Namespace, collRWSet.CollectionName)
+		offLedger, err := f.isOffLedger(channelID, nsRWSet.Namespace, collRWSet.CollectionName)
 		if err != nil {
 			return nil, err
 		}
 		if !offLedger {
-			endorserLogger.Debugf("... adding hashed rw-set for collection [%s:%s] since it IS NOT an off-ledger type", nsRWSet.Namespace, collRWSet.CollectionName)
+			endorserLogger.Debugf("[%s] ... adding hashed rw-set for collection [%s:%s] since it IS NOT an off-ledger type", channelID, nsRWSet.Namespace, collRWSet.CollectionName)
 			filteredCollRWSets = append(filteredCollRWSets, collRWSet)
 		} else {
-			endorserLogger.Debugf("... removing hashed rw-set for collection [%s:%s] since it IS an off-ledger type", nsRWSet.Namespace, collRWSet.CollectionName)
+			endorserLogger.Debugf("[%s] ... removing hashed rw-set for collection [%s:%s] since it IS an off-ledger type", channelID, nsRWSet.Namespace, collRWSet.CollectionName)
 		}
 	}
 
@@ -86,23 +92,21 @@ func (f *collRWSetFilter) filterNamespace(nsRWSet *rwset.NsReadWriteSet) (*rwset
 	}, nil
 }
 
-func (f *collRWSetFilter) isOffLedger(ns, coll string) (bool, error) {
-	collConfig, ok := f.collConfigs[ns]
-	if !ok {
-		return false, errors.Errorf("config for collection [%s:%s] not found", ns, coll)
+func (f *CollRWSetFilter) isOffLedger(channelID, ns, coll string) (bool, error) {
+	staticConfig, err := f.getConfigRetriever(channelID).Config(ns, coll)
+	if err != nil {
+		return false, err
 	}
+	return isCollOffLedger(staticConfig), nil
+}
 
-	for _, config := range collConfig.Config {
-		staticConfig := config.GetStaticCollectionConfig()
-		if staticConfig == nil {
-			return false, errors.Errorf("config for collection [%s:%s] not found", ns, coll)
-		}
-		if staticConfig.Name == coll {
-			return isCollOffLedger(staticConfig), nil
-		}
+func (f *CollRWSetFilter) getConfigRetriever(channelID string) collConfigRetriever {
+	retriever, err := f.collConfigRetrieverCache.Get(channelID)
+	if err != nil {
+		// This should never happen
+		panic(err.Error())
 	}
-
-	return false, errors.Errorf("config for collection [%s:%s] not found", ns, coll)
+	return retriever.(collConfigRetriever)
 }
 
 func isCollOffLedger(collConfig *common.StaticCollectionConfig) bool {

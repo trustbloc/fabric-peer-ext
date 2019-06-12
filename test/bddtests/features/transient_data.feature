@@ -69,6 +69,10 @@ Feature:
     And we wait 2 seconds
     And client queries chaincode "tdata_examplecc" with args "getprivatemultiple,collection1,pvtKey1,collection2,pvtKey2,collection3,pvtKey3" on a single peer in the "peerorg1" org on the "mychannel" channel
     Then response from "tdata_examplecc" to client equal value "pvtVal1,pvtVal2,pvtVal3"
+    # Ensure that a write to one collection and read from another works (issue #158)
+    When client invokes chaincode "tdata_examplecc" with args "putprivate,collection3,keyC,valueA" on the "mychannel" channel
+    And we wait 5 seconds
+    When client invokes chaincode "tdata_examplecc" with args "putprivatemultiple,collection1,key1,value1,collection3,keyC," on the "mychannel" channel
 
     # Test Chaincode Upgrade and Cache Expiration
     #   When the chaincode is upgraded with a new policy, all caches should be refreshed
