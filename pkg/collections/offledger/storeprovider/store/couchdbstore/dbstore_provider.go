@@ -37,6 +37,7 @@ const (
 // CouchDBProvider provides an handle to a db
 type CouchDBProvider struct {
 	couchInstance *couchdb.CouchInstance
+	cimutex       sync.RWMutex
 	stores        map[string]*dbstore
 	mutex         sync.RWMutex
 	done          chan struct{}
@@ -45,23 +46,10 @@ type CouchDBProvider struct {
 
 // NewDBProvider creates a CouchDB Provider
 func NewDBProvider() *CouchDBProvider {
-	couchDBConfig := getCouchDBConfig()
-
-	couchInstance, err := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
-	if err != nil {
-		logger.Error(err)
-		return nil
+	return &CouchDBProvider{
+		done:   make(chan struct{}, 1),
+		stores: make(map[string]*dbstore),
 	}
-
-	p := &CouchDBProvider{
-		couchInstance: couchInstance,
-		done:          make(chan struct{}),
-		stores:        make(map[string]*dbstore),
-	}
-
-	p.periodicPurge()
-
-	return p
 }
 
 //GetDB based on ns%coll
@@ -80,7 +68,12 @@ func (p *CouchDBProvider) GetDB(ns, coll string) (api.DB, error) {
 	defer p.mutex.Unlock()
 
 	if !ok {
-		db, err := couchdb.CreateCouchDatabase(p.couchInstance, dbName)
+		ci, err := p.getCouchInstance()
+		if err != nil {
+			logger.Error(err)
+			return nil, err
+		}
+		db, err := couchdb.CreateCouchDatabase(ci, dbName)
 		if nil != err {
 			logger.Error(err)
 			return nil, nil
@@ -106,6 +99,37 @@ func (p *CouchDBProvider) Close() {
 		p.done <- struct{}{}
 		p.closed = true
 	}
+}
+
+func (p *CouchDBProvider) getCouchInstance() (*couchdb.CouchInstance, error) {
+	p.cimutex.RLock()
+	ci := p.couchInstance
+	p.cimutex.RUnlock()
+
+	if ci != nil {
+		return ci, nil
+	}
+
+	return p.createCouchInstance()
+}
+
+func (p *CouchDBProvider) createCouchInstance() (*couchdb.CouchInstance, error) {
+	p.cimutex.Lock()
+	defer p.cimutex.Unlock()
+
+	if p.couchInstance != nil {
+		return p.couchInstance, nil
+	}
+
+	var err error
+	p.couchInstance, err = couchdb.CreateCouchInstance(getCouchDBConfig(), &disabled.Provider{})
+	if err != nil {
+		return nil, err
+	}
+
+	p.periodicPurge()
+
+	return p.couchInstance, nil
 }
 
 // periodicPurge goroutine to purge dataModel based on config interval time

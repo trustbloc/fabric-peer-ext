@@ -57,6 +57,19 @@ func testMain(m *testing.M) int {
 	return code
 }
 
+func TestCreateCouchInstance(t *testing.T) {
+	provider := NewDBProvider()
+	defer provider.Close()
+
+	ci, err := provider.createCouchInstance()
+	require.NoError(t, err)
+	require.NotNil(t, ci)
+
+	ci2, err := provider.createCouchInstance()
+	require.NoError(t, err)
+	require.True(t, ci == ci2)
+}
+
 func TestGetKeysFromDB(t *testing.T) {
 	provider := NewDBProvider()
 	defer provider.Close()
