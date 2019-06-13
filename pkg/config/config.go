@@ -12,8 +12,6 @@ import (
 
 	"github.com/hyperledger/fabric/core/config"
 
-	"github.com/hyperledger/fabric/core/transientstore"
-
 	"github.com/spf13/viper"
 )
 
@@ -65,7 +63,7 @@ func GetPvtDataCacheSize() int {
 
 // GetTransientDataLevelDBPath returns the filesystem path that is used to maintain the transient data level db
 func GetTransientDataLevelDBPath() string {
-	return filepath.Join(transientstore.GetTransientStorePath(), confTransientDataLeveldb)
+	return filepath.Join(filepath.Clean(config.GetPath(confPeerFileSystemPath)), confTransientDataLeveldb)
 }
 
 // GetTransientDataExpiredIntervalTime is time when background routine check expired transient data in db to cleanup.

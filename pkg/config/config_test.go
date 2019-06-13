@@ -42,7 +42,7 @@ func TestGetTransientDataLevelDBPath(t *testing.T) {
 
 	viper.Set("peer.fileSystemPath", "/tmp123")
 
-	assert.Equal(t, "/tmp123/transientStore/transientDataLeveldb", GetTransientDataLevelDBPath())
+	assert.Equal(t, "/tmp123/transientDataLeveldb", GetTransientDataLevelDBPath())
 }
 
 func TestGetTransientDataExpiredIntervalTime(t *testing.T) {
