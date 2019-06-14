@@ -33,14 +33,12 @@ func TestConfigRetriever(t *testing.T) {
 	configPkgBytes, err := proto.Marshal(nsBuilder.BuildCollectionConfig())
 	require.NoError(t, err)
 
-	state := make(map[string]map[string][]byte)
-	state[lscc] = make(map[string][]byte)
-	state[lscc][privdata.BuildCollectionKVSKey(ns1)] = configPkgBytes
-
 	blockPublisher := mocks.NewBlockPublisher()
 
+	qe := mocks.NewQueryExecutor().WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes)
+
 	r := NewCollectionConfigRetriever(channelID, &mocks.Ledger{
-		QueryExecutor: mocks.NewQueryExecutor(state),
+		QueryExecutor: qe,
 	}, blockPublisher)
 	require.NotNil(t, r)
 
@@ -88,7 +86,7 @@ func TestConfigRetriever(t *testing.T) {
 		configPkgBytes, err := proto.Marshal(nsBuilder.BuildCollectionConfig())
 		require.NoError(t, err)
 
-		state[lscc][privdata.BuildCollectionKVSKey(ns1)] = configPkgBytes
+		qe.WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes)
 
 		err = blockPublisher.HandleUpgrade(1001, "tx1", ns1)
 		assert.NoError(t, err)
@@ -116,13 +114,11 @@ func TestConfigRetriever(t *testing.T) {
 func TestConfigRetrieverError(t *testing.T) {
 	const channelID = "testchannel"
 
-	state := make(map[string]map[string][]byte)
-
 	blockPublisher := mocks.NewBlockPublisher()
 
 	expectedErr := fmt.Errorf("injected error")
 	r := NewCollectionConfigRetriever(channelID, &mocks.Ledger{
-		QueryExecutor: mocks.NewQueryExecutor(state).WithError(expectedErr),
+		QueryExecutor: mocks.NewQueryExecutor().WithError(expectedErr),
 	}, blockPublisher)
 	require.NotNil(t, r)
 

@@ -36,13 +36,9 @@ func TestSupport(t *testing.T) {
 	configPkgBytes, err := proto.Marshal(nsBuilder.BuildCollectionConfig())
 	require.NoError(t, err)
 
-	state := make(map[string]map[string][]byte)
-	state[lscc] = make(map[string][]byte)
-	state[lscc][privdata.BuildCollectionKVSKey(ns1)] = configPkgBytes
-
 	ledgerProvider := func(channelID string) ledger.PeerLedger {
 		return &mocks.Ledger{
-			QueryExecutor: mocks.NewQueryExecutor(state),
+			QueryExecutor: mocks.NewQueryExecutor().WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes),
 		}
 	}
 

@@ -22,7 +22,7 @@ func TestProvider(t *testing.T) {
 		channelID,
 		&mocks.DataStore{},
 		mocks.NewMockGossipAdapter(),
-		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor(nil)},
+		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor()},
 		mocks.NewBlockPublisher(),
 	)
 

@@ -123,21 +123,19 @@ type mockQEProviderFactory struct {
 }
 
 func newMockQEProviderFactory(ccp map[string]*common.CollectionConfigPackage) *mockQEProviderFactory {
-	state := make(map[string]map[string][]byte)
-	m := make(map[string][]byte)
-	state["lscc"] = m
+	qe := mocks.NewQueryExecutor()
 
 	for ns, cc := range ccp {
 		bytes, err := proto.Marshal(cc)
 		if err != nil {
 			panic(err.Error())
 		}
-		m[privdata.BuildCollectionKVSKey(ns)] = bytes
+		qe.WithState("lscc", privdata.BuildCollectionKVSKey(ns), bytes)
 	}
 
 	return &mockQEProviderFactory{
 		ledger: &mocks.Ledger{
-			QueryExecutor: mocks.NewQueryExecutor(state),
+			QueryExecutor: qe,
 		},
 	}
 }

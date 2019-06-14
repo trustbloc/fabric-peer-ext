@@ -14,6 +14,7 @@ import (
 	"github.com/hyperledger/fabric/bccsp/factory"
 	"github.com/hyperledger/fabric/common/crypto"
 	"github.com/hyperledger/fabric/common/flogging"
+	commonledger "github.com/hyperledger/fabric/common/ledger"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/peer"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
@@ -181,6 +182,21 @@ func (d *Client) GetMultipleKeys(ns, coll string, keys ...string) ([][]byte, err
 	defer qe.Done()
 
 	return qe.GetPrivateDataMultipleKeys(ns, coll, keys)
+}
+
+// Query executes the given query and returns an iterator that contains results.
+// Only used for state databases that support query.
+// (Note that this function is not supported by transient data collections)
+// The returned ResultsIterator contains results of type *KV which is defined in protos/ledger/queryresult.
+func (d *Client) Query(ns, coll, query string) (commonledger.ResultsIterator, error) {
+	qe, err := d.ledger.NewQueryExecutor()
+	if err != nil {
+		logger.Warningf("[%s] Error getting QueryExecutor: %s", d.channelID, err)
+		return nil, errors.WithMessagef(err, "error getting QueryExecutor in channel [%s]", d.channelID)
+	}
+	defer qe.Done()
+
+	return qe.ExecuteQueryOnPrivateData(ns, coll, query)
 }
 
 func (d *Client) getCollectionConfigPackage(ns, coll string) (*cb.CollectionConfigPackage, error) {
