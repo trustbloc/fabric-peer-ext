@@ -44,7 +44,7 @@ func NewDBProvider() *LevelDBProvider {
 }
 
 // GetDB opens the db store
-func (p *LevelDBProvider) GetDB(ns, coll string) (api.DB, error) {
+func (p *LevelDBProvider) GetDB(channelID string, coll string, ns string) (api.DB, error) {
 	dbName := dbName(ns, coll)
 
 	p.mutex.RLock()

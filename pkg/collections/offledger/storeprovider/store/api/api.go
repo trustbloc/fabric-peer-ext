@@ -15,6 +15,7 @@ type Value struct {
 	Value      []byte
 	TxID       string
 	ExpiryTime time.Time
+	Revision   string
 }
 
 // KeyValue is a struct to store a key value pair
@@ -53,8 +54,8 @@ type DB interface {
 
 // DBProvider returns the persister for the given namespace/collection
 type DBProvider interface {
-	// GetDB return the DB for the given namespace/collection
-	GetDB(ns, coll string) (DB, error)
+	// GetDB return the DB for the given channel, namespace. and collection
+	GetDB(channelID string, coll string, ns string) (DB, error)
 
 	// Close closes the DB provider
 	Close()

@@ -135,7 +135,7 @@ func (c *Cache) GetMultiple(ns, coll string, keys ...string) ([]*api.Value, erro
 }
 
 func (c *Cache) load(key cacheKey) (*api.Value, *time.Duration, error) {
-	db, err := c.dbProvider.GetDB(key.namespace, key.collection)
+	db, err := c.dbProvider.GetDB(c.channelID, key.collection, key.namespace)
 	if err != nil {
 		return nil, nil, errors.WithMessage(err, "error getting database")
 	}

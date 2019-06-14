@@ -8,18 +8,20 @@
 @off_ledger
 Feature: off-ledger
 
-  @off_ledger_s1
-  Scenario: Put and get off-ledger data
+  Background: Setup
     Given the channel "mychannel" is created and all peers have joined
     And the channel "yourchannel" is created and all peers have joined
 
     And off-ledger collection config "ol_coll1" is defined for collection "collection1" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=5s
     And DCAS collection config "dcas_coll2" is defined for collection "collection2" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=10m
     And collection config "coll3" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and blocksToLive=10
+    And DCAS collection config "dcas_accounts" is defined for collection "accounts" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=3, and timeToLive=30m
     And "test" chaincode "ol_examplecc" is installed from path "github.com/trustbloc/e2e_cc" to all peers
-    And "test" chaincode "ol_examplecc" is instantiated from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_coll2,coll3"
+    And "test" chaincode "ol_examplecc" is instantiated from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_coll2,coll3,dcas_accounts"
     And chaincode "ol_examplecc" is warmed up on all peers on the "mychannel" channel
 
+  @off_ledger_s1
+  Scenario: Put and get off-ledger data
     # Test for invalid CAS key
     When client queries chaincode "ol_examplecc" with args "putprivate,collection2,key1,value1" on the "mychannel" channel then the error response should contain "the key should be the hash of the value"
 
@@ -84,7 +86,7 @@ Feature: off-ledger
     Given off-ledger collection config "ol_coll1_upgrade" is defined for collection "collection1" as policy="OR('Org1MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
     And DCAS collection config "dcas_coll2_upgrade" is defined for collection "collection2" as policy="OR('Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
     And "test" chaincode "ol_examplecc" version "v3" is installed from path "github.com/trustbloc/e2e_cc" to all peers
-    And "test" chaincode "ol_examplecc" is upgraded with version "v3" from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1_upgrade,dcas_coll2_upgrade,coll3"
+    And "test" chaincode "ol_examplecc" is upgraded with version "v3" from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1_upgrade,dcas_coll2_upgrade,coll3,dcas_accounts"
     And chaincode "ol_examplecc" is warmed up on all peers on the "mychannel" channel
     # Put the data to org2 - the data should be disseminated to org1
     When client queries chaincode "ol_examplecc" with args "putprivate,collection1,keyA,valueA" on a single peer in the "peerorg2" org on the "mychannel" channel
@@ -106,7 +108,7 @@ Feature: off-ledger
 
     # Test chaincode-to-chaincode invocation (same channel)
     Given "test" chaincode "ol_examplecc_2" is installed from path "github.com/trustbloc/e2e_cc" to all peers
-    And "test" chaincode "ol_examplecc_2" is instantiated from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1"
+    And "test" chaincode "ol_examplecc_2" is instantiated from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts"
     And chaincode "ol_examplecc_2" is warmed up on all peers on the "mychannel" channel
     # Set the data on the target chaincode using a chaincode-to-chaincode invocation
     When client queries chaincode "ol_examplecc" with args "invokecc,ol_examplecc_2,,{`Args`:[`putprivate`|`collection1`|`keyC`|`valueC`]}" on the "mychannel" channel
@@ -118,7 +120,7 @@ Feature: off-ledger
     Then response from "ol_examplecc" to client equal value "valueC"
 
     # Test chaincode-to-chaincode invocation (different channel)
-    Given "test" chaincode "ol_examplecc_2" is instantiated from path "github.com/trustbloc/e2e_cc" on the "yourchannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1"
+    Given "test" chaincode "ol_examplecc_2" is instantiated from path "github.com/trustbloc/e2e_cc" on the "yourchannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts"
     And chaincode "ol_examplecc_2" is warmed up on all peers on the "yourchannel" channel
     # Set the data on a different channel
     When client queries chaincode "ol_examplecc_2" with args "putprivate,collection1,keyD,valueD" on the "yourchannel" channel
@@ -128,3 +130,17 @@ Feature: off-ledger
     # Query the target chaincode using a chaincode-to-chaincode invocation
     When client queries chaincode "ol_examplecc" with args "invokecc,ol_examplecc_2,yourchannel,{`Args`:[`getprivate`|`collection1`|`keyD`]}" on the "mychannel" channel
     Then response from "ol_examplecc" to client equal value "valueD"
+
+  @off_ledger_s2
+  Scenario: Rich Queries
+    Given the account with ID "456456", owner "Tim Jones" and a balance of 1000 is created and stored to variable "tim_account"
+    And client queries chaincode "ol_examplecc" with args "putcas,accounts,${tim_account}" on the "mychannel" channel
+    When client queries chaincode "ol_examplecc" with args "queryprivate,accounts,{`selector`:{`id`:`456456`}|`use_index`:[`_design/indexIDDoc`|`indexID`]}" on a single peer in the "peerorg1" org on the "mychannel" channel
+    And the response is saved to variable "account_operations"
+    Then the variable "account_operations" contains 1 accounts
+
+    Given the account stored in variable "tim_account" is updated with a balance of 2000
+    And client queries chaincode "ol_examplecc" with args "putcas,accounts,${tim_account}" on the "mychannel" channel
+    When client queries chaincode "ol_examplecc" with args "queryprivate,accounts,{`selector`:{`id`:`456456`}|`use_index`:[`_design/indexIDDoc`|`indexID`]}" on a single peer in the "peerorg1" org on the "mychannel" channel
+    And the response is saved to variable "account_operations"
+    Then the variable "account_operations" contains 2 accounts

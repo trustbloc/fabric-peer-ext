@@ -16,4 +16,13 @@ defineSupportCode(function ({And, But, Given, Then, When}) {
     Given(/^variable "([^"]*)" is assigned the CAS key of value "([^"]*)"$/, function (arg1, arg2, callback) {
         callback.pending();
     });
+    Given(/^the account with ID "([^"]*)", owner "([^"]*)" and a balance of (\d+) is created and stored to variable "([^"]*)"$/, function (arg1, arg2, arg3, arg4, callback) {
+        callback.pending();
+    });
+    Given(/^the account stored in variable "([^"]*)" is updated with a balance of (\d+)$/, function (arg1, arg2, arg3, arg4, callback) {
+        callback.pending();
+    });
+    Then(/^the variable "([^"]*)" contains (\d+) accounts$/, function (arg1, callback) {
+        callback.pending();
+    });
 });
