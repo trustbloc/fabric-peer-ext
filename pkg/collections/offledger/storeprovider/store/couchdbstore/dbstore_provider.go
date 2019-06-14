@@ -20,10 +20,17 @@ import (
 )
 
 const (
-	expiryField     = "expiry"
-	expiryIndexName = "by_expiry"
-	expiryIndexDoc  = "indexExpiry"
-	expiryIndexDef  = `
+	idField            = "_id"
+	revField           = "_rev"
+	deletedField       = "_deleted"
+	txnIDField         = "~txnID"
+	expiryField        = "~expiry"
+	versionField       = "~version"
+	binaryWrapperField = "valueBytes"
+	expiryIndexName    = "by_expiry"
+	expiryIndexDoc     = "indexExpiry"
+
+	expiryIndexDef = `
 	{
 		"index": {
 			"fields": ["` + expiryField + `"]
@@ -53,8 +60,8 @@ func NewDBProvider() *CouchDBProvider {
 }
 
 //GetDB based on ns%coll
-func (p *CouchDBProvider) GetDB(ns, coll string) (api.DB, error) {
-	dbName := dbName(ns, coll)
+func (p *CouchDBProvider) GetDB(channelID string, coll string, ns string) (api.DB, error) {
+	dbName := dbName(channelID, ns, coll)
 
 	p.mutex.RLock()
 	s, ok := p.stores[dbName]
@@ -166,8 +173,8 @@ func (p *CouchDBProvider) getStores() []*dbstore {
 	return stores
 }
 
-func dbName(ns, coll string) string {
-	return fmt.Sprintf("%s$%s", ns, coll)
+func dbName(channelID, ns, coll string) string {
+	return fmt.Sprintf("%s_%s$$p%s", channelID, ns, coll)
 }
 
 // getCouchDBConfig return the couchdb config

@@ -6,6 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 package couchdbstore
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
 	"time"
@@ -74,7 +75,7 @@ func TestGetKeysFromDB(t *testing.T) {
 	provider := NewDBProvider()
 	defer provider.Close()
 
-	db1, err := provider.GetDB(ns1, coll1)
+	db1, err := provider.GetDB("testchannel", ns1, coll1)
 	require.NoError(t, err)
 	require.NotNil(t, db1)
 
@@ -96,7 +97,7 @@ func TestGetKeysFromDB(t *testing.T) {
 	require.Equal(t, txID1, v.TxID)
 	require.Equal(t, value2, v.Value)
 
-	db2, err := provider.GetDB(ns1, coll2)
+	db2, err := provider.GetDB("testchannel", coll2, ns1)
 	require.NoError(t, err)
 	require.NotNil(t, db2)
 
@@ -130,11 +131,101 @@ func TestGetKeysFromDB(t *testing.T) {
 	require.Nil(t, v)
 }
 
+type testValue struct {
+	Field1 string
+	Field2 int
+}
+
+type invalidTestValue1 struct {
+	ID string `json:"_id"`
+}
+
+type invalidTestValue2 struct {
+	TxID string `json:"~txnID"`
+}
+
+func TestJSONValues(t *testing.T) {
+	provider := NewDBProvider()
+	defer provider.Close()
+
+	db1, err := provider.GetDB("testchannel", ns1, coll1)
+	require.NoError(t, err)
+	require.NotNil(t, db1)
+
+	t.Run("Valid JSON", func(t *testing.T) {
+		v1 := &testValue{
+			Field1: "value1",
+			Field2: 12345,
+		}
+
+		v1Bytes, err := json.Marshal(v1)
+		require.NoError(t, err)
+
+		err = db1.Put(api.NewKeyValue(key1, v1Bytes, txID1, time.Now().UTC().Add(1*time.Minute)))
+		require.NoError(t, err)
+
+		val1, err := db1.Get(key1)
+		require.NoError(t, err)
+		require.NotNil(t, val1)
+		require.Equal(t, txID1, val1.TxID)
+
+		rv1 := &testValue{}
+		err = json.Unmarshal(val1.Value, rv1)
+		require.NoError(t, err)
+		require.Equal(t, v1, rv1)
+		require.NotEmpty(t, val1.Revision)
+
+		// Update the value for key1
+		v2 := *v1
+		v2.Field1 = "new value"
+		v2Bytes, err := json.Marshal(v2)
+		require.NoError(t, err)
+
+		val1.Value = v2Bytes
+		err = db1.Put(&api.KeyValue{Key: key1, Value: val1})
+		require.NoError(t, err)
+
+		val2, err := db1.Get(key1)
+		require.NoError(t, err)
+		require.NotNil(t, val2)
+		require.Equal(t, txID1, val2.TxID)
+		require.NotEmpty(t, val2.Revision)
+		require.NotEqual(t, val1.Revision, val2.Revision)
+
+		rv2 := &testValue{}
+		err = json.Unmarshal(val2.Value, rv2)
+		require.NoError(t, err)
+		require.Equal(t, &v2, rv2)
+	})
+
+	t.Run("Invalid JSON", func(t *testing.T) {
+		v1 := &invalidTestValue1{
+			ID: "some_id",
+		}
+
+		v1Bytes, err := json.Marshal(v1)
+		require.NoError(t, err)
+
+		err = db1.Put(api.NewKeyValue(key1, v1Bytes, txID1, time.Now().UTC().Add(1*time.Minute)))
+		require.EqualError(t, err, "field [_id] is not valid for the CouchDB state database")
+
+		v2 := &invalidTestValue2{
+			TxID: "some_tx_id",
+		}
+
+		v2Bytes, err := json.Marshal(v2)
+		require.NoError(t, err)
+
+		err = db1.Put(api.NewKeyValue(key1, v2Bytes, txID1, time.Now().UTC().Add(1*time.Minute)))
+		require.EqualError(t, err, "field [~txnID] is not valid for the CouchDB state database")
+	})
+}
+
 func TestDeleteExpiredKeysFromDB(t *testing.T) {
 	provider := NewDBProvider()
 	defer provider.Close()
 
-	db, err := provider.GetDB(ns1, coll3)
+	db, err := provider.GetDB("testchannel", coll3, ns1)
 	require.NoError(t, err)
 
 	err = db.Put(

@@ -88,7 +88,7 @@ func (s *store) PutData(config *cb.StaticCollectionConfig, key *storeapi.Key, va
 		}
 	}
 
-	db, err := s.dbProvider.GetDB(key.Namespace, key.Collection)
+	db, err := s.dbProvider.GetDB(s.channelID, key.Collection, key.Namespace)
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*c
 		return err
 	}
 
-	db, err := s.dbProvider.GetDB(ns, collRWSet.CollectionName)
+	db, err := s.dbProvider.GetDB(s.channelID, collRWSet.CollectionName, ns)
 	if err != nil {
 		return err
 	}

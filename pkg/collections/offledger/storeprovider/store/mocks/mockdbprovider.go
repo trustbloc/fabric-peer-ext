@@ -56,7 +56,7 @@ func (m *DBProvider) MockDB(ns, coll string) *DB {
 }
 
 // GetDB returns a mock DB for the given namespace/collection
-func (m *DBProvider) GetDB(ns, coll string) (api.DB, error) {
+func (m *DBProvider) GetDB(channelID string, coll string, ns string) (api.DB, error) {
 	if m.err != nil {
 		return nil, m.err
 	}

@@ -38,7 +38,7 @@ func TestDeleteExpiredKeysFromDB(t *testing.T) {
 	provider := NewDBProvider()
 	defer provider.Close()
 
-	db, err := provider.GetDB(ns1, coll1)
+	db, err := provider.GetDB(ns1, "", coll1)
 	require.NoError(t, err)
 
 	err = db.Put(
@@ -66,7 +66,7 @@ func TestGetKeysFromDB(t *testing.T) {
 	provider := NewDBProvider()
 	defer provider.Close()
 
-	db1, err := provider.GetDB(ns1, coll1)
+	db1, err := provider.GetDB(ns1, "", coll1)
 	require.NoError(t, err)
 	require.NotNil(t, db1)
 
@@ -88,7 +88,7 @@ func TestGetKeysFromDB(t *testing.T) {
 	require.Equal(t, txID1, v.TxID)
 	require.Equal(t, value2, v.Value)
 
-	db2, err := provider.GetDB(ns1, coll2)
+	db2, err := provider.GetDB(ns1, "", coll2)
 	require.NoError(t, err)
 	require.NotNil(t, db2)
 

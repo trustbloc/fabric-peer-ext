@@ -29,6 +29,7 @@ const (
 	delFunc                = "del"
 	putPrivateFunc         = "putprivate"
 	getPrivateFunc         = "getprivate"
+	queryPrivateFunc       = "queryprivate"
 	putPrivateMultipleFunc = "putprivatemultiple"
 	getPrivateMultipleFunc = "getprivatemultiple"
 	delPrivateFunc         = "delprivate"
@@ -151,6 +152,42 @@ func (cc *ExampleCC) getPrivate(stub shim.ChaincodeStubInterface, args []string)
 	}
 
 	return shim.Success([]byte(value))
+}
+
+func (cc *ExampleCC) queryPrivate(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	if len(args) != 2 {
+		return shim.Error("Invalid args. Expecting collection and query expression")
+	}
+
+	coll := args[0]
+	query := strings.Replace(args[1], "`", `"`, -1)
+	query = strings.Replace(query, "|", `,`, -1)
+
+	it, err := stub.GetPrivateDataQueryResult(coll, query)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Error querying private data for collection [%s] and query [%s]: %s", coll, query, err))
+	}
+	defer func() {
+		if err := it.Close(); err != nil {
+			logger.Errorf("Error closing keys iterator: %s", err)
+		}
+	}()
+
+	var values [][]byte
+	for it.HasNext() {
+		result, err := it.Next()
+		if err != nil {
+			return shim.Error(fmt.Sprintf("query operation on private data failed. Error accessing state: %s", err))
+		}
+		values = append(values, result.Value)
+	}
+
+	jsonValues, err := json.Marshal(values)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("query operation on private data failed. Error marshaling JSON: %s", err))
+	}
+
+	return shim.Success(jsonValues)
 }
 
 func (cc *ExampleCC) getPrivateByRange(stub shim.ChaincodeStubInterface, args []string) pb.Response {
@@ -460,6 +497,7 @@ func (cc *ExampleCC) initRegistry() {
 	cc.funcRegistry[putFunc] = cc.put
 	cc.funcRegistry[delFunc] = cc.del
 	cc.funcRegistry[getPrivateFunc] = cc.getPrivate
+	cc.funcRegistry[queryPrivateFunc] = cc.queryPrivate
 	cc.funcRegistry[putPrivateFunc] = cc.putPrivate
 	cc.funcRegistry[getPrivateMultipleFunc] = cc.getPrivateMultiple
 	cc.funcRegistry[putPrivateMultipleFunc] = cc.putPrivateMultiple
