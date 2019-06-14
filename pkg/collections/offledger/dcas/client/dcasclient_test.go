@@ -73,14 +73,10 @@ func TestDCASClient_Get(t *testing.T) {
 	key1 := dcas.GetCASKey(value1)
 	key2 := dcas.GetCASKey(value2)
 
-	pvtNS := ns1 + "$" + coll1
-	state := make(map[string]map[string][]byte)
-	state[pvtNS] = make(map[string][]byte)
-	state[pvtNS][key1] = value1
-	state[pvtNS][key2] = value2
-
 	ledger := &mocks.Ledger{
-		QueryExecutor: mocks.NewQueryExecutor(state),
+		QueryExecutor: mocks.NewQueryExecutor().
+			WithPrivateState(ns1, coll1, key1, value1).
+			WithPrivateState(ns1, coll1, key2, value2),
 	}
 
 	gossip := &mockGossipAdapter{}

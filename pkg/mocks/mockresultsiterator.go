@@ -1,0 +1,37 @@
+/*
+Copyright SecureKey Technologies Inc. All Rights Reserved.
+
+SPDX-License-Identifier: Apache-2.0
+*/
+
+package mocks
+
+import (
+	commonledger "github.com/hyperledger/fabric/common/ledger"
+)
+
+// ResultsIterator is a mock results iterator
+type ResultsIterator struct {
+	results [][]byte
+}
+
+// NewResultsIterator returns a mock results iterator
+func NewResultsIterator() *ResultsIterator {
+	return &ResultsIterator{}
+}
+
+// WithResults sets the mock results
+func (m *ResultsIterator) WithResults(results [][]byte) *ResultsIterator {
+	m.results = results
+	return m
+}
+
+// Next returns the next item in the result set. The `QueryResult` is expected to be nil when
+// the iterator gets exhausted
+func (m *ResultsIterator) Next() (commonledger.QueryResult, error) {
+	return nil, nil
+}
+
+// Close releases resources occupied by the iterator
+func (m *ResultsIterator) Close() {
+}

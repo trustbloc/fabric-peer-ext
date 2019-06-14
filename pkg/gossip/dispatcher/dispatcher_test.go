@@ -64,7 +64,7 @@ func TestDispatchUnhandled(t *testing.T) {
 		channelID,
 		&mocks.DataStore{},
 		mocks.NewMockGossipAdapter(),
-		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor(nil)},
+		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor()},
 		mocks.NewBlockPublisher(),
 	)
 
@@ -110,11 +110,6 @@ func TestDispatchDataRequest(t *testing.T) {
 	configPkgBytes2, err := proto.Marshal(nsBuilder2.BuildCollectionConfig())
 	require.NoError(t, err)
 
-	state := make(map[string]map[string][]byte)
-	state[lscc] = make(map[string][]byte)
-	state[lscc][privdata.BuildCollectionKVSKey(ns1)] = configPkgBytes1
-	state[lscc][privdata.BuildCollectionKVSKey(ns2)] = configPkgBytes2
-
 	gossipAdapter := mocks.NewMockGossipAdapter()
 	gossipAdapter.Self(org1MSPID, mocks.NewMember(p1Org1Endpoint, p1Org1PKIID)).
 		Member(org1MSPID, mocks.NewMember(p2Org1Endpoint, p2Org1PKIID, committerRole)).
@@ -130,7 +125,11 @@ func TestDispatchDataRequest(t *testing.T) {
 		channelID,
 		mocks.NewDataStore().TransientData(key1, value1).TransientData(key2, value2).Data(key3, value3).Data(key4, value4),
 		gossipAdapter,
-		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor(state)},
+		&mocks.Ledger{
+			QueryExecutor: mocks.NewQueryExecutor().
+				WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes1).
+				WithState(lscc, privdata.BuildCollectionKVSKey(ns2), configPkgBytes2),
+		},
 		mocks.NewBlockPublisher(),
 	)
 	require.NotNil(t, dispatcher)
@@ -256,7 +255,7 @@ func TestDispatchDataResponse(t *testing.T) {
 		channelID,
 		mocks.NewDataStore().TransientData(key1, value1).TransientData(key2, value2),
 		gossip,
-		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor(nil)},
+		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor()},
 		mocks.NewBlockPublisher(),
 	)
 	require.NotNil(t, dispatcher)

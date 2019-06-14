@@ -133,14 +133,10 @@ func TestClient_Get(t *testing.T) {
 	value1 := []byte("value1")
 	value2 := []byte("value2")
 
-	pvtNS := ns1 + "$" + coll1
-	state := make(map[string]map[string][]byte)
-	state[pvtNS] = make(map[string][]byte)
-	state[pvtNS][key1] = value1
-	state[pvtNS][key2] = value2
-
 	ledger := &mocks.Ledger{
-		QueryExecutor: mocks.NewQueryExecutor(state),
+		QueryExecutor: mocks.NewQueryExecutor().
+			WithPrivateState(ns1, coll1, key1, value1).
+			WithPrivateState(ns1, coll1, key2, value2),
 	}
 
 	gossip := &mockGossipAdapter{}
@@ -189,6 +185,42 @@ func TestClient_Get(t *testing.T) {
 		_, err := c.GetMultipleKeys(ns1, coll1, key1, key2)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "error getting QueryExecutor")
+	})
+}
+
+func TestClient_Query(t *testing.T) {
+	query1 := "query1"
+
+	results := [][]byte{
+		[]byte("v1_1"),
+		[]byte("v1_2"),
+	}
+
+	ledger := &mocks.Ledger{
+		QueryExecutor: mocks.NewQueryExecutor().
+			WithPrivateQueryResults(ns1, coll1, query1, results),
+	}
+
+	gossip := &mockGossipAdapter{}
+	configRetriever := &mockCollectionConfigRetriever{}
+	var creatorError error
+
+	// Mock out all of the dependencies
+	getLedger = func(channelID string) PeerLedger { return ledger }
+	getGossipAdapter = func() GossipAdapter { return gossip }
+	getBlockPublisher = func(channelID string) gossipapi.BlockPublisher { return mocks.NewBlockPublisher() }
+	getCollConfigRetriever = func(_ string, _ PeerLedger, _ gossipapi.BlockPublisher) CollectionConfigRetriever {
+		return configRetriever
+	}
+	newCreator = func() ([]byte, error) { return []byte("creator"), creatorError }
+
+	c := New(channelID)
+	require.NotNil(t, c)
+
+	t.Run("Query - success", func(t *testing.T) {
+		results, err := c.Query(ns1, coll1, query1)
+		require.NoError(t, err)
+		require.NotEmpty(t, results)
 	})
 }
 
