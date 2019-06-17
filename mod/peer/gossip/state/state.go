@@ -20,7 +20,6 @@ import (
 	"github.com/hyperledger/fabric/gossip/util"
 	"github.com/hyperledger/fabric/protos/common"
 	proto "github.com/hyperledger/fabric/protos/gossip"
-
 	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	"github.com/pkg/errors"
 )
@@ -69,11 +68,11 @@ type GossipServiceMediator interface {
 
 //AddBlockHandler handles state update in gossip
 func AddBlockHandler(publisher api.BlockPublisher) {
-	publisher.AddWriteHandler(func(blockNum uint64, channelID, txID, namespace string, kvWrite *kvrwset.KVWrite) error {
+	publisher.AddWriteHandler(func(txMetadata api.TxMetadata, namespace string, kvWrite *kvrwset.KVWrite) error {
 		if namespace != "lscc" {
 			return nil
 		}
-		return handleStateUpdate(kvWrite, channelID)
+		return handleStateUpdate(kvWrite, txMetadata.ChannelID)
 	})
 }
 

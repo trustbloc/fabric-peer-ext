@@ -14,6 +14,7 @@ import (
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	supportapi "github.com/hyperledger/fabric/extensions/collections/api/support"
 	spmocks "github.com/hyperledger/fabric/extensions/collections/storeprovider/mocks"
+	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	gproto "github.com/hyperledger/fabric/protos/gossip"
 	"github.com/stretchr/testify/assert"
@@ -268,7 +269,8 @@ func TestTransientDataProvider_AccessDenied(t *testing.T) {
 			MaxPeerCount: 2,
 			Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
 		})
-		require.NoError(t, support.Publisher.HandleUpgrade(1001, txID, ns1))
+
+		require.NoError(t, support.Publisher.HandleUpgrade(gossipapi.TxMetadata{BlockNum: 1001, TxID: txID}, ns1))
 		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
 		value, err := retriever.GetTransientData(ctx, storeapi.NewKey(txID, ns1, coll1, key2))
 		assert.NoError(t, err)

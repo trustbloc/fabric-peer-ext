@@ -62,7 +62,7 @@ func (p *Provider) RetrieverForChannel(channelID string) tdataapi.Retriever {
 	}
 
 	// Add a handler so that we can remove the resolver for a chaincode that has been upgraded
-	p.support.BlockPublisher(channelID).AddCCUpgradeHandler(func(blockNum uint64, txID string, chaincodeID string) error {
+	p.support.BlockPublisher(channelID).AddCCUpgradeHandler(func(txnMetadata gossipapi.TxMetadata, chaincodeID string) error {
 		logger.Infof("[%s] Chaincode [%s] has been upgraded. Clearing resolver cache for chaincode.", channelID, chaincodeID)
 		r.removeResolvers(chaincodeID)
 		return nil

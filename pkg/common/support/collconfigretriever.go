@@ -57,7 +57,7 @@ func NewCollectionConfigRetriever(channelID string, ledger peerLedger, blockPubl
 		}).Build()
 
 	// Add a handler to remove the collection configs from cache when the chaincode is upgraded
-	blockPublisher.AddCCUpgradeHandler(func(blockNum uint64, txID string, chaincodeName string) error {
+	blockPublisher.AddCCUpgradeHandler(func(txnMetadata gossipapi.TxMetadata, chaincodeName string) error {
 		if r.cache.Remove(chaincodeName) {
 			logger.Infof("Chaincode [%s] was upgraded. Removed collection configs from cache.", chaincodeName)
 		}
