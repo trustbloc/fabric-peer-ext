@@ -12,6 +12,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/common/privdata"
+	"github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -88,7 +89,7 @@ func TestConfigRetriever(t *testing.T) {
 
 		qe.WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes)
 
-		err = blockPublisher.HandleUpgrade(1001, "tx1", ns1)
+		err = blockPublisher.HandleUpgrade(api.TxMetadata{BlockNum: 1001, TxID: "tx1"}, ns1)
 		assert.NoError(t, err)
 
 		// Make sure the new config is loaded

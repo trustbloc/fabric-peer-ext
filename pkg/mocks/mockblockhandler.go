@@ -9,6 +9,7 @@ package mocks
 import (
 	"sync/atomic"
 
+	"github.com/hyperledger/fabric/extensions/gossip/api"
 	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	pb "github.com/hyperledger/fabric/protos/peer"
@@ -61,25 +62,25 @@ func (m *MockBlockHandler) NumConfigUpdates() int {
 }
 
 // HandleRead handles a read event by incrementing the read counter
-func (m *MockBlockHandler) HandleRead(blockNum uint64, channelID string, txID string, namespace string, kvRead *kvrwset.KVRead) error {
+func (m *MockBlockHandler) HandleRead(txMetadata api.TxMetadata, namespace string, kvRead *kvrwset.KVRead) error {
 	atomic.AddInt32(&m.numReads, 1)
 	return m.err
 }
 
 // HandleWrite handles a write event by incrementing the write counter
-func (m *MockBlockHandler) HandleWrite(blockNum uint64, channelID string, txID string, namespace string, kvWrite *kvrwset.KVWrite) error {
+func (m *MockBlockHandler) HandleWrite(txMetadata api.TxMetadata, namespace string, kvWrite *kvrwset.KVWrite) error {
 	atomic.AddInt32(&m.numWrites, 1)
 	return m.err
 }
 
 // HandleChaincodeEvent handle a chaincode event by incrementing the CC event counter
-func (m *MockBlockHandler) HandleChaincodeEvent(blockNum uint64, channelID string, txID string, event *pb.ChaincodeEvent) error {
+func (m *MockBlockHandler) HandleChaincodeEvent(txMetadata api.TxMetadata, event *pb.ChaincodeEvent) error {
 	atomic.AddInt32(&m.numCCEvents, 1)
 	return m.err
 }
 
 // HandleChaincodeUpgradeEvent handles a chaincode upgrade event by incrementing the chaincode upgrade counter
-func (m *MockBlockHandler) HandleChaincodeUpgradeEvent(blockNum uint64, txID string, chaincodeName string) error {
+func (m *MockBlockHandler) HandleChaincodeUpgradeEvent(txMetadata api.TxMetadata, chaincodeName string) error {
 	atomic.AddInt32(&m.numCCUpgradeEvents, 1)
 	return m.err
 }

@@ -34,6 +34,7 @@ var logger = flogging.MustGetLogger("ext_blockpublisher")
 type write struct {
 	blockNum  uint64
 	txID      string
+	txNum     uint64
 	namespace string
 	w         *kvrwset.KVWrite
 }
@@ -41,6 +42,7 @@ type write struct {
 type read struct {
 	blockNum  uint64
 	txID      string
+	txNum     uint64
 	namespace string
 	r         *kvrwset.KVRead
 }
@@ -48,6 +50,7 @@ type read struct {
 type ccEvent struct {
 	blockNum uint64
 	txID     string
+	txNum    uint64
 	event    *pb.ChaincodeEvent
 }
 
@@ -199,7 +202,7 @@ func (p *Publisher) listen() {
 func (p *Publisher) handleRead(r *read) {
 	logger.Debugf("[%s] Handling read: [%s]", p.channelID, r)
 	for _, handleRead := range p.getReadHandlers() {
-		if err := handleRead(r.blockNum, p.channelID, r.txID, r.namespace, r.r); err != nil {
+		if err := handleRead(api.TxMetadata{BlockNum: r.blockNum, ChannelID: p.channelID, TxID: r.txID, TxNum: r.txNum}, r.namespace, r.r); err != nil {
 			logger.Warningf("[%s] Error returned from KV read handler: %s", p.channelID, err)
 		}
 	}
@@ -208,7 +211,7 @@ func (p *Publisher) handleRead(r *read) {
 func (p *Publisher) handleWrite(w *write) {
 	logger.Debugf("[%s] Handling write: [%s]", p.channelID, w)
 	for _, handleWrite := range p.getWriteHandlers() {
-		if err := handleWrite(w.blockNum, p.channelID, w.txID, w.namespace, w.w); err != nil {
+		if err := handleWrite(api.TxMetadata{BlockNum: w.blockNum, ChannelID: p.channelID, TxID: w.txID, TxNum: w.txNum}, w.namespace, w.w); err != nil {
 			logger.Warningf("[%s] Error returned from KV write handler: %s", p.channelID, err)
 		}
 	}
@@ -217,7 +220,7 @@ func (p *Publisher) handleWrite(w *write) {
 func (p *Publisher) handleCCEvent(event *ccEvent) {
 	logger.Debugf("[%s] Handling chaincode event: [%s]", p.channelID, event)
 	for _, handleCCEvent := range p.getCCEventHandlers() {
-		if err := handleCCEvent(event.blockNum, p.channelID, event.txID, event.event); err != nil {
+		if err := handleCCEvent(api.TxMetadata{BlockNum: event.blockNum, ChannelID: p.channelID, TxID: event.txID, TxNum: event.txNum}, event.event); err != nil {
 			logger.Warningf("[%s] Error returned from CC event handler: %s", p.channelID, err)
 		}
 	}
@@ -290,20 +293,20 @@ func newBlockEvent(channelID string, block *cb.Block, wChan chan<- *write, rChan
 
 func (p *blockEvent) publish() {
 	logger.Debugf("[%s] Publishing block #%d", p.channelID, p.block.Header.Number)
-	for i := range p.block.Data.Data {
-		envelope, err := protoutil.ExtractEnvelope(p.block, i)
+	for txNum := range p.block.Data.Data {
+		envelope, err := protoutil.ExtractEnvelope(p.block, txNum)
 		if err != nil {
-			logger.Warningf("[%s] Error extracting envelope at index %d in block %d: %s", p.channelID, i, p.block.Header.Number, err)
+			logger.Warningf("[%s] Error extracting envelope at index %d in block %d: %s", p.channelID, txNum, p.block.Header.Number, err)
 		} else {
-			err = p.visitEnvelope(i, envelope)
+			err = p.visitEnvelope(uint64(txNum), envelope)
 			if err != nil {
-				logger.Warningf("[%s] Error checking envelope at index %d in block %d: %s", p.channelID, i, p.block.Header.Number, err)
+				logger.Warningf("[%s] Error checking envelope at index %d in block %d: %s", p.channelID, txNum, p.block.Header.Number, err)
 			}
 		}
 	}
 }
 
-func (p *blockEvent) visitEnvelope(i int, envelope *cb.Envelope) error {
+func (p *blockEvent) visitEnvelope(txNum uint64, envelope *cb.Envelope) error {
 	payload, err := protoutil.ExtractPayload(envelope)
 	if err != nil {
 		return err
@@ -316,16 +319,16 @@ func (p *blockEvent) visitEnvelope(i int, envelope *cb.Envelope) error {
 
 	if cb.HeaderType(chdr.Type) == cb.HeaderType_ENDORSER_TRANSACTION {
 		txFilter := ledgerutil.TxValidationFlags(p.block.Metadata.Metadata[cb.BlockMetadataIndex_TRANSACTIONS_FILTER])
-		code := txFilter.Flag(i)
+		code := txFilter.Flag(int(txNum))
 		if code != pb.TxValidationCode_VALID {
-			logger.Debugf("[%s] Transaction at index %d in block %d is not valid. Status code: %s", p.channelID, i, p.block.Header.Number, code)
+			logger.Debugf("[%s] Transaction at index %d in block %d is not valid. Status code: %s", p.channelID, txNum, p.block.Header.Number, code)
 			return nil
 		}
 		tx, err := protoutil.GetTransaction(payload.Data)
 		if err != nil {
 			return err
 		}
-		newTxEvent(p.channelID, p.block.Header.Number, chdr.TxId, tx, p.wChan, p.rChan, p.ccEvtChan).publish()
+		newTxEvent(p.channelID, p.block.Header.Number, txNum, chdr.TxId, tx, p.wChan, p.rChan, p.ccEvtChan).publish()
 		return nil
 	}
 
@@ -344,6 +347,7 @@ func (p *blockEvent) visitEnvelope(i int, envelope *cb.Envelope) error {
 type txEvent struct {
 	channelID string
 	blockNum  uint64
+	txNum     uint64
 	txID      string
 	tx        *pb.Transaction
 	wChan     chan<- *write
@@ -351,10 +355,11 @@ type txEvent struct {
 	ccEvtChan chan<- *ccEvent
 }
 
-func newTxEvent(channelID string, blockNum uint64, txID string, tx *pb.Transaction, wChan chan<- *write, rChan chan<- *read, ccEvtChan chan<- *ccEvent) *txEvent {
+func newTxEvent(channelID string, blockNum uint64, txNum uint64, txID string, tx *pb.Transaction, wChan chan<- *write, rChan chan<- *read, ccEvtChan chan<- *ccEvent) *txEvent {
 	return &txEvent{
 		channelID: channelID,
 		blockNum:  blockNum,
+		txNum:     txNum,
 		txID:      txID,
 		tx:        tx,
 		wChan:     wChan,
@@ -491,14 +496,14 @@ func (p *configUpdateEvent) publish() {
 }
 
 func newChaincodeUpgradeHandler(handleUpgrade api.ChaincodeUpgradeHandler) api.ChaincodeEventHandler {
-	return func(blockNum uint64, channelID string, txID string, event *pb.ChaincodeEvent) error {
-		logger.Debugf("[%s] Handling chaincode event: %s", channelID, event)
+	return func(txnMetadata api.TxMetadata, event *pb.ChaincodeEvent) error {
+		logger.Debugf("[%s] Handling chaincode event: %s", txnMetadata.ChannelID, event)
 		if event.ChaincodeId != lsccID {
-			logger.Debugf("[%s] Chaincode event is not from 'lscc'", channelID)
+			logger.Debugf("[%s] Chaincode event is not from 'lscc'", txnMetadata.ChannelID)
 			return nil
 		}
 		if event.EventName != upgradeEvent {
-			logger.Debugf("[%s] Chaincode event from 'lscc' is not an upgrade event", channelID)
+			logger.Debugf("[%s] Chaincode event from 'lscc' is not an upgrade event", txnMetadata.ChannelID)
 			return nil
 		}
 
@@ -508,7 +513,7 @@ func newChaincodeUpgradeHandler(handleUpgrade api.ChaincodeUpgradeHandler) api.C
 			return errors.WithMessage(err, "error unmarshalling chaincode upgrade event")
 		}
 
-		logger.Debugf("[%s] Handling chaincode upgrade of chaincode [%s]", channelID, ccData.ChaincodeName)
-		return handleUpgrade(blockNum, txID, ccData.ChaincodeName)
+		logger.Debugf("[%s] Handling chaincode upgrade of chaincode [%s]", txnMetadata.ChannelID, ccData.ChaincodeName)
+		return handleUpgrade(txnMetadata, ccData.ChaincodeName)
 	}
 }
