@@ -171,3 +171,17 @@ func queryResultsKey(namespace, query string) string {
 func privateQueryResultsKey(namespace, coll, query string) string {
 	return privateNamespace(namespace, coll) + "~" + query
 }
+
+// QueryExecutorProvider is a mock query executor provider
+type QueryExecutorProvider struct {
+}
+
+// NewQueryExecutorProvider returns a mock query executor provider
+func NewQueryExecutorProvider() *QueryExecutorProvider {
+	return &QueryExecutorProvider{}
+}
+
+// GetQueryExecutorForLedger returns the query executor for the given channel ID
+func (m *QueryExecutorProvider) GetQueryExecutorForLedger(channelID string) (ledger.QueryExecutor, error) {
+	return NewQueryExecutor(), nil
+}
