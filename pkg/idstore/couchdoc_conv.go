@@ -11,8 +11,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+
+	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
 )
@@ -29,6 +30,16 @@ const (
 	inventoryNameLedgerIDField = "ledger_id"
 	typeLedgerName             = "ledger"
 )
+
+type couchDB interface {
+	ExistsWithRetry() (bool, error)
+	IndexDesignDocExistsWithRetry(designDocs ...string) (bool, error)
+	CreateNewIndexWithRetry(indexdefinition string, designDoc string) error
+	SaveDoc(id string, rev string, couchDoc *couchdb.CouchDoc) (string, error)
+	ReadDoc(id string) (*couchdb.CouchDoc, string, error)
+	BatchUpdateDocuments(documents []*couchdb.CouchDoc) ([]*couchdb.BatchUpdateResponse, error)
+	QueryDocuments(query string) ([]*couchdb.QueryResult, string, error)
+}
 
 const inventoryTypeIndexDef = `
 	{
@@ -123,7 +134,7 @@ func couchValueToJSON(value []byte) (jsonValue, error) {
 	return jsonResult, nil
 }
 
-func queryInventory(db *couchdb.CouchDatabase, inventoryType string) ([]*couchdb.QueryResult, error) {
+func queryInventory(db couchDB, inventoryType string) ([]*couchdb.QueryResult, error) {
 	const queryFmt = `
 	{
 		"selector": {

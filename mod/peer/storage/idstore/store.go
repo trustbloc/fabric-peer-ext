@@ -14,5 +14,9 @@ import (
 
 // OpenIDStore open idstore
 func OpenIDStore(path string, ledgerconfig *ledger.Config) idstore.IDStore {
-	return s.OpenIDStore(path, ledgerconfig)
+	store, err := s.OpenIDStore(ledgerconfig)
+	if err != nil {
+		panic(err.Error())
+	}
+	return store
 }

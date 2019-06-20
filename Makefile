@@ -8,6 +8,7 @@
 # Supported Targets:
 #
 # unit-test:                  runs unit tests
+# fabric-unit-test            runs fabric unit tests
 # lint:                       runs linters
 # checks:                     runs code checks
 # docker-thirdparty:          pulls thirdparty images (couchdb)
@@ -43,11 +44,13 @@ lint:
 license: version
 	@scripts/check_license.sh
 
-all: checks unit-test bddtests
+all: checks unit-test fabric-unit-test bddtests
 
-unit-test: export FABRIC_COMMAND=unit-test
 unit-test: checks docker-thirdparty
 	@scripts/unit.sh
+
+fabric-unit-test: export FABRIC_COMMAND=unit-test
+fabric-unit-test: checks docker-thirdparty
 	@scripts/build_fabric.sh
 
 bddtests: checks build-fabric-images populate-fixtures
