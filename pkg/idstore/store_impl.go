@@ -21,44 +21,41 @@ import (
 )
 
 var logger = flogging.MustGetLogger("idstore")
-
-const (
-	systemID      = "fabric_system_"
-	inventoryName = "inventory"
-)
+var systemID = "fabric_system_"
+var inventoryName = "inventory"
 
 //Store contain couchdb instance
 type Store struct {
-	db               *couchdb.CouchDatabase
+	db               couchDB
 	couchMetadataRev string
 }
 
 //OpenIDStore return id store
-func OpenIDStore(path string, ledgerconfig *ledger.Config) idstore.IDStore {
+func OpenIDStore(ledgerconfig *ledger.Config) (idstore.IDStore, error) {
 	couchInstance, err := createCouchInstance(ledgerconfig)
 	if err != nil {
-		logger.Errorf("create couchdb instance failed %s", err.Error())
-		return nil
+		return nil, errors.Wrapf(err, "create couchdb instance failed ")
 	}
 
-	inventoryDBName := couchdb.ConstructBlockchainDBName(systemID, inventoryName)
+	dbName := couchdb.ConstructBlockchainDBName(systemID, inventoryName)
+
+	// check if it committer role
 	if roles.IsCommitter() {
-		return newCommitterStore(couchInstance, inventoryDBName)
+		db, err := couchdb.CreateCouchDatabase(couchInstance, dbName)
+		if err != nil {
+			return nil, errors.Wrapf(err, "create new couchdb database failed ")
+		}
+		return newCommitterStore(db)
 	}
-	s, err := newStore(couchInstance, inventoryDBName)
-	if err != nil {
-		logger.Error(err.Error())
-		return nil
-	}
-	return s
-}
 
-func newStore(couchInstance *couchdb.CouchInstance, dbName string) (idstore.IDStore, error) {
 	db, err := couchdb.NewCouchDatabase(couchInstance, dbName)
 	if err != nil {
-		return nil, errors.WithMessagef(err, "create new couchdb database called [%s] failed", dbName)
+		return nil, errors.WithMessagef(err, "new couchdb database [%s] failed", dbName)
 	}
+	return newStore(db, dbName)
+}
 
+func newStore(db couchDB, dbName string) (idstore.IDStore, error) {
 	dbExists, err := db.ExistsWithRetry()
 	if err != nil {
 		return nil, errors.WithMessagef(err, "check couchdb [%s] exist failed", dbName)
@@ -73,41 +70,37 @@ func newStore(couchInstance *couchdb.CouchInstance, dbName string) (idstore.IDSt
 
 	}
 	if !indexExists {
-		return nil, errors.New(fmt.Sprintf("DB index not found: [%s]", db.DBName))
+		return nil, errors.New(fmt.Sprintf("DB index not found: [%s]", dbName))
 	}
 
 	s := Store{db, ""}
 	return &s, nil
 }
 
-func newCommitterStore(couchInstance *couchdb.CouchInstance, dbName string) idstore.IDStore {
-	db, err := couchdb.CreateCouchDatabase(couchInstance, dbName)
+func newCommitterStore(db couchDB) (idstore.IDStore, error) {
+	err := createIndices(db)
 	if err != nil {
-		logger.Errorf("create new couchdb database failed %s", err.Error())
-		return nil
-	}
-
-	err = createIndices(db)
-	if err != nil {
-		logger.Errorf("create couchdb index failed %s", err.Error())
-		return nil
+		return nil, errors.Wrapf(err, "create couchdb index failed")
 	}
 
 	s := Store{db, ""}
 
-	return &s
+	return &s, nil
 }
 
-func createIndices(db *couchdb.CouchDatabase) error {
+func createIndices(db couchDB) error {
 	err := db.CreateNewIndexWithRetry(inventoryTypeIndexDef, inventoryTypeIndexDoc)
 	if err != nil {
-		return errors.WithMessagef(err, "creation of inventory metadata index failed for [%s]", db.DBName)
+		return errors.WithMessagef(err, "creation of inventory metadata index failed")
 	}
 	return nil
 }
 
 func createCouchInstance(ledgerconfig *ledger.Config) (*couchdb.CouchInstance, error) {
 	logger.Debugf("constructing CouchDB block storage provider")
+	if ledgerconfig == nil {
+		return nil, errors.New("ledgerconfig is nil")
+	}
 	couchDBConfig := ledgerconfig.StateDB.CouchDB
 	couchInstance, err := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {
@@ -245,7 +238,7 @@ func (s *Store) GetAllLedgerIds() ([]string, error) {
 	for _, r := range results {
 		ledgerJSON, err := couchValueToJSON(r.Value)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "couchValueToJSON failed")
 		}
 
 		ledgerIDUT, ok := ledgerJSON[inventoryNameLedgerIDField]

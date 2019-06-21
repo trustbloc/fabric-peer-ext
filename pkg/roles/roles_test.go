@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/spf13/viper"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -30,21 +30,21 @@ const (
 func TestRoles_Contains(t *testing.T) {
 	roles := New(role1, role2, role3)
 
-	assert.True(t, roles.Contains(role1))
-	assert.True(t, roles.Contains(role2))
-	assert.True(t, roles.Contains(role3))
-	assert.False(t, roles.Contains(role4))
+	require.True(t, roles.Contains(role1))
+	require.True(t, roles.Contains(role2))
+	require.True(t, roles.Contains(role3))
+	require.False(t, roles.Contains(role4))
 
 	var emptyRoles Roles
-	assert.True(t, emptyRoles.Contains(role1))
+	require.True(t, emptyRoles.Contains(role1))
 }
 
 func TestFromStrings(t *testing.T) {
 	roles := FromStrings(r1, r2, r3, r4)
-	assert.Equal(t, role1, roles[0])
-	assert.Equal(t, role2, roles[1])
-	assert.Equal(t, role3, roles[2])
-	assert.Equal(t, role4, roles[3])
+	require.Equal(t, role1, roles[0])
+	require.Equal(t, role2, roles[1])
+	require.Equal(t, role3, roles[2])
+	require.Equal(t, role4, roles[3])
 }
 
 func TestLocalRoles(t *testing.T) {
@@ -54,29 +54,31 @@ func TestLocalRoles(t *testing.T) {
 	testRole := ""
 	viper.Set(confRoles, testRole)
 	roles = getRoles()
-	assert.True(t, IsCommitter())
-	assert.True(t, IsEndorser())
-	assert.True(t, IsValidator())
+	require.True(t, IsCommitter())
+	require.True(t, IsEndorser())
+	require.True(t, IsValidator())
 
 	testRole = "committer,endorser,validator"
 	viper.Set(confRoles, testRole)
 	roles = getRoles()
-	assert.True(t, IsCommitter())
-	assert.True(t, IsEndorser())
-	assert.True(t, IsValidator())
+	require.True(t, IsCommitter())
+	require.True(t, IsEndorser())
+	require.True(t, IsValidator())
+	require.Equal(t, len(GetRoles()), 3)
+	require.Equal(t, len(AsString()), 3)
 
 	testRole = "CoMMiTTER,  ENDORSER,   validator"
 	viper.Set(confRoles, testRole)
 	roles = getRoles()
-	assert.True(t, IsCommitter())
-	assert.True(t, IsEndorser())
-	assert.True(t, IsValidator())
+	require.True(t, IsCommitter())
+	require.True(t, IsEndorser())
+	require.True(t, IsValidator())
 
 	testRole = "committer,endorser"
 	viper.Set(confRoles, testRole)
 	roles = getRoles()
-	assert.True(t, IsCommitter())
-	assert.True(t, IsEndorser())
-	assert.False(t, IsValidator())
+	require.True(t, IsCommitter())
+	require.True(t, IsEndorser())
+	require.False(t, IsValidator())
 
 }

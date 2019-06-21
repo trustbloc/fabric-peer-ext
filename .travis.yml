@@ -1,0 +1,16 @@
+#
+# Copyright SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+language: go
+
+go:
+  - 1.12.5
+
+script:
+  - make unit-test
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
