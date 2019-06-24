@@ -10,7 +10,6 @@ import (
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
-	"github.com/pkg/errors"
 	"github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/cachedpvtdatastore"
 	cdbpvtdatastore "github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/cdbpvtdatastore"
 )
@@ -188,11 +187,7 @@ func (c *pvtDataStore) ProcessCollsEligibilityEnabled(committingBlk uint64, nsCo
 
 //CommitPvtDataOfOldBlocks implements the function in the interface `Store`
 func (c *pvtDataStore) CommitPvtDataOfOldBlocks(blocksPvtData map[uint64][]*ledger.TxPvtData) error {
-	err := c.pvtDataDBStore.CommitPvtDataOfOldBlocks(blocksPvtData)
-	if err != nil {
-		return errors.WithMessage(err, "CommitPvtDataOfOldBlocks in store failed")
-	}
-	return nil
+	return c.pvtDataDBStore.CommitPvtDataOfOldBlocks(blocksPvtData)
 }
 
 //GetLastUpdatedOldBlocksPvtData implements the function in the interface `Store`

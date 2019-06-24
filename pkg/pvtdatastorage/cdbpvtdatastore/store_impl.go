@@ -34,6 +34,15 @@ const (
 	pvtDataStoreName = "pvtdata"
 )
 
+// dbHandle is an handle to a named db
+type dbHandle interface {
+	WriteBatch(batch *leveldbhelper.UpdateBatch, sync bool) error
+	Delete(key []byte, sync bool) error
+	Get(key []byte) ([]byte, error)
+	GetIterator(startKey []byte, endKey []byte) *leveldbhelper.Iterator
+	Put(key []byte, value []byte, sync bool) error
+}
+
 type provider struct {
 	couchInstance            *couchdb.CouchInstance
 	missingKeysIndexProvider *leveldbhelper.Provider
@@ -43,13 +52,13 @@ type provider struct {
 type store struct {
 	ledgerid           string
 	btlPolicy          pvtdatapolicy.BTLPolicy
-	db                 *couchdb.CouchDatabase
+	db                 couchDB
 	lastCommittedBlock uint64
 	purgerLock         *sync.Mutex
 	pendingPvtData     *pendingPvtData
 	collElgProc        *common.CollElgProc
 	// missing keys db
-	missingKeysIndexDB *leveldbhelper.DBHandle
+	missingKeysIndexDB dbHandle
 	isEmpty            bool
 	// After committing the pvtdata of old blocks,
 	// the `isLastUpdatedOldBlocksSet` is set to true.
@@ -101,12 +110,14 @@ func newProviderWithDBDef(couchDBConfig *couchdb.Config, conf *ledger.PrivateDat
 func (p *provider) OpenStore(ledgerid string) (pvtdatastorage.Store, error) {
 	// Create couchdb
 	pvtDataStoreDBName := couchdb.ConstructBlockchainDBName(strings.ToLower(ledgerid), pvtDataStoreName)
-	var db *couchdb.CouchDatabase
-	var err error
 	if roles.IsCommitter() {
-		db, err = createPvtDataCouchDB(p.couchInstance, pvtDataStoreDBName)
+		db, err := couchdb.CreateCouchDatabase(p.couchInstance, pvtDataStoreDBName)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "createCouchDatabase failed")
+		}
+		err = createPvtDataCouchDB(db)
+		if err != nil {
+			return nil, errors.Wrapf(err, "createPvtDataCouchDB failed")
 		}
 		// Create missing pvt keys index in leveldb
 		missingKeysIndexDB := p.missingKeysIndexProvider.GetDBHandle(ledgerid)
@@ -130,10 +141,13 @@ func (p *provider) OpenStore(ledgerid string) (pvtdatastorage.Store, error) {
 
 		return s, nil
 	}
-
-	db, err = getPvtDataCouchInstance(p.couchInstance, pvtDataStoreDBName)
+	db, err := couchdb.NewCouchDatabase(p.couchInstance, pvtDataStoreDBName)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "newCouchDatabase failed")
+	}
+	err = getPvtDataCouchInstance(db, db.DBName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "getPvtDataCouchInstance failed")
 	}
 	s := &store{db: db, ledgerid: ledgerid,
 		pendingPvtData: &pendingPvtData{BatchPending: false},
@@ -163,7 +177,7 @@ func (s *store) initState() error {
 	var blist lastUpdatedOldBlocksList
 	lastCommittedBlock, _, err := lookupLastBlock(s.db)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "lookupLastBlock failed")
 	}
 	s.isEmpty = true
 	if lastCommittedBlock != 0 {
@@ -172,11 +186,11 @@ func (s *store) initState() error {
 	}
 
 	if s.pendingPvtData, err = s.hasPendingCommit(); err != nil {
-		return err
+		return errors.Wrap(err, "hasPendingCommit failed")
 	}
 
 	if blist, err = common.GetLastUpdatedOldBlocksList(s.missingKeysIndexDB); err != nil {
-		return err
+		return errors.Wrap(err, "getLastUpdatedOldBlocksList failed")
 	}
 	if len(blist) > 0 {
 		s.isLastUpdatedOldBlocksSet = true
@@ -250,13 +264,13 @@ func (s *store) Commit() error {
 
 	lastCommittedBlockDoc, err := s.prepareLastCommittedBlockDoc(committingBlockNum)
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "prepareLastCommittedBlockDoc failed")
 	}
 	docs = append(docs, lastCommittedBlockDoc)
 
 	_, err = s.db.BatchUpdateDocuments(docs)
 	if err != nil {
-		return errors.WithMessage(err, fmt.Sprintf("writing private data to CouchDB failed [%d]", committingBlockNum))
+		return errors.WithMessagef(err, "writing private data to CouchDB failed [%d]", committingBlockNum)
 	}
 
 	batch := leveldbhelper.NewUpdateBatch()
@@ -264,14 +278,11 @@ func (s *store) Commit() error {
 		for missingDataKey, missingDataValue := range s.pendingPvtData.MissingDataEntries {
 			batch.Put([]byte(missingDataKey), []byte(missingDataValue))
 		}
-		if err := s.missingKeysIndexDB.WriteBatch(batch, true); err != nil {
-			return err
-		}
 	}
 
 	batch.Delete(common.PendingCommitKey)
 	if err := s.missingKeysIndexDB.WriteBatch(batch, true); err != nil {
-		return err
+		return errors.Wrap(err, "WriteBatch failed")
 	}
 
 	s.pendingPvtData = &pendingPvtData{BatchPending: false}
@@ -307,7 +318,7 @@ func (s *store) Rollback() error {
 
 	s.pendingPvtData = &pendingPvtData{BatchPending: false}
 	if err := s.missingKeysIndexDB.Delete(common.PendingCommitKey, true); err != nil {
-		return err
+		return errors.Wrapf(err, "delete PendingCommitKey failed")
 	}
 	return nil
 }
@@ -365,10 +376,10 @@ func (s *store) CommitPvtDataOfOldBlocks(blocksPvtData map[uint64][]*ledger.TxPv
 	// (4) commit the update entries to the pvtStore
 	logger.Debug("Committing the update batch to pvtdatastore")
 	if _, err := s.db.BatchUpdateDocuments(docs); err != nil {
-		return err
+		return errors.Wrapf(err, "BatchUpdateDocuments failed")
 	}
 	if err := s.missingKeysIndexDB.WriteBatch(batch, true); err != nil {
-		return err
+		return errors.Wrapf(err, "WriteBatch failed")
 	}
 	s.isLastUpdatedOldBlocksSet = true
 
@@ -383,7 +394,7 @@ func (s *store) GetLastUpdatedOldBlocksPvtData() (map[uint64][]*ledger.TxPvtData
 
 	updatedBlksList, err := common.GetLastUpdatedOldBlocksList(s.missingKeysIndexDB)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "GetLastUpdatedOldBlocksList failed")
 	}
 
 	blksPvtData := make(map[uint64][]*ledger.TxPvtData)
@@ -398,7 +409,7 @@ func (s *store) GetLastUpdatedOldBlocksPvtData() (map[uint64][]*ledger.TxPvtData
 // ResetLastUpdatedOldBlocksList implements the function in the interface `Store`
 func (s *store) ResetLastUpdatedOldBlocksList() error {
 	if err := common.ResetLastUpdatedOldBlocksList(s.missingKeysIndexDB); err != nil {
-		return err
+		return errors.Wrapf(err, "ResetLastUpdatedOldBlocksList failed")
 	}
 	s.isLastUpdatedOldBlocksSet = false
 	return nil
@@ -444,7 +455,7 @@ func (s *store) checkLastCommittedBlock(blockNum uint64) error {
 	} else {
 		lastCommittedBlock, _, err := lookupLastBlock(s.db)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "lookupLastBlock failed")
 		}
 		if lastCommittedBlock == 0 {
 			return pvtdatastorage.NewErrOutOfRange("The store is empty")
@@ -487,7 +498,7 @@ func (s *store) Shutdown() {
 func (s *store) preparePvtDataDoc(blockNum uint64, updateEntries *common.EntriesForPvtDataOfOldBlocks) (*couchdb.CouchDoc, error) {
 	dataEntries, expiryEntries, rev, err := s.retrieveBlockPvtEntries(blockNum)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "retrieveBlockPvtEntries failed")
 	}
 	pvtDataDoc, err := createPvtDataCouchDoc(s.prepareStoreEntries(updateEntries, dataEntries, expiryEntries), blockNum, rev)
 	if err != nil {
@@ -576,7 +587,7 @@ func (s *store) getBlockPvtData(results map[string][]byte, filter ledger.PvtNsCo
 			return nil, err
 		}
 		if common.V11Format(dataKeyBytes) {
-			return v11RetrievePvtdata(results, filter)
+			return common.V11RetrievePvtdata(results, filter)
 		}
 		dataValueBytes := results[key]
 		dataKey := common.DecodeDatakey(dataKeyBytes)
@@ -633,7 +644,7 @@ func (s *store) InitLastCommittedBlock(blockNum uint64) error {
 
 	_, rev, err := lookupLastBlock(s.db)
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "lookupLastBlock failed")
 	}
 	lastCommittedBlockDoc, err := createLastCommittedBlockDoc(s.lastCommittedBlock, rev)
 	if err != nil {
@@ -641,7 +652,7 @@ func (s *store) InitLastCommittedBlock(blockNum uint64) error {
 	}
 	_, err = s.db.BatchUpdateDocuments([]*couchdb.CouchDoc{lastCommittedBlockDoc})
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "BatchUpdateDocuments failed")
 	}
 
 	logger.Debugf("InitLastCommittedBlock set to block [%d]", blockNum)
@@ -653,23 +664,11 @@ func (s *store) GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int) (ledger.M
 	return common.GetMissingPvtDataInfoForMostRecentBlocks(maxBlock, s.lastCommittedBlock, s.btlPolicy, s.missingKeysIndexDB)
 }
 
-func v11RetrievePvtdata(pvtDataResults map[string][]byte, filter ledger.PvtNsCollFilter) ([]*ledger.TxPvtData, error) {
-	var blkPvtData []*ledger.TxPvtData
-	for key, val := range pvtDataResults {
-		pvtDatum, err := common.V11DecodeKV([]byte(key), val, filter)
-		if err != nil {
-			return nil, err
-		}
-		blkPvtData = append(blkPvtData, pvtDatum)
-	}
-	return blkPvtData, nil
-}
-
 func (s *store) getExpiryDataOfExpiryKey(expiryKey *common.ExpiryKey) (*common.ExpiryData, error) {
 	var expiryEntriesMap map[string][]byte
 	var err error
 	if expiryEntriesMap, err = s.getExpiryEntriesDB(expiryKey.CommittingBlk); err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "getExpiryEntriesDB failed")
 	}
 	v := expiryEntriesMap[hex.EncodeToString(common.EncodeExpiryKey(expiryKey))]
 	if v == nil {
@@ -725,7 +724,7 @@ func (s *store) hasPendingCommit() (*pendingPvtData, error) {
 	if v != nil {
 		var pPvtData pendingPvtData
 		if err := json.Unmarshal(v, &pPvtData); err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "Unmarshal failed pendingPvtData")
 		}
 		return &pPvtData, nil
 	}
@@ -739,7 +738,7 @@ func (s *store) savePendingKey() error {
 		return err
 	}
 	if err := s.missingKeysIndexDB.Put(common.PendingCommitKey, bytes, true); err != nil {
-		return err
+		return errors.Wrapf(err, "put in leveldb failed for key PendingCommitKey")
 	}
 	return nil
 }

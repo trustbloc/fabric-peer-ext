@@ -228,7 +228,7 @@ func v11RetrievePvtdata(dataEntries []*common.DataEntry, filter ledger.PvtNsColl
 	for _, dataEntry := range dataEntries {
 		value, err := common.EncodeDataValue(dataEntry.Value)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "EncodeDataValue failed")
 		}
 		pvtDatum, err := common.V11DecodeKV(common.EncodeDataKey(dataEntry.Key), value, filter)
 		if err != nil {
