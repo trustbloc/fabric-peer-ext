@@ -19,9 +19,86 @@ import (
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
 	btltestutil "github.com/hyperledger/fabric/core/ledger/pvtdatapolicy/testutil"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
+	"github.com/hyperledger/fabric/protos/ledger/rwset"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/common"
 )
+
+func TestCommitPvtDataOfOldBlocks(t *testing.T) {
+	env := NewTestStoreEnv(t, "ledger", nil)
+	store := env.TestStore
+	err := store.CommitPvtDataOfOldBlocks(nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not supported")
+}
+
+func TestGetMissingPvtDataInfoForMostRecentBlocks(t *testing.T) {
+	env := NewTestStoreEnv(t, "ledger", nil)
+	store := env.TestStore
+	_, err := store.GetMissingPvtDataInfoForMostRecentBlocks(0)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not supported")
+}
+
+func TestGetLastUpdatedOldBlocksPvtData(t *testing.T) {
+	env := NewTestStoreEnv(t, "ledger", nil)
+	store := env.TestStore
+	_, err := store.GetLastUpdatedOldBlocksPvtData()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not supported")
+}
+
+func TestResetLastUpdatedOldBlocksList(t *testing.T) {
+	env := NewTestStoreEnv(t, "ledger", nil)
+	store := env.TestStore
+	err := store.ResetLastUpdatedOldBlocksList()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not supported")
+}
+
+func TestProcessCollsEligibilityEnabled(t *testing.T) {
+	env := NewTestStoreEnv(t, "ledger", nil)
+	store := env.TestStore
+	err := store.ProcessCollsEligibilityEnabled(0, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not supported")
+}
+
+func TestShutdown(t *testing.T) {
+	env := NewTestStoreEnv(t, "ledger", nil)
+	store := env.TestStore
+	store.Shutdown()
+}
+
+func TestGetPvtDataByBlockNum(t *testing.T) {
+	env := NewTestStoreEnv(t, "ledger", nil)
+	cacheStore := env.TestStore
+	s := cacheStore.(*store)
+	s.isEmpty = true
+	_, err := s.GetPvtDataByBlockNum(0, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "The store is empty")
+}
+
+func TestV11RetrievePvtdata(t *testing.T) {
+	t.Run("test empty data entry", func(t *testing.T) {
+		r, err := v11RetrievePvtdata([]*common.DataEntry{}, nil)
+		require.NoError(t, err)
+		require.Empty(t, r)
+	})
+
+	t.Run("test error from EncodeDataValue", func(t *testing.T) {
+		_, err := v11RetrievePvtdata([]*common.DataEntry{{Value: nil}}, nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "EncodeDataValue failed")
+	})
+
+	t.Run("test success", func(t *testing.T) {
+		r, err := v11RetrievePvtdata([]*common.DataEntry{{Key: &common.DataKey{}, Value: &rwset.CollectionPvtReadWriteSet{}}}, nil)
+		require.NoError(t, err)
+		require.Equal(t, len(r), 1)
+	})
+}
 
 func TestEmptyStore(t *testing.T) {
 	env := NewTestStoreEnv(t, "testemptystore", nil)
@@ -153,6 +230,8 @@ func TestInitLastCommittedBlock(t *testing.T) {
 	env := NewTestStoreEnv(t, "teststorestate", nil)
 	req := require.New(t)
 	store := env.TestStore
+
+	testLastCommittedBlockHeight(0, req, store)
 	existingLastBlockNum := uint64(25)
 	req.NoError(store.InitLastCommittedBlock(existingLastBlockNum))
 

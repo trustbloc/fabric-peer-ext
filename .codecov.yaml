@@ -6,3 +6,4 @@
 ignore:
   - "pkg/mocks"  # ignore mocks
   - "**/test_exports.go" # ignore test setup
+  - "pkg/pvtdatastorage/common" # ignore common code from fabric

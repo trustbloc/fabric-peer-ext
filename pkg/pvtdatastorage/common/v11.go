@@ -76,3 +76,15 @@ func v11TrimPvtWSet(pvtWSet *rwset.TxPvtReadWriteSet, filter ledger.PvtNsCollFil
 	}
 	return filteredTxPvtRwSet
 }
+
+func V11RetrievePvtdata(pvtDataResults map[string][]byte, filter ledger.PvtNsCollFilter) ([]*ledger.TxPvtData, error) {
+	var blkPvtData []*ledger.TxPvtData
+	for key, val := range pvtDataResults {
+		pvtDatum, err := V11DecodeKV([]byte(key), val, filter)
+		if err != nil {
+			return nil, err
+		}
+		blkPvtData = append(blkPvtData, pvtDatum)
+	}
+	return blkPvtData, nil
+}

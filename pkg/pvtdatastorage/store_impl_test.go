@@ -15,15 +15,249 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
+	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
 	btltestutil "github.com/hyperledger/fabric/core/ledger/pvtdatapolicy/testutil"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	"github.com/hyperledger/fabric/extensions/testutil"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	xtestutil "github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
 
 var couchDBConfig *couchdb.Config
+
+type mockProvider struct {
+	openStoreValue pvtdatastorage.Store
+	openStoreErr   error
+}
+
+func (m mockProvider) OpenStore(id string) (pvtdatastorage.Store, error) {
+	return m.openStoreValue, m.openStoreErr
+}
+
+func (m mockProvider) Close() {
+
+}
+
+type mockStore struct {
+	isEmptyValue                                bool
+	isEmptyErr                                  error
+	lastCommittedBlockHeightValue               uint64
+	lastCommittedBlockHeightErr                 error
+	initLastCommittedBlockErr                   error
+	commitErr                                   error
+	rollbackErr                                 error
+	getMissingPvtDataInfoForMostRecentBlocksErr error
+	processCollsEligibilityEnabledErr           error
+	commitPvtDataOfOldBlocksErr                 error
+	getLastUpdatedOldBlocksPvtDataErr           error
+	resetLastUpdatedOldBlocksListErr            error
+}
+
+func (m mockStore) Init(btlPolicy pvtdatapolicy.BTLPolicy) {
+
+}
+
+func (m mockStore) InitLastCommittedBlock(blockNum uint64) error {
+	return m.initLastCommittedBlockErr
+}
+
+func (m mockStore) GetPvtDataByBlockNum(blockNum uint64, filter ledger.PvtNsCollFilter) ([]*ledger.TxPvtData, error) {
+	return nil, nil
+}
+
+func (m mockStore) GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int) (ledger.MissingPvtDataInfo, error) {
+	return nil, m.getMissingPvtDataInfoForMostRecentBlocksErr
+}
+
+func (m mockStore) Prepare(blockNum uint64, pvtData []*ledger.TxPvtData, missingPvtData ledger.TxMissingPvtDataMap) error {
+	return nil
+}
+
+func (m mockStore) Commit() error {
+	return m.commitErr
+}
+
+func (m mockStore) Rollback() error {
+	return m.rollbackErr
+}
+
+func (m mockStore) ProcessCollsEligibilityEnabled(committingBlk uint64, nsCollMap map[string][]string) error {
+	return m.processCollsEligibilityEnabledErr
+}
+
+func (m mockStore) CommitPvtDataOfOldBlocks(blocksPvtData map[uint64][]*ledger.TxPvtData) error {
+	return m.commitPvtDataOfOldBlocksErr
+}
+
+func (m mockStore) GetLastUpdatedOldBlocksPvtData() (map[uint64][]*ledger.TxPvtData, error) {
+	return nil, m.getLastUpdatedOldBlocksPvtDataErr
+}
+
+func (m mockStore) ResetLastUpdatedOldBlocksList() error {
+	return m.resetLastUpdatedOldBlocksListErr
+}
+func (m mockStore) IsEmpty() (bool, error) {
+	return m.isEmptyValue, m.isEmptyErr
+}
+func (m mockStore) LastCommittedBlockHeight() (uint64, error) {
+	return m.lastCommittedBlockHeightValue, m.lastCommittedBlockHeightErr
+}
+func (m mockStore) HasPendingBatch() (bool, error) {
+	return false, nil
+}
+func (m mockStore) Shutdown() {
+
+}
+
+func TestOpenStore(t *testing.T) {
+	t.Run("test error from storageProvider OpenStore", func(t *testing.T) {
+		removeStorePath()
+		conf := testutil.TestLedgerConf().PrivateData
+		testStoreProvider := NewProvider(conf, testutil.TestLedgerConf())
+		testStoreProvider.storageProvider = &mockProvider{openStoreErr: fmt.Errorf("openStore error")}
+		_, err := testStoreProvider.OpenStore("")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "openStore error")
+	})
+
+	t.Run("test error from cacheProvider OpenStore", func(t *testing.T) {
+		removeStorePath()
+		conf := testutil.TestLedgerConf().PrivateData
+		testStoreProvider := NewProvider(conf, testutil.TestLedgerConf())
+		testStoreProvider.storageProvider = &mockProvider{}
+		testStoreProvider.cacheProvider = &mockProvider{openStoreErr: fmt.Errorf("openStore error")}
+		_, err := testStoreProvider.OpenStore("")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "openStore error")
+	})
+
+}
+
+func TestNewPvtDataStore(t *testing.T) {
+	t.Run("test error from pvtDataDBStore IsEmpty", func(t *testing.T) {
+		_, err := newPvtDataStore(&mockStore{isEmptyErr: fmt.Errorf("isEmpty error")}, &mockStore{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "isEmpty error")
+
+	})
+
+	t.Run("test error from pvtDataDBStore LastCommittedBlockHeight", func(t *testing.T) {
+		_, err := newPvtDataStore(&mockStore{isEmptyValue: false, lastCommittedBlockHeightErr: fmt.Errorf("lastCommittedBlockHeight error")}, &mockStore{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "lastCommittedBlockHeight error")
+	})
+
+	t.Run("test error from cachePvtDataStore InitLastCommittedBlock", func(t *testing.T) {
+		_, err := newPvtDataStore(&mockStore{isEmptyValue: false, lastCommittedBlockHeightValue: 1},
+			&mockStore{initLastCommittedBlockErr: fmt.Errorf("initLastCommittedBlock error")})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "initLastCommittedBlock error")
+	})
+
+}
+
+func TestCommit(t *testing.T) {
+	t.Run("test error from cachePvtDataStore commit", func(t *testing.T) {
+		env := NewTestStoreEnv(t, "testerrorfromcachepvtdatastorecommit", nil, couchDBConfig)
+		store := env.TestStore
+		s := store.(*pvtDataStore)
+		s.cachePvtDataStore = &mockStore{commitErr: fmt.Errorf("commit error")}
+		err := s.Commit()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "commit error")
+
+	})
+}
+
+func TestRollback(t *testing.T) {
+	t.Run("test error from cachePvtDataStore rollback", func(t *testing.T) {
+		env := NewTestStoreEnv(t, "testerrorfromcachepvtdatastorerollback", nil, couchDBConfig)
+		store := env.TestStore
+		s := store.(*pvtDataStore)
+		s.cachePvtDataStore = &mockStore{rollbackErr: fmt.Errorf("rollback error")}
+		err := s.Rollback()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "rollback error")
+
+	})
+}
+
+func TestShutdown(t *testing.T) {
+	env := NewTestStoreEnv(t, "testshutdown", nil, couchDBConfig)
+	store := env.TestStore
+	s := store.(*pvtDataStore)
+	s.cachePvtDataStore = &mockStore{}
+	s.pvtDataDBStore = &mockStore{}
+	s.Shutdown()
+
+}
+
+func TestGetMissingPvtDataInfoForMostRecentBlocks(t *testing.T) {
+	t.Run("test error from pvtDataDBStore GetMissingPvtDataInfoForMostRecentBlocks", func(t *testing.T) {
+		env := NewTestStoreEnv(t, "ledger", nil, couchDBConfig)
+		store := env.TestStore
+		s := store.(*pvtDataStore)
+		s.pvtDataDBStore = &mockStore{getMissingPvtDataInfoForMostRecentBlocksErr: fmt.Errorf("getMissingPvtDataInfoForMostRecentBlocks error")}
+		_, err := s.GetMissingPvtDataInfoForMostRecentBlocks(0)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "getMissingPvtDataInfoForMostRecentBlocks error")
+
+	})
+}
+
+func TestProcessCollsEligibilityEnabled(t *testing.T) {
+	t.Run("test error from pvtDataDBStore ProcessCollsEligibilityEnabled", func(t *testing.T) {
+		env := NewTestStoreEnv(t, "ledger", nil, couchDBConfig)
+		store := env.TestStore
+		s := store.(*pvtDataStore)
+		s.pvtDataDBStore = &mockStore{processCollsEligibilityEnabledErr: fmt.Errorf("processCollsEligibilityEnabled error")}
+		err := s.ProcessCollsEligibilityEnabled(0, nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "processCollsEligibilityEnabled error")
+
+	})
+}
+
+func TestCommitPvtDataOfOldBlocks(t *testing.T) {
+	t.Run("test error from pvtDataDBStore CommitPvtDataOfOldBlocks", func(t *testing.T) {
+		env := NewTestStoreEnv(t, "ledger", nil, couchDBConfig)
+		store := env.TestStore
+		s := store.(*pvtDataStore)
+		s.pvtDataDBStore = &mockStore{commitPvtDataOfOldBlocksErr: fmt.Errorf("commitPvtDataOfOldBlocks error")}
+		err := s.CommitPvtDataOfOldBlocks(nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "commitPvtDataOfOldBlocks error")
+
+	})
+}
+
+func TestGetLastUpdatedOldBlocksPvtData(t *testing.T) {
+	t.Run("test error from pvtDataDBStore GetLastUpdatedOldBlocksPvtData", func(t *testing.T) {
+		env := NewTestStoreEnv(t, "ledger", nil, couchDBConfig)
+		store := env.TestStore
+		s := store.(*pvtDataStore)
+		s.pvtDataDBStore = &mockStore{getLastUpdatedOldBlocksPvtDataErr: fmt.Errorf("getLastUpdatedOldBlocksPvtData error")}
+		_, err := s.GetLastUpdatedOldBlocksPvtData()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "getLastUpdatedOldBlocksPvtData error")
+
+	})
+}
+
+func TestResetLastUpdatedOldBlocksList(t *testing.T) {
+	t.Run("test error from pvtDataDBStore ResetLastUpdatedOldBlocksList", func(t *testing.T) {
+		env := NewTestStoreEnv(t, "ledger", nil, couchDBConfig)
+		store := env.TestStore
+		s := store.(*pvtDataStore)
+		s.pvtDataDBStore = &mockStore{resetLastUpdatedOldBlocksListErr: fmt.Errorf("resetLastUpdatedOldBlocksList error")}
+		err := s.ResetLastUpdatedOldBlocksList()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "resetLastUpdatedOldBlocksList error")
+
+	})
+}
 
 func TestMain(m *testing.M) {
 	//setup extension test environment

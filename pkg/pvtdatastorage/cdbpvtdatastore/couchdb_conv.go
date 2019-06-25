@@ -30,6 +30,16 @@ const (
 	lastCommittedBlockData        = "data"
 )
 
+type couchDB interface {
+	ExistsWithRetry() (bool, error)
+	IndexDesignDocExistsWithRetry(designDocs ...string) (bool, error)
+	CreateNewIndexWithRetry(indexdefinition string, designDoc string) error
+	ReadDoc(id string) (*couchdb.CouchDoc, string, error)
+	BatchUpdateDocuments(documents []*couchdb.CouchDoc) ([]*couchdb.BatchUpdateResponse, error)
+	QueryDocuments(query string) ([]*couchdb.QueryResult, string, error)
+	DeleteDoc(id, rev string) error
+}
+
 type blockPvtDataResponse struct {
 	ID              string            `json:"_id"`
 	Rev             string            `json:"_rev"`
@@ -115,7 +125,7 @@ func createLastCommittedBlockDoc(committingBlockNum uint64, rev string) (*couchd
 
 }
 
-func lookupLastBlock(db *couchdb.CouchDatabase) (uint64, string, error) {
+func lookupLastBlock(db couchDB) (uint64, string, error) {
 	v, _, err := db.ReadDoc(lastCommittedBlockID)
 	if err != nil {
 		return 0, "", err
@@ -123,11 +133,11 @@ func lookupLastBlock(db *couchdb.CouchDatabase) (uint64, string, error) {
 	if v != nil {
 		var lastBlockResponse lastCommittedBlockResponse
 		if err = json.Unmarshal(v.JSONValue, &lastBlockResponse); err != nil {
-			return 0, "", err
+			return 0, "", errors.Wrapf(err, "Unmarshal lastBlockResponse failed")
 		}
 		lastBlockNum, err := strconv.ParseInt(lastBlockResponse.Data, 10, 64)
 		if err != nil {
-			return 0, "", err
+			return 0, "", errors.Wrapf(err, "strconv.ParseInt lastBlockResponse.Data failed")
 		}
 		return uint64(lastBlockNum), lastBlockResponse.Rev, nil
 	}
@@ -169,43 +179,34 @@ func expiryEntriesToJSONValue(expiryEntries []*common.ExpiryEntry) (jsonValue, [
 	return data, expiringBlkNums, nil
 }
 
-func createPvtDataCouchDB(couchInstance *couchdb.CouchInstance, dbName string) (*couchdb.CouchDatabase, error) {
-	db, err := couchdb.CreateCouchDatabase(couchInstance, dbName)
+func createPvtDataCouchDB(db couchDB) error {
+	err := db.CreateNewIndexWithRetry(expiringBlockNumbersIndexDef, expiringBlockNumbersIndexDoc)
 	if err != nil {
-		return nil, err
+		return errors.WithMessage(err, "creation of purge block number index failed")
 	}
-	err = db.CreateNewIndexWithRetry(expiringBlockNumbersIndexDef, expiringBlockNumbersIndexDoc)
-	if err != nil {
-		return nil, errors.WithMessage(err, "creation of purge block number index failed")
-	}
-	return db, err
+	return err
 }
 
-func getPvtDataCouchInstance(couchInstance *couchdb.CouchInstance, dbName string) (*couchdb.CouchDatabase, error) {
-	db, err := couchdb.NewCouchDatabase(couchInstance, dbName)
-	if err != nil {
-		return nil, err
-	}
-
+func getPvtDataCouchInstance(db couchDB, dbName string) error {
 	dbExists, err := db.ExistsWithRetry()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if !dbExists {
-		return nil, errors.Errorf("DB not found: [%s]", db.DBName)
+		return errors.Errorf("DB not found: [%s]", dbName)
 	}
 
 	indexExists, err := db.IndexDesignDocExistsWithRetry(expiringBlockNumbersIndexDoc)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if !indexExists {
-		return nil, errors.Errorf("DB index not found: [%s]", db.DBName)
+		return errors.Errorf("DB index not found: [%s]", dbName)
 	}
-	return db, nil
+	return nil
 }
 
-func retrieveBlockPvtData(db *couchdb.CouchDatabase, id string) (*blockPvtDataResponse, error) {
+func retrieveBlockPvtData(db couchDB, id string) (*blockPvtDataResponse, error) {
 	doc, _, err := db.ReadDoc(id)
 	if err != nil {
 		return nil, err
@@ -224,7 +225,7 @@ func retrieveBlockPvtData(db *couchdb.CouchDatabase, id string) (*blockPvtDataRe
 	return &blockPvtData, nil
 }
 
-func retrieveBlockExpiryData(db *couchdb.CouchDatabase, id string) ([]*blockPvtDataResponse, error) {
+func retrieveBlockExpiryData(db couchDB, id string) ([]*blockPvtDataResponse, error) {
 	const queryFmt = `
 	{
 		"selector": {

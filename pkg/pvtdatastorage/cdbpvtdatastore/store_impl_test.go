@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package pvtdatastorage
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -16,11 +17,13 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
 	btltestutil "github.com/hyperledger/fabric/core/ledger/pvtdatapolicy/testutil"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	"github.com/hyperledger/fabric/extensions/testutil"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/common"
@@ -47,6 +50,490 @@ func TestMain(m *testing.M) {
 	//stop couchdb
 	destroy()
 	os.Exit(code)
+}
+
+func TestHasPendingCommit(t *testing.T) {
+	t.Run("test error Unmarshal", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.missingKeysIndexDB = mockDBHandler{getFunc: func(key []byte) (bytes []byte, e error) {
+			return []byte("wrongData"), nil
+		}}
+		_, err := s.hasPendingCommit()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Unmarshal failed pendingPvtData")
+	})
+}
+
+func TestGetExpiryDataOfExpiryKey(t *testing.T) {
+	t.Run("test error from getExpiryEntriesDB", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.db = mockCouchDB{readDocErr: fmt.Errorf("readDoc error")}
+		_, err := s.getExpiryDataOfExpiryKey(&common.ExpiryKey{CommittingBlk: 1})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "getExpiryEntriesDB failed")
+	})
+
+	t.Run("test error from getExpiryEntriesDB", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		var blockPvtData blockPvtDataResponse
+		blockPvtData.Expiry = make(map[string][]byte)
+		b, err := json.Marshal(blockPvtData)
+		require.NoError(t, err)
+		s.db = mockCouchDB{readDocValue: &couchdb.CouchDoc{JSONValue: b}}
+		expData, err := s.getExpiryDataOfExpiryKey(&common.ExpiryKey{CommittingBlk: 1})
+		require.NoError(t, err)
+		require.Nil(t, expData)
+	})
+}
+
+func TestRetrieveBlockPvtEntries(t *testing.T) {
+	t.Run("test error NotFoundInIndexErr", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.db = mockCouchDB{}
+		_, _, _, err := s.retrieveBlockPvtEntries(0)
+		require.NoError(t, err)
+	})
+}
+
+func TestPreparePvtDataDoc(t *testing.T) {
+	t.Run("test error from retrieveBlockPvtEntries", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.db = mockCouchDB{readDocErr: fmt.Errorf("readDoc error")}
+		_, err := s.preparePvtDataDoc(0, nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "retrieveBlockPvtEntries failed")
+	})
+}
+
+func TestLastCommittedBlockHeight(t *testing.T) {
+	t.Run("test store is empty", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.isEmpty = true
+		blockNum, err := s.LastCommittedBlockHeight()
+		require.NoError(t, err)
+		require.Equal(t, blockNum, uint64(0))
+
+	})
+}
+
+func TestShutdown(t *testing.T) {
+	ledgerId := "ledger"
+	env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+	defer env.Cleanup(ledgerId)
+	s := env.TestStore.(*store)
+	s.Shutdown()
+}
+
+func TestGetLastUpdatedOldBlocksPvtData(t *testing.T) {
+	t.Run("test error from GetLastUpdatedOldBlocksList", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.isLastUpdatedOldBlocksSet = true
+		s.missingKeysIndexDB = mockDBHandler{getFunc: func(key []byte) (bytes []byte, e error) {
+			return nil, fmt.Errorf("get error")
+		}}
+		_, err := s.GetLastUpdatedOldBlocksPvtData()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "GetLastUpdatedOldBlocksList failed")
+
+	})
+
+}
+
+func TestResetLastUpdatedOldBlocksList(t *testing.T) {
+	t.Run("test error from ResetLastUpdatedOldBlocksList", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.isLastUpdatedOldBlocksSet = true
+		s.missingKeysIndexDB = mockDBHandler{writeBatchErr: fmt.Errorf("writeBatch error")}
+		err := s.ResetLastUpdatedOldBlocksList()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "ResetLastUpdatedOldBlocksList failed")
+
+	})
+
+}
+
+func TestCheckLastCommittedBlock(t *testing.T) {
+	t.Run("test committer logic store is empty", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.isEmpty = true
+		err := s.checkLastCommittedBlock(0)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "The store is empty")
+
+	})
+
+	t.Run("test committer logic blockNum is bigger from lastCommittedBlock", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.isEmpty = false
+		s.lastCommittedBlock = 1
+		err := s.checkLastCommittedBlock(2)
+		require.Error(t, err)
+		_, ok := err.(*pvtdatastorage.ErrOutOfRange)
+		require.True(t, ok)
+	})
+
+	t.Run("test endorser logic error from lookupLastBlock", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.db = mockCouchDB{readDocErr: fmt.Errorf("readDoc error")}
+		rolesValue := make(map[roles.Role]struct{})
+		rolesValue[roles.EndorserRole] = struct{}{}
+		roles.SetRoles(rolesValue)
+		defer func() { roles.SetRoles(nil) }()
+		err := s.checkLastCommittedBlock(0)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "lookupLastBlock failed")
+	})
+
+	t.Run("test endorser logic store is empty", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.db = mockCouchDB{}
+		rolesValue := make(map[roles.Role]struct{})
+		rolesValue[roles.EndorserRole] = struct{}{}
+		roles.SetRoles(rolesValue)
+		defer func() { roles.SetRoles(nil) }()
+		err := s.checkLastCommittedBlock(0)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "The store is empty")
+	})
+
+	t.Run("test endorser logic blockNum is bigger from lastCommittedBlock", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		jsonBinary, err := json.Marshal(lastCommittedBlockResponse{Data: "1"})
+		require.NoError(t, err)
+		s.db = mockCouchDB{readDocValue: &couchdb.CouchDoc{JSONValue: jsonBinary}}
+		rolesValue := make(map[roles.Role]struct{})
+		rolesValue[roles.EndorserRole] = struct{}{}
+		roles.SetRoles(rolesValue)
+		defer func() { roles.SetRoles(nil) }()
+		err = s.checkLastCommittedBlock(2)
+		require.Error(t, err)
+		_, ok := err.(*pvtdatastorage.ErrOutOfRange)
+		require.True(t, ok)
+	})
+
+}
+
+func TestRollback(t *testing.T) {
+	t.Run("test error from calling rollback on a peer that is not a committer", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		rolesValue := make(map[roles.Role]struct{})
+		rolesValue[roles.EndorserRole] = struct{}{}
+		roles.SetRoles(rolesValue)
+		defer func() { roles.SetRoles(nil) }()
+		require.Panics(t, func() {
+			s.Rollback()
+		})
+	})
+
+	t.Run("test error from no pending batch to rollback", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.pendingPvtData = &pendingPvtData{BatchPending: false}
+		err := s.Rollback()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "No pending batch to rollback")
+	})
+
+	t.Run("test error from delete", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.pendingPvtData = &pendingPvtData{BatchPending: true}
+		s.missingKeysIndexDB = mockDBHandler{deleteErr: fmt.Errorf("delete error")}
+		err := s.Rollback()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "delete PendingCommitKey failed")
+
+	})
+}
+
+func TestCommit(t *testing.T) {
+	t.Run("test error from calling commit on a peer that is not a committer", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		rolesValue := make(map[roles.Role]struct{})
+		rolesValue[roles.EndorserRole] = struct{}{}
+		roles.SetRoles(rolesValue)
+		defer func() { roles.SetRoles(nil) }()
+		require.Panics(t, func() {
+			s.Commit()
+		})
+	})
+
+	t.Run("test error from no pending batch to commit", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.pendingPvtData = &pendingPvtData{BatchPending: false}
+		err := s.Commit()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "No pending batch to commit")
+	})
+
+	t.Run("test error from prepareLastCommittedBlockDoc", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.pendingPvtData = &pendingPvtData{BatchPending: true}
+		s.db = mockCouchDB{readDocErr: fmt.Errorf("readDoc error")}
+		err := s.Commit()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "prepareLastCommittedBlockDoc failed")
+
+	})
+
+	t.Run("test error from BatchUpdateDocuments", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.pendingPvtData = &pendingPvtData{BatchPending: true}
+		s.db = mockCouchDB{batchUpdateDocumentsErr: fmt.Errorf("batchUpdateDocuments error")}
+		err := s.Commit()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "writing private data to CouchDB failed")
+
+	})
+
+	t.Run("test error from missingKeysIndexDB WriteBatch", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.pendingPvtData = &pendingPvtData{BatchPending: true}
+		s.db = mockCouchDB{}
+		s.missingKeysIndexDB = mockDBHandler{writeBatchErr: fmt.Errorf("writeBatch error")}
+		err := s.Commit()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "WriteBatch failed")
+
+	})
+}
+
+func TestRetrieveBlockExpiryData(t *testing.T) {
+	t.Run("test error from QueryDocuments", func(t *testing.T) {
+		_, err := retrieveBlockExpiryData(mockCouchDB{queryDocumentsErr: fmt.Errorf("QueryDocuments error")}, "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "QueryDocuments error")
+	})
+
+	t.Run("test error from Unmarshal", func(t *testing.T) {
+		_, err := retrieveBlockExpiryData(mockCouchDB{queryDocumentsValue: []*couchdb.QueryResult{{Value: []byte("wrongData")}}}, "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "result from DB is not JSON encoded")
+	})
+
+}
+
+func TestNewErrNotFoundInIndex(t *testing.T) {
+	require.Equal(t, NewErrNotFoundInIndex().Error(), "Entry not found in index")
+
+}
+
+func TestCreatePvtDataCouchDB(t *testing.T) {
+	err := createPvtDataCouchDB(&mockCouchDB{createNewIndexWithRetryErr: fmt.Errorf("createNewIndexWithRetry error")})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "createNewIndexWithRetry error")
+}
+
+func TestGetPvtDataCouchInstance(t *testing.T) {
+	t.Run("test error from ExistsWithRetry", func(t *testing.T) {
+		err := getPvtDataCouchInstance(mockCouchDB{existsWithRetryErr: fmt.Errorf("ExistsWithRetry error")}, "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "ExistsWithRetry error")
+	})
+
+	t.Run("test db not exists", func(t *testing.T) {
+		err := getPvtDataCouchInstance(mockCouchDB{existsWithRetryValue: false}, "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "DB not found")
+	})
+
+	t.Run("test error from IndexDesignDocExistsWithRetry", func(t *testing.T) {
+		err := getPvtDataCouchInstance(mockCouchDB{existsWithRetryValue: true, indexDesignDocExistsWithRetryErr: fmt.Errorf("IndexDesignDocExistsWithRetry error")}, "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "IndexDesignDocExistsWithRetry error")
+	})
+
+	t.Run("test index not exists", func(t *testing.T) {
+		err := getPvtDataCouchInstance(mockCouchDB{existsWithRetryValue: true, indexDesignDocExistsWithRetryValue: false}, "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "DB index not found")
+	})
+}
+
+func TestRetrieveBlockPvtData(t *testing.T) {
+	t.Run("test error from ReadDoc", func(t *testing.T) {
+		_, err := retrieveBlockPvtData(mockCouchDB{readDocErr: fmt.Errorf("ReadDoc error")}, "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "ReadDoc error")
+	})
+
+	t.Run("test error from Unmarshal", func(t *testing.T) {
+		_, err := retrieveBlockPvtData(mockCouchDB{readDocValue: &couchdb.CouchDoc{JSONValue: []byte("wrongData")}}, "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "result from DB is not JSON encoded")
+	})
+
+}
+
+func TestNewProviderWithDBDef(t *testing.T) {
+	_, err := newProviderWithDBDef(&couchdb.Config{Address: "123"}, nil, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "obtaining CouchDB instance failed")
+}
+
+func TestOpenStore(t *testing.T) {
+	t.Run("test error from createCouchDatabase", func(t *testing.T) {
+		removeStorePath()
+		conf := testutil.TestLedgerConf().PrivateData
+		testStoreProvider, err := NewProvider(conf, testutil.TestLedgerConf())
+		require.NoError(t, err)
+		_, err = testStoreProvider.OpenStore("_")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "createCouchDatabase failed")
+
+	})
+
+	t.Run("test error from newCouchDatabase", func(t *testing.T) {
+		removeStorePath()
+		roles.IsCommitter()
+		rolesValue := make(map[roles.Role]struct{})
+		rolesValue[roles.EndorserRole] = struct{}{}
+		roles.SetRoles(rolesValue)
+		defer func() { roles.SetRoles(nil) }()
+		conf := testutil.TestLedgerConf().PrivateData
+		testStoreProvider, err := NewProvider(conf, testutil.TestLedgerConf())
+		require.NoError(t, err)
+		_, err = testStoreProvider.OpenStore("_")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "newCouchDatabase failed")
+
+	})
+}
+
+func TestInitState(t *testing.T) {
+	t.Run("test error from lookupLastBlock", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.db = mockCouchDB{readDocErr: fmt.Errorf("readDoc error")}
+		err := s.initState()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "lookupLastBlock failed")
+	})
+
+	t.Run("test error from hasPendingCommit", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		jsonBinary, err := json.Marshal(lastCommittedBlockResponse{Data: "1"})
+		require.NoError(t, err)
+		s.db = mockCouchDB{readDocValue: &couchdb.CouchDoc{JSONValue: jsonBinary}}
+		s.missingKeysIndexDB = mockDBHandler{getFunc: func(key []byte) (bytes []byte, e error) {
+			return nil, fmt.Errorf("get error")
+		}}
+		err = s.initState()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "hasPendingCommit failed")
+	})
+
+	t.Run("test error from GetLastUpdatedOldBlocksList", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		jsonBinary, err := json.Marshal(lastCommittedBlockResponse{Data: "1"})
+		require.NoError(t, err)
+		s.db = mockCouchDB{readDocValue: &couchdb.CouchDoc{JSONValue: jsonBinary}}
+		s.missingKeysIndexDB = mockDBHandler{getFunc: func(key []byte) ([]byte, error) {
+			if bytes.Equal(key, common.LastUpdatedOldBlocksKey) {
+				return nil, fmt.Errorf("get error")
+			}
+			return nil, nil
+		}}
+		err = s.initState()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "getLastUpdatedOldBlocksList failed")
+	})
+
+	t.Run("test success", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		jsonBinary, err := json.Marshal(lastCommittedBlockResponse{Data: "1"})
+		require.NoError(t, err)
+		s.db = mockCouchDB{readDocValue: &couchdb.CouchDoc{JSONValue: jsonBinary}}
+		s.missingKeysIndexDB = mockDBHandler{getFunc: func(key []byte) ([]byte, error) {
+			if bytes.Equal(key, common.LastUpdatedOldBlocksKey) {
+				updatedBlksList := []uint64{1}
+				buf := proto.NewBuffer(nil)
+				require.NoError(t, buf.EncodeVarint(uint64(len(updatedBlksList))))
+				for _, blkNum := range updatedBlksList {
+					require.NoError(t, buf.EncodeVarint(blkNum))
+				}
+				return buf.Bytes(), nil
+			}
+			if bytes.Equal(key, common.PendingCommitKey) {
+				return json.Marshal(pendingPvtData{})
+			}
+			return nil, nil
+		}}
+		err = s.initState()
+		require.NoError(t, err)
+	})
 }
 
 func TestStorePurge(t *testing.T) {
@@ -355,6 +842,45 @@ func TestStoreBasicCommitAndRetrieval(t *testing.T) {
 }
 
 func TestCommitPvtDataOfOldBlocks(t *testing.T) {
+	t.Run("test error lastUpdatedOldBlocksList is set", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.isLastUpdatedOldBlocksSet = true
+		err := s.CommitPvtDataOfOldBlocks(nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "lastUpdatedOldBlocksList is set")
+
+	})
+
+	t.Run("test error from BatchUpdateDocuments", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.isLastUpdatedOldBlocksSet = false
+		s.db = mockCouchDB{batchUpdateDocumentsErr: fmt.Errorf("batchUpdateDocuments error")}
+		err := s.CommitPvtDataOfOldBlocks(nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "BatchUpdateDocuments failed")
+
+	})
+
+	t.Run("test error from WriteBatch", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.isLastUpdatedOldBlocksSet = false
+		s.db = mockCouchDB{}
+		s.missingKeysIndexDB = mockDBHandler{writeBatchErr: fmt.Errorf("WriteBatch error")}
+		err := s.CommitPvtDataOfOldBlocks(nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "WriteBatch failed")
+
+	})
+
 	viper.Set("ledger.pvtdataStore.purgeInterval", 2)
 	btlPolicy := btltestutil.SampleBTLPolicy(
 		map[[2]string]uint64{
@@ -712,6 +1238,21 @@ func TestExpiryDataNotIncluded(t *testing.T) {
 }
 
 func TestLookupLastBlock(t *testing.T) {
+
+	t.Run("test error from Unmarshal", func(t *testing.T) {
+		_, _, err := lookupLastBlock(mockCouchDB{readDocValue: &couchdb.CouchDoc{JSONValue: []byte("wrongData")}})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Unmarshal lastBlockResponse failed")
+	})
+
+	t.Run("test error from strconv ParseInt", func(t *testing.T) {
+		jsonBinary, err := json.Marshal(lastCommittedBlockResponse{Data: "wrongData"})
+		require.NoError(t, err)
+		_, _, err = lookupLastBlock(mockCouchDB{readDocValue: &couchdb.CouchDoc{JSONValue: jsonBinary}})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "strconv.ParseInt lastBlockResponse.Data failed")
+	})
+
 	btlPolicy := btltestutil.SampleBTLPolicy(
 		map[[2]string]uint64{
 			{"ns-1", "coll-1"}: 0,
@@ -781,6 +1322,30 @@ func TestStoreState(t *testing.T) {
 }
 
 func TestInitLastCommittedBlock(t *testing.T) {
+	t.Run("test error from lookupLastBlock", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.db = mockCouchDB{readDocErr: fmt.Errorf("readDoc error")}
+		s.isEmpty = true
+		err := s.InitLastCommittedBlock(0)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "lookupLastBlock failed")
+	})
+
+	t.Run("test error from batchUpdateDocuments", func(t *testing.T) {
+		ledgerId := "ledger"
+		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+		defer env.Cleanup(ledgerId)
+		s := env.TestStore.(*store)
+		s.db = mockCouchDB{batchUpdateDocumentsErr: fmt.Errorf("batchUpdateDocuments error")}
+		s.isEmpty = true
+		err := s.InitLastCommittedBlock(0)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "BatchUpdateDocuments failed")
+	})
+
 	env := NewTestStoreEnv(t, "teststorestate", nil, couchDBConfig)
 	defer env.Cleanup("teststorestate")
 	req := require.New(t)
@@ -1046,4 +1611,71 @@ func produceSamplePvtdata(t *testing.T, txNum uint64, nsColls []string) *ledger.
 
 func testutilWaitForCollElgProcToFinish(s pvtdatastorage.Store) {
 	s.(*store).collElgProc.WaitForDone()
+}
+
+// mockCouchDB
+type mockCouchDB struct {
+	existsWithRetryValue               bool
+	existsWithRetryErr                 error
+	indexDesignDocExistsWithRetryValue bool
+	indexDesignDocExistsWithRetryErr   error
+	createNewIndexWithRetryErr         error
+	readDocValue                       *couchdb.CouchDoc
+	readDocErr                         error
+	batchUpdateDocumentsValue          []*couchdb.BatchUpdateResponse
+	batchUpdateDocumentsErr            error
+	queryDocumentsValue                []*couchdb.QueryResult
+	queryDocumentsErr                  error
+}
+
+func (m mockCouchDB) ExistsWithRetry() (bool, error) {
+	return m.existsWithRetryValue, m.existsWithRetryErr
+}
+func (m mockCouchDB) IndexDesignDocExistsWithRetry(designDocs ...string) (bool, error) {
+	return m.indexDesignDocExistsWithRetryValue, m.indexDesignDocExistsWithRetryErr
+}
+
+func (m mockCouchDB) CreateNewIndexWithRetry(indexdefinition string, designDoc string) error {
+	return m.createNewIndexWithRetryErr
+}
+
+func (m mockCouchDB) ReadDoc(id string) (*couchdb.CouchDoc, string, error) {
+	return m.readDocValue, "", m.readDocErr
+}
+
+func (m mockCouchDB) BatchUpdateDocuments(documents []*couchdb.CouchDoc) ([]*couchdb.BatchUpdateResponse, error) {
+	return m.batchUpdateDocumentsValue, m.batchUpdateDocumentsErr
+}
+
+func (m mockCouchDB) QueryDocuments(query string) ([]*couchdb.QueryResult, string, error) {
+	return m.queryDocumentsValue, "", m.queryDocumentsErr
+}
+func (m mockCouchDB) DeleteDoc(id, rev string) error {
+	return nil
+}
+
+type mockDBHandler struct {
+	getFunc       func(key []byte) ([]byte, error)
+	writeBatchErr error
+	deleteErr     error
+	putErr        error
+}
+
+func (m mockDBHandler) WriteBatch(batch *leveldbhelper.UpdateBatch, sync bool) error {
+	return m.writeBatchErr
+}
+func (m mockDBHandler) Delete(key []byte, sync bool) error {
+	return m.deleteErr
+}
+func (m mockDBHandler) Get(key []byte) ([]byte, error) {
+	if m.getFunc != nil {
+		return m.getFunc(key)
+	}
+	return nil, nil
+}
+func (m mockDBHandler) GetIterator(startKey []byte, endKey []byte) *leveldbhelper.Iterator {
+	return nil
+}
+func (m mockDBHandler) Put(key []byte, value []byte, sync bool) error {
+	return m.putErr
 }

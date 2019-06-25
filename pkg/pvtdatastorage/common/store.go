@@ -21,6 +21,13 @@ import (
 // todo add pinning script to include copied code into this file, original file from fabric is found in fabric/core/ledger/pvtdatastorage/store_imp.go
 // todo below functions are originally unexported, the pinning script must capitalize these functions to export them
 
+// dbHandle is an handle to a named db
+type dbHandle interface {
+	Get(key []byte) ([]byte, error)
+	WriteBatch(batch *leveldbhelper.UpdateBatch, sync bool) error
+	GetIterator(startKey []byte, endKey []byte) *leveldbhelper.Iterator
+}
+
 type DataEntry struct {
 	Key   *DataKey
 	Value *rwset.CollectionPvtReadWriteSet
@@ -274,7 +281,7 @@ func addUpdatedMissingDataEntriesToUpdateBatch(batch *leveldbhelper.UpdateBatch,
 	return nil
 }
 
-func GetLastUpdatedOldBlocksList(missingKeysIndexDB *leveldbhelper.DBHandle) ([]uint64, error) {
+func GetLastUpdatedOldBlocksList(missingKeysIndexDB dbHandle) ([]uint64, error) {
 	var v []byte
 	var err error
 	if v, err = missingKeysIndexDB.Get(LastUpdatedOldBlocksKey); err != nil {
@@ -300,7 +307,7 @@ func GetLastUpdatedOldBlocksList(missingKeysIndexDB *leveldbhelper.DBHandle) ([]
 	return updatedBlksList, nil
 }
 
-func ResetLastUpdatedOldBlocksList(missingKeysIndexDB *leveldbhelper.DBHandle) error {
+func ResetLastUpdatedOldBlocksList(missingKeysIndexDB dbHandle) error {
 	batch := leveldbhelper.NewUpdateBatch()
 	batch.Delete(LastUpdatedOldBlocksKey)
 	if err := missingKeysIndexDB.WriteBatch(batch, true); err != nil {
@@ -310,7 +317,7 @@ func ResetLastUpdatedOldBlocksList(missingKeysIndexDB *leveldbhelper.DBHandle) e
 }
 
 // GetMissingPvtDataInfoForMostRecentBlocks
-func GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int, lastCommittedBlk uint64, btlPolicy pvtdatapolicy.BTLPolicy, missingKeysIndexDB *leveldbhelper.DBHandle) (ledger.MissingPvtDataInfo, error) {
+func GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int, lastCommittedBlk uint64, btlPolicy pvtdatapolicy.BTLPolicy, missingKeysIndexDB dbHandle) (ledger.MissingPvtDataInfo, error) {
 	// we assume that this function would be called by the gossip only after processing the
 	// last retrieved missing pvtdata info and committing the same.
 	if maxBlock < 1 {
@@ -387,7 +394,7 @@ func GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int, lastCommittedBlk uin
 }
 
 // ProcessCollsEligibilityEnabled
-func ProcessCollsEligibilityEnabled(committingBlk uint64, nsCollMap map[string][]string, collElgProcSync *CollElgProc, missingKeysIndexDB *leveldbhelper.DBHandle) error {
+func ProcessCollsEligibilityEnabled(committingBlk uint64, nsCollMap map[string][]string, collElgProcSync *CollElgProc, missingKeysIndexDB dbHandle) error {
 	key := encodeCollElgKey(committingBlk)
 	m := newCollElgInfo(nsCollMap)
 	val, err := encodeCollElgVal(m)

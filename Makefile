@@ -79,7 +79,7 @@ channel-config-gen:
 		//bin/bash -c "FABRIC_VERSION_DIR=fabric/ /opt/workspace/${PROJECT_NAME}/scripts/generate_channeltx.sh"
 
 populate-fixtures:
-	@scripts/populate-fixtures.sh
+	@scripts/populate-fixtures.sh -f
 
 version:
 	@scripts/check_version.sh
