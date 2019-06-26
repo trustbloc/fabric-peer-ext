@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,6 +28,7 @@ func TestIsValidator(t *testing.T) {
 }
 
 func TestRolesAsString(t *testing.T) {
+	roles.SetRoles(nil)
 	require.Empty(t, RolesAsString())
 }
 
@@ -35,25 +38,24 @@ func TestHasEndorserRole(t *testing.T) {
 		{"committer", "Endorser"},
 		{"committer", "ENdOrsEr"},
 		{"Endorser"},
-		{ "enDorser", "committer"},
+		{"enDorser", "committer"},
 		{},
 	}
 
 	for _, v := range endorserSamples {
-		fmt.Println("==",v)
+		fmt.Println("==", v)
 		require.True(t, HasEndorserRole(v))
 	}
 
 	nonEndorserSamples := [][]string{
 		{"com", "endorsers"},
-		{ "committer"},
+		{"committer"},
 		{"", ""},
 		{""},
-
 	}
 
 	for _, v := range nonEndorserSamples {
-		fmt.Println("--",v)
+		fmt.Println("--", v)
 		require.False(t, HasEndorserRole(v))
 	}
 }
