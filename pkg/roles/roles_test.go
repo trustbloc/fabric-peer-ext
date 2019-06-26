@@ -57,6 +57,7 @@ func TestLocalRoles(t *testing.T) {
 	require.True(t, IsCommitter())
 	require.True(t, IsEndorser())
 	require.True(t, IsValidator())
+	require.False(t, HasRole("newRole"))
 
 	testRole = "committer,endorser,validator"
 	viper.Set(confRoles, testRole)

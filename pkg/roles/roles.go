@@ -66,8 +66,12 @@ func HasRole(role Role) bool {
 	})
 
 	if len(roles) == 0 {
-		// No roles were explicitly set, therefore the peer is assumed to have all roles.
-		return true
+		exists := struct{}{}
+		roles = make(map[Role]struct{})
+		// No roles were explicitly set, therefore the peer is assumed to have these roles.
+		roles[CommitterRole] = exists
+		roles[EndorserRole] = exists
+		roles[ValidatorRole] = exists
 	}
 
 	_, ok := roles[role]
