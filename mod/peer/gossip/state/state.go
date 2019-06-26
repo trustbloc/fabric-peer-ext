@@ -12,6 +12,7 @@ import (
 	pb "github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/core/ledger/cceventmgmt"
+	ledgerUtil "github.com/hyperledger/fabric/core/ledger/util"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/extensions/roles"
 	common2 "github.com/hyperledger/fabric/gossip/common"
@@ -21,6 +22,7 @@ import (
 	"github.com/hyperledger/fabric/protos/common"
 	proto "github.com/hyperledger/fabric/protos/gossip"
 	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
+	"github.com/hyperledger/fabric/protos/peer"
 	"github.com/pkg/errors"
 )
 
@@ -37,9 +39,6 @@ type GossipStateProviderExtension interface {
 	//HandleStateRequest can used to extend given request handle
 	HandleStateRequest(func(msg protoext.ReceivedMessage)) func(msg protoext.ReceivedMessage)
 
-	//AntiEntropy can be used to extend Anti Entropy features
-	AntiEntropy(func()) func()
-
 	//Predicate can used to override existing predicate to filter peers to be asked for blocks
 	Predicate(func(peer discovery.NetworkMember) bool) func(peer discovery.NetworkMember) bool
 
@@ -48,6 +47,12 @@ type GossipStateProviderExtension interface {
 
 	//StoreBlock  can used to extend given store block handle
 	StoreBlock(func(block *common.Block, pvtData util.PvtDataCollections) error) func(block *common.Block, pvtData util.PvtDataCollections) error
+
+	//LedgerHeight can used to extend ledger height feature to get current ledger height
+	LedgerHeight(func() (uint64, error)) func() (uint64, error)
+
+	//RequestBlocksInRange can be used to extend given request blocks feature
+	RequestBlocksInRange(func(start uint64, end uint64), func(payload *proto.Payload, blockingMode bool) error) func(start uint64, end uint64)
 }
 
 // GossipServiceMediator aggregated adapter interface to compound basic mediator services
@@ -77,27 +82,22 @@ func AddBlockHandler(publisher api.BlockPublisher) {
 }
 
 //NewGossipStateProviderExtension returns new GossipStateProvider Extension implementation
-func NewGossipStateProviderExtension(chainID string, mediator GossipServiceMediator) GossipStateProviderExtension {
-	return &gossipStateProviderExtension{chainID, mediator}
+func NewGossipStateProviderExtension(chainID string, mediator GossipServiceMediator, support *api.Support) GossipStateProviderExtension {
+	//TODO supply blocking mode from argument
+	return &gossipStateProviderExtension{chainID, mediator, support, true}
 }
 
 type gossipStateProviderExtension struct {
-	chainID  string
-	mediator GossipServiceMediator
+	chainID      string
+	mediator     GossipServiceMediator
+	support      *api.Support
+	blockingMode bool
 }
 
 func (s *gossipStateProviderExtension) HandleStateRequest(handle func(msg protoext.ReceivedMessage)) func(msg protoext.ReceivedMessage) {
 	return func(msg protoext.ReceivedMessage) {
 		if roles.IsEndorser() {
 			handle(msg)
-		}
-	}
-}
-
-func (s *gossipStateProviderExtension) AntiEntropy(handle func()) func() {
-	return func() {
-		if roles.IsCommitter() {
-			handle()
 		}
 	}
 }
@@ -139,8 +139,14 @@ func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Bloc
 
 			// Gossip messages with other nodes in my org
 			s.gossipBlock(block)
-
+			return nil
 		}
+
+		//in case of non-committer handle pre commit operations
+		if isBlockValidated(block) {
+			return s.support.BlockEventer.PreCommit(block)
+		}
+
 		return nil
 	}
 }
@@ -169,6 +175,88 @@ func (s *gossipStateProviderExtension) gossipBlock(block *common.Block) {
 
 	logger.Debugf("[%s] Gossiping block [%d], number of peers [%d]", s.chainID, blockNum, numberOfPeers)
 	s.mediator.Gossip(gossipMsg)
+}
+
+func (s *gossipStateProviderExtension) LedgerHeight(handle func() (uint64, error)) func() (uint64, error) {
+	if s.support.LedgerHeightProvider != nil {
+		return func() (uint64, error) {
+			return s.support.LedgerHeightProvider.LedgerHeight(), nil
+		}
+	}
+	return handle
+}
+
+func (s *gossipStateProviderExtension) RequestBlocksInRange(handle func(start uint64, end uint64), addPayload func(payload *proto.Payload, blockingMode bool) error) func(start uint64, end uint64) {
+	if roles.IsCommitter() {
+		return handle
+	}
+	return func(start uint64, end uint64) {
+		payloads, err := s.loadBlocksInRange(start, end)
+		if err != nil {
+			logger.Errorf("Error loading blocks for channel [%s]: %s", s.chainID, err)
+		}
+		for _, payload := range payloads {
+			if err := addPayload(payload, s.blockingMode); err != nil {
+				logger.Errorf("Error adding payloads for channel [%s]: %s", s.chainID, err)
+				continue
+			}
+		}
+	}
+}
+
+func (s *gossipStateProviderExtension) loadBlocksInRange(fromBlock, toBlock uint64) ([]*proto.Payload, error) {
+
+	var payloads []*proto.Payload
+
+	for num := fromBlock; num <= toBlock; num++ {
+		// Don't need to load the private data since we don't actually do anything with it on the endorser.
+		block, err := s.support.Ledger.GetBlockByNumber(num)
+		if err != nil {
+			return nil, errors.WithMessagef(err, "Error reading block and private data for block %d", num)
+		}
+
+		blockBytes, err := pb.Marshal(block)
+		if err != nil {
+			return nil, errors.WithMessagef(err, "Error marshalling block %d", num)
+		}
+
+		payloads = append(payloads,
+			&proto.Payload{
+				SeqNum: num,
+				Data:   blockBytes,
+			},
+		)
+	}
+
+	return payloads, nil
+}
+
+//isBlockValidated checks if given block is validated
+func isBlockValidated(block *common.Block) bool {
+
+	blockData := block.GetData()
+	envelopes := blockData.GetData()
+	envelopesLen := len(envelopes)
+
+	blockMetadata := block.GetMetadata()
+	if blockMetadata == nil || blockMetadata.GetMetadata() == nil {
+		return false
+	}
+
+	txValidationFlags := ledgerUtil.TxValidationFlags(blockMetadata.GetMetadata()[common.BlockMetadataIndex_TRANSACTIONS_FILTER])
+	flagsLen := len(txValidationFlags)
+
+	if envelopesLen != flagsLen {
+		return false
+	}
+
+	for _, flag := range txValidationFlags {
+		if peer.TxValidationCode(flag) == peer.TxValidationCode_NOT_VALIDATED {
+			return false
+		}
+	}
+
+	return true
 }
 
 func createGossipMsg(chainID string, payload *proto.Payload) *proto.GossipMessage {

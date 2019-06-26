@@ -142,6 +142,8 @@ func TestPublisher_PublishEndorsementEvents(t *testing.T) {
 	assert.Equal(t, 0, handler3.NumWrites())
 	assert.Equal(t, 0, handler3.NumCCEvents())
 	assert.Equal(t, 1, handler3.NumCCUpgradeEvents())
+
+	assert.EqualValues(t, 1101, p.LedgerHeight())
 }
 
 func TestPublisher_PublishConfigUpdateEvents(t *testing.T) {
@@ -161,6 +163,8 @@ func TestPublisher_PublishConfigUpdateEvents(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	assert.Equal(t, 1, handler.NumConfigUpdates())
+
+	assert.EqualValues(t, 1101, p.LedgerHeight())
 }
 
 func TestPublisher_Error(t *testing.T) {
@@ -229,4 +233,6 @@ func TestPublisher_Error(t *testing.T) {
 	assert.Equal(t, 5, handler1.NumWrites())
 	assert.Equal(t, 3, handler1.NumCCEvents())
 	assert.Equal(t, 1, handler1.NumCCUpgradeEvents())
+
+	assert.EqualValues(t, 1101, p.LedgerHeight())
 }

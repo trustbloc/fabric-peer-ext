@@ -54,3 +54,8 @@ func (m *MockBlockPublisher) AddCCEventHandler(handler gossipapi.ChaincodeEventH
 func (m *MockBlockPublisher) Publish(block *common.Block) {
 	panic("not implemented")
 }
+
+// LedgerHeight is not implemented and panics if invoked
+func (m *MockBlockPublisher) LedgerHeight() uint64 {
+	panic("not implemented")
+}

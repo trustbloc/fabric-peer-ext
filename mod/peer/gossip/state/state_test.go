@@ -9,6 +9,10 @@ package state
 import (
 	"testing"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
+
+	"github.com/hyperledger/fabric/extensions/gossip/api"
+
 	"github.com/hyperledger/fabric/gossip/protoext"
 
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
@@ -39,7 +43,7 @@ func TestProviderExtension(t *testing.T) {
 		return sampleError
 	}
 
-	extension := NewGossipStateProviderExtension("test", nil)
+	extension := NewGossipStateProviderExtension("test", nil, &api.Support{})
 
 	//test extension.AddPayload
 	require.Error(t, sampleError, extension.AddPayload(handleAddPayload)(nil, false))
@@ -49,19 +53,6 @@ func TestProviderExtension(t *testing.T) {
 
 	//test extension.AntiEntropy
 	handled := make(chan bool, 1)
-	antiEntropy := func() {
-		handled <- true
-	}
-	extension.AntiEntropy(antiEntropy)()
-
-	select {
-	case ok := <-handled:
-		require.True(t, ok)
-		break
-	default:
-		require.Fail(t, "anti entropy handle should get called in case of all roles")
-
-	}
 
 	//test extension.HandleStateRequest
 	handleStateRequest := func(msg protoext.ReceivedMessage) {
@@ -76,6 +67,26 @@ func TestProviderExtension(t *testing.T) {
 		break
 	default:
 		require.Fail(t, "state request handle should get called in case of all roles")
+	}
+
+	//test extension.RequestBlocksInRange
+	handleRequestBlocksInRange := func(start uint64, end uint64) {
+		handled <- true
+	}
+
+	addPayload := func(payload *proto.Payload, blockingMode bool) error {
+		handled <- false
+		return nil
+	}
+
+	extension.RequestBlocksInRange(handleRequestBlocksInRange, addPayload)(1, 2)
+
+	select {
+	case ok := <-handled:
+		require.True(t, ok)
+		break
+	default:
+		require.Fail(t, "RequestBlocksInRange should get called in case of all roles")
 	}
 }
 
@@ -101,7 +112,9 @@ func TestProviderByEndorser(t *testing.T) {
 		return sampleError
 	}
 
-	extension := NewGossipStateProviderExtension("test", nil)
+	extension := NewGossipStateProviderExtension("test", nil, &api.Support{
+		Ledger: &mockPeerLedger{&mocks.Ledger{}},
+	})
 
 	//test extension.AddPayload
 	require.Nil(t, extension.AddPayload(handleAddPayload)(nil, false))
@@ -111,17 +124,6 @@ func TestProviderByEndorser(t *testing.T) {
 
 	//test extension.AntiEntropy
 	handled := make(chan bool, 1)
-	antiEntropy := func() {
-		handled <- true
-	}
-	extension.AntiEntropy(antiEntropy)()
-
-	select {
-	case <-handled:
-		require.Fail(t, "anti entropy handle shouldn't get called in case of endorsers")
-	default:
-		//do nothing
-	}
 
 	//test extension.HandleStateRequest
 	handleStateRequest := func(msg protoext.ReceivedMessage) {
@@ -137,13 +139,33 @@ func TestProviderByEndorser(t *testing.T) {
 	default:
 		require.Fail(t, "state request handle should get called in case of endorsers")
 	}
+
+	//test extension.RequestBlocksInRange
+	handleRequestBlocksInRange := func(start uint64, end uint64) {
+		handled <- false
+	}
+
+	addPayload := func(payload *proto.Payload, blockingMode bool) error {
+		handled <- true
+		return nil
+	}
+
+	extension.RequestBlocksInRange(handleRequestBlocksInRange, addPayload)(1, 1)
+
+	select {
+	case ok := <-handled:
+		require.True(t, ok)
+		break
+	default:
+		require.Fail(t, "RequestBlocksInRange should get called in case of all roles")
+	}
 }
 
 func TestPredicate(t *testing.T) {
 	predicate := func(peer discovery.NetworkMember) bool {
 		return true
 	}
-	extension := NewGossipStateProviderExtension("test", nil)
+	extension := NewGossipStateProviderExtension("test", nil, &api.Support{})
 	require.True(t, extension.Predicate(predicate)(discovery.NetworkMember{Properties: &proto.Properties{Roles: []string{"endorser"}}}))
 	require.False(t, extension.Predicate(predicate)(discovery.NetworkMember{Properties: &proto.Properties{Roles: []string{"committer"}}}))
 	require.True(t, extension.Predicate(predicate)(discovery.NetworkMember{Properties: &proto.Properties{Roles: []string{}}}))
@@ -172,7 +194,7 @@ func TestProviderByCommitter(t *testing.T) {
 		return sampleError
 	}
 
-	extension := NewGossipStateProviderExtension("test", nil)
+	extension := NewGossipStateProviderExtension("test", nil, &api.Support{})
 
 	//test extension.AddPayload
 	require.Error(t, sampleError, extension.AddPayload(handleAddPayload)(nil, false))
@@ -182,19 +204,6 @@ func TestProviderByCommitter(t *testing.T) {
 
 	//test extension.AntiEntropy
 	handled := make(chan bool, 1)
-	antiEntropy := func() {
-		handled <- true
-	}
-	extension.AntiEntropy(antiEntropy)()
-
-	select {
-	case ok := <-handled:
-		require.True(t, ok)
-		break
-	default:
-		require.Fail(t, "anti entropy handle should get called in case of committer")
-
-	}
 
 	//test extension.HandleStateRequest
 	handleStateRequest := func(msg protoext.ReceivedMessage) {
@@ -205,8 +214,39 @@ func TestProviderByCommitter(t *testing.T) {
 
 	select {
 	case <-handled:
-		require.Fail(t, "state request handle shouldn't get called in case of endorsers")
+		require.Fail(t, "state request handle shouldn't get called in case of committer")
 	default:
 		//do nothing
 	}
+
+	//test extension.RequestBlocksInRange
+	handleRequestBlocksInRange := func(start uint64, end uint64) {
+		handled <- true
+	}
+
+	addPayload := func(payload *proto.Payload, blockingMode bool) error {
+		handled <- false
+		return nil
+	}
+
+	extension.RequestBlocksInRange(handleRequestBlocksInRange, addPayload)(1, 2)
+
+	select {
+	case ok := <-handled:
+		require.True(t, ok)
+		break
+	default:
+		require.Fail(t, "RequestBlocksInRange should get called in case of committer")
+	}
+}
+
+//mockPeerLedger mocks peerledger and support GetBlockByNumber feature
+type mockPeerLedger struct {
+	*mocks.Ledger
+}
+
+// GetBlockByNumber returns the block by number
+func (m *mockPeerLedger) GetBlockByNumber(blockNumber uint64) (*common.Block, error) {
+	b := mocks.NewBlockBuilder("test", blockNumber)
+	return b.Build(), nil
 }

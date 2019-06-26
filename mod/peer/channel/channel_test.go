@@ -65,8 +65,11 @@ func TestJoinChainHandlerAsEndorser(t *testing.T) {
 
 	iChain := func(string) {}
 
+	cfgBlk := func(ledger ledger.PeerLedger) (*common.Block, error) {
+		return nil, nil
+	}
 	//register handlers for create chain and init chain
-	RegisterChannelInitializer(nil, cChain, iChain)
+	RegisterChannelInitializer(nil, cChain, iChain, cfgBlk)
 
 	cleanup := ledgermgmt.InitializeTestEnv(t)
 	defer cleanup()
