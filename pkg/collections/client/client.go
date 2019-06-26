@@ -90,6 +90,12 @@ func (d *Client) Put(ns, coll, key string, value []byte) error {
 
 // PutMultipleValues puts the given key/values
 func (d *Client) PutMultipleValues(ns, coll string, kvs []*KeyValue) error {
+	bcInfo, err := d.ledger.GetBlockchainInfo()
+	if err != nil {
+		logger.Warningf("[%s] Error getting blockchain info: %s", d.channelID, err)
+		return errors.WithMessagef(err, "error getting blockchain info in channel [%s]", d.channelID)
+	}
+
 	// Generate a new TxID. The TxID doesn't really matter since this transaction is never committed.
 	// It just has to be unique.
 	txID, err := d.newTxID()
@@ -120,12 +126,6 @@ func (d *Client) PutMultipleValues(ns, coll string, kvs []*KeyValue) error {
 	if err != nil {
 		logger.Warningf("[%s] Error generating simulation results for transaction [%s]: %s", d.channelID, txID, err)
 		return errors.WithMessagef(err, "error generating simulation results for transaction [%s] in channel [%s]", txID, d.channelID)
-	}
-
-	bcInfo, err := d.ledger.GetBlockchainInfo()
-	if err != nil {
-		logger.Warningf("[%s] Error getting blockchain info: %s", d.channelID, err)
-		return errors.WithMessagef(err, "error getting blockchain info in channel [%s]", d.channelID)
 	}
 
 	configPkg, err := d.getCollectionConfigPackage(ns, coll)
