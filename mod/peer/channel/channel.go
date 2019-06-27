@@ -36,12 +36,17 @@ var pluginMapper plugin.Mapper
 
 var initChain func(string)
 
+var getCurrConfigBlockFromLedger CurrentConfigBlock
+
 //JoinChain is a handle function for cscc join chain
 type JoinChain func(string, *common.Block, sysccprovider.SystemChaincodeProvider, ledger.DeployedChaincodeInfoProvider, plugindispatcher.LifecycleResources, plugindispatcher.CollectionAndLifecycleResources) pb.Response
 
 //CreateChain a handle function used by initialize channel feature
 type CreateChain func(string, ledger.PeerLedger, *common.Block, sysccprovider.SystemChaincodeProvider, plugin.Mapper,
 	ledger.DeployedChaincodeInfoProvider, plugindispatcher.LifecycleResources, plugindispatcher.CollectionAndLifecycleResources) error
+
+//CurrentConfigBlock a handle use by initialize channel feature to get current config block from ledger
+type CurrentConfigBlock func(ledger ledger.PeerLedger) (*common.Block, error)
 
 //JoinChainHandler can be used to provide extended features to CSCC join chain
 func JoinChainHandler(handle JoinChain) JoinChain {
@@ -53,7 +58,7 @@ func JoinChainHandler(handle JoinChain) JoinChain {
 	return func(chainID string, block *common.Block, sccp sysccprovider.SystemChaincodeProvider, deployedCCInfoProvider ledger.DeployedChaincodeInfoProvider, lr plugindispatcher.LifecycleResources, nr plugindispatcher.CollectionAndLifecycleResources) pb.Response {
 		logger.Debugf("Not a committer - initializing channel [%s]...", chainID)
 
-		if err := initializeChannelWithRetry(chainID, block, sccp, deployedCCInfoProvider, lr, nr); err != nil {
+		if err := initializeChannelWithRetry(chainID, sccp, deployedCCInfoProvider, lr, nr); err != nil {
 			logger.Errorf("Error initializing channel [%s]: %s", chainID, err)
 			return shim.Error(fmt.Sprintf("Error initializing channel [%s] : [%s]", chainID, err))
 		}
@@ -64,18 +69,19 @@ func JoinChainHandler(handle JoinChain) JoinChain {
 }
 
 //RegisterChannelInitializer registers channel initializer using get block handle and create chain handle
-func RegisterChannelInitializer(pm plugin.Mapper, cChain CreateChain, iChain func(string)) {
+func RegisterChannelInitializer(pm plugin.Mapper, cChain CreateChain, iChain func(string), cfgBlk CurrentConfigBlock) {
 	once.Do(func() {
 		createChain = cChain
 		initChain = iChain
 		pluginMapper = pm
+		getCurrConfigBlockFromLedger = cfgBlk
 		return
 	})
 	logger.Warn("Plugin mappers and createChain handler cannot be replaced")
 }
 
 //initializeChannelWithRetry perform channel initialization with retry
-func initializeChannelWithRetry(cid string, block *common.Block, sccp sysccprovider.SystemChaincodeProvider,
+func initializeChannelWithRetry(cid string, sccp sysccprovider.SystemChaincodeProvider,
 	deployedCCInfoProvider ledger.DeployedChaincodeInfoProvider, lr plugindispatcher.LifecycleResources, nr plugindispatcher.CollectionAndLifecycleResources) error {
 
 	initializeChannel := func() error {
@@ -89,8 +95,14 @@ func initializeChannelWithRetry(cid string, block *common.Block, sccp sysccprovi
 			return err
 		}
 
+		var cb *common.Block
+		if cb, err = getCurrConfigBlockFromLedger(ledger); err != nil {
+			logger.Warningf("Failed to find config block on ledger %s(%s)", cid, err)
+			return err
+		}
+
 		// Create a chain if we get a valid ledger with config block
-		if err = createChain(cid, ledger, block, sccp, pluginMapper, deployedCCInfoProvider, lr, nr); err != nil {
+		if err = createChain(cid, ledger, cb, sccp, pluginMapper, deployedCCInfoProvider, lr, nr); err != nil {
 			logger.Warningf("Failed to load chain %s(%s)", cid, err)
 			logger.Debugf("Error reloading chain %s with message %s. We continue to the next chain rather than abort.", cid, err)
 			return err

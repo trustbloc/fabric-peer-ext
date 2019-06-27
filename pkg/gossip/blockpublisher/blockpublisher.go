@@ -105,6 +105,7 @@ type Publisher struct {
 	configUpdateChan     chan *configUpdate
 	doneChan             chan struct{}
 	closed               uint32
+	lastCommittedBlock   uint64
 }
 
 // New returns a new block Publisher for the given channel
@@ -178,7 +179,13 @@ func (p *Publisher) AddCCUpgradeHandler(handler api.ChaincodeUpgradeHandler) {
 
 // Publish publishes a block
 func (p *Publisher) Publish(block *cb.Block) {
+	defer atomic.StoreUint64(&p.lastCommittedBlock, block.Header.Number)
 	newBlockEvent(p.channelID, block, p.wChan, p.rChan, p.ccEvtChan, p.configUpdateChan).publish()
+}
+
+// LedgerHeight returns ledger height based on last block published
+func (p *Publisher) LedgerHeight() uint64 {
+	return atomic.LoadUint64(&p.lastCommittedBlock) + 1
 }
 
 func (p *Publisher) listen() {

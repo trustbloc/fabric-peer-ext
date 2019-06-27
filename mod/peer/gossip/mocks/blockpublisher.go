@@ -49,3 +49,9 @@ func (m *BlockPublisher) AddCCEventHandler(handler api.ChaincodeEventHandler) {
 func (m *BlockPublisher) Publish(block *cb.Block) {
 	// Not implemented
 }
+
+// LedgerHeight returns ledger height based on last block published
+func (m *BlockPublisher) LedgerHeight() uint64 {
+	// Not implemented
+	return 0
+}
