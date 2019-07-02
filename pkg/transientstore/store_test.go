@@ -7,11 +7,14 @@ SPDX-License-Identifier: Apache-2.0
 package transientstore
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"sort"
 	"testing"
+	"time"
 
+	"github.com/bluele/gcache"
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/common/cauthdsl"
 	"github.com/hyperledger/fabric/core/ledger"
@@ -405,7 +408,7 @@ func TestTransientStorePurgeByHeight(t *testing.T) {
 	}
 	endorsersResults = append(endorsersResults, endorser3SimulationResults)
 
-	// Results produced by endorser 3
+	// Results produced by endorser 4
 	endorser4SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
 		ReceivedAtBlockHeight:          13,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
@@ -645,4 +648,174 @@ func sampleCollectionConfigPackage(colName string) *common.CollectionConfig {
 	maximumPeerCount = 2
 
 	return createCollectionConfig(colName, policyEnvelope, requiredPeerCount, maximumPeerCount)
+}
+
+func TestBadUpdateTxidCache(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+			return
+		}
+	}()
+
+	s := newStore()
+	s.cache = &mockBadCache{}
+	s.txidCache = &mockBadCache{}
+
+	s.updateTxidCache("000", 0)
+}
+
+func TestBadGetTxPvtRWSetFromCache(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		}
+	}()
+
+	s := newStore()
+	s.cache = &mockBadCache{}
+
+	s.getTxPvtRWSetFromCache("000")
+}
+
+func TestBadGetTxidsFromBlockHeightCache(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		}
+	}()
+
+	s := newStore()
+	s.blockHeightCache = &mockBadCache{}
+
+	s.getTxidsFromBlockHeightCache(0)
+}
+
+func TestBadGetBlockHeightKeysFromTxidCache(t *testing.T) {
+	s := newStore()
+	s.txidCache = &mockBadCache{}
+
+	v, e := s.getBlockHeightKeysFromTxidCache([]string{"0", "1"})
+	assert.Error(t, e)
+	assert.Empty(t, v)
+	e = s.purgeBlockHeightCacheByTxids([]string{"0", "1"})
+	assert.Error(t, e)
+}
+
+func TestBadGetTxPvtRWSetByTxid(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		}
+	}()
+
+	s := newStore()
+	s.cache = &mockBadCache{}
+
+	s.GetTxPvtRWSetByTxid("0", nil)
+}
+
+func TestEmptyGetTxPvtRWSetByTxid(t *testing.T) {
+	s := newStore()
+
+	v, e := s.GetTxPvtRWSetByTxid("0", nil)
+	assert.NoError(t, e)
+	assert.Empty(t, v)
+}
+
+func TestGetBlockHeightKeysFromTxidCache(t *testing.T) {
+	s := newStore()
+	v, e := s.getBlockHeightKeysFromTxidCache([]string{"0"})
+	assert.NoError(t, e)
+	assert.Empty(t, v)
+	s.setTxidToBlockHeightCache("0", 1)
+}
+
+type mockBadCache struct {
+	gcache.Cache // necessary for unexported get() interface function
+}
+
+func (mockBadCache) Set(interface{}, interface{}) error {
+	return errors.New("bad set error")
+}
+
+func (mockBadCache) SetWithExpire(interface{}, interface{}, time.Duration) error {
+	panic("implement me")
+}
+
+func (mockBadCache) Get(interface{}) (interface{}, error) {
+	return nil, errors.New("bad error")
+}
+
+func (mockBadCache) GetIFPresent(interface{}) (interface{}, error) {
+	panic("implement me")
+}
+
+func (mockBadCache) GetALL() map[interface{}]interface{} {
+	panic("implement me")
+}
+
+func (mockBadCache) Has(interface{}) bool {
+	panic("implement me")
+}
+
+func (mockBadCache) Remove(interface{}) bool {
+	panic("implement me")
+}
+
+func (mockBadCache) Purge() {
+	panic("implement me")
+}
+
+func (mockBadCache) Keys() []interface{} {
+	panic("implement me")
+}
+
+func (mockBadCache) Len() int {
+	panic("implement me")
+}
+
+func (mockBadCache) HitCount() uint64 {
+	panic("implement me")
+}
+
+func (mockBadCache) MissCount() uint64 {
+	panic("implement me")
+}
+
+func (mockBadCache) LookupCount() uint64 {
+	panic("implement me")
+}
+
+func (mockBadCache) HitRate() float64 {
+	panic("implement me")
+}
+
+func TestRwsetScanner_Next(t *testing.T) {
+	rs := RwsetScanner{}
+	n, e := rs.Next()
+	assert.NoError(t, e)
+	assert.Empty(t, n)
+
+	rs = RwsetScanner{
+		next: 1,
+		results: []keyValue{
+			{"k1", "v1"},
+			{"k2", "v2"},
+		},
+	}
+	n, e = rs.Next()
+	assert.Error(t, e)
+	assert.Empty(t, n)
+
+	rs = RwsetScanner{
+		next: 1,
+		results: []keyValue{
+			{"01000100020003", "v1"},
+			{"02000100020003", "v2"},
+		},
+	}
+	n, e = rs.Next()
+	assert.Error(t, e)
+	assert.Empty(t, n)
 }
