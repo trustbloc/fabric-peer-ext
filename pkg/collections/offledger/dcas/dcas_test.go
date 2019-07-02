@@ -41,7 +41,7 @@ func TestValidator(t *testing.T) {
 	})
 }
 
-func TestDecorator(t *testing.T) {
+func TestDecorator_BeforeSave(t *testing.T) {
 	value1_1 := []byte("value1_1")
 	value := &storeapi.ExpiringValue{
 		Value: value1_1,
@@ -49,7 +49,7 @@ func TestDecorator(t *testing.T) {
 
 	t.Run("CAS key -> success", func(t *testing.T) {
 		key := storeapi.NewKey(txID1, ns1, coll1, GetCASKey(value1_1))
-		k, v, err := Decorator(key, value)
+		k, v, err := Decorator.BeforeSave(key, value)
 		assert.NoError(t, err)
 		assert.Equal(t, Base58Encode(key.Key), k.Key)
 		assert.Equal(t, value, v)
@@ -57,7 +57,7 @@ func TestDecorator(t *testing.T) {
 
 	t.Run("Empty key -> success", func(t *testing.T) {
 		key := storeapi.NewKey(txID1, ns1, coll1, "")
-		k, v, err := Decorator(key, value)
+		k, v, err := Decorator.BeforeSave(key, value)
 		assert.NoError(t, err)
 		assert.Equal(t, GetFabricCASKey(value1_1), k.Key)
 		assert.Equal(t, value, v)
@@ -65,7 +65,7 @@ func TestDecorator(t *testing.T) {
 
 	t.Run("Invalid key -> error", func(t *testing.T) {
 		key := storeapi.NewKey(txID1, ns1, coll1, "key1")
-		k, v, err := Decorator(key, value)
+		k, v, err := Decorator.BeforeSave(key, value)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "the key should be the hash of the value")
 		assert.Nil(t, k)
@@ -73,10 +73,28 @@ func TestDecorator(t *testing.T) {
 	})
 
 	t.Run("Nil value -> error", func(t *testing.T) {
-		k, v, err := Decorator(storeapi.NewKey(txID1, ns1, coll1, "key1"), &storeapi.ExpiringValue{})
+		k, v, err := Decorator.BeforeSave(storeapi.NewKey(txID1, ns1, coll1, "key1"), &storeapi.ExpiringValue{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "nil value for key")
 		assert.Nil(t, k)
 		assert.Nil(t, v)
+	})
+}
+
+func TestDecorator_BeforeDelete(t *testing.T) {
+	value1_1 := []byte("value1_1")
+
+	t.Run("CAS key -> success", func(t *testing.T) {
+		key := storeapi.NewKey(txID1, ns1, coll1, GetCASKey(value1_1))
+		k, err := Decorator.BeforeLoad(key)
+		assert.NoError(t, err)
+		assert.Equal(t, Base58Encode(key.Key), k.Key)
+	})
+
+	t.Run("empty key -> success", func(t *testing.T) {
+		key := storeapi.NewKey(txID1, ns1, coll1, "")
+		k, err := Decorator.BeforeLoad(key)
+		assert.NoError(t, err)
+		assert.Equal(t, Base58Encode(key.Key), k.Key)
 	})
 }

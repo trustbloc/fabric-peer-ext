@@ -23,9 +23,17 @@ func Validator(_, _, _, key string, value []byte) error {
 	return nil
 }
 
-// Decorator is an off-ledger decorator that ensures the given key is the hash of the value. If the key is not
+// Decorator is an off-ledger decorator that ensures the key is the hash of the value and that
+// the keys are Base58 encoded when they are saved and Base58 decoded when they are retrieved.
+var Decorator = &decorator{}
+
+type decorator struct {
+}
+
+// BeforeSave ensures that the given key is the hash of the value. If the key is not
 // specified then it is generated. If the key is provided then it is validated against the value.
-func Decorator(key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key, *storeapi.ExpiringValue, error) {
+// The key is also base58 encoded since Fabric doesn't allow certain characters to be used in the key.
+func (d *decorator) BeforeSave(key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key, *storeapi.ExpiringValue, error) {
 	dcasKey, err := validateCASKey(key.Key, value.Value)
 	if err != nil {
 		return nil, nil, err
@@ -43,9 +51,8 @@ func Decorator(key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key,
 	return newKey, value, nil
 }
 
-// KeyDecorator is an off-ledger decorator that ensures the given key is base58 encoded
-// since Fabric doesn't allow certain characters to be used in the key.
-func KeyDecorator(key *storeapi.Key) (*storeapi.Key, error) {
+// BeforeLoad ensures the given key is base58 encoded since Fabric doesn't allow certain characters to be used in the key.
+func (d *decorator) BeforeLoad(key *storeapi.Key) (*storeapi.Key, error) {
 	return &storeapi.Key{
 		EndorsedAtTxID: key.EndorsedAtTxID,
 		Namespace:      key.Namespace,

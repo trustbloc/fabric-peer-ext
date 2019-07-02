@@ -88,7 +88,6 @@ var newOffLedgerProvider = func() olapi.StoreProvider {
 		olstoreprovider.WithCollectionType(
 			cb.CollectionType_COL_DCAS,
 			olstoreprovider.WithDecorator(dcas.Decorator),
-			olstoreprovider.WithKeyDecorator(dcas.KeyDecorator),
 		),
 	)
 }

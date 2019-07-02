@@ -35,8 +35,14 @@ func WithCollectionType(collType common.CollectionType, opts ...CollOption) Opti
 	}
 }
 
-// Decorator allows the key/value to be modified/validated before being persisted
-type Decorator func(key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key, *storeapi.ExpiringValue, error)
+// Decorator allows the key/value to be modified/validated before being persisted.
+type Decorator interface {
+	// BeforeSave has the opportunity to decorate the key and/or value before the key-value is saved.
+	BeforeSave(key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key, *storeapi.ExpiringValue, error)
+
+	// BeforeLoad has the opportunity to decorate the key before it is loaded/deleted.
+	BeforeLoad(key *storeapi.Key) (*storeapi.Key, error)
+}
 
 // WithDecorator sets a decorator for a collection type allowing the key/value to be validated/modified before being persisted
 func WithDecorator(decorator Decorator) CollOption {
@@ -45,19 +51,8 @@ func WithDecorator(decorator Decorator) CollOption {
 	}
 }
 
-// KeyDecorator allows the key to be modified/validated
-type KeyDecorator func(key *storeapi.Key) (*storeapi.Key, error)
-
-// WithKeyDecorator sets a key decorator for a collection type allowing the key to be validated/modified
-func WithKeyDecorator(decorator KeyDecorator) CollOption {
-	return func(c *collTypeConfig) {
-		c.keyDecorator = decorator
-	}
-}
-
 type collTypeConfig struct {
-	decorator    Decorator
-	keyDecorator KeyDecorator
+	decorator Decorator
 }
 
 // New returns a store provider factory

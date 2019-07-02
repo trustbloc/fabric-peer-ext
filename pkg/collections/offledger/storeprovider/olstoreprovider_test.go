@@ -48,12 +48,7 @@ func TestStoreProvider_WithDecorator(t *testing.T) {
 	f := New(
 		WithCollectionType(
 			common.CollectionType_COL_DCAS,
-			WithDecorator(func(key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key, *storeapi.ExpiringValue, error) {
-				return key, value, nil
-			}),
-			WithKeyDecorator(func(key *storeapi.Key) (*storeapi.Key, error) {
-				return key, nil
-			}),
+			WithDecorator(&mockDecorator{}),
 		))
 	require.NotNil(t, f)
 	config, ok := f.collConfigs[common.CollectionType_COL_DCAS]
@@ -63,6 +58,17 @@ func TestStoreProvider_WithDecorator(t *testing.T) {
 
 func TestMain(m *testing.M) {
 	os.Exit(testMain(m))
+}
+
+type mockDecorator struct {
+}
+
+func (d *mockDecorator) BeforeSave(key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key, *storeapi.ExpiringValue, error) {
+	return key, value, nil
+}
+
+func (d *mockDecorator) BeforeLoad(key *storeapi.Key) (*storeapi.Key, error) {
+	return key, nil
 }
 
 func testMain(m *testing.M) int {

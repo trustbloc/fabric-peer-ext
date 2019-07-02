@@ -75,7 +75,7 @@ func (s *store) PutData(config *cb.StaticCollectionConfig, key *storeapi.Key, va
 		return errors.Errorf("invalid collection config for key [%s]", key)
 	}
 
-	key, value, err := s.decorate(config, key, value)
+	key, value, err := s.beforeSave(config, key, value)
 	if err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ func (s *store) GetData(key *storeapi.Key) (*storeapi.ExpiringValue, error) {
 	return s.getData(key.EndorsedAtTxID, key.Namespace, key.Collection, key.Key)
 }
 
-// tDataMultipleKeys returns the  data for the given keys
+// GetDataMultipleKeys returns the  data for the given keys
 func (s *store) GetDataMultipleKeys(key *storeapi.MultiKey) (storeapi.ExpiringValues, error) {
 	return s.getDataMultipleKeys(key.EndorsedAtTxID, key.Namespace, key.Collection, key.Keys...)
 }
@@ -161,10 +161,10 @@ func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*c
 
 	for _, kv := range batch {
 		if kv.Value != nil {
-			logger.Infof("[%s] Putting key [%s:%s:%s] in Tx [%s]", s.channelID, ns, collRWSet.CollectionName, kv.Key, kv.TxID)
+			logger.Debugf("[%s] Putting key [%s:%s:%s] in Tx [%s]", s.channelID, ns, collRWSet.CollectionName, kv.Key, kv.TxID)
 			s.cache.Put(ns, collRWSet.CollectionName, kv.Key, kv.Value)
 		} else {
-			logger.Infof("[%s] Deleting key [%s:%s:%s]", s.channelID, ns, collRWSet.CollectionName, kv.Key)
+			logger.Debugf("[%s] Deleting key [%s:%s:%s]", s.channelID, ns, collRWSet.CollectionName, kv.Key)
 			s.cache.Delete(ns, collRWSet.CollectionName, kv.Key)
 		}
 	}
@@ -233,14 +233,14 @@ func (s *store) createBatch(txID, ns string, config *cb.StaticCollectionConfig, 
 func (s *store) newKeyValue(txID, ns string, config *cb.StaticCollectionConfig, expiryTime time.Time, w *kvrwset.KVWrite) (*api.KeyValue, error) {
 	key := storeapi.NewKey(txID, ns, config.Name, w.Key)
 	if w.IsDelete {
-		dKey, err := s.decorateKey(config, key)
+		dKey, err := s.beforeLoad(config, key)
 		if err != nil {
 			return nil, err
 		}
 		return &api.KeyValue{Key: dKey.Key}, nil
 	}
 
-	dKey, value, err := s.decorate(config, key,
+	dKey, value, err := s.beforeSave(config, key,
 		&storeapi.ExpiringValue{
 			Value:  w.Value,
 			Expiry: expiryTime,
@@ -314,20 +314,20 @@ func (s *store) getCollectionConfig(collConfigPkgs map[string]*common.Collection
 	return nil, false
 }
 
-func (s *store) decorate(config *cb.StaticCollectionConfig, key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key, *storeapi.ExpiringValue, error) {
+func (s *store) beforeSave(config *cb.StaticCollectionConfig, key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key, *storeapi.ExpiringValue, error) {
 	cfg, ok := s.collConfigs[config.Type]
 	if !ok || cfg.decorator == nil {
 		return key, value, nil
 	}
-	return cfg.decorator(key, value)
+	return cfg.decorator.BeforeSave(key, value)
 }
 
-func (s *store) decorateKey(config *cb.StaticCollectionConfig, key *storeapi.Key) (*storeapi.Key, error) {
+func (s *store) beforeLoad(config *cb.StaticCollectionConfig, key *storeapi.Key) (*storeapi.Key, error) {
 	cfg, ok := s.collConfigs[config.Type]
-	if !ok || cfg.keyDecorator == nil {
+	if !ok || cfg.decorator == nil {
 		return key, nil
 	}
-	return cfg.keyDecorator(key)
+	return cfg.decorator.BeforeLoad(key)
 }
 
 func (s *store) collTypeSupported(collType cb.CollectionType) bool {

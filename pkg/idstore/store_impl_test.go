@@ -12,12 +12,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hyperledger/fabric/core/ledger"
-
-	"github.com/trustbloc/fabric-peer-ext/mod/peer/testutil"
-
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	"github.com/hyperledger/fabric/extensions/testutil"
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
