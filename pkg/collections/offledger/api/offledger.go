@@ -28,6 +28,10 @@ type Store interface {
 	// GetDataMultipleKeys gets the values for the multiple items in a single call
 	GetDataMultipleKeys(key *storeapi.MultiKey) (storeapi.ExpiringValues, error)
 
+	// Query executes the given query
+	// NOTE: This function is only supported on CouchDB
+	Query(key *storeapi.QueryKey) (storeapi.ResultsIterator, error)
+
 	// Close closes the store
 	Close()
 }
@@ -48,6 +52,10 @@ type Retriever interface {
 
 	// GetDataMultipleKeys gets the values for the multiple data items in a single call
 	GetDataMultipleKeys(ctxt context.Context, key *storeapi.MultiKey) (storeapi.ExpiringValues, error)
+
+	// Query returns the results from the given query
+	// NOTE: This function is only supported on CouchDB
+	Query(ctxt context.Context, key *storeapi.QueryKey) (storeapi.ResultsIterator, error)
 }
 
 // Provider provides data retrievers

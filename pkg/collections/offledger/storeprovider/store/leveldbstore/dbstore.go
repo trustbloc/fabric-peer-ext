@@ -98,6 +98,11 @@ func (s *store) GetMultiple(keys ...string) ([]*api.Value, error) {
 	return values, nil
 }
 
+// Query is not implemented
+func (s *store) Query(query string) ([]*api.KeyValue, error) {
+	panic("not implemented")
+}
+
 // DeleteExpiredKeys delete expired keys from db
 func (s *store) DeleteExpiredKeys() error {
 	dbBatch := leveldbhelper.NewUpdateBatch()

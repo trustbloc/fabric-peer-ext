@@ -11,12 +11,13 @@ import (
 
 	commonledger "github.com/hyperledger/fabric/common/ledger"
 	"github.com/hyperledger/fabric/core/ledger"
+	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
 )
 
 // QueryExecutor is a mock query executor
 type QueryExecutor struct {
 	state        map[string]map[string][]byte
-	queryResults map[string][][]byte
+	queryResults map[string][]*statedb.VersionedKV
 	error        error
 }
 
@@ -24,7 +25,7 @@ type QueryExecutor struct {
 func NewQueryExecutor() *QueryExecutor {
 	return &QueryExecutor{
 		state:        make(map[string]map[string][]byte),
-		queryResults: make(map[string][][]byte),
+		queryResults: make(map[string][]*statedb.VersionedKV),
 	}
 }
 
@@ -52,13 +53,13 @@ func (m *QueryExecutor) WithPrivateState(ns, collection, key string, value []byt
 }
 
 // WithQueryResults sets the query results for a given query on a namespace
-func (m *QueryExecutor) WithQueryResults(ns, query string, results [][]byte) *QueryExecutor {
+func (m *QueryExecutor) WithQueryResults(ns, query string, results []*statedb.VersionedKV) *QueryExecutor {
 	m.queryResults[queryResultsKey(ns, query)] = results
 	return m
 }
 
 // WithPrivateQueryResults sets the query results for a given query on a private collection
-func (m *QueryExecutor) WithPrivateQueryResults(ns, coll, query string, results [][]byte) *QueryExecutor {
+func (m *QueryExecutor) WithPrivateQueryResults(ns, coll, query string, results []*statedb.VersionedKV) *QueryExecutor {
 	m.queryResults[privateQueryResultsKey(ns, coll, query)] = results
 	return m
 }
@@ -106,9 +107,9 @@ func (m *QueryExecutor) GetStateRangeScanIteratorWithMetadata(namespace string, 
 	panic("not implemented")
 }
 
-// ExecuteQuery is not currently implemented and will panic if called
+// ExecuteQuery returns mock results for the given query
 func (m *QueryExecutor) ExecuteQuery(namespace, query string) (commonledger.ResultsIterator, error) {
-	panic("not implemented")
+	return NewResultsIterator().WithResults(m.queryResults[queryResultsKey(namespace, query)]), m.error
 }
 
 // ExecuteQueryWithMetadata is not currently implemented and will panic if called
@@ -141,7 +142,7 @@ func (m *QueryExecutor) GetPrivateDataRangeScanIterator(namespace, collection, s
 	panic("not implemented")
 }
 
-// ExecuteQueryOnPrivateData is not currently implemented and will panic if called
+// ExecuteQueryOnPrivateData  returns mock results for the given query
 func (m *QueryExecutor) ExecuteQueryOnPrivateData(namespace, collection, query string) (commonledger.ResultsIterator, error) {
 	return NewResultsIterator().WithResults(m.queryResults[privateQueryResultsKey(namespace, collection, query)]), m.error
 }

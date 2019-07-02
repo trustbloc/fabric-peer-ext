@@ -24,6 +24,22 @@ type ExpiringValue struct {
 // ExpiringValues expiring values
 type ExpiringValues []*ExpiringValue
 
+// QueryResult holds a single item from the query result set
+type QueryResult struct {
+	*Key
+	*ExpiringValue
+}
+
+// ResultsIterator is an iterator returned by a query
+type ResultsIterator interface {
+	// Next returns the next item in the result set. The result is expected to be nil when
+	// the iterator gets exhausted
+	Next() (*QueryResult, error)
+
+	// Close releases resources occupied by the iterator
+	Close()
+}
+
 // Store manages the storage of private data collections.
 type Store interface {
 	// Persist stores the private write set of a transaction.
@@ -40,6 +56,10 @@ type Store interface {
 
 	// GetDataMultipleKeys gets the values for the multiple items in a single call
 	GetDataMultipleKeys(key *MultiKey) (ExpiringValues, error)
+
+	// Query executes the given query
+	// NOTE: This function is only supported on CouchDB
+	Query(key *QueryKey) (ResultsIterator, error)
 
 	// PutData stores the key/value.
 	PutData(config *cb.StaticCollectionConfig, key *Key, value *ExpiringValue) error
@@ -61,6 +81,9 @@ type Retriever interface {
 
 	// GetDataMultipleKeys gets the values for the multiple data items in a single call
 	GetDataMultipleKeys(ctxt context.Context, key *MultiKey) (ExpiringValues, error)
+
+	// Query returns the results of the given query
+	Query(ctxt context.Context, key *QueryKey) (ResultsIterator, error)
 }
 
 // Provider provides private data retrievers

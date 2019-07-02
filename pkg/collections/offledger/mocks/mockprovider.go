@@ -38,3 +38,21 @@ func (m *retriever) GetDataMultipleKeys(ctxt context.Context, key *storeapi.Mult
 	}
 	return values, nil
 }
+
+func (m *retriever) Query(ctxt context.Context, key *storeapi.QueryKey) (storeapi.ResultsIterator, error) {
+	return newResultsIterator(), nil
+}
+
+type resultsIterator struct {
+}
+
+func newResultsIterator() *resultsIterator {
+	return &resultsIterator{}
+}
+
+func (it *resultsIterator) Next() (*storeapi.QueryResult, error) {
+	return nil, nil
+}
+
+func (it *resultsIterator) Close() {
+}

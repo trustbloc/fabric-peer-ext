@@ -40,3 +40,8 @@ func getHash(bytes []byte) []byte {
 func Base58Encode(s string) string {
 	return base58.Encode([]byte(s))
 }
+
+// Base58Decode decodes the given base 58 string
+func Base58Decode(s string) []byte {
+	return base58.Decode(s)
+}

@@ -17,7 +17,7 @@ require (
 	go.uber.org/zap v1.10.0
 )
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.0.0-20190625183800-84acd6000440
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.0.0-20190702181614-af971efb8457
 
 replace github.com/hyperledger/fabric/extensions => ./mod/peer
 

@@ -11,6 +11,7 @@ import (
 
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/hyperledger/fabric/protos/common"
+	"github.com/hyperledger/fabric/protos/ledger/queryresult"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,6 +23,7 @@ const (
 	tx1       = "tx1"
 	ns1       = "ns1"
 	coll1     = "coll1"
+	coll2     = "coll2"
 	key1      = "key1"
 	key2      = "key2"
 )
@@ -94,6 +96,136 @@ func TestHandler_HandleGetPrivateDataMultipleKeys(t *testing.T) {
 			Type: common.CollectionType_COL_DCAS,
 			Name: coll1,
 		})
+	})
+}
+
+func TestHandler_HandleExecuteQueryOnPrivateData(t *testing.T) {
+	const query = "some query"
+
+	v1 := []byte("v1")
+	v2 := []byte("v2")
+
+	olResults := []*storeapi.QueryResult{
+		{
+			Key: storeapi.NewKey(tx1, ns1, coll1, key1),
+			ExpiringValue: &storeapi.ExpiringValue{
+				Value: v1,
+			},
+		},
+		{
+			Key: storeapi.NewKey(tx1, ns1, coll1, key2),
+			ExpiringValue: &storeapi.ExpiringValue{
+				Value: v2,
+			},
+		},
+	}
+	dcasResults := []*storeapi.QueryResult{
+		{
+			Key: storeapi.NewKey(tx1, ns1, coll2, key1),
+			ExpiringValue: &storeapi.ExpiringValue{
+				Value: v1,
+			},
+		},
+		{
+			Key: storeapi.NewKey(tx1, ns1, coll2, key2),
+			ExpiringValue: &storeapi.ExpiringValue{
+				Value: v2,
+			},
+		},
+	}
+
+	dataProvider := mocks.NewDataProvider().
+		WithQueryResults(storeapi.NewQueryKey(tx1, ns1, coll1, query), olResults).
+		WithQueryResults(storeapi.NewQueryKey(tx1, ns1, coll2, query), dcasResults)
+
+	h := New(channelID, dataProvider)
+	require.NotNil(t, h)
+
+	t.Run("Unhandled collection", func(t *testing.T) {
+		config := &common.StaticCollectionConfig{}
+		value, handled, err := h.HandleExecuteQueryOnPrivateData(tx1, ns1, config, "some query")
+		assert.NoError(t, err)
+		assert.False(t, handled)
+		assert.Nil(t, value)
+	})
+
+	t.Run("Transient Data", func(t *testing.T) {
+		config := &common.StaticCollectionConfig{
+			Type: common.CollectionType_COL_TRANSIENT,
+			Name: coll1,
+		}
+
+		_, handled, err := h.HandleExecuteQueryOnPrivateData(tx1, ns1, config, query)
+		require.Error(t, err)
+		require.True(t, handled)
+	})
+
+	t.Run("Off-ledger Data", func(t *testing.T) {
+		config := &common.StaticCollectionConfig{
+			Type: common.CollectionType_COL_OFFLEDGER,
+			Name: coll1,
+		}
+
+		it, handled, err := h.HandleExecuteQueryOnPrivateData(tx1, ns1, config, "some query")
+		require.NoError(t, err)
+		require.True(t, handled)
+		require.NotNil(t, it)
+
+		next, err := it.Next()
+		require.NoError(t, err)
+		require.NotNil(t, next)
+		kv, ok := next.(*queryresult.KV)
+		require.True(t, ok)
+		require.Equal(t, asPvtDataNs(ns1, coll1), kv.Namespace)
+		require.Equal(t, key1, kv.Key)
+		require.Equal(t, v1, kv.Value)
+
+		next, err = it.Next()
+		require.NoError(t, err)
+		require.NotNil(t, next)
+		kv, ok = next.(*queryresult.KV)
+		require.True(t, ok)
+		require.Equal(t, asPvtDataNs(ns1, coll1), kv.Namespace)
+		require.Equal(t, key2, kv.Key)
+		require.Equal(t, v2, kv.Value)
+
+		next, err = it.Next()
+		require.NoError(t, err)
+		require.Nil(t, next)
+	})
+
+	t.Run("DCAS Data", func(t *testing.T) {
+		config := &common.StaticCollectionConfig{
+			Type: common.CollectionType_COL_DCAS,
+			Name: coll2,
+		}
+
+		it, handled, err := h.HandleExecuteQueryOnPrivateData(tx1, ns1, config, "some query")
+		require.NoError(t, err)
+		require.True(t, handled)
+		require.NotNil(t, it)
+
+		next, err := it.Next()
+		require.NoError(t, err)
+		require.NotNil(t, next)
+		kv, ok := next.(*queryresult.KV)
+		require.True(t, ok)
+		require.Equal(t, asPvtDataNs(ns1, coll2), kv.Namespace)
+		require.Equal(t, key1, kv.Key)
+		require.Equal(t, v1, kv.Value)
+
+		next, err = it.Next()
+		require.NoError(t, err)
+		require.NotNil(t, next)
+		kv, ok = next.(*queryresult.KV)
+		require.True(t, ok)
+		require.Equal(t, asPvtDataNs(ns1, coll2), kv.Namespace)
+		require.Equal(t, key2, kv.Key)
+		require.Equal(t, v2, kv.Value)
+
+		next, err = it.Next()
+		require.NoError(t, err)
+		require.Nil(t, next)
 	})
 }
 

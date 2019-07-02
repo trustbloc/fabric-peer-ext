@@ -55,3 +55,26 @@ func NewMultiKey(endorsedAtTxID string, ns string, coll string, keys ...string) 
 func (k *MultiKey) String() string {
 	return fmt.Sprintf("%s:%s:%s-%s", k.Namespace, k.Collection, k.Keys, k.EndorsedAtTxID)
 }
+
+// QueryKey holds the criteria for retrieving collection data in rich queries
+type QueryKey struct {
+	EndorsedAtTxID string
+	Namespace      string
+	Collection     string
+	Query          string
+}
+
+// NewQueryKey returns a new collection data query-key
+func NewQueryKey(endorsedAtTxID string, ns string, coll string, query string) *QueryKey {
+	return &QueryKey{
+		EndorsedAtTxID: endorsedAtTxID,
+		Namespace:      ns,
+		Collection:     coll,
+		Query:          query,
+	}
+}
+
+// String returns the string representation of the key
+func (k *QueryKey) String() string {
+	return fmt.Sprintf("%s:%s:[%s]-%s", k.Namespace, k.Collection, k.Query, k.EndorsedAtTxID)
+}

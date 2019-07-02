@@ -45,6 +45,9 @@ type Validator func(txID, ns, coll, key string, value []byte) error
 type Decorator interface {
 	// BeforeLoad has the opportunity to decorate the key before target is loaded or deleted.
 	BeforeLoad(key *storeapi.Key) (*storeapi.Key, error)
+
+	// AfterQuery has the opportunity to decorate the key and/or value that is returned from a DB query.
+	AfterQuery(key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key, *storeapi.ExpiringValue, error)
 }
 
 // Provider is a collection data data provider.
@@ -204,6 +207,33 @@ func (r *retriever) GetDataMultipleKeys(ctxt context.Context, key *storeapi.Mult
 	}
 
 	return values, nil
+}
+
+// Query executes the given rich query
+func (r *retriever) Query(ctxt context.Context, key *storeapi.QueryKey) (storeapi.ResultsIterator, error) {
+	authorized, err := r.isAuthorized(key.Namespace, key.Collection)
+	if err != nil {
+		return nil, err
+	}
+	if !authorized {
+		logger.Infof("[%s] This peer does not have access to the collection [%s:%s]", r.channelID, key.Namespace, key.Collection)
+		return noResultsIt, nil
+	}
+
+	it, err := r.store.Query(key)
+	if err != nil {
+		return nil, err
+	}
+
+	decorator, err := r.getDecorator(key.Namespace, key.Collection)
+	if err != nil {
+		return nil, err
+	}
+	if decorator == nil {
+		return it, nil
+	}
+
+	return newDecoratingIterator(it, decorator), nil
 }
 
 func (r *retriever) getMultipleKeysFromLocal(key *storeapi.MultiKey) (storeapi.ExpiringValues, error) {
@@ -471,4 +501,58 @@ func asExpiringValues(cv common.Values) storeapi.ExpiringValues {
 		}
 	}
 	return vals
+}
+
+type decoratingIterator struct {
+	target    storeapi.ResultsIterator
+	decorator Decorator
+}
+
+func newDecoratingIterator(it storeapi.ResultsIterator, decorator Decorator) *decoratingIterator {
+	return &decoratingIterator{
+		target:    it,
+		decorator: decorator,
+	}
+}
+
+// Next returns the next item in the result set. The result is decorated before the result is returned.
+func (it *decoratingIterator) Next() (*storeapi.QueryResult, error) {
+	next, err := it.target.Next()
+	if err != nil {
+		return nil, err
+	}
+	if next == nil {
+		return nil, nil
+	}
+
+	logger.Debugf("Applying decorator to [%s]...", next.Key)
+	k, v, err := it.decorator.AfterQuery(next.Key, next.ExpiringValue)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Debugf("... decorated key [%s]", k)
+	return &storeapi.QueryResult{
+		Key:           k,
+		ExpiringValue: v,
+	}, nil
+}
+
+// Close releases resources occupied by the iterator
+func (it *decoratingIterator) Close() {
+	it.target.Close()
+}
+
+var noResultsIt = &emptyIterator{}
+
+type emptyIterator struct {
+}
+
+// Next always returns nil
+func (it *emptyIterator) Next() (*storeapi.QueryResult, error) {
+	return nil, nil
+}
+
+// Close has no effect
+func (it *emptyIterator) Close() {
 }

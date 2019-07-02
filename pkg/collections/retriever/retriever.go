@@ -105,6 +105,11 @@ func (r *retriever) GetDataMultipleKeys(ctxt context.Context, key *storeapi.Mult
 	return r.offLedgerRetriever.GetDataMultipleKeys(ctxt, key)
 }
 
+// Query executes the given rich query
+func (r *retriever) Query(ctxt context.Context, key *storeapi.QueryKey) (storeapi.ResultsIterator, error) {
+	return r.offLedgerRetriever.Query(ctxt, key)
+}
+
 // Support defines the supporting functions required by the transient data provider
 type Support interface {
 	Config(channelID, ns, coll string) (*cb.StaticCollectionConfig, error)

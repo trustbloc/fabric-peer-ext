@@ -41,6 +41,10 @@ func TestDeleteExpiredKeysFromDB(t *testing.T) {
 	db, err := provider.GetDB(ns1, "", coll1)
 	require.NoError(t, err)
 
+	db2, err := provider.GetDB(ns1, "", coll1)
+	require.NoError(t, err)
+	require.Equal(t, db, db2)
+
 	err = db.Put(
 		api.NewKeyValue(key1, value1, txID1, time.Now().UTC()),
 		api.NewKeyValue(key2, value2, txID2, time.Now().UTC().Add(1*time.Minute)))
@@ -120,6 +124,22 @@ func TestGetKeysFromDB(t *testing.T) {
 	v, err = db2.Get(key1)
 	require.NoError(t, err)
 	require.Nil(t, v)
+}
+
+func TestStore_Query(t *testing.T) {
+	defer removeDBPath(t)
+
+	provider := NewDBProvider()
+	defer provider.Close()
+
+	db, err := provider.GetDB(ns1, "", coll1)
+	require.NoError(t, err)
+	require.NotNil(t, db)
+
+	require.PanicsWithValue(t, "not implemented", func() {
+		_, err := db.Query("some query")
+		require.NoError(t, err)
+	})
 }
 
 func TestMain(m *testing.M) {

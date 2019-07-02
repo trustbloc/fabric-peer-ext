@@ -79,6 +79,10 @@ func (p *LevelDBProvider) Close() {
 		p.done <- struct{}{}
 		p.closed = true
 	}
+
+	for _, s := range p.stores {
+		s.Close()
+	}
 }
 
 func (p *LevelDBProvider) getStores() []*store {

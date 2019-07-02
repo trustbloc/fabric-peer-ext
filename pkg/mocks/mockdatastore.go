@@ -96,6 +96,11 @@ func (m *DataStore) GetDataMultipleKeys(key *storeapi.MultiKey) (storeapi.Expiri
 	return values, m.err
 }
 
+// Query is not implemented and will panic if called.
+func (m *DataStore) Query(key *storeapi.QueryKey) (storeapi.ResultsIterator, error) {
+	panic("not implemented")
+}
+
 // Close closes the store
 func (m *DataStore) Close() {
 }

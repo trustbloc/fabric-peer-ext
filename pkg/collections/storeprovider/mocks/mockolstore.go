@@ -38,9 +38,21 @@ func (p *StoreProvider) Error(err error) *StoreProvider {
 	return p
 }
 
+// WithQueryResults sets the mock query results for the given query string
+func (p *StoreProvider) WithQueryResults(key *storeapi.QueryKey, results []*storeapi.QueryResult) *StoreProvider {
+	p.store.WithQueryResults(key, results)
+	return p
+}
+
 // StoreError stores the storeError
 func (p *StoreProvider) StoreError(err error) *StoreProvider {
 	p.store.Error(err)
+	return p
+}
+
+// ResultsIteratorError injects an error on the results iterator
+func (p *StoreProvider) ResultsIteratorError(err error) *StoreProvider {
+	p.store.ResultsIteratorError(err)
 	return p
 }
 
@@ -66,15 +78,18 @@ func (p *StoreProvider) IsStoreClosed() bool {
 
 // Store implements a mock store
 type Store struct {
-	data   map[storeapi.Key]*storeapi.ExpiringValue
-	err    error
-	closed bool
+	data         map[storeapi.Key]*storeapi.ExpiringValue
+	err          error
+	itErr        error
+	closed       bool
+	queryResults map[storeapi.QueryKey][]*storeapi.QueryResult
 }
 
 // NewStore returns a mock transient data store
 func NewStore() *Store {
 	return &Store{
-		data: make(map[storeapi.Key]*storeapi.ExpiringValue),
+		data:         make(map[storeapi.Key]*storeapi.ExpiringValue),
+		queryResults: make(map[storeapi.QueryKey][]*storeapi.QueryResult),
 	}
 }
 
@@ -84,9 +99,21 @@ func (m *Store) Data(key *storeapi.Key, value *storeapi.ExpiringValue) *Store {
 	return m
 }
 
+// WithQueryResults sets the mock query results for the given query string
+func (m *Store) WithQueryResults(key *storeapi.QueryKey, results []*storeapi.QueryResult) *Store {
+	m.queryResults[*key] = results
+	return m
+}
+
 // Error sets an err
 func (m *Store) Error(err error) *Store {
 	m.err = err
+	return m
+}
+
+// ResultsIteratorError sets an error on the results iterator
+func (m *Store) ResultsIteratorError(err error) *Store {
+	m.itErr = err
 	return m
 }
 
@@ -123,7 +150,46 @@ func (m *Store) GetDataMultipleKeys(key *storeapi.MultiKey) (storeapi.ExpiringVa
 	return values, m.err
 }
 
+// Query executes the given rich query
+func (m *Store) Query(key *storeapi.QueryKey) (storeapi.ResultsIterator, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return newResultsIterator(m.queryResults[*key], m.itErr), nil
+}
+
 // Close closes the store
 func (m *Store) Close() {
 	m.closed = true
+}
+
+type resultsIterator struct {
+	results []*storeapi.QueryResult
+	nextIdx int
+	err     error
+}
+
+func newResultsIterator(results []*storeapi.QueryResult, err error) *resultsIterator {
+	return &resultsIterator{
+		results: results,
+		err:     err,
+	}
+}
+
+// Next returns the next item in the result set. The `QueryResult` is expected to be nil when
+// the iterator gets exhausted
+func (it *resultsIterator) Next() (*storeapi.QueryResult, error) {
+	if it.err != nil {
+		return nil, it.err
+	}
+	if it.nextIdx >= len(it.results) {
+		return nil, nil
+	}
+	qr := it.results[it.nextIdx]
+	it.nextIdx++
+	return qr, nil
+}
+
+// Close releases resources occupied by the iterator
+func (it *resultsIterator) Close() {
 }
