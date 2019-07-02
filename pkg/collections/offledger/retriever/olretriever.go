@@ -40,8 +40,12 @@ type support interface {
 // Validator is a key/value validator
 type Validator func(txID, ns, coll, key string, value []byte) error
 
-// KeyDecorator allows for modification of the provided key
-type KeyDecorator func(key *storeapi.Key) (*storeapi.Key, error)
+// Decorator allows the key/value to be modified/validated before being persisted. It is also
+// applied to query results before the results are returned to the caller.
+type Decorator interface {
+	// BeforeLoad has the opportunity to decorate the key before target is loaded or deleted.
+	BeforeLoad(key *storeapi.Key) (*storeapi.Key, error)
+}
 
 // Provider is a collection data data provider.
 type Provider struct {
@@ -49,7 +53,7 @@ type Provider struct {
 	storeForChannel func(channelID string) olapi.Store
 	gossipAdapter   func() supportapi.GossipAdapter
 	validators      map[cb.CollectionType]Validator
-	keyDecorators   map[cb.CollectionType]KeyDecorator
+	decorators      map[cb.CollectionType]Decorator
 }
 
 // Option is a provider option
@@ -62,10 +66,10 @@ func WithValidator(collType cb.CollectionType, validator Validator) Option {
 	}
 }
 
-// WithKeyDecorator sets the key decorator
-func WithKeyDecorator(collType cb.CollectionType, decorator KeyDecorator) Option {
+// WithDecorator sets the decorator
+func WithDecorator(collType cb.CollectionType, decorator Decorator) Option {
 	return func(p *Provider) {
-		p.keyDecorators[collType] = decorator
+		p.decorators[collType] = decorator
 	}
 }
 
@@ -76,7 +80,7 @@ func NewProvider(storeProvider func(channelID string) olapi.Store, support suppo
 		storeForChannel: storeProvider,
 		gossipAdapter:   gossipProvider,
 		validators:      make(map[cb.CollectionType]Validator),
-		keyDecorators:   make(map[cb.CollectionType]KeyDecorator),
+		decorators:      make(map[cb.CollectionType]Decorator),
 	}
 
 	// Apply options
@@ -96,7 +100,7 @@ func (p *Provider) RetrieverForChannel(channelID string) olapi.Retriever {
 		reqMgr:        requestmgr.Get(channelID),
 		resolvers:     make(map[collKey]resolver),
 		validators:    p.validators,
-		keyDecorators: p.keyDecorators,
+		decorators:    p.decorators,
 	}
 
 	// Add a handler so that we can remove the resolver for a chaincode that has been upgraded
@@ -132,7 +136,7 @@ type retriever struct {
 	lock          sync.RWMutex
 	reqMgr        requestmgr.RequestMgr
 	validators    map[cb.CollectionType]Validator
-	keyDecorators map[cb.CollectionType]KeyDecorator
+	decorators    map[cb.CollectionType]Decorator
 }
 
 // GetData gets the values for the data item
@@ -203,7 +207,7 @@ func (r *retriever) GetDataMultipleKeys(ctxt context.Context, key *storeapi.Mult
 }
 
 func (r *retriever) getMultipleKeysFromLocal(key *storeapi.MultiKey) (storeapi.ExpiringValues, error) {
-	decorateKey, err := r.getKeyDecorator(key.Namespace, key.Collection)
+	decorateKey, err := r.getDecorator(key.Namespace, key.Collection)
 	if err != nil {
 		return nil, err
 	}
@@ -224,20 +228,20 @@ func (r *retriever) getMultipleKeysFromLocal(key *storeapi.MultiKey) (storeapi.E
 	return localValues, nil
 }
 
-func (r *retriever) getKeyDecorator(ns, coll string) (KeyDecorator, error) {
+func (r *retriever) getDecorator(ns, coll string) (Decorator, error) {
 	collConfig, err := r.Config(r.channelID, ns, coll)
 	if err != nil {
 		return nil, err
 	}
-	return r.keyDecorators[collConfig.Type], nil
+	return r.decorators[collConfig.Type], nil
 }
 
-func getKey(decorateKey KeyDecorator, txID, ns, coll, k string) (*storeapi.Key, error) {
+func getKey(decorateKey Decorator, txID, ns, coll, k string) (*storeapi.Key, error) {
 	key := storeapi.NewKey(txID, ns, coll, k)
 	if decorateKey == nil {
 		return key, nil
 	}
-	return decorateKey(key)
+	return decorateKey.BeforeLoad(key)
 }
 
 func getMissingKeyIndexes(values []*storeapi.ExpiringValue) []int {

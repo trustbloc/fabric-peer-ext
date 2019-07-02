@@ -12,7 +12,5 @@ require (
 	github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric v0.0.0-20190429134815-48bb0d199e2c
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper v1.0.2
-	github.com/sykesm/zap-logfmt v0.0.2 // indirect
 	github.com/trustbloc/fabric-peer-test-common v0.0.0-20190528215613-a7959c5ba3e1
-	go.uber.org/zap v1.10.0 // indirect
 )

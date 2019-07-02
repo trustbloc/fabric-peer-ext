@@ -52,6 +52,8 @@ const (
 	key2 = "key2"
 	key3 = "key3"
 	key4 = "key4"
+
+	txID = "tx1"
 )
 
 var (
@@ -76,8 +78,6 @@ var (
 	value2 = &storeapi.ExpiringValue{Value: []byte("value2")}
 	value3 = &storeapi.ExpiringValue{Value: []byte("value3")}
 	value4 = &storeapi.ExpiringValue{Value: []byte("value4")}
-
-	txID = "tx1"
 
 	casKey1 = dcas.GetCASKey(value1.Value)
 )
@@ -120,7 +120,7 @@ func TestRetriever(t *testing.T) {
 
 	p := NewProvider(storeProvider, support, gossipProvider,
 		WithValidator(cb.CollectionType_COL_DCAS, dcas.Validator),
-		WithKeyDecorator(cb.CollectionType_COL_DCAS, dcas.KeyDecorator),
+		WithDecorator(cb.CollectionType_COL_DCAS, dcas.Decorator),
 	)
 
 	retriever := p.RetrieverForChannel(channelID)
@@ -275,6 +275,22 @@ func TestRetriever(t *testing.T) {
 		value, err = retriever.GetData(ctx, storeapi.NewKey(txID, ns1, coll1, key4))
 		require.NoError(t, err)
 		require.NotNil(t, value)
+	})
+
+	t.Run("GetDataMultipleKeys -> success", func(t *testing.T) {
+		gossip.MessageHandler(
+			newMockGossipMsgHandler(channelID).
+				Value(key2, value2).
+				Value(key3, value3).
+				Handle)
+
+		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
+		values, err := retriever.GetDataMultipleKeys(ctx, storeapi.NewMultiKey(txID, ns1, coll1, key1, key2, key3))
+		require.NoError(t, err)
+		require.Equal(t, 3, len(values))
+		assert.Equal(t, value1, values[0])
+		assert.Equal(t, value2, values[1])
+		assert.Equal(t, value3, values[2])
 	})
 }
 

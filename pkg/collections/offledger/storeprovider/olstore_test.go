@@ -57,10 +57,7 @@ var (
 
 	typeConfig = map[cb.CollectionType]*collTypeConfig{
 		cb.CollectionType_COL_OFFLEDGER: {},
-		cb.CollectionType_COL_DCAS: {
-			decorator:    dcas.Decorator,
-			keyDecorator: dcas.KeyDecorator,
-		},
+		cb.CollectionType_COL_DCAS:      {decorator: dcas.Decorator},
 	}
 )
 
