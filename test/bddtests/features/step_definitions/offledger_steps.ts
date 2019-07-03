@@ -25,4 +25,7 @@ defineSupportCode(function ({And, But, Given, Then, When}) {
     Then(/^the variable "([^"]*)" contains (\d+) accounts$/, function (arg1, callback) {
         callback.pending();
     });
+    And(/^the variable "([^"]*)" contains an account at index (\d+) with Key "([^"]*)", ID "([^"]*)", Owner "([^"]*)", and Balance (\d+)$/, function (arg1, arg2, arg3, arg4, callback) {
+        callback.pending();
+    });
 });

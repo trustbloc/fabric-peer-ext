@@ -135,12 +135,17 @@ Feature: off-ledger
   Scenario: Rich Queries
     Given the account with ID "456456", owner "Tim Jones" and a balance of 1000 is created and stored to variable "tim_account"
     And client queries chaincode "ol_examplecc" with args "putcas,accounts,${tim_account}" on the "mychannel" channel
-    When client queries chaincode "ol_examplecc" with args "queryprivate,accounts,{`selector`:{`id`:`456456`}|`use_index`:[`_design/indexIDDoc`|`indexID`]}" on a single peer in the "peerorg1" org on the "mychannel" channel
+    And the response is saved to variable "tim_account_key"
+    When client queries chaincode "ol_examplecc" with args "queryprivate,accounts,{`selector`:{`id`:`456456`}|`fields`:[`id`|`balance`|`owner`|`operationType`]|`use_index`:[`_design/indexIDDoc`|`indexID`]}" on the "mychannel" channel
     And the response is saved to variable "account_operations"
     Then the variable "account_operations" contains 1 accounts
+    And the variable "account_operations" contains an account at index 0 with Key "${tim_account_key}", ID "456456", Owner "Tim Jones", and Balance 1000
 
     Given the account stored in variable "tim_account" is updated with a balance of 2000
     And client queries chaincode "ol_examplecc" with args "putcas,accounts,${tim_account}" on the "mychannel" channel
-    When client queries chaincode "ol_examplecc" with args "queryprivate,accounts,{`selector`:{`id`:`456456`}|`use_index`:[`_design/indexIDDoc`|`indexID`]}" on a single peer in the "peerorg1" org on the "mychannel" channel
+    And the response is saved to variable "tim_account_update_key"
+    When client queries chaincode "ol_examplecc" with args "queryprivate,accounts,{`selector`:{`id`:`456456`}|`fields`:[`id`|`balance`|`owner`|`operationType`]|`use_index`:[`_design/indexIDDoc`|`indexID`]}" on the "mychannel" channel
     And the response is saved to variable "account_operations"
     Then the variable "account_operations" contains 2 accounts
+    And the variable "account_operations" contains an account at index 0 with Key "${tim_account_key}", ID "456456", Owner "Tim Jones", and Balance 1000
+    And the variable "account_operations" contains an account at index 1 with Key "${tim_account_update_key}", ID "456456", Owner "Tim Jones", and Balance 2000
