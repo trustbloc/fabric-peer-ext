@@ -53,7 +53,8 @@ const (
 	key3 = "key3"
 	key4 = "key4"
 
-	txID = "tx1"
+	txID  = "tx1"
+	txID1 = "tx2"
 )
 
 var (
@@ -80,6 +81,30 @@ var (
 	value4 = &storeapi.ExpiringValue{Value: []byte("value4")}
 
 	casKey1 = dcas.GetCASKey(value1.Value)
+
+	offLedgerQueryKey     = storeapi.NewQueryKey(txID, ns1, coll1, "off-ledger query")
+	offLedgerQueryResults = []*storeapi.QueryResult{
+		{
+			Key:           storeapi.NewKey(txID1, ns1, coll1, key1),
+			ExpiringValue: value1,
+		},
+		{
+			Key:           storeapi.NewKey(txID1, ns1, coll1, key2),
+			ExpiringValue: value2,
+		},
+	}
+
+	dcasQueryKey     = storeapi.NewQueryKey(txID, ns1, coll2, "DCAS query")
+	dcasQueryResults = []*storeapi.QueryResult{
+		{
+			Key:           storeapi.NewKey(txID1, ns1, coll2, dcas.GetFabricCASKey(value3.Value)),
+			ExpiringValue: value3,
+		},
+		{
+			Key:           storeapi.NewKey(txID1, ns1, coll2, dcas.GetFabricCASKey(value4.Value)),
+			ExpiringValue: value4,
+		},
+	}
 )
 
 func TestRetriever(t *testing.T) {
@@ -97,7 +122,11 @@ func TestRetriever(t *testing.T) {
 			Name: coll2,
 		})
 
+	getLocalMSPIDRestore := getLocalMSPID
 	getLocalMSPID = func() (string, error) { return org1MSPID, nil }
+	defer func() {
+		getLocalMSPID = getLocalMSPIDRestore
+	}()
 
 	gossip := mocks.NewMockGossipAdapter()
 	gossip.Self(org1MSPID, mocks.NewMember(p1Org1Endpoint, p1Org1PKIID)).
@@ -294,6 +323,135 @@ func TestRetriever(t *testing.T) {
 	})
 }
 
+func TestRetriever_Query(t *testing.T) {
+	support := mocks.NewMockSupport().
+		CollectionPolicy(&mocks.MockAccessPolicy{
+			MaxPeerCount: 2,
+			Orgs:         []string{org1MSPID, org2MSPID},
+		}).
+		CollectionConfig(&cb.StaticCollectionConfig{
+			Type: cb.CollectionType_COL_OFFLEDGER,
+			Name: coll1,
+		}).
+		CollectionConfig(&cb.StaticCollectionConfig{
+			Type: cb.CollectionType_COL_DCAS,
+			Name: coll2,
+		})
+
+	getLocalMSPIDRestore := getLocalMSPID
+	getLocalMSPID = func() (string, error) { return org1MSPID, nil }
+	defer func() {
+		getLocalMSPID = getLocalMSPIDRestore
+	}()
+
+	gossip := mocks.NewMockGossipAdapter()
+
+	localStore := spmocks.NewStore().
+		WithQueryResults(dcasQueryKey, dcasQueryResults).
+		WithQueryResults(offLedgerQueryKey, offLedgerQueryResults)
+
+	storeProvider := func(channelID string) olapi.Store { return localStore }
+	gossipProvider := func() supportapi.GossipAdapter { return gossip }
+
+	p := NewProvider(storeProvider, support, gossipProvider,
+		WithValidator(cb.CollectionType_COL_DCAS, dcas.Validator),
+		WithDecorator(cb.CollectionType_COL_DCAS, dcas.Decorator),
+	)
+
+	retriever := p.RetrieverForChannel(channelID)
+	require.NotNil(t, retriever)
+
+	t.Run("Query off-ledger -> success", func(t *testing.T) {
+		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
+		it, err := retriever.Query(ctx, offLedgerQueryKey)
+		require.NoError(t, err)
+		require.NotNil(t, it)
+		defer it.Close()
+
+		next, err := it.Next()
+		require.NoError(t, err)
+		require.NotNil(t, next)
+		require.Equal(t, value1.Value, next.Value)
+		require.Equal(t, key1, next.Key.Key)
+
+		next, err = it.Next()
+		require.NoError(t, err)
+		require.NotNil(t, next)
+		require.Equal(t, value2.Value, next.Value)
+		require.Equal(t, key2, next.Key.Key)
+
+		next, err = it.Next()
+		require.NoError(t, err)
+		require.Nil(t, next)
+	})
+
+	t.Run("Query DCAS -> success", func(t *testing.T) {
+		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
+		it, err := retriever.Query(ctx, dcasQueryKey)
+		require.NoError(t, err)
+		require.NotNil(t, it)
+		defer it.Close()
+
+		next, err := it.Next()
+		require.NoError(t, err)
+		require.NotNil(t, next)
+		require.Equal(t, value3.Value, next.Value)
+		require.Equal(t, dcas.GetCASKey(value3.Value), next.Key.Key)
+
+		next, err = it.Next()
+		require.NoError(t, err)
+		require.NotNil(t, next)
+		require.Equal(t, value4.Value, next.Value)
+		require.Equal(t, dcas.GetCASKey(value4.Value), next.Key.Key)
+
+		next, err = it.Next()
+		require.NoError(t, err)
+		require.Nil(t, next)
+	})
+
+	t.Run("Query iterator error", func(t *testing.T) {
+		expectedErr := errors.New("injected error")
+		localStore.ResultsIteratorError(expectedErr)
+		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
+		it, err := retriever.Query(ctx, dcasQueryKey)
+		require.NoError(t, err)
+		require.NotNil(t, it)
+		defer it.Close()
+
+		next, err := it.Next()
+		require.EqualError(t, err, expectedErr.Error())
+		require.Nil(t, next)
+	})
+
+	t.Run("Query access denied -> empty", func(t *testing.T) {
+		restore := getLocalMSPID
+		getLocalMSPID = func() (string, error) { return org3MSPID, nil }
+		defer func() {
+			getLocalMSPID = restore
+		}()
+
+		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
+		it, err := retriever.Query(ctx, offLedgerQueryKey)
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		next, err := it.Next()
+		require.NoError(t, err)
+		require.Nil(t, next)
+	})
+
+	t.Run("Is authorized error -> fail", func(t *testing.T) {
+		support.Err = errors.New("injected error")
+		defer func() { support.Err = nil }()
+
+		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
+		it, err := retriever.Query(ctx, offLedgerQueryKey)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), support.Err.Error())
+		require.Nil(t, it)
+	})
+}
+
 func TestRetriever_AccessDenied(t *testing.T) {
 	support := mocks.NewMockSupport().
 		CollectionPolicy(&mocks.MockAccessPolicy{
@@ -305,7 +463,11 @@ func TestRetriever_AccessDenied(t *testing.T) {
 			Name: coll1,
 		})
 
+	getLocalMSPIDRestore := getLocalMSPID
 	getLocalMSPID = func() (string, error) { return org3MSPID, nil }
+	defer func() {
+		getLocalMSPID = getLocalMSPIDRestore
+	}()
 
 	gossip := mocks.NewMockGossipAdapter()
 	gossip.Self(org3MSPID, mocks.NewMember(p1Org3Endpoint, p1Org3PKIID)).
@@ -375,6 +537,12 @@ func TestRetriever_AccessDenied(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, value)
 	})
+}
+
+func TestGetLocalMSPID(t *testing.T) {
+	m, err := getLocalMSPID()
+	require.NoError(t, err)
+	require.NotNil(t, m)
 }
 
 type mockGossipMsgHandler struct {

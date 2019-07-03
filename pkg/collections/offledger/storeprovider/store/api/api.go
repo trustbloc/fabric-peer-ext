@@ -50,6 +50,9 @@ type DB interface {
 
 	// DeleteExpiredKeys deletes all of the expired keys
 	DeleteExpiredKeys() error
+
+	// Query returns a set of keys/values for the given query
+	Query(query string) ([]*KeyValue, error)
 }
 
 // DBProvider returns the persister for the given namespace/collection

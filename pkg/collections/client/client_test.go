@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/hyperledger/fabric/core/ledger"
+	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/transientstore"
@@ -191,14 +192,28 @@ func TestClient_Get(t *testing.T) {
 func TestClient_Query(t *testing.T) {
 	query1 := "query1"
 
-	results := [][]byte{
-		[]byte("v1_1"),
-		[]byte("v1_2"),
+	vk1 := &statedb.VersionedKV{
+		CompositeKey: statedb.CompositeKey{
+			Namespace: ns1 + "~" + coll1,
+			Key:       key1,
+		},
+		VersionedValue: statedb.VersionedValue{
+			Value: []byte("v1_1"),
+		},
+	}
+	vk2 := &statedb.VersionedKV{
+		CompositeKey: statedb.CompositeKey{
+			Namespace: ns1 + "~" + coll1,
+			Key:       key2,
+		},
+		VersionedValue: statedb.VersionedValue{
+			Value: []byte("v1_2"),
+		},
 	}
 
-	ledger := &mocks.Ledger{
+	mockLedger := &mocks.Ledger{
 		QueryExecutor: mocks.NewQueryExecutor().
-			WithPrivateQueryResults(ns1, coll1, query1, results),
+			WithPrivateQueryResults(ns1, coll1, query1, []*statedb.VersionedKV{vk1, vk2}),
 	}
 
 	gossip := &mockGossipAdapter{}
@@ -206,7 +221,7 @@ func TestClient_Query(t *testing.T) {
 	var creatorError error
 
 	// Mock out all of the dependencies
-	getLedger = func(channelID string) PeerLedger { return ledger }
+	getLedger = func(channelID string) PeerLedger { return mockLedger }
 	getGossipAdapter = func() GossipAdapter { return gossip }
 	getBlockPublisher = func(channelID string) gossipapi.BlockPublisher { return mocks.NewBlockPublisher() }
 	getCollConfigRetriever = func(_ string, _ PeerLedger, _ gossipapi.BlockPublisher) CollectionConfigRetriever {
@@ -218,9 +233,21 @@ func TestClient_Query(t *testing.T) {
 	require.NotNil(t, c)
 
 	t.Run("Query - success", func(t *testing.T) {
-		results, err := c.Query(ns1, coll1, query1)
+		it, err := c.Query(ns1, coll1, query1)
 		require.NoError(t, err)
-		require.NotEmpty(t, results)
+		require.NotNil(t, it)
+
+		next, err := it.Next()
+		require.NoError(t, err)
+		require.Equal(t, vk1, next)
+
+		next, err = it.Next()
+		require.NoError(t, err)
+		require.Equal(t, vk2, next)
+
+		next, err = it.Next()
+		require.NoError(t, err)
+		require.Nil(t, next)
 	})
 }
 

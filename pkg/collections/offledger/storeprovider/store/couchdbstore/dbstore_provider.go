@@ -25,7 +25,6 @@ const (
 	deletedField       = "_deleted"
 	txnIDField         = "~txnID"
 	expiryField        = "~expiry"
-	versionField       = "~version"
 	binaryWrapperField = "valueBytes"
 	expiryIndexName    = "by_expiry"
 	expiryIndexDoc     = "indexExpiry"

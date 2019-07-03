@@ -74,6 +74,11 @@ func (d *store) GetDataMultipleKeys(key *storeapi.MultiKey) (storeapi.ExpiringVa
 	return d.offLedgerStore.GetDataMultipleKeys(key)
 }
 
+// Query executes the given rich query against the off-ledger store
+func (d *store) Query(key *storeapi.QueryKey) (storeapi.ResultsIterator, error) {
+	return d.offLedgerStore.Query(key)
+}
+
 // Close closes all of the stores store
 func (d *store) Close() {
 	d.transientDataStore.Close()

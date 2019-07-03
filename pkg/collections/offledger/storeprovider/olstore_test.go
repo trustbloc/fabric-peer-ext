@@ -7,6 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package storeprovider
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -530,4 +532,102 @@ func TestStore_PersistNotAuthorized(t *testing.T) {
 	assert.NoError(t, err)
 	require.NotNil(t, value)
 	assert.Equal(t, value2_1, value.Value)
+}
+
+type testValue struct {
+	Field1 string
+	Field2 int
+}
+
+func TestStore_ExecuteQuery(t *testing.T) {
+	const query = "some query"
+	const field2Val = 12345
+
+	v1 := &testValue{
+		Field1: "value1",
+		Field2: field2Val,
+	}
+	v2 := &testValue{
+		Field1: "value2",
+		Field2: field2Val,
+	}
+
+	value1_1, err := json.Marshal(v1)
+	require.NoError(t, err)
+	value1_2, err := json.Marshal(v2)
+	require.NoError(t, err)
+
+	results := []*olstoreapi.KeyValue{
+		{
+			Key: key1,
+			Value: &olstoreapi.Value{
+				Value: value1_1,
+				TxID:  txID1,
+			},
+		},
+		{
+			Key: key2,
+			Value: &olstoreapi.Value{
+				Value: value1_2,
+				TxID:  txID1,
+			},
+		},
+	}
+
+	dbProvider := olmocks.NewDBProvider().WithQueryResults(ns1, coll1, query, results)
+	s := newStore(channelID, dbProvider, typeConfig)
+	require.NotNil(t, s)
+	defer s.Close()
+
+	getLocalMSPID = func() (string, error) { return org1MSP, nil }
+
+	t.Run("Query in same transaction -> empty", func(t *testing.T) {
+		it, err := s.Query(storeapi.NewQueryKey(txID1, ns1, coll1, query))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		next, err := it.Next()
+		require.NoError(t, err)
+		require.Nil(t, next)
+
+		it.Close()
+	})
+
+	t.Run("Query in new transaction -> valid", func(t *testing.T) {
+		it, err := s.Query(storeapi.NewQueryKey(txID2, ns1, coll1, query))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		next, err := it.Next()
+		require.NoError(t, err)
+		require.NotNil(t, next)
+		require.Equal(t, key1, next.Key.Key)
+
+		next, err = it.Next()
+		require.NoError(t, err)
+		require.NotNil(t, next)
+		require.Equal(t, key2, next.Key.Key)
+
+		it.Close()
+	})
+
+	t.Run("DB provider error -> fail", func(t *testing.T) {
+		errExpected := errors.New("injected error")
+		dbProvider.WithError(errExpected)
+		defer dbProvider.WithError(nil)
+
+		it, err := s.Query(storeapi.NewQueryKey(txID1, ns1, coll1, query))
+		require.EqualError(t, err, errExpected.Error())
+		require.Nil(t, it)
+	})
+
+	t.Run("DB error -> fail", func(t *testing.T) {
+		errExpected := errors.New("injected error")
+		dbProvider.MockDB(ns1, coll1).WithError(errExpected)
+		defer dbProvider.MockDB(ns1, coll1).WithError(nil)
+
+		it, err := s.Query(storeapi.NewQueryKey(txID1, ns1, coll1, query))
+		require.EqualError(t, err, errExpected.Error())
+		require.Nil(t, it)
+	})
 }

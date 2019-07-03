@@ -25,13 +25,21 @@ const (
 )
 
 func TestRetriever(t *testing.T) {
-	getTransientDataProvider = func(storeProvider func(channelID string) tdataapi.Store, support Support, gossipProvider func() supportapi.GossipAdapter) tdataapi.Provider {
+	tdataProvider := getTransientDataProvider
+	SetTransientDataProvider(func(storeProvider func(channelID string) tdataapi.Store, support Support, gossipProvider func() supportapi.GossipAdapter) tdataapi.Provider {
 		return &tdatamocks.TransientDataProvider{}
-	}
+	})
+	defer func() {
+		SetTransientDataProvider(tdataProvider)
+	}()
 
-	getOffLedgerProvider = func(storeProvider func(channelID string) olapi.Store, support Support, gossipProvider func() supportapi.GossipAdapter) olapi.Provider {
+	olProvider := getOffLedgerProvider
+	SetOffLedgerProvider(func(storeProvider func(channelID string) olapi.Store, support Support, gossipProvider func() supportapi.GossipAdapter) olapi.Provider {
 		return &olmocks.Provider{}
-	}
+	})
+	defer func() {
+		SetOffLedgerProvider(olProvider)
+	}()
 
 	p := NewProvider(nil, nil, nil, nil)
 	require.NotNil(t, p)
@@ -77,4 +85,21 @@ func TestRetriever(t *testing.T) {
 		require.Equal(t, 1, len(vals))
 		assert.Equal(t, []byte(key1), vals[0].Value)
 	})
+
+	t.Run("Query", func(t *testing.T) {
+		retriever := p.RetrieverForChannel(channelID)
+		require.NotNil(t, retriever)
+
+		it, err := retriever.Query(context.Background(), storeapi.NewQueryKey("tx1", "ns1", "coll1", "some query"))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+	})
+}
+
+func TestGetTransientDataProvider(t *testing.T) {
+	require.NotNil(t, getTransientDataProvider(nil, nil, nil))
+}
+
+func TestGetOffLedgerProvider(t *testing.T) {
+	require.NotNil(t, getOffLedgerProvider(nil, nil, nil))
 }

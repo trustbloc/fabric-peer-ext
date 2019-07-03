@@ -51,3 +51,7 @@ func (m *dataRetriever) GetDataMultipleKeys(ctxt context.Context, key *storeapi.
 	}
 	return values, nil
 }
+
+func (m *dataRetriever) Query(ctxt context.Context, key *storeapi.QueryKey) (storeapi.ResultsIterator, error) {
+	panic("not implemented")
+}

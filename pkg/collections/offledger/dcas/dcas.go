@@ -61,6 +61,16 @@ func (d *decorator) BeforeLoad(key *storeapi.Key) (*storeapi.Key, error) {
 	}, nil
 }
 
+// AfterQuery decodes the base58 key that is returned from a DB query.
+func (d *decorator) AfterQuery(key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key, *storeapi.ExpiringValue, error) {
+	return &storeapi.Key{
+		EndorsedAtTxID: key.EndorsedAtTxID,
+		Namespace:      key.Namespace,
+		Collection:     key.Collection,
+		Key:            string(Base58Decode(key.Key)),
+	}, value, nil
+}
+
 func validateCASKey(key string, value []byte) (string, error) {
 	if value == nil {
 		return "", errors.Errorf("attempt to put nil value for key [%s]", key)

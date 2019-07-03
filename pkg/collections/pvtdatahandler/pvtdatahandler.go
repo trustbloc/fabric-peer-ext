@@ -8,14 +8,22 @@ package pvtdatahandler
 
 import (
 	"context"
+	"errors"
 
 	"github.com/hyperledger/fabric/common/flogging"
+	commonledger "github.com/hyperledger/fabric/common/ledger"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/hyperledger/fabric/protos/common"
+	"github.com/hyperledger/fabric/protos/ledger/queryresult"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 )
 
 var logger = flogging.MustGetLogger("ext_pvtdatahandler")
+
+const (
+	nsJoiner      = "$$"
+	pvtDataPrefix = "p"
+)
 
 // Handler handles the retrieval of kevlar-defined collection types
 type Handler struct {
@@ -74,6 +82,23 @@ func (h *Handler) HandleGetPrivateDataMultipleKeys(txID, ns string, config *comm
 			return nil, true, err
 		}
 		return values, true, nil
+	default:
+		return nil, false, nil
+	}
+}
+
+// HandleExecuteQueryOnPrivateData executes the given query on the collection if the collection is one of the extended collections
+func (h *Handler) HandleExecuteQueryOnPrivateData(txID, ns string, config *common.StaticCollectionConfig, query string) (commonledger.ResultsIterator, bool, error) {
+	switch config.Type {
+	case common.CollectionType_COL_TRANSIENT:
+		logger.Debugf("Collection [%s:%s] is a TransientData store. Rich queries are not supported for transient data", ns, config.Name)
+		return nil, true, errors.New("rich queries not supported on transient data")
+	case common.CollectionType_COL_DCAS:
+		fallthrough
+	case common.CollectionType_COL_OFFLEDGER:
+		logger.Debugf("Collection [%s:%s] is an off-ledger store. Returning results for query [%s]", ns, config.Name, query)
+		values, err := h.executeQuery(txID, ns, config.Name, query)
+		return values, true, err
 	default:
 		return nil, false, nil
 	}
@@ -153,4 +178,48 @@ func (h *Handler) getDataMultipleKeys(txID, ns, coll string, keys []string) ([][
 		}
 	}
 	return values, nil
+}
+
+func (h *Handler) executeQuery(txID, ns, coll string, query string) (commonledger.ResultsIterator, error) {
+	ctxt, cancel := context.WithTimeout(context.Background(), config.GetOLCollPullTimeout())
+	defer cancel()
+
+	it, err := h.collDataProvider.RetrieverForChannel(h.channelID).Query(ctxt, storeapi.NewQueryKey(txID, ns, coll, query))
+	if err != nil {
+		return nil, err
+	}
+	return newKVIterator(it), nil
+}
+
+type kvIterator struct {
+	it storeapi.ResultsIterator
+}
+
+func newKVIterator(it storeapi.ResultsIterator) *kvIterator {
+	return &kvIterator{
+		it: it,
+	}
+}
+
+func (kvit *kvIterator) Next() (commonledger.QueryResult, error) {
+	result, err := kvit.it.Next()
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, nil
+	}
+	return &queryresult.KV{
+		Namespace: asPvtDataNs(result.Namespace, result.Collection),
+		Key:       result.Key.Key,
+		Value:     result.Value,
+	}, nil
+}
+
+func (kvit *kvIterator) Close() {
+	kvit.it.Close()
+}
+
+func asPvtDataNs(ns, coll string) string {
+	return ns + nsJoiner + pvtDataPrefix + coll
 }

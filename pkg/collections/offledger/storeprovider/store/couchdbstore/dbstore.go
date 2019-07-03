@@ -7,17 +7,13 @@ package couchdbstore
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/common/flogging"
-	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb/msgs"
-	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/version"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/pkg/errors"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
@@ -26,6 +22,10 @@ import (
 var (
 	logger          = flogging.MustGetLogger("ext_offledger")
 	compositeKeySep = "!"
+)
+
+const (
+	fieldsField = "fields"
 )
 
 type docType int32
@@ -67,7 +67,7 @@ func newDBStore(db *couchdb.CouchDatabase, dbName string) *dbstore {
 func (s *dbstore) Put(keyVal ...*api.KeyValue) error {
 	var docs []*couchdb.CouchDoc
 	for _, kv := range keyVal {
-		dataDoc, err := s.createCouchDoc(string(encodeKey(kv.Key, time.Time{})), kv.Value)
+		dataDoc, err := s.createCouchDoc(kv.Key, kv.Value)
 		if err != nil {
 			return err
 		}
@@ -91,7 +91,7 @@ func (s *dbstore) Put(keyVal ...*api.KeyValue) error {
 
 // GetKey get dataModel based on key from db
 func (s *dbstore) Get(key string) (*api.Value, error) {
-	data, err := s.fetchData(s.db, string(encodeKey(key, time.Time{})))
+	data, err := s.fetchData(s.db, key)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to load key [%s] from db", key)
 	}
@@ -112,6 +112,39 @@ func (s *dbstore) GetMultiple(keys ...string) ([]*api.Value, error) {
 	return values, nil
 }
 
+// Query executes a query against the CouchDB and returns the key/value result set
+func (s *dbstore) Query(query string) ([]*api.KeyValue, error) {
+	query, err := decorateQuery(query)
+	if err != nil {
+		return nil, err
+	}
+
+	results, _, err := s.db.QueryDocuments(query)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(results) == 0 {
+		logger.Debugf("No results for query [%s]", query)
+		return nil, nil
+	}
+
+	var responses []*api.KeyValue
+	for _, result := range results {
+		value, err := unmarshalData(result.Value, result.Attachments)
+		if err != nil {
+			return nil, err
+		}
+		responses = append(responses, &api.KeyValue{
+			Key:   result.ID,
+			Value: value,
+		})
+		logger.Debugf("Added result for query [%s]: Key [%s], Revision [%s], TxID [%s], Expiry [%s], Value [%s]", query, result.ID, value.Revision, value.TxID, value.ExpiryTime, value.Value)
+	}
+
+	return responses, nil
+}
+
 // DeleteExpiredKeys delete expired keys from db
 func (s *dbstore) DeleteExpiredKeys() error {
 	data, err := fetchExpiryData(s.db, time.Now())
@@ -127,7 +160,7 @@ func (s *dbstore) DeleteExpiredKeys() error {
 	docIDs := make([]string, 0)
 	for _, doc := range data {
 		updateDoc := &expiryData{ID: doc.ID, Rev: doc.Rev, Deleted: true}
-		jsonBytes, err := json.Marshal(updateDoc)
+		jsonBytes, err := jsonMarshal(updateDoc)
 		if err != nil {
 			return err
 		}
@@ -156,12 +189,15 @@ func (s *dbstore) fetchData(db *couchdb.CouchDatabase, key string) (*api.Value, 
 	if err != nil || doc == nil {
 		return nil, err
 	}
+	return unmarshalData(doc.JSONValue, doc.Attachments)
+}
 
+func unmarshalData(jsonValue []byte, attachments []*couchdb.AttachmentInfo) (*api.Value, error) {
 	// create a generic map unmarshal the json
 	jsonResult := make(jsonMap)
-	decoder := json.NewDecoder(bytes.NewBuffer(doc.JSONValue))
+	decoder := json.NewDecoder(bytes.NewBuffer(jsonValue))
 	decoder.UseNumber()
-	if err = decoder.Decode(&jsonResult); err != nil {
+	if err := decoder.Decode(&jsonResult); err != nil {
 		return nil, err
 	}
 
@@ -170,6 +206,7 @@ func (s *dbstore) fetchData(db *couchdb.CouchDatabase, key string) (*api.Value, 
 		TxID:     jsonResult[txnIDField].(string),
 	}
 
+	var err error
 	data.ExpiryTime, err = getExpiry(jsonResult)
 	if err != nil {
 		return nil, err
@@ -180,19 +217,18 @@ func (s *dbstore) fetchData(db *couchdb.CouchDatabase, key string) (*api.Value, 
 	delete(jsonResult, revField)
 	delete(jsonResult, txnIDField)
 	delete(jsonResult, expiryField)
-	delete(jsonResult, versionField)
 
 	// handle binary or json data
-	if doc.Attachments != nil { // binary attachment
+	if attachments != nil { // binary attachment
 		// get binary data from attachment
-		for _, attachment := range doc.Attachments {
+		for _, attachment := range attachments {
 			if attachment.Name == binaryWrapperField {
 				data.Value = attachment.AttachmentBytes
 			}
 		}
 	} else {
 		// marshal the returned JSON data.
-		if data.Value, err = json.Marshal(jsonResult); err != nil {
+		if data.Value, err = jsonMarshal(jsonResult); err != nil {
 			return nil, err
 		}
 	}
@@ -201,7 +237,7 @@ func (s *dbstore) fetchData(db *couchdb.CouchDatabase, key string) (*api.Value, 
 
 func (s *dbstore) fetchRevision(key string) (string, error) {
 	// Get the revision on the current doc
-	current, err := s.fetchData(s.db, string(encodeKey(key, time.Time{})))
+	current, err := s.fetchData(s.db, key)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to load key [%s] from db", key)
 	}
@@ -247,16 +283,6 @@ func (s *dbstore) createCouchDoc(key string, value *api.Value) (*couchdb.CouchDo
 
 //-----------------helper functions--------------------//
 
-func encodeKey(key string, expiryTime time.Time) []byte {
-	var compositeKey []byte
-	if !expiryTime.IsZero() {
-		compositeKey = append(compositeKey, []byte(fmt.Sprintf("%d", expiryTime.UnixNano()/int64(time.Millisecond)))...)
-		compositeKey = append(compositeKey, compositeKeySep...)
-	}
-	compositeKey = append(compositeKey, []byte(key)...)
-	return compositeKey
-}
-
 type expiryData struct {
 	ID      string `json:"_id"`
 	Rev     string `json:"_rev"`
@@ -276,7 +302,7 @@ func fetchExpiryData(db *couchdb.CouchDatabase, expiry time.Time) ([]*expiryData
 	var responses []*expiryData
 	for _, result := range results {
 		var data expiryData
-		err = json.Unmarshal(result.Value, &data)
+		err = jsonUnmarshal(result.Value, &data)
 		if err != nil {
 			return nil, errors.Wrapf(err, "result from DB is not JSON encoded")
 		}
@@ -296,7 +322,53 @@ func getExpiry(jsonResult jsonMap) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.Unix(0, nExpiry), nil
+	if nExpiry == 0 {
+		return time.Time{}, nil
+	}
+
+	return time.Unix(0, nExpiry*int64(time.Millisecond)), nil
+}
+
+func getUnixExpiry(expiry time.Time) int64 {
+	if expiry.IsZero() {
+		return 0
+	}
+	return expiry.UnixNano() / int64(time.Millisecond)
+}
+
+func decorateQuery(query string) (string, error) {
+	// create a generic map unmarshal the json
+	jsonQuery := make(jsonMap)
+	decoder := json.NewDecoder(bytes.NewBuffer([]byte(query)))
+	decoder.UseNumber()
+	err := decoder.Decode(&jsonQuery)
+	if err != nil {
+		return "", err
+	}
+
+	var fields []interface{}
+
+	// Get the fields specified in the query
+	fieldsJSONArray, ok := jsonQuery[fieldsField]
+	if ok {
+		switch fieldsJSONArray.(type) {
+		case []interface{}:
+			fields = fieldsJSONArray.([]interface{})
+		default:
+			return "", errors.New("fields definition must be an array")
+		}
+	}
+
+	// Append the internal fields
+	jsonQuery[fieldsField] = append(fields, idField, revField, txnIDField, expiryField)
+
+	decoratedQuery, err := jsonMarshal(jsonQuery)
+	if err != nil {
+		return "", err
+	}
+
+	logger.Debugf("Decorated query: [%s]", decoratedQuery)
+	return string(decoratedQuery), nil
 }
 
 func newJSONMap(key string, revision string, value *api.Value) (jsonMap, docType, error) {
@@ -315,19 +387,12 @@ func newJSONMap(key string, revision string, value *api.Value) (jsonMap, docType
 	m[idField] = key
 	if value != nil {
 		m[txnIDField] = value.TxID
-		m[expiryField] = value.ExpiryTime.UnixNano() / int64(time.Millisecond)
+		m[expiryField] = getUnixExpiry(value.ExpiryTime)
 	}
 
 	if revision != "" {
 		m[revField] = revision
 	}
-
-	// Add a dummy version field so that Fabric doesn't complain when retrieving current using rich queries
-	verAndMetadata, err := encodeVersionAndMetadata()
-	if err != nil {
-		return nil, docType, err
-	}
-	m[versionField] = verAndMetadata
 
 	return m, docType, nil
 }
@@ -338,7 +403,7 @@ func jsonMapFromValue(value *api.Value) (jsonMap, docType, error) {
 	switch {
 	case value == nil || value.Value == nil:
 		return m, typeDelete, nil
-	case json.Unmarshal(value.Value, &m) == nil && m != nil:
+	case jsonUnmarshal(value.Value, &m) == nil && m != nil:
 		// Value is a JSON value. Ensure that it doesn't contain any reserved fields
 		if err := m.checkReservedFieldsNotPresent(); err != nil {
 			return nil, typeJSON, err
@@ -347,24 +412,6 @@ func jsonMapFromValue(value *api.Value) (jsonMap, docType, error) {
 	default:
 		return m, typeAttachment, nil
 	}
-}
-
-func encodeVersionAndMetadata() (string, error) {
-	version := &version.Height{
-		BlockNum: 1000,
-		TxNum:    0,
-	}
-
-	msg := &msgs.VersionFieldProto{
-		VersionBytes: version.ToBytes(),
-	}
-	msgBytes, err := proto.Marshal(msg)
-	if err != nil {
-		return "", err
-	}
-	msgBase64 := base64.StdEncoding.EncodeToString(msgBytes)
-	encodedVersionField := append([]byte{byte(0)}, []byte(msgBase64)...)
-	return string(encodedVersionField), nil
 }
 
 func asAttachment(value []byte) *couchdb.AttachmentInfo {
@@ -378,7 +425,7 @@ func asAttachment(value []byte) *couchdb.AttachmentInfo {
 type jsonMap map[string]interface{}
 
 func (v jsonMap) toBytes() ([]byte, error) {
-	jsonBytes, err := json.Marshal(v)
+	jsonBytes, err := jsonMarshal(v)
 	err = errors.Wrap(err, "error marshalling json data")
 	return jsonBytes, err
 }
@@ -390,4 +437,12 @@ func (v jsonMap) checkReservedFieldsNotPresent() error {
 		}
 	}
 	return nil
+}
+
+var jsonUnmarshal = func(data []byte, v interface{}) error {
+	return json.Unmarshal(data, v)
+}
+
+var jsonMarshal = func(v interface{}) ([]byte, error) {
+	return json.Marshal(v)
 }

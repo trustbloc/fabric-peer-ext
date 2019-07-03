@@ -98,3 +98,18 @@ func TestDecorator_BeforeDelete(t *testing.T) {
 		assert.Equal(t, Base58Encode(key.Key), k.Key)
 	})
 }
+
+func TestDecorator_AfterQuery(t *testing.T) {
+	value1_1 := []byte("value1_1")
+	value := &storeapi.ExpiringValue{
+		Value: value1_1,
+	}
+
+	t.Run("CAS key -> success", func(t *testing.T) {
+		key := storeapi.NewKey(txID1, ns1, coll1, GetFabricCASKey(value1_1))
+		k, v, err := Decorator.AfterQuery(key, value)
+		assert.NoError(t, err)
+		assert.Equal(t, string(Base58Decode(key.Key)), k.Key)
+		assert.Equal(t, value, v)
+	})
+}

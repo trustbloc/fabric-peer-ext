@@ -158,3 +158,63 @@ func TestStore_PutAndGetData(t *testing.T) {
 		olProvider.StoreError(nil)
 	})
 }
+
+func TestStore_ExecuteQuery(t *testing.T) {
+	const (
+		tx1   = "tx1"
+		ns1   = "ns1"
+		coll1 = "coll1"
+		key1  = "key1"
+		key2  = "key2"
+	)
+
+	const query = `some query`
+
+	v1 := []byte("")
+	v2 := []byte("")
+	results := []*storeapi.QueryResult{
+		{
+			Key: storeapi.NewKey(tx1, ns1, coll1, key1),
+			ExpiringValue: &storeapi.ExpiringValue{
+				Value: v1,
+			},
+		},
+		{
+			Key: storeapi.NewKey(tx1, ns1, coll1, key2),
+			ExpiringValue: &storeapi.ExpiringValue{
+				Value: v2,
+			},
+		},
+	}
+
+	newOffLedgerProvider = func() olapi.StoreProvider {
+		return spmocks.NewOffLedgerStoreProvider().WithQueryResults(storeapi.NewQueryKey(tx1, ns1, coll1, query), results)
+	}
+
+	p := New()
+	require.NotNil(t, p)
+
+	s, err := p.OpenStore("testchannel")
+	require.NoError(t, err)
+	require.NotNil(t, s)
+
+	it, err := s.Query(storeapi.NewQueryKey(tx1, ns1, coll1, query))
+	require.NoError(t, err)
+	require.NotNil(t, it)
+
+	next, err := it.Next()
+	require.NoError(t, err)
+	require.NotNil(t, next)
+	require.Equal(t, key1, next.Key.Key)
+	require.Equal(t, v1, next.Value)
+
+	next, err = it.Next()
+	require.NoError(t, err)
+	require.NotNil(t, next)
+	require.Equal(t, key2, next.Key.Key)
+	require.Equal(t, v2, next.Value)
+
+	next, err = it.Next()
+	require.NoError(t, err)
+	require.Nil(t, next)
+}

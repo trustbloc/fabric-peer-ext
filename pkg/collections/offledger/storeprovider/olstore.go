@@ -121,6 +121,34 @@ func (s *store) GetDataMultipleKeys(key *storeapi.MultiKey) (storeapi.ExpiringVa
 	return s.getDataMultipleKeys(key.EndorsedAtTxID, key.Namespace, key.Collection, key.Keys...)
 }
 
+// Query executes the given rich query
+func (s *store) Query(key *storeapi.QueryKey) (storeapi.ResultsIterator, error) {
+	db, err := s.dbProvider.GetDB(s.channelID, key.Collection, key.Namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := db.Query(key.Query)
+	if err != nil {
+		return nil, err
+	}
+
+	var queryResults []*storeapi.QueryResult
+	for _, result := range results {
+		if result.TxID == key.EndorsedAtTxID {
+			logger.Debugf("[%s] Key [%s:%s:%s] was persisted in same transaction [%s] as caller. Not adding key to result set.", s.channelID, key.Namespace, key.Collection, result.Key, key.EndorsedAtTxID)
+		} else {
+			r := &storeapi.QueryResult{
+				Key:           storeapi.NewKey(result.TxID, key.Namespace, key.Collection, result.Key),
+				ExpiringValue: &storeapi.ExpiringValue{Value: result.Value.Value, Expiry: result.ExpiryTime},
+			}
+			queryResults = append(queryResults, r)
+		}
+	}
+
+	return newResultsIterator(queryResults), nil
+}
+
 func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*common.CollectionConfigPackage, collRWSet *rwsetutil.CollPvtRwSet) error {
 	config, exists := s.getCollectionConfig(collConfigPkgs, ns, collRWSet.CollectionName)
 	if !exists {

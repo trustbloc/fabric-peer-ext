@@ -32,6 +32,12 @@ func (m *DBProvider) WithValue(ns, coll, key string, value *api.Value) *DBProvid
 	return m
 }
 
+// WithQueryResults sets the mock query results for the given query string
+func (m *DBProvider) WithQueryResults(ns, coll, query string, results []*api.KeyValue) *DBProvider {
+	m.MockDB(ns, coll).WithQueryResults(query, results)
+	return m
+}
+
 // WithError simulates an error on the provider
 func (m *DBProvider) WithError(err error) *DBProvider {
 	m.mutex.Lock()
@@ -69,14 +75,16 @@ func (m *DBProvider) Close() {
 
 // DB implements a mock DB
 type DB struct {
-	mutex sync.RWMutex
-	data  map[string]*api.Value
-	err   error
+	mutex        sync.RWMutex
+	data         map[string]*api.Value
+	err          error
+	queryResults map[string][]*api.KeyValue
 }
 
 func newMockDB() *DB {
 	return &DB{
-		data: make(map[string]*api.Value),
+		data:         make(map[string]*api.Value),
+		queryResults: make(map[string][]*api.KeyValue),
 	}
 }
 
@@ -86,6 +94,15 @@ func (m *DB) WithValue(key string, value *api.Value) *DB {
 	defer m.mutex.Unlock()
 
 	m.data[key] = value
+	return m
+}
+
+// WithQueryResults sets the mock query results for the given query string
+func (m *DB) WithQueryResults(query string, results []*api.KeyValue) *DB {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	m.queryResults[query] = results
 	return m
 }
 
@@ -132,6 +149,14 @@ func (m *DB) GetMultiple(keys ...string) ([]*api.Value, error) {
 		values[i] = m.data[k]
 	}
 	return values, m.err
+}
+
+// Query executes a mock query and returns the key/value result set
+func (m *DB) Query(query string) ([]*api.KeyValue, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.queryResults[query], nil
 }
 
 // DeleteExpiredKeys currently does nothing
