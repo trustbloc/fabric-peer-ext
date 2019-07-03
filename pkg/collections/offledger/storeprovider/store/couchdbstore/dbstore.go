@@ -19,10 +19,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
 )
 
-var (
-	logger          = flogging.MustGetLogger("ext_offledger")
-	compositeKeySep = "!"
-)
+var logger = flogging.MustGetLogger("ext_offledger")
 
 const (
 	fieldsField = "fields"

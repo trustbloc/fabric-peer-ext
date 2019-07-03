@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
+	"github.com/hyperledger/fabric/protos/ledger/queryresult"
 	pb "github.com/hyperledger/fabric/protos/peer"
 )
 
@@ -173,21 +174,22 @@ func (cc *ExampleCC) queryPrivate(stub shim.ChaincodeStubInterface, args []strin
 		}
 	}()
 
-	var values [][]byte
+	var results []*queryresult.KV
 	for it.HasNext() {
 		result, err := it.Next()
 		if err != nil {
 			return shim.Error(fmt.Sprintf("query operation on private data failed. Error accessing state: %s", err))
 		}
-		values = append(values, result.Value)
+		logger.Infof("Adding result: Key [%s], Value: [%s]", result.Key, result.Value)
+		results = append(results, result)
 	}
 
-	jsonValues, err := json.Marshal(values)
+	jsonResults, err := json.Marshal(results)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("query operation on private data failed. Error marshaling JSON: %s", err))
 	}
 
-	return shim.Success(jsonValues)
+	return shim.Success(jsonResults)
 }
 
 func (cc *ExampleCC) getPrivateByRange(stub shim.ChaincodeStubInterface, args []string) pb.Response {

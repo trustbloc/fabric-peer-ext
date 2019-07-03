@@ -104,6 +104,8 @@ func (d *OffLedgerSteps) updateAccountBalance(varName string, balance int) error
 	}
 
 	account.OperationType = "update"
+	account.Balance = balance
+
 	bytes, err := json.Marshal(account)
 	if err != nil {
 		return errors.WithMessagef(err, "error marshalling account %v", account)
@@ -118,21 +120,64 @@ func (d *OffLedgerSteps) checkAccountQueryResponse(varName string, numItems int)
 		return errors.Errorf("no value stored in variable [%s]", varName)
 	}
 
-	var values [][]byte
-	if err := json.Unmarshal([]byte(strValues), &values); err != nil {
-		return err
+	var kvs []*KV
+	if err := json.Unmarshal([]byte(strValues), &kvs); err != nil {
+		return errors.Errorf("error unmarshalling Key-Values: %s", err)
 	}
 
-	if len(values) != numItems {
-		return errors.Errorf("expecting %d accounts but got %d", numItems, len(values))
+	if len(kvs) != numItems {
+		return errors.Errorf("expecting %d accounts but got %d", numItems, len(kvs))
 	}
 
-	for _, accountBytes := range values {
-		account := &AccountOperation{}
-		if err := json.Unmarshal(accountBytes, account); err != nil {
-			return errors.Errorf("error unmarshalling account: %s", err)
-		}
+	return nil
+}
+
+func (d *OffLedgerSteps) validateAccountAtIndex(varName string, idx int, keyExpr string, id string, owner string, balance int) error {
+	strValues, ok := bddtests.GetVar(varName)
+	if !ok {
+		return errors.Errorf("no value stored in variable [%s]", varName)
 	}
+
+	var kvs []*KV
+	if err := json.Unmarshal([]byte(strValues), &kvs); err != nil {
+		return errors.Errorf("error unmarshalling Key-Values: %s", err)
+	}
+
+	if len(kvs) <= idx {
+		return errors.Errorf("index %d out of range - only have %d accounts", idx, len(kvs))
+	}
+
+	kv := kvs[idx]
+
+	logger.Infof("Got account key [%s], value: %s", kv.Key, kv.Value)
+
+	keys, err := bddtests.ResolveAllVars(keyExpr)
+	if err != nil {
+		return errors.WithMessagef(err, "invalid key expression [%s]", keyExpr)
+	}
+	if len(keys) != 1 {
+		return errors.Errorf("expecting only one key but got %d", len(keys))
+	}
+
+	key := keys[0]
+	if kv.Key != key {
+		return errors.Errorf("expecting key [%s] but got [%s]", key, kv.Key)
+	}
+
+	account := &AccountOperation{}
+	if err := json.Unmarshal(kv.Value, account); err != nil {
+		return errors.Errorf("error unmarshalling account: %s", err)
+	}
+	if account.ID != id {
+		return errors.Errorf("expecting account ID [%s] but got [%s]", id, account.ID)
+	}
+	if account.Owner != owner {
+		return errors.Errorf("expecting account owner [%s] but got [%s]", owner, account.Owner)
+	}
+	if account.Balance != balance {
+		return errors.Errorf("expecting account balance [%d] but got [%d]", balance, account.Balance)
+	}
+
 	return nil
 }
 
@@ -188,6 +233,7 @@ func (d *OffLedgerSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the account with ID "([^"]*)", owner "([^"]*)" and a balance of (\d+) is created and stored to variable "([^"]*)"$`, d.defineNewAccount)
 	s.Step(`^the account stored in variable "([^"]*)" is updated with a balance of (\d+)$`, d.updateAccountBalance)
 	s.Step(`^the variable "([^"]*)" contains (\d+) accounts$`, d.checkAccountQueryResponse)
+	s.Step(`^the variable "([^"]*)" contains an account at index (\d+) with Key "([^"]*)", ID "([^"]*)", Owner "([^"]*)", and Balance (\d+)$`, d.validateAccountAtIndex)
 }
 
 // AccountOperation contains account information
@@ -196,4 +242,11 @@ type AccountOperation struct {
 	ID            string `json:"id"`
 	Owner         string `json:"owner"`
 	Balance       int    `json:"balance"`
+}
+
+// KV -- QueryResult for range/execute query. Holds a key and corresponding value.
+type KV struct {
+	Namespace string `protobuf:"bytes,1,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Key       string `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	Value     []byte `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
 }

@@ -61,6 +61,7 @@ github.com/hashicorp/hcl v0.0.0-20180404174102-ef8a98b0bbce h1:xdsDDbiBDQTKASoGE
 github.com/hashicorp/hcl v0.0.0-20180404174102-ef8a98b0bbce/go.mod h1:oZtUIOe8dh44I2q6ScRibXws4Ajl+d+nod3AaR9vL5w=
 github.com/hpcloud/tail v1.0.0 h1:nfCOvKYfkgYP8hkirhJocXT2+zOD8yUNjXaWfTlyFKI=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
+github.com/hyperledger/fabric v1.4.1 h1:L8LaJvIRlysk1+s2mFasrxKMU0N2pKBbIsubFrIFEJ0=
 github.com/hyperledger/fabric v1.4.1/go.mod h1:tGFAOCT696D3rG0Vofd2dyWYLySHlh0aQjf7Q1HAju0=
 github.com/hyperledger/fabric-lib-go v1.0.0 h1:UL1w7c9LvHZUSkIvHTDGklxFv2kTeva1QI2emOVc324=
 github.com/hyperledger/fabric-lib-go v1.0.0/go.mod h1:H362nMlunurmHwkYqR5uHL2UDWbQdbfz74n8kbCFsqc=
@@ -123,8 +124,8 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0Q=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
-github.com/trustbloc/fabric-peer-test-common v0.0.0-20190528215613-a7959c5ba3e1 h1:sIzaOlqGBI8I6/CMemFE1g+IRECZYwar25EvoQL0V88=
-github.com/trustbloc/fabric-peer-test-common v0.0.0-20190528215613-a7959c5ba3e1/go.mod h1:WkMYVPBLYZVYmkoke8/KmwBnGxeQQTeZafbV3FVexew=
+github.com/trustbloc/fabric-peer-test-common v0.0.0-20190702155929-65e50b1c2186 h1:P+Us2NxV0wupfq/8/R8ybJYnYiqXKiJswdoFX/RG/Jg=
+github.com/trustbloc/fabric-peer-test-common v0.0.0-20190702155929-65e50b1c2186/go.mod h1:WkMYVPBLYZVYmkoke8/KmwBnGxeQQTeZafbV3FVexew=
 github.com/trustbloc/fabric-sdk-go-ext/fabric v0.0.0-20190528182243-b95c24511993 h1:iQH8rOUokmkMRuaXS9SwzGvJeuZ3rb1V9o6yXHjCdL4=
 github.com/trustbloc/fabric-sdk-go-ext/fabric v0.0.0-20190528182243-b95c24511993/go.mod h1:24RzLAEPTcvxFatT0GLRXZTPkvkYyiBlp8yNxEwg2ig=
 github.com/vishvananda/netlink v1.0.0 h1:bqNY2lgheFIu1meHUFSH3d7vG93AFyqg3oGbJCOJgSM=
