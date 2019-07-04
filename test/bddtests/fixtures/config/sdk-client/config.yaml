@@ -96,35 +96,46 @@ client:
         path: ${GOPATH}/src/github.com/trustbloc/fabric-peer-ext/test/bddtests/fixtures/fabric/crypto-config/peerOrganizations/tls.example.com/users/User1@tls.example.com/tls/client.crt
 
 channels:
+  _default:
+    policies:
+      discovery:
+        maxTargets: 3
+        retryOpts:
+          attempts: 4
+          initialBackoff: 500ms
+          maxBackoff: 5s
+          backoffFactor: 2.0
+
   # name of the channel
+  #TODO channel.eventSource is set to false for endorser peers temporarily, will be enabled once event delivery issue with endorsers are resolved
   mychannel:
     orderers:
       - orderer.example.com
     # Required. list of peers from participating orgs
     peers:
       peer0.org1.example.com:
-        endorsingPeer: true
+        endorsingPeer: false
         chaincodeQuery: true
-        ledgerQuery: true
+        ledgerQuery: false
         eventSource: true
 
       peer1.org1.example.com:
         endorsingPeer: true
         chaincodeQuery: true
         ledgerQuery: true
-        eventSource: true
+        eventSource: false
 
       peer0.org2.example.com:
-        endorsingPeer: true
+        endorsingPeer: false
         chaincodeQuery: true
-        ledgerQuery: true
+        ledgerQuery: false
         eventSource: true
 
       peer1.org2.example.com:
         endorsingPeer: true
         chaincodeQuery: true
         ledgerQuery: true
-        eventSource: true
+        eventSource: false
 
   yourchannel:
     orderers:
@@ -141,7 +152,7 @@ channels:
         endorsingPeer: true
         chaincodeQuery: true
         ledgerQuery: true
-        eventSource: true
+        eventSource: false
 
       peer0.org2.example.com:
         endorsingPeer: true
@@ -153,7 +164,7 @@ channels:
         endorsingPeer: true
         chaincodeQuery: true
         ledgerQuery: true
-        eventSource: true
+        eventSource: false
 
 
 orderers:
