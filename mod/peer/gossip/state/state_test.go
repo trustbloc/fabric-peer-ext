@@ -43,7 +43,7 @@ func TestProviderExtension(t *testing.T) {
 		return sampleError
 	}
 
-	extension := NewGossipStateProviderExtension("test", nil, &api.Support{})
+	extension := NewGossipStateProviderExtension("test", nil, &api.Support{}, false)
 
 	//test extension.AddPayload
 	require.Error(t, sampleError, extension.AddPayload(handleAddPayload)(nil, false))
@@ -114,10 +114,10 @@ func TestProviderByEndorser(t *testing.T) {
 
 	extension := NewGossipStateProviderExtension("test", nil, &api.Support{
 		Ledger: &mockPeerLedger{&mocks.Ledger{}},
-	})
+	}, false)
 
 	//test extension.AddPayload
-	require.Nil(t, extension.AddPayload(handleAddPayload)(nil, false))
+	require.Error(t, sampleError, extension.AddPayload(handleAddPayload)(nil, false))
 
 	//test extension.StoreBlock
 	require.Nil(t, extension.StoreBlock(handleStoreBlock)(nil, util.PvtDataCollections{}))
@@ -165,7 +165,7 @@ func TestPredicate(t *testing.T) {
 	predicate := func(peer discovery.NetworkMember) bool {
 		return true
 	}
-	extension := NewGossipStateProviderExtension("test", nil, &api.Support{})
+	extension := NewGossipStateProviderExtension("test", nil, &api.Support{}, false)
 	require.True(t, extension.Predicate(predicate)(discovery.NetworkMember{Properties: &proto.Properties{Roles: []string{"endorser"}}}))
 	require.False(t, extension.Predicate(predicate)(discovery.NetworkMember{Properties: &proto.Properties{Roles: []string{"committer"}}}))
 	require.True(t, extension.Predicate(predicate)(discovery.NetworkMember{Properties: &proto.Properties{Roles: []string{}}}))
@@ -194,7 +194,7 @@ func TestProviderByCommitter(t *testing.T) {
 		return sampleError
 	}
 
-	extension := NewGossipStateProviderExtension("test", nil, &api.Support{})
+	extension := NewGossipStateProviderExtension("test", nil, &api.Support{}, false)
 
 	//test extension.AddPayload
 	require.Error(t, sampleError, extension.AddPayload(handleAddPayload)(nil, false))

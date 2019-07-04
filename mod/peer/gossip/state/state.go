@@ -82,9 +82,8 @@ func AddBlockHandler(publisher api.BlockPublisher) {
 }
 
 //NewGossipStateProviderExtension returns new GossipStateProvider Extension implementation
-func NewGossipStateProviderExtension(chainID string, mediator GossipServiceMediator, support *api.Support) GossipStateProviderExtension {
-	//TODO supply blocking mode from argument
-	return &gossipStateProviderExtension{chainID, mediator, support, true}
+func NewGossipStateProviderExtension(chainID string, mediator GossipServiceMediator, support *api.Support, blockingMode bool) GossipStateProviderExtension {
+	return &gossipStateProviderExtension{chainID, mediator, support, blockingMode}
 }
 
 type gossipStateProviderExtension struct {
@@ -119,12 +118,7 @@ func (s *gossipStateProviderExtension) Predicate(handle func(peer discovery.Netw
 
 func (s *gossipStateProviderExtension) AddPayload(handle func(payload *proto.Payload, blockingMode bool) error) func(payload *proto.Payload, blockingMode bool) error {
 
-	return func(payload *proto.Payload, blockingMode bool) error {
-		if roles.IsCommitter() {
-			return handle(payload, blockingMode)
-		}
-		return nil
-	}
+	return handle
 }
 
 func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Block, pvtData util.PvtDataCollections) error) func(block *common.Block, pvtData util.PvtDataCollections) error {
@@ -144,9 +138,13 @@ func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Bloc
 
 		//in case of non-committer handle pre commit operations
 		if isBlockValidated(block) {
+			err := s.support.Ledger.CheckpointBlock(block)
+			if err != nil {
+				logger.Warning("Failed to update checkpoint info for cid[%s] block[%d]", s.chainID, block.Header.Number)
+				return err
+			}
 			return s.support.BlockEventer.PreCommit(block)
 		}
-
 		return nil
 	}
 }

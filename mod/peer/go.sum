@@ -198,8 +198,8 @@ github.com/syndtr/goleveldb v0.0.0-20190318030020-c3a204f8e965/go.mod h1:9OrXJhf
 github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc h1:LUUe4cdABGrIJAhl1P1ZpWY76AwukVszFdwkVFVLwIk=
 github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc/go.mod h1:eyZnKCc955uh98WQvzOm0dgAeLnf2O0Rz0LPoC5ze+0=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
-github.com/trustbloc/fabric-mod v0.0.0-20190702181614-af971efb8457 h1:jSbBmrzEAGQjIzn67KqiZAbo2bPgBsxH/2JgqBt/vX4=
-github.com/trustbloc/fabric-mod v0.0.0-20190702181614-af971efb8457/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
+github.com/trustbloc/fabric-mod v0.0.0-20190709140030-ec45e50f7e8a h1:YiPeNIhYoXaW6w9PhqEiLxSZeAZyp/EuPy+jd87Zs8I=
+github.com/trustbloc/fabric-mod v0.0.0-20190709140030-ec45e50f7e8a/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
 github.com/ugorji/go v1.1.1/go.mod h1:hnLbHMwcvSihnDhEfx2/BzKp2xb0Y+ErdfYcrs9tkJQ=
 github.com/urfave/cli v1.18.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/willf/bitset v1.1.10 h1:NotGKqX0KwQ72NUzqrjZq5ipPNDQex9lo3WpaS8L2sc=
