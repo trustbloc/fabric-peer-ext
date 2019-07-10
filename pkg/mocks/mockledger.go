@@ -105,3 +105,8 @@ func (m *Ledger) CommitPvtDataOfOldBlocks(blockPvtData []*ledger2.BlockPvtData) 
 func (m *Ledger) GetMissingPvtDataTracker() (ledger2.MissingPvtDataTracker, error) {
 	panic("not implemented")
 }
+
+//CheckpointBlock updates checkpoint info to given block
+func (m *Ledger) CheckpointBlock(block *common.Block) error {
+	panic("not implemented")
+}

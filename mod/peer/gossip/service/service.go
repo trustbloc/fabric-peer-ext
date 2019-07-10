@@ -23,3 +23,8 @@ func HandleGossip(handle func(msg *gossip.GossipMessage)) func(msg *gossip.Gossi
 		logger.Debugf("Gossip from service adaptor skipped for non-endorsers")
 	}
 }
+
+//IsPvtDataReconcilerEnabled can be used to override private data reconciller enable/disable
+func IsPvtDataReconcilerEnabled(isEnabled bool) bool {
+	return roles.IsCommitter() && isEnabled
+}

@@ -89,7 +89,7 @@ func (s *cdbBlockStore) AddBlock(block *common.Block) error {
 		return err
 	}
 
-	return s.checkpointBlock(block)
+	return s.CheckpointBlock(block)
 }
 
 //validateBlock validates block before adding to store
@@ -154,17 +154,19 @@ func (s *cdbBlockStore) storeTransactions(block *common.Block) error {
 	return nil
 }
 
-func (s *cdbBlockStore) checkpointBlock(block *common.Block) error {
+func (s *cdbBlockStore) CheckpointBlock(block *common.Block) error {
 	//Update the checkpoint info with the results of adding the new block
 	newCPInfo := &checkpointInfo{
 		isChainEmpty:    false,
 		lastBlockNumber: block.Header.Number,
 		currentHash:     protoutil.BlockHeaderHash(block.Header),
 	}
-	//save the checkpoint information in the database
-	err := s.cp.saveCurrentInfo(newCPInfo)
-	if err != nil {
-		return errors.WithMessage(err, "adding cpInfo to couchDB failed")
+	if roles.IsCommitter() {
+		//save the checkpoint information in the database
+		err := s.cp.saveCurrentInfo(newCPInfo)
+		if err != nil {
+			return errors.WithMessage(err, "adding cpInfo to couchDB failed")
+		}
 	}
 	//update the checkpoint info (for storage) and the blockchain info (for APIs) in the manager
 	s.updateCheckpoint(newCPInfo)
