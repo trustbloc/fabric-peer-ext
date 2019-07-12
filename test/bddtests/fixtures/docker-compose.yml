@@ -34,10 +34,10 @@ services:
     ports:
       - 7050:7050
     volumes:
-      - ./fabric/channel:/etc/hyperledger/configtx
-      - ./fabric/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp:/etc/hyperledger/msp/orderer
-      - ./fabric/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/tls:/etc/hyperledger/tls/orderer
-      - ./fabric/crypto-config/peerOrganizations/tls.example.com/users/User1@tls.example.com/tls/ca.crt:/etc/hyperledger/mutual_tls/orderer/ca.crt
+        - ./fabric/channel:/etc/hyperledger/configtx
+        - ./fabric/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp:/etc/hyperledger/msp/orderer
+        - ./fabric/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/tls:/etc/hyperledger/tls/orderer
+        - ./fabric/crypto-config/peerOrganizations/tls.example.com/users/User1@tls.example.com/tls/ca.crt:/etc/hyperledger/mutual_tls/orderer/ca.crt
   peer0.org1.example.com:
     container_name: peer0.org1.example.com
     image: ${TRUSTBLOCK_NS}/${FABRIC_PEER_EXT_FIXTURE_IMAGE}:latest
@@ -75,21 +75,27 @@ services:
       - CORE_LEDGER_TRANSIENTDATA_CLEANUPEXPIRED_INTERVAL=5s
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=cdbadmin
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=secret
-      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=peer0-org1.couchdb:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=org1.couchdb.com:5984
+      - CORE_LEDGER_ROLES=committer
+      - CORE_PEER_GOSSIP_USELEADERELECTION=false
+      - CORE_PEER_GOSSIP_ORGLEADER=true
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric
     tty: true
     ports:
       - 7051:7051
     volumes:
-      - /var/run/:/host/var/run/
-      - ./fabric/crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp:/etc/hyperledger/msp/peer
-      - ./fabric/crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls:/etc/hyperledger/fabric/tls
-      # Give Snap the orderer CA
-      - ./fabric/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/tls/ca.crt:/etc/hyperledger/fabric/tls/orderer-ca-cert.pem
-      - ./fabric/crypto-config/peerOrganizations/tls.example.com/users/User1@tls.example.com/tls:/etc/hyperledger/mutual_tls/peer
+        - /var/run/:/host/var/run/
+        - ./fabric/crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp:/etc/hyperledger/msp/peer
+        - ./fabric/crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls:/etc/hyperledger/fabric/tls
+        # Give Snap the orderer CA
+        - ./fabric/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/tls/ca.crt:/etc/hyperledger/fabric/tls/orderer-ca-cert.pem
+        - ./fabric/crypto-config/peerOrganizations/tls.example.com/users/User1@tls.example.com/tls:/etc/hyperledger/mutual_tls/peer
     depends_on:
       - builder
       - orderer.example.com
+      - org1.couchdb.com
+#    logging:
+#      driver: none
   peer1.org1.example.com:
     container_name: peer1.org1.example.com
     image: ${TRUSTBLOCK_NS}/${FABRIC_PEER_EXT_FIXTURE_IMAGE}:latest
@@ -128,7 +134,10 @@ services:
       - CORE_LEDGER_TRANSIENTDATA_CLEANUPEXPIRED_INTERVAL=5s
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=cdbadmin
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=secret
-      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=peer1-org1.couchdb:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=org1.couchdb.com:5984
+      - CORE_LEDGER_ROLES=endorser
+      - CORE_PEER_GOSSIP_USELEADERELECTION=false
+      - CORE_PEER_GOSSIP_ORGLEADER=false
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric
     tty: true
     ports:
@@ -143,6 +152,8 @@ services:
     depends_on:
       - builder
       - orderer.example.com
+      - org1.couchdb.com
+
 
   peer0.org2.example.com:
     container_name: peer0.org2.example.com
@@ -181,7 +192,10 @@ services:
       - CORE_LEDGER_TRANSIENTDATA_CLEANUPEXPIRED_INTERVAL=5s
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=cdbadmin
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=secret
-      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=peer0-org2.couchdb:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=org2.couchdb.com:5984
+      - CORE_LEDGER_ROLES=committer
+      - CORE_PEER_GOSSIP_USELEADERELECTION=false
+      - CORE_PEER_GOSSIP_ORGLEADER=true
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric
     tty: true
     ports:
@@ -195,6 +209,9 @@ services:
     depends_on:
       - builder
       - orderer.example.com
+      - org2.couchdb.com
+#    logging:
+#      driver: none
   peer1.org2.example.com:
     container_name: peer1.org2.example.com
     image: ${TRUSTBLOCK_NS}/${FABRIC_PEER_EXT_FIXTURE_IMAGE}:latest
@@ -233,7 +250,10 @@ services:
       - CORE_LEDGER_TRANSIENTDATA_CLEANUPEXPIRED_INTERVAL=5s
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=cdbadmin
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=secret
-      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=peer1-org2.couchdb:5984
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=org2.couchdb.com:5984
+      - CORE_LEDGER_ROLES=endorser
+      - CORE_PEER_GOSSIP_USELEADERELECTION=false
+      - CORE_PEER_GOSSIP_ORGLEADER=false
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric
     tty: true
     ports:
@@ -247,9 +267,12 @@ services:
     depends_on:
       - builder
       - orderer.example.com
+      - org2.couchdb.com
+#    logging:
+#      driver: none
 
-  peer0-org1.couchdb:
-    container_name: peer0-org1.couchdb
+  org1.couchdb.com:
+    container_name: org1.couchdb.com
     image: ${COUCHDB_FIXTURE_IMAGE}:${COUCHDB_FIXTURE_TAG}
     ports:
       - 5984:5984
@@ -260,20 +283,8 @@ services:
     volumes:
       - ${COMPOSE_DIR}/config/couchDB/config.ini:/opt/couchdb/etc/local.d/config.ini
 
-  peer1-org1.couchdb:
-    container_name: peer1-org1.couchdb
-    image: ${COUCHDB_FIXTURE_IMAGE}:${COUCHDB_FIXTURE_TAG}
-    ports:
-      - 5985:5984
-    environment:
-      - DB_URL=http://localhost:5984/member_db
-      - COUCHDB_USER=cdbadmin
-      - COUCHDB_PASSWORD=secret
-    volumes:
-      - ${COMPOSE_DIR}/config/couchDB/config.ini:/opt/couchdb/etc/local.d/config.ini
-
-  peer0-org2.couchdb:
-    container_name: peer0-org2.couchdb
+  org2.couchdb.com:
+    container_name: org2.couchdb.com
     image: ${COUCHDB_FIXTURE_IMAGE}:${COUCHDB_FIXTURE_TAG}
     ports:
       - 5986:5984
@@ -284,18 +295,7 @@ services:
     volumes:
       - ${COMPOSE_DIR}/config/couchDB/config.ini:/opt/couchdb/etc/local.d/config.ini
 
-  peer1-org2.couchdb:
-    container_name: peer1-org2.couchdb
-    image: ${COUCHDB_FIXTURE_IMAGE}:${COUCHDB_FIXTURE_TAG}
-    ports:
-      - 5987:5984
-    environment:
-      - DB_URL=http://localhost:5984/member_db
-      - COUCHDB_USER=cdbadmin
-      - COUCHDB_PASSWORD=secret
-    volumes:
-      - ${COMPOSE_DIR}/config/couchDB/config.ini:/opt/couchdb/etc/local.d/config.ini
 
-  # builder is only here to create a dependency on the image (not used as part of compose)
+ # builder is only here to create a dependency on the image (not used as part of compose)
   builder:
     image: ${TRUSTBLOCK_NS}/${FABRIC_BUILDER_FIXTURE_IMAGE}:latest

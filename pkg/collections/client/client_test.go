@@ -7,12 +7,15 @@ SPDX-License-Identifier: Apache-2.0
 package client
 
 import (
+	"sync"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	cb "github.com/hyperledger/fabric/protos/common"
+	pb "github.com/hyperledger/fabric/protos/peer"
 	"github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +30,15 @@ const (
 	key1        = "key1"
 	key2        = "key2"
 	blockHeight = uint64(1000)
+
+	lsccID       = "lscc"
+	upgradeEvent = "upgrade"
+
+	txID = "tx123"
+	ccID = "cc123"
 )
+
+var testOnce sync.Once
 
 func TestClient_Put(t *testing.T) {
 	ledger := &mocks.Ledger{
@@ -45,7 +56,7 @@ func TestClient_Put(t *testing.T) {
 	// Mock out all of the dependencies
 	getLedger = func(channelID string) PeerLedger { return ledger }
 	getGossipAdapter = func() GossipAdapter { return gossip }
-	getBlockPublisher = func(channelID string) gossipapi.BlockPublisher { return mocks.NewBlockPublisher() }
+	getBlockPublisher = getMockPublisher(t)
 	getCollConfigRetriever = func(_ string, _ PeerLedger, _ gossipapi.BlockPublisher) CollectionConfigRetriever {
 		return configRetriever
 	}
@@ -147,7 +158,7 @@ func TestClient_Get(t *testing.T) {
 	// Mock out all of the dependencies
 	getLedger = func(channelID string) PeerLedger { return ledger }
 	getGossipAdapter = func() GossipAdapter { return gossip }
-	getBlockPublisher = func(channelID string) gossipapi.BlockPublisher { return mocks.NewBlockPublisher() }
+	getBlockPublisher = getMockPublisher(t)
 	getCollConfigRetriever = func(_ string, _ PeerLedger, _ gossipapi.BlockPublisher) CollectionConfigRetriever {
 		return configRetriever
 	}
@@ -190,6 +201,7 @@ func TestClient_Get(t *testing.T) {
 }
 
 func TestClient_Query(t *testing.T) {
+
 	query1 := "query1"
 
 	vk1 := &statedb.VersionedKV{
@@ -223,7 +235,7 @@ func TestClient_Query(t *testing.T) {
 	// Mock out all of the dependencies
 	getLedger = func(channelID string) PeerLedger { return mockLedger }
 	getGossipAdapter = func() GossipAdapter { return gossip }
-	getBlockPublisher = func(channelID string) gossipapi.BlockPublisher { return mocks.NewBlockPublisher() }
+	getBlockPublisher = getMockPublisher(t)
 	getCollConfigRetriever = func(_ string, _ PeerLedger, _ gossipapi.BlockPublisher) CollectionConfigRetriever {
 		return configRetriever
 	}
@@ -249,6 +261,36 @@ func TestClient_Query(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, next)
 	})
+}
+
+func testGetBlockPublisher(t *testing.T) {
+	publisher := getBlockPublisher(channelID)
+	require.NotNil(t, publisher)
+
+	const blkNum = 1100
+
+	b := mocks.NewBlockBuilder(channelID, 1100)
+
+	lceBytes, err := proto.Marshal(&pb.LifecycleEvent{ChaincodeName: ccID})
+	require.NoError(t, err)
+	require.NotNil(t, lceBytes)
+
+	b.Transaction(txID, pb.TxValidationCode_VALID).
+		ChaincodeAction(lsccID).
+		ChaincodeEvent(upgradeEvent, lceBytes)
+
+	publisher.Publish(b.Build())
+
+	require.EqualValues(t, blkNum+1, publisher.LedgerHeight())
+}
+
+func getMockPublisher(t *testing.T) func(channelID string) gossipapi.BlockPublisher {
+
+	testOnce.Do(func() {
+		testGetBlockPublisher(t)
+	})
+
+	return func(channelID string) gossipapi.BlockPublisher { return mocks.NewBlockPublisher() }
 }
 
 type mockCollectionConfigRetriever struct {

@@ -10,6 +10,8 @@ import (
 	"encoding/hex"
 	"sync"
 
+	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
+
 	"github.com/hyperledger/fabric/bccsp"
 	"github.com/hyperledger/fabric/bccsp/factory"
 	"github.com/hyperledger/fabric/common/crypto"
@@ -273,7 +275,7 @@ var getLedger = func(channelID string) PeerLedger {
 
 // getLedger returns the peer ledger. This var may be overridden in unit tests
 var getBlockPublisher = func(channelID string) gossipapi.BlockPublisher {
-	return peer.BlockPublisher.ForChannel(channelID)
+	return blockpublisher.GetProvider().ForChannel(channelID)
 }
 
 // getGossipAdapter returns the gossip adapter. This var may be overridden in unit tests

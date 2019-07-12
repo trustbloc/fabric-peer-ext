@@ -35,12 +35,18 @@ type store struct {
 
 func newStore(channelID string, dbProvider api.DBProvider, collConfigs map[common.CollectionType]*collTypeConfig) *store {
 	logger.Debugf("constructing collection data store")
-	return &store{
+
+	store := &store{
 		channelID:   channelID,
 		collConfigs: collConfigs,
 		dbProvider:  dbProvider,
-		cache:       cache.New(channelID, dbProvider, config.GetOLCollCacheSize()),
 	}
+
+	if config.GetOLCollCacheEnabled() {
+		store.cache = cache.New(channelID, dbProvider, config.GetOLCollCacheSize())
+	}
+
+	return store
 }
 
 // Close closes the store
@@ -99,14 +105,16 @@ func (s *store) PutData(config *cb.StaticCollectionConfig, key *storeapi.Key, va
 		return err
 	}
 
-	logger.Debugf("[%s] Putting key [%s] to cache", s.channelID, key)
-	s.cache.Put(key.Namespace, key.Collection, key.Key,
-		&api.Value{
-			Value:      value.Value,
-			TxID:       key.EndorsedAtTxID,
-			ExpiryTime: value.Expiry,
-		},
-	)
+	if s.cache != nil {
+		logger.Debugf("[%s] Putting key [%s] to cache", s.channelID, key)
+		s.cache.Put(key.Namespace, key.Collection, key.Key,
+			&api.Value{
+				Value:      value.Value,
+				TxID:       key.EndorsedAtTxID,
+				ExpiryTime: value.Expiry,
+			},
+		)
+	}
 
 	return nil
 }
@@ -187,6 +195,14 @@ func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*c
 		return errors.WithMessagef(err, "error persisting to [%s:%s]", ns, collRWSet.CollectionName)
 	}
 
+	if s.cache != nil {
+		s.updateCache(ns, batch, collRWSet)
+	}
+
+	return nil
+}
+
+func (s *store) updateCache(ns string, batch []*api.KeyValue, collRWSet *rwsetutil.CollPvtRwSet) {
 	for _, kv := range batch {
 		if kv.Value != nil {
 			logger.Debugf("[%s] Putting key [%s:%s:%s] in Tx [%s]", s.channelID, ns, collRWSet.CollectionName, kv.Key, kv.TxID)
@@ -196,14 +212,28 @@ func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*c
 			s.cache.Delete(ns, collRWSet.CollectionName, kv.Key)
 		}
 	}
-
-	return nil
 }
 
 func (s *store) getData(txID, ns, coll, key string) (*storeapi.ExpiringValue, error) {
-	value, err := s.cache.Get(ns, coll, key)
-	if err != nil {
-		return nil, err
+
+	var value *api.Value
+	var err error
+
+	if s.cache == nil {
+		var db api.DB
+		db, err = s.dbProvider.GetDB(s.channelID, coll, ns)
+		if err != nil {
+			return nil, errors.WithMessage(err, "error getting database")
+		}
+		value, err = db.Get(key)
+		if err != nil {
+			return nil, errors.WithMessage(err, "error loading value")
+		}
+	} else {
+		value, err = s.cache.Get(ns, coll, key)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if value == nil {
@@ -220,9 +250,26 @@ func (s *store) getData(txID, ns, coll, key string) (*storeapi.ExpiringValue, er
 }
 
 func (s *store) getDataMultipleKeys(txID, ns, coll string, keys ...string) (storeapi.ExpiringValues, error) {
-	values, err := s.cache.GetMultiple(ns, coll, keys...)
-	if err != nil {
-		return nil, err
+
+	var values []*api.Value
+	var err error
+
+	if s.cache == nil {
+		var db api.DB
+		db, err = s.dbProvider.GetDB(s.channelID, coll, ns)
+		if err != nil {
+			return nil, errors.WithMessage(err, "error getting database")
+		}
+
+		values, err = db.GetMultiple(keys...)
+		if err != nil {
+			return nil, errors.WithMessage(err, "error loading values")
+		}
+	} else {
+		values, err = s.cache.GetMultiple(ns, coll, keys...)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if len(values) != len(keys) {

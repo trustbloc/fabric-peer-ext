@@ -78,6 +78,7 @@ func testMain(m *testing.M) int {
 	flogging.ActivateSpec("couchdb=debug")
 
 	viper.Set("coll.offledger.cleanupExpired.Interval", "500ms")
+	viper.Set("coll.offledger.cache.enable", "true")
 
 	//run the tests
 	code := m.Run()

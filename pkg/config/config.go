@@ -30,7 +30,8 @@ const (
 	confOLCollLeveldb              = "offLedgerLeveldb"
 	confOLCollCleanupIntervalTime  = "coll.offledger.cleanupExpired.Interval"
 	confOLCollMaxPeersForRetrieval = "coll.offledger.maxpeers"
-	confOLCollCacheSize            = "coll.offledger.cacheSize"
+	confOLCollCacheEnabled         = "coll.offledger.cache.enable"
+	confOLCollCacheSize            = "coll.offledger.cache.size"
 	confOLCollPullTimeout          = "coll.offledger.gossip.pullTimeout"
 
 	confBlockPublisherBufferSize = "blockpublisher.buffersize"
@@ -133,6 +134,12 @@ func GetOLCollCacheSize() int {
 		return defaultOLCollCacheSize
 	}
 	return size
+}
+
+// GetOLCollCacheEnabled returns if off-ledger cache is enabled
+func GetOLCollCacheEnabled() bool {
+	enabled := viper.GetBool(confOLCollCacheEnabled)
+	return enabled
 }
 
 // GetOLCollPullTimeout is the amount of time a peer waits for a response from another peer for transient data.

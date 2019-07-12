@@ -15,6 +15,7 @@ import (
 
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	cb "github.com/hyperledger/fabric/protos/common"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
@@ -76,6 +77,7 @@ func TestStore_Close(t *testing.T) {
 }
 
 func TestStore_PutAndGet(t *testing.T) {
+
 	s := newStore(channelID, olmocks.NewDBProvider(), typeConfig)
 	require.NotNil(t, s)
 	defer s.Close()
@@ -629,5 +631,201 @@ func TestStore_ExecuteQuery(t *testing.T) {
 		it, err := s.Query(storeapi.NewQueryKey(txID1, ns1, coll1, query))
 		require.EqualError(t, err, errExpected.Error())
 		require.Nil(t, it)
+	})
+}
+
+func TestStore_PutAndGet_NoCache(t *testing.T) {
+
+	viper.Set("coll.offledger.cache.enable", "false")
+	defer viper.Set("coll.offledger.cache.enable", "true")
+
+	s := newStore(channelID, olmocks.NewDBProvider(), typeConfig)
+	require.NotNil(t, s)
+	defer s.Close()
+
+	getLocalMSPID = func() (string, error) { return org1MSP, nil }
+
+	b := mocks.NewPvtReadWriteSetBuilder()
+	ns1Builder := b.Namespace(ns1)
+	coll1Builder := ns1Builder.Collection(coll1)
+	coll1Builder.
+		OffLedgerConfig("OR('Org1MSP.member')", 1, 2, "1m").
+		Write(key1, value1_1).
+		Write(key2, value1_2)
+	coll2Builder := ns1Builder.Collection(coll2)
+	coll2Builder.
+		OffLedgerConfig("OR('Org1MSP.member')", 1, 2, "").
+		Write(key2, value2_1)
+	coll3Builder := ns1Builder.Collection(coll3)
+	coll3Builder.
+		StaticConfig("OR('Org1MSP.member')", 1, 2, 100).
+		Write(key1, value3_1)
+
+	err := s.Persist(txID1, b.Build())
+	assert.NoError(t, err)
+
+	t.Run("GetData invalid collection -> nil", func(t *testing.T) {
+		value, err := s.GetData(storeapi.NewKey(txID1, ns1, coll0, key1))
+		assert.NoError(t, err)
+		assert.Nil(t, value)
+	})
+
+	t.Run("GetData in same transaction -> nil", func(t *testing.T) {
+		value, err := s.GetData(storeapi.NewKey(txID1, ns1, coll1, key1))
+		assert.NoError(t, err)
+		assert.Nil(t, value)
+	})
+
+	t.Run("GetData in new transaction -> valid", func(t *testing.T) {
+		value, err := s.GetData(storeapi.NewKey(txID2, ns1, coll1, key1))
+		assert.NoError(t, err)
+		require.NotNil(t, value)
+		assert.Equal(t, value1_1, value.Value)
+
+		value, err = s.GetData(storeapi.NewKey(txID2, ns1, coll1, key2))
+		assert.NoError(t, err)
+		require.NotNil(t, value)
+		assert.Equal(t, value1_2, value.Value)
+	})
+
+	t.Run("GetData collection2 -> valid", func(t *testing.T) {
+		// Collection2
+		value, err := s.GetData(storeapi.NewKey(txID2, ns1, coll2, key2))
+		assert.NoError(t, err)
+		require.NotNil(t, value)
+		assert.Equal(t, value2_1, value.Value)
+	})
+
+	t.Run("GetData on non-off-ledger collection -> nil", func(t *testing.T) {
+		value, err := s.GetData(storeapi.NewKey(txID2, ns1, coll3, key1))
+		assert.NoError(t, err)
+		assert.Nil(t, value)
+	})
+
+	t.Run("GetDataMultipleKeys in same transaction -> nil", func(t *testing.T) {
+		values, err := s.GetDataMultipleKeys(storeapi.NewMultiKey(txID1, ns1, coll1, key1, key2))
+		assert.NoError(t, err)
+		require.Equal(t, 2, len(values))
+		assert.Nil(t, values[0])
+		assert.Nil(t, values[1])
+	})
+
+	t.Run("GetDataMultipleKeys in new transaction -> valid", func(t *testing.T) {
+		values, err := s.GetDataMultipleKeys(storeapi.NewMultiKey(txID2, ns1, coll1, key1, key2))
+		assert.NoError(t, err)
+		require.Equal(t, 2, len(values))
+		require.NotNil(t, values[0])
+		require.NotNil(t, values[1])
+		assert.Equal(t, value1_1, values[0].Value)
+		assert.Equal(t, value1_2, values[1].Value)
+	})
+
+	t.Run("Delete data", func(t *testing.T) {
+		value, err := s.GetData(storeapi.NewKey(txID4, ns1, coll1, key1))
+		assert.NoError(t, err)
+		assert.NotNil(t, value)
+
+		b := mocks.NewPvtReadWriteSetBuilder()
+		ns1Builder := b.Namespace(ns1)
+		coll1Builder := ns1Builder.Collection(coll1)
+		coll1Builder.
+			OffLedgerConfig("OR('Org1MSP.member')", 1, 2, "1m").
+			Delete(key1)
+		err = s.Persist(txID3, b.Build())
+
+		value, err = s.GetData(storeapi.NewKey(txID4, ns1, coll1, key1))
+		assert.NoError(t, err)
+		assert.Nil(t, value)
+	})
+}
+
+func TestStore_DBError_NoCache(t *testing.T) {
+
+	viper.Set("coll.offledger.cache.enable", "false")
+	defer viper.Set("coll.offledger.cache.enable", "true")
+
+	getLocalMSPID = func() (string, error) { return org1MSP, nil }
+
+	dbProvider := olmocks.NewDBProvider()
+	s := newStore(channelID, dbProvider, typeConfig)
+	require.NotNil(t, s)
+
+	t.Run("GetData -> error", func(t *testing.T) {
+		key := storeapi.NewKey(txID1, ns1, coll1, key1)
+
+		expectedErr := fmt.Errorf("error getting DB")
+		dbProvider.WithError(expectedErr)
+		v, err := s.GetData(key)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), expectedErr.Error())
+		assert.Nil(t, v)
+
+		expectedErr = fmt.Errorf("error getting value")
+		dbProvider.WithError(nil).MockDB(ns1, coll1).WithError(expectedErr)
+		v, err = s.GetData(key)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), expectedErr.Error())
+		assert.Nil(t, v)
+	})
+
+	t.Run("GetDataMultipleKeys -> error", func(t *testing.T) {
+		key := storeapi.NewMultiKey(txID1, ns1, coll1, key1)
+
+		expectedErr := fmt.Errorf("error getting DB")
+		dbProvider.WithError(expectedErr)
+		v, err := s.GetDataMultipleKeys(key)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), expectedErr.Error())
+		assert.Nil(t, v)
+
+		expectedErr = fmt.Errorf("error getting value")
+		dbProvider.WithError(nil).MockDB(ns1, coll1).WithError(expectedErr)
+		v, err = s.GetDataMultipleKeys(key)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), expectedErr.Error())
+		assert.Nil(t, v)
+	})
+
+	t.Run("Persist -> error", func(t *testing.T) {
+		expectedErr := fmt.Errorf("error getting DB")
+		dbProvider.WithError(expectedErr)
+
+		b := mocks.NewPvtReadWriteSetBuilder()
+		b.Namespace(ns1).Collection(coll1).OffLedgerConfig("OR('Org1MSP.member')", 1, 2, "1m")
+
+		err := s.Persist(txID1, b.Build())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), expectedErr.Error())
+
+		expectedErr = fmt.Errorf("error putting value")
+		dbProvider.WithError(nil).MockDB(ns1, coll1).WithError(expectedErr)
+
+		err = s.Persist(txID1, b.Build())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), expectedErr.Error())
+	})
+
+	t.Run("Persist -> error", func(t *testing.T) {
+		expectedErr := fmt.Errorf("error getting DB")
+		dbProvider.WithError(expectedErr)
+
+		collConfig := &cb.StaticCollectionConfig{
+			Type: cb.CollectionType_COL_OFFLEDGER,
+			Name: coll1,
+		}
+
+		key := &storeapi.Key{EndorsedAtTxID: txID1, Namespace: ns1, Collection: coll1}
+		value := &storeapi.ExpiringValue{Value: value1_1}
+
+		err := s.PutData(collConfig, key, value)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), expectedErr.Error())
+
+		expectedErr = fmt.Errorf("error putting value")
+		dbProvider.WithError(nil).MockDB(ns1, coll1).WithError(expectedErr)
+
+		err = s.PutData(collConfig, key, value)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), expectedErr.Error())
 	})
 }
