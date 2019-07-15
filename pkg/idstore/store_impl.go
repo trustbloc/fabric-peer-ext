@@ -41,9 +41,9 @@ func OpenIDStore(ledgerconfig *ledger.Config) (idstore.IDStore, error) {
 
 	// check if it committer role
 	if roles.IsCommitter() {
-		db, err := couchdb.CreateCouchDatabase(couchInstance, dbName)
-		if err != nil {
-			return nil, errors.Wrapf(err, "create new couchdb database failed ")
+		db, dbErr := couchdb.CreateCouchDatabase(couchInstance, dbName)
+		if dbErr != nil {
+			return nil, errors.Wrapf(dbErr, "create new couchdb database failed ")
 		}
 		return newCommitterStore(db)
 	}

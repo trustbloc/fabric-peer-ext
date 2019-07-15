@@ -216,6 +216,8 @@ func unmarshalData(jsonValue []byte, attachments []*couchdb.AttachmentInfo) (*ap
 	delete(jsonResult, expiryField)
 
 	// handle binary or json data
+	// nolint : S1031: unnecessary nil check around range (gosimple) -- here actual logic is implemnted for
+	// attachement == nil in else block
 	if attachments != nil { // binary attachment
 		// get binary data from attachment
 		for _, attachment := range attachments {
@@ -256,22 +258,22 @@ func (s *dbstore) createCouchDoc(key string, value *api.Value) (*couchdb.CouchDo
 		}
 	}
 
-	jsonMap, docType, err := newJSONMap(key, revision, value)
+	jsonMapVal, docTypeVal, err := newJSONMap(key, revision, value)
 	if err != nil {
 		return nil, err
 	}
-	if docType == typeDelete && jsonMap == nil {
+	if docTypeVal == typeDelete && jsonMapVal == nil {
 		logger.Debugf("[%s] Current key/revision not found to delete [%s]", s.dbName, key)
 		return nil, nil
 	}
 
-	jsonBytes, err := jsonMap.toBytes()
+	jsonBytes, err := jsonMapVal.toBytes()
 	if err != nil {
 		return nil, err
 	}
 
 	couchDoc := couchdb.CouchDoc{JSONValue: jsonBytes}
-	if value != nil && docType == typeAttachment {
+	if value != nil && docTypeVal == typeAttachment {
 		couchDoc.Attachments = append([]*couchdb.AttachmentInfo{}, asAttachment(value.Value))
 	}
 
@@ -369,12 +371,12 @@ func decorateQuery(query string) (string, error) {
 }
 
 func newJSONMap(key string, revision string, value *api.Value) (jsonMap, docType, error) {
-	m, docType, err := jsonMapFromValue(value)
+	m, docTypeVal, err := jsonMapFromValue(value)
 	if err != nil {
-		return nil, docType, err
+		return nil, docTypeVal, err
 	}
 
-	if docType == typeDelete {
+	if docTypeVal == typeDelete {
 		if revision == "" {
 			return nil, typeDelete, nil
 		}
@@ -391,7 +393,7 @@ func newJSONMap(key string, revision string, value *api.Value) (jsonMap, docType
 		m[revField] = revision
 	}
 
-	return m, docType, nil
+	return m, docTypeVal, nil
 }
 
 func jsonMapFromValue(value *api.Value) (jsonMap, docType, error) {
