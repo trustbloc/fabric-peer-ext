@@ -7,8 +7,9 @@
 
 set -e
 
+echo "Running $0"
 
 DOCKER_CMD=docker
 
 
-${DOCKER_CMD} run --rm -e GOPROXY=${GOPROXY} -v $(pwd):/goapp -e RUN=1 -e REPO=github.com/trustbloc/bloc-node golangci/build-runner goenvbuild
+${DOCKER_CMD} run --rm -e GOPROXY=${GOPROXY} -v $(pwd):/opt/workspace -w /opt/workspace golangci/golangci-lint golangci-lint run

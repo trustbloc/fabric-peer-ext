@@ -249,11 +249,11 @@ func (r *retriever) getResolver(ns, coll string) (resolver, error) {
 	key := newCollKey(ns, coll)
 
 	r.lock.RLock()
-	resolver, ok := r.resolvers[key]
+	reslvr, ok := r.resolvers[key]
 	r.lock.RUnlock()
 
 	if ok {
-		return resolver, nil
+		return reslvr, nil
 	}
 
 	return r.getOrCreateResolver(key)
