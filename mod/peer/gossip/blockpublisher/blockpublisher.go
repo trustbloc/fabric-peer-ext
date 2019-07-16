@@ -7,10 +7,18 @@ SPDX-License-Identifier: Apache-2.0
 package blockpublisher
 
 import (
+	"sync"
+
 	extblockpublisher "github.com/trustbloc/fabric-peer-ext/pkg/gossip/blockpublisher"
 )
 
-// NewProvider returns a new block publisher provider
-func NewProvider() *extblockpublisher.Provider {
-	return extblockpublisher.NewProvider()
+var blockPublisherProvider *extblockpublisher.Provider
+var once sync.Once
+
+// GetProvider returns block publisher provider
+func GetProvider() *extblockpublisher.Provider {
+	once.Do(func() {
+		blockPublisherProvider = extblockpublisher.NewProvider()
+	})
+	return blockPublisherProvider
 }

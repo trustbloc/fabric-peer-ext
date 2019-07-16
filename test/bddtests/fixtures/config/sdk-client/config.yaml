@@ -96,6 +96,15 @@ client:
         path: ${GOPATH}/src/github.com/trustbloc/fabric-peer-ext/test/bddtests/fixtures/fabric/crypto-config/peerOrganizations/tls.example.com/users/User1@tls.example.com/tls/client.crt
 
 channels:
+  _default:
+    queryChannelConfig:
+      minResponses: 1
+      maxTargets: 1
+      retryOpts:
+        attempts: 5
+        initialBackoff: 500ms
+        maxBackoff: 5s
+        backoffFactor: 2.0
   # name of the channel
   mychannel:
     orderers:

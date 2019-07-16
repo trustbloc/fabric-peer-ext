@@ -12,7 +12,7 @@ Feature: off-ledger
     Given the channel "mychannel" is created and all peers have joined
     And the channel "yourchannel" is created and all peers have joined
 
-    And off-ledger collection config "ol_coll1" is defined for collection "collection1" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=5s
+    And off-ledger collection config "ol_coll1" is defined for collection "collection1" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=10s
     And DCAS collection config "dcas_coll2" is defined for collection "collection2" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=10m
     And collection config "coll3" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and blocksToLive=10
     And DCAS collection config "dcas_accounts" is defined for collection "accounts" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=3, and timeToLive=30m
@@ -66,7 +66,7 @@ Feature: off-ledger
     When client queries chaincode "ol_examplecc" with args "getprivate,collection2,${key2}" on the "mychannel" channel
     Then response from "ol_examplecc" to client equal value "value2"
 
-    # Delete the data on one peer - should be deleted from both peers
+    # Delete the data on one peer - should be deleted from both peers (TODO: need to be tested with cache enabled)
     When client queries chaincode "ol_examplecc" with args "delprivate,collection2,${key2}" on a single peer in the "peerorg1" org on the "mychannel" channel
     And client queries chaincode "ol_examplecc" with args "getprivate,collection2,${key2}" on a single peer in the "peerorg1" org on the "mychannel" channel
     Then response from "ol_examplecc" to client equal value ""

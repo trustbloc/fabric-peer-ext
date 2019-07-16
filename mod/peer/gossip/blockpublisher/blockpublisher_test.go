@@ -35,7 +35,7 @@ func TestProvider(t *testing.T) {
 		}
 	)
 
-	p := NewProvider()
+	p := GetProvider()
 	require.NotNil(t, p)
 
 	publisher := p.ForChannel(channelID)
