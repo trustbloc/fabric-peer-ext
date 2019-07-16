@@ -37,11 +37,14 @@ func (d *DCASClient) PutMultipleValues(ns, coll string, values [][]byte) ([]stri
 	keys := make([]string, len(values))
 	kvs := make([]*olclient.KeyValue, len(values))
 	for i, v := range values {
-		key := dcas.GetCASKey(v)
+		key, bytes, err := dcas.GetCASKeyAndValue(v)
+		if err != nil {
+			return nil, err
+		}
 		keys[i] = key
 		kvs[i] = &olclient.KeyValue{
 			Key:   key,
-			Value: v,
+			Value: bytes,
 		}
 	}
 	if err := d.Client.PutMultipleValues(ns, coll, kvs); err != nil {

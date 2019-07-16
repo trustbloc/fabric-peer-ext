@@ -39,13 +39,13 @@ func ComputeDisseminationPlan(
 	gossipAdapter gossipAdapter) ([]*dissemination.Plan, bool, error) {
 	logger.Debugf("Computing dissemination plan for [%s:%s]", ns, rwSet.CollectionName)
 
-	kvRwSet := &kvrwset.KVRWSet{}
-	if err := protobuf.Unmarshal(rwSet.Rwset, kvRwSet); err != nil {
+	kvRwSet, err := unmarshalKVRWSet(rwSet.Rwset)
+	if err != nil {
 		return nil, true, errors.WithMessage(err, "error unmarshalling KV read/write set")
 	}
 
 	if err := validateAll(collConfig.Type, kvRwSet); err != nil {
-		return nil, false, errors.WithMessagef(err, "one or more keys did not validate for collection [%s:%s]", ns, rwSet.CollectionName)
+		return nil, true, errors.WithMessagef(err, "one or more keys did not validate for collection [%s:%s]", ns, rwSet.CollectionName)
 	}
 
 	peers := New(channelID, ns, rwSet.CollectionName, colAP, gossipAdapter).resolvePeersForDissemination().Remote()
@@ -87,10 +87,23 @@ func validateAll(collType cb.CollectionType, kvRWSet *kvrwset.KVRWSet) error {
 
 func validate(collType cb.CollectionType, ws *kvrwset.KVWrite) error {
 	if collType == cb.CollectionType_COL_DCAS && ws.Value != nil {
-		expectedKey := dcas.GetCASKey(ws.Value)
+		expectedKey, _, err := dcas.GetCASKeyAndValue(ws.Value)
+		if err != nil {
+			return err
+		}
 		if ws.Key != expectedKey {
-			return errors.Errorf("invalid CAS key [%s] - the key should be the hash of the value", ws.Key)
+			return errors.Errorf("invalid CAS key [%s] - the key should be the hash of the value [%s]", ws.Key, expectedKey)
 		}
 	}
 	return nil
+}
+
+// unmarshalKVRWSet unmarshals the given KV rw-set bytes. This variable may be overridden by unit tests.
+var unmarshalKVRWSet = func(bytes []byte) (*kvrwset.KVRWSet, error) {
+	kvRwSet := &kvrwset.KVRWSet{}
+	err := protobuf.Unmarshal(bytes, kvRwSet)
+	if err != nil {
+		return nil, err
+	}
+	return kvRwSet, nil
 }

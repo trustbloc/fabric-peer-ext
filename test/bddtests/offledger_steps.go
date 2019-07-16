@@ -8,6 +8,7 @@ package bddtests
 
 import (
 	"encoding/json"
+	"sort"
 
 	"github.com/DATA-DOG/godog"
 	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/protos/common"
@@ -80,6 +81,7 @@ func (d *OffLedgerSteps) defineNewAccount(id, owner string, balance int, varName
 		ID:            id,
 		Owner:         owner,
 		Balance:       balance,
+		Order:         1,
 	}
 	bytes, err := json.Marshal(account)
 	if err != nil {
@@ -105,6 +107,7 @@ func (d *OffLedgerSteps) updateAccountBalance(varName string, balance int) error
 
 	account.OperationType = "update"
 	account.Balance = balance
+	account.Order++ // Increment the operation order since we sort the operations based on this field
 
 	bytes, err := json.Marshal(account)
 	if err != nil {
@@ -144,12 +147,17 @@ func (d *OffLedgerSteps) validateAccountAtIndex(varName string, idx int, keyExpr
 	}
 
 	if len(kvs) <= idx {
-		return errors.Errorf("index %d out of range - only have %d accounts", idx, len(kvs))
+		return errors.Errorf("index %d out of range - only have %d queryResults", idx, len(kvs))
 	}
 
-	kv := kvs[idx]
+	queryResults, err := unmarshalAccountOperations(kvs)
+	if err != nil {
+		return err
+	}
 
-	logger.Infof("Got account key [%s], value: %s", kv.Key, kv.Value)
+	queryResult := queryResults[idx]
+
+	logger.Infof("Got account key [%s]", queryResult.key)
 
 	keys, err := bddtests.ResolveAllVars(keyExpr)
 	if err != nil {
@@ -160,14 +168,11 @@ func (d *OffLedgerSteps) validateAccountAtIndex(varName string, idx int, keyExpr
 	}
 
 	key := keys[0]
-	if kv.Key != key {
-		return errors.Errorf("expecting key [%s] but got [%s]", key, kv.Key)
+	if queryResult.key != key {
+		return errors.Errorf("expecting key [%s] but got [%s]", key, queryResult.key)
 	}
 
-	account := &AccountOperation{}
-	if err := json.Unmarshal(kv.Value, account); err != nil {
-		return errors.Errorf("error unmarshalling account: %s", err)
-	}
+	account := queryResult.account
 	if account.ID != id {
 		return errors.Errorf("expecting account ID [%s] but got [%s]", id, account.ID)
 	}
@@ -177,7 +182,6 @@ func (d *OffLedgerSteps) validateAccountAtIndex(varName string, idx int, keyExpr
 	if account.Balance != balance {
 		return errors.Errorf("expecting account balance [%d] but got [%d]", balance, account.Balance)
 	}
-
 	return nil
 }
 
@@ -242,6 +246,7 @@ type AccountOperation struct {
 	ID            string `json:"id"`
 	Owner         string `json:"owner"`
 	Balance       int    `json:"balance"`
+	Order         int    `json:"order"`
 }
 
 // KV -- QueryResult for range/execute query. Holds a key and corresponding value.
@@ -249,4 +254,28 @@ type KV struct {
 	Namespace string `protobuf:"bytes,1,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	Key       string `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
 	Value     []byte `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+}
+
+type accountOperationInfo struct {
+	key     string
+	account *AccountOperation
+}
+
+// unmarshalAccountOperations unmarshals the account operations and returns them in sorted order
+func unmarshalAccountOperations(kvs []*KV) ([]*accountOperationInfo, error) {
+	accounts := make([]*accountOperationInfo, len(kvs))
+	for i, kv := range kvs {
+		account := &AccountOperation{}
+		if err := json.Unmarshal(kv.Value, account); err != nil {
+			return nil, errors.Errorf("error unmarshalling account: %s", err)
+		}
+		accounts[i] = &accountOperationInfo{
+			key:     kv.Key,
+			account: account,
+		}
+	}
+	sort.Slice(accounts, func(i, j int) bool {
+		return accounts[i].account.Order < accounts[j].account.Order
+	})
+	return accounts, nil
 }

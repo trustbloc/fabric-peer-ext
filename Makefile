@@ -53,7 +53,7 @@ fabric-unit-test: export FABRIC_COMMAND=unit-test
 fabric-unit-test: checks docker-thirdparty
 	@scripts/build_fabric.sh
 
-bddtests: checks build-fabric-images populate-fixtures
+bddtests: checks build-fabric-images populate-fixtures build-cc
 	@scripts/integration.sh
 
 build-fabric-images: export FABRIC_COMMAND=peer-docker orderer-docker ccenv
@@ -86,6 +86,11 @@ version:
 
 docker-thirdparty:
 	docker pull couchdb:2.2.0
+
+build-cc:
+	@echo "Building cc"
+	@mkdir -p ./.build
+	@scripts/copycc.sh
 
 clean-images:
 	@echo "Stopping all containers, pruning containers and images, deleting dev images"

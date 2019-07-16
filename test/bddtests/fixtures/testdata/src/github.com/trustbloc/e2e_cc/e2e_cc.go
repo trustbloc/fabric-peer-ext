@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/protos/ledger/queryresult"
 	pb "github.com/hyperledger/fabric/protos/peer"
@@ -394,9 +395,12 @@ func (cc *ExampleCC) putCAS(stub shim.ChaincodeStubInterface, args []string) pb.
 	coll := args[0]
 	value := args[1]
 
-	key := getCASKey([]byte(value))
+	key, bytes, err := getCASKeyAndValue([]byte(value))
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Error getting CAS key for [%s]: %s", value, err))
+	}
 
-	if err := stub.PutPrivateData(coll, key, []byte(value)); err != nil {
+	if err := stub.PutPrivateData(coll, key, bytes); err != nil {
 		return shim.Error(fmt.Sprintf("Error putting private data for collection [%s] and key [%s]: %s", coll, key, err))
 	}
 
@@ -418,14 +422,17 @@ func (cc *ExampleCC) putCASMultiple(stub shim.ChaincodeStubInterface, args []str
 		coll := ckv.v1
 		value := ckv.v2
 
-		key := getCASKey([]byte(value))
+		key, bytes, err := getCASKeyAndValue([]byte(value))
+		if err != nil {
+			return shim.Error(fmt.Sprintf("Error getting CAS key for [%s]: %s", value, err))
+		}
 		if keys == "" {
 			keys = key
 		} else {
 			keys += "," + key
 		}
 
-		if err := stub.PutPrivateData(coll, key, []byte(value)); err != nil {
+		if err := stub.PutPrivateData(coll, key, bytes); err != nil {
 			return shim.Error(fmt.Sprintf("Error putting CAS data for collection [%s] and key [%s]: %s", coll, key, err))
 		}
 	}
@@ -441,7 +448,10 @@ func (cc *ExampleCC) getAndPutCAS(stub shim.ChaincodeStubInterface, args []strin
 	coll := args[0]
 	privValue := args[1]
 
-	privKey := getCASKey([]byte(privValue))
+	privKey, privBytes, err := getCASKeyAndValue([]byte(privValue))
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Error getting CAS key for [%s]: %s", privValue, err))
+	}
 
 	oldPrivValue, err := stub.GetPrivateData(coll, privKey)
 	if err != nil {
@@ -451,7 +461,7 @@ func (cc *ExampleCC) getAndPutCAS(stub shim.ChaincodeStubInterface, args []strin
 		return shim.Success([]byte(privKey))
 	}
 
-	if err := stub.PutPrivateData(coll, privKey, []byte(privValue)); err != nil {
+	if err := stub.PutPrivateData(coll, privKey, privBytes); err != nil {
 		return shim.Error(fmt.Sprintf("Error putting DCAS data for collection [%s] and key [%s]: %s", coll, privKey, err))
 	}
 
@@ -522,13 +532,43 @@ func (cc *ExampleCC) functions() []string {
 	return funcs
 }
 
-// getCASKey returns the content-addressable key for the given content
-// (sha256 hash + base64 URL encoding).
+// getCASKey returns the content-addressable key for the given content,
+// encoded in base58 so that it may be used as a key in Fabric.
 func getCASKey(content []byte) string {
 	hash := getHash(content)
 	buf := make([]byte, base64.URLEncoding.EncodedLen(len(hash)))
 	base64.URLEncoding.Encode(buf, hash)
-	return string(buf)
+	return base58.Encode(buf)
+}
+
+// getCASKeyAndValue returns the content-addressable key for the given content,
+// (encoded in base58 so that it may be used as a key in Fabric) along with the
+// normalized value (i.e. if the content is a JSON doc then the fields
+// are marshaled in a deterministic order).
+func getCASKeyAndValue(content []byte) (string, []byte, error) {
+	bytes, err := getNormalizedContent(content)
+	if err != nil {
+		return "", nil, err
+	}
+	return getCASKey(bytes), bytes, nil
+}
+
+// getNormalizedContent ensures that, if the content is a JSON doc, then the fields are marshaled in a deterministic order.
+func getNormalizedContent(content []byte) ([]byte, error) {
+	m := make(map[string]interface{})
+	err := json.Unmarshal(content, &m)
+	if err != nil {
+		// This is not a JSON document
+		return content, nil
+	}
+
+	// This is a JSON doc. Re-marshal it in order to ensure that the JSON fields are marshaled in a deterministic order.
+	bytes, err := json.Marshal(&m)
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes, nil
 }
 
 // getHash will compute the hash for the supplied bytes using SHA256
