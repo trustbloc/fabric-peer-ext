@@ -55,9 +55,6 @@ var (
 	value3_1 = []byte("value3_1")
 	value4_1 = []byte("value4_1")
 
-	casKey1_1 = dcas.GetCASKey(value1_1)
-	casKey1_2 = dcas.GetCASKey(value1_2)
-
 	typeConfig = map[cb.CollectionType]*collTypeConfig{
 		cb.CollectionType_COL_OFFLEDGER: {},
 		cb.CollectionType_COL_DCAS:      {decorator: dcas.Decorator},
@@ -221,40 +218,47 @@ func TestStore_PutAndGet_DCAS(t *testing.T) {
 	})
 
 	t.Run("GetData -> success", func(t *testing.T) {
+		casKey1, value1, err := dcas.GetCASKeyAndValue(value1_1)
+		require.NoError(t, err)
+
+		casKey2, value2, err := dcas.GetCASKeyAndValue(value1_2)
+		require.NoError(t, err)
+
 		b := mocks.NewPvtReadWriteSetBuilder()
 		ns1Builder := b.Namespace(ns1)
 		coll1Builder := ns1Builder.Collection(coll1)
 		coll1Builder.
 			DCASConfig("OR('Org1MSP.member')", 1, 2, "1m").
-			Write(casKey1_1, value1_1). // The key should be validated
-			Write("", value1_2)         // The key should be generated
+			Write(casKey1, value1).
+			Write(casKey2, value2)
 
-		err := s.Persist(txID1, b.Build())
-		require.NoError(t, err)
+		require.NoError(t, s.Persist(txID1, b.Build()))
 
-		value, err := s.GetData(storeapi.NewKey(txID2, ns1, coll1, dcas.GetFabricCASKey(value1_1)))
+		value, err := s.GetData(storeapi.NewKey(txID2, ns1, coll1, casKey1))
 		assert.NoError(t, err)
 		require.NotNil(t, value)
 		assert.Equal(t, value1_1, value.Value)
 
-		value, err = s.GetData(storeapi.NewKey(txID2, ns1, coll1, dcas.GetFabricCASKey(value1_2)))
+		value, err = s.GetData(storeapi.NewKey(txID2, ns1, coll1, casKey2))
 		assert.NoError(t, err)
 		require.NotNil(t, value)
 		assert.Equal(t, value1_2, value.Value)
 	})
 
 	t.Run("Delete data", func(t *testing.T) {
+		casKey1, value1, err := dcas.GetCASKeyAndValue(value1_1)
+		require.NoError(t, err)
+
 		b := mocks.NewPvtReadWriteSetBuilder()
 		ns1Builder := b.Namespace(ns2)
 		coll1Builder := ns1Builder.Collection(coll1)
 		coll1Builder.
 			DCASConfig("OR('Org1MSP.member')", 1, 2, "1m").
-			Write("", value1_1)
+			Write(casKey1, value1)
 
-		err := s.Persist(txID1, b.Build())
-		require.NoError(t, err)
+		require.NoError(t, s.Persist(txID1, b.Build()))
 
-		value, err := s.GetData(storeapi.NewKey(txID2, ns2, coll1, dcas.GetFabricCASKey(value1_1)))
+		value, err := s.GetData(storeapi.NewKey(txID2, ns2, coll1, casKey1))
 		assert.NoError(t, err)
 		assert.NotNil(t, value)
 
@@ -263,10 +267,10 @@ func TestStore_PutAndGet_DCAS(t *testing.T) {
 		coll1Builder = ns1Builder.Collection(coll1)
 		coll1Builder.
 			DCASConfig("OR('Org1MSP.member')", 1, 2, "1m").
-			Delete(dcas.GetCASKey(value1_1))
+			Delete(casKey1)
 		err = s.Persist(txID3, b.Build())
 
-		value, err = s.GetData(storeapi.NewKey(txID4, ns2, coll1, dcas.GetFabricCASKey(value1_1)))
+		value, err = s.GetData(storeapi.NewKey(txID4, ns2, coll1, casKey1))
 		assert.NoError(t, err)
 		assert.Nil(t, value)
 	})

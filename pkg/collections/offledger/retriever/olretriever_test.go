@@ -79,32 +79,6 @@ var (
 	value2 = &storeapi.ExpiringValue{Value: []byte("value2")}
 	value3 = &storeapi.ExpiringValue{Value: []byte("value3")}
 	value4 = &storeapi.ExpiringValue{Value: []byte("value4")}
-
-	casKey1 = dcas.GetCASKey(value1.Value)
-
-	offLedgerQueryKey     = storeapi.NewQueryKey(txID, ns1, coll1, "off-ledger query")
-	offLedgerQueryResults = []*storeapi.QueryResult{
-		{
-			Key:           storeapi.NewKey(txID1, ns1, coll1, key1),
-			ExpiringValue: value1,
-		},
-		{
-			Key:           storeapi.NewKey(txID1, ns1, coll1, key2),
-			ExpiringValue: value2,
-		},
-	}
-
-	dcasQueryKey     = storeapi.NewQueryKey(txID, ns1, coll2, "DCAS query")
-	dcasQueryResults = []*storeapi.QueryResult{
-		{
-			Key:           storeapi.NewKey(txID1, ns1, coll2, dcas.GetFabricCASKey(value3.Value)),
-			ExpiringValue: value3,
-		},
-		{
-			Key:           storeapi.NewKey(txID1, ns1, coll2, dcas.GetFabricCASKey(value4.Value)),
-			ExpiringValue: value4,
-		},
-	}
 )
 
 func TestRetriever(t *testing.T) {
@@ -139,10 +113,13 @@ func TestRetriever(t *testing.T) {
 		Member(org3MSPID, mocks.NewMember(p2Org3Endpoint, p2Org3PKIID, committerRole)).
 		Member(org3MSPID, mocks.NewMember(p3Org3Endpoint, p3Org3PKIID, endorserRole))
 
+	casKey1, casValue1, err := dcas.GetCASKeyAndValue([]byte(`{"id":"id1","value":"value1"}`))
+	require.NoError(t, err)
+
 	localStore := spmocks.NewStore().
 		Data(storeapi.NewKey(txID, ns1, coll1, key1), value1).
-		Data(storeapi.NewKey(txID, ns1, coll2, dcas.Base58Encode(key1)), value1).           // Invalid CAS key
-		Data(storeapi.NewKey(txID, ns1, coll2, dcas.GetFabricCASKey(value1.Value)), value1) // Valid CAS key
+		Data(storeapi.NewKey(txID, ns1, coll2, key1), value1).                                      // Invalid CAS key
+		Data(storeapi.NewKey(txID, ns1, coll2, casKey1), &storeapi.ExpiringValue{Value: casValue1}) // Valid CAS key
 
 	storeProvider := func(channelID string) olapi.Store { return localStore }
 	gossipProvider := func() supportapi.GossipAdapter { return gossip }
@@ -186,7 +163,7 @@ func TestRetriever(t *testing.T) {
 		value, err = retriever.GetData(ctx, storeapi.NewKey(txID, ns1, coll2, casKey1))
 		require.NoError(t, err)
 		require.NotNil(t, value)
-		require.Equal(t, value1, value)
+		require.Equal(t, casValue1, value.Value)
 	})
 
 	t.Run("GetData - No response from remote peer", func(t *testing.T) {
@@ -324,6 +301,35 @@ func TestRetriever(t *testing.T) {
 }
 
 func TestRetriever_Query(t *testing.T) {
+	keyX, valueX, err := dcas.GetCASKeyAndValue([]byte(`{"id":"id3","value":"valueX"}`))
+	require.NoError(t, err)
+	keyY, valueY, err := dcas.GetCASKeyAndValue([]byte(`{"id":"id4","value":"valueY"}`))
+	require.NoError(t, err)
+
+	offLedgerQueryKey := storeapi.NewQueryKey(txID, ns1, coll1, "off-ledger query")
+	offLedgerQueryResults := []*storeapi.QueryResult{
+		{
+			Key:           storeapi.NewKey(txID1, ns1, coll1, key1),
+			ExpiringValue: value1,
+		},
+		{
+			Key:           storeapi.NewKey(txID1, ns1, coll1, key2),
+			ExpiringValue: value2,
+		},
+	}
+
+	dcasQueryKey := storeapi.NewQueryKey(txID, ns1, coll2, "DCAS query")
+	dcasQueryResults := []*storeapi.QueryResult{
+		{
+			Key:           storeapi.NewKey(txID1, ns1, coll2, keyX),
+			ExpiringValue: &storeapi.ExpiringValue{Value: valueX},
+		},
+		{
+			Key:           storeapi.NewKey(txID1, ns1, coll2, keyY),
+			ExpiringValue: &storeapi.ExpiringValue{Value: valueY},
+		},
+	}
+
 	support := mocks.NewMockSupport().
 		CollectionPolicy(&mocks.MockAccessPolicy{
 			MaxPeerCount: 2,
@@ -395,14 +401,14 @@ func TestRetriever_Query(t *testing.T) {
 		next, err := it.Next()
 		require.NoError(t, err)
 		require.NotNil(t, next)
-		require.Equal(t, value3.Value, next.Value)
-		require.Equal(t, dcas.GetCASKey(value3.Value), next.Key.Key)
+		require.Equal(t, valueX, next.Value)
+		require.Equal(t, keyX, next.Key.Key)
 
 		next, err = it.Next()
 		require.NoError(t, err)
 		require.NotNil(t, next)
-		require.Equal(t, value4.Value, next.Value)
-		require.Equal(t, dcas.GetCASKey(value4.Value), next.Key.Key)
+		require.Equal(t, valueY, next.Value)
+		require.Equal(t, keyY, next.Key.Key)
 
 		next, err = it.Next()
 		require.NoError(t, err)

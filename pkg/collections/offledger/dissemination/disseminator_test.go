@@ -7,11 +7,13 @@ SPDX-License-Identifier: Apache-2.0
 package dissemination
 
 import (
+	"errors"
 	"os"
 	"testing"
 
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	cb "github.com/hyperledger/fabric/protos/common"
+	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -244,15 +246,19 @@ func TestComputeDisseminationPlan(t *testing.T) {
 
 		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colConfig, colAP, nil, gossip)
 		require.Error(t, err)
-		assert.False(t, handled)
+		assert.True(t, handled)
 		assert.Nil(t, dPlan)
 		assert.Contains(t, err.Error(), "the key should be the hash of the value")
 	})
 
 	t.Run("Valid CAS Key", func(t *testing.T) {
+		key1, value1, err := dcas.GetCASKeyAndValue([]byte("value1"))
+		require.NoError(t, err)
+		key2, _, err := dcas.GetCASKeyAndValue([]byte("value2"))
+		require.NoError(t, err)
 		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
-			Write(dcas.GetCASKey([]byte("value1")), []byte("value1")).
-			Delete(dcas.GetCASKey([]byte("value2"))).
+			Write(key1, value1).
+			Delete(key2).
 			Build()
 		colConfig := &cb.StaticCollectionConfig{
 			Type: cb.CollectionType_COL_DCAS,
@@ -276,6 +282,47 @@ func TestComputeDisseminationPlan(t *testing.T) {
 		assert.False(t, criteria.IsEligible(p1Org3))
 		assert.True(t, criteria.IsEligible(p2Org3))
 		assert.False(t, criteria.IsEligible(p3Org3))
+	})
+
+	t.Run("Marshal error", func(t *testing.T) {
+		key1, value1, err := dcas.GetCASKeyAndValue([]byte(`{"field1":"value1"}`))
+		require.NoError(t, err)
+		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
+			Write(key1, value1).
+			Build()
+		colConfig := &cb.StaticCollectionConfig{
+			Type: cb.CollectionType_COL_DCAS,
+		}
+
+		reset := dcas.SetJSONMarshaller(func(m map[string]interface{}) ([]byte, error) {
+			return nil, errors.New("injected marshal error")
+		})
+		defer reset()
+
+		_, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colConfig, colAP, nil, gossip)
+		require.Error(t, err)
+		require.True(t, handled)
+	})
+
+	t.Run("Unmarshal error", func(t *testing.T) {
+		key1, value1, err := dcas.GetCASKeyAndValue([]byte(`{"field1":"value1"}`))
+		require.NoError(t, err)
+		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
+			Write(key1, value1).
+			Build()
+		colConfig := &cb.StaticCollectionConfig{
+			Type: cb.CollectionType_COL_DCAS,
+		}
+
+		prevUnmarshaller := unmarshalKVRWSet
+		unmarshalKVRWSet = func(bytes []byte) (*kvrwset.KVRWSet, error) {
+			return nil, errors.New("injected marshal error")
+		}
+		defer func() { unmarshalKVRWSet = prevUnmarshaller }()
+
+		_, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colConfig, colAP, nil, gossip)
+		require.Error(t, err)
+		require.True(t, handled)
 	})
 }
 

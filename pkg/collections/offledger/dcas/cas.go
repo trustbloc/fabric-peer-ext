@@ -9,22 +9,38 @@ package dcas
 import (
 	"crypto"
 	"encoding/base64"
+	"encoding/json"
 
 	"github.com/btcsuite/btcutil/base58"
 )
 
-// GetCASKey returns the content-addressable key for the given content.
-func GetCASKey(content []byte) string {
-	hash := getHash(content)
-	buf := make([]byte, base64.URLEncoding.EncodedLen(len(hash)))
-	base64.URLEncoding.Encode(buf, hash)
-	return string(buf)
+// GetCASKeyAndValue first normalizes the content (i.e. if the content is a JSON doc then the fields
+// are marshaled in a deterministic order) and returns the content-addressable key
+// (encoded in base58 so that it may be used as a key in Fabric) along with the normalized value.
+func GetCASKeyAndValue(content []byte) (string, []byte, error) {
+	bytes, err := getNormalizedContent(content)
+	if err != nil {
+		return "", nil, err
+	}
+	return getCASKey(bytes), bytes, nil
 }
 
-// GetFabricCASKey returns the content-addressable key for the given content,
-// encoded in base58 so that it may be used as a key in Fabric.
-func GetFabricCASKey(content []byte) string {
-	return Base58Encode(GetCASKey(content))
+// getNormalizedContent ensures that, if the content is a JSON doc, then the fields are marshaled in a deterministic order
+// so that the hash of the content is also deterministic.
+func getNormalizedContent(content []byte) ([]byte, error) {
+	m, err := unmarshalJSONMap(content)
+	if err != nil {
+		// This is not a JSON document
+		return content, nil
+	}
+
+	// This is a JSON doc. Re-marshal it in order to ensure that the JSON fields are marshaled in a deterministic order.
+	bytes, err := marshalJSONMap(m)
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes, nil
 }
 
 // getHash will compute the hash for the supplied bytes using SHA256
@@ -36,12 +52,24 @@ func getHash(bytes []byte) []byte {
 	return h.Sum(nil)
 }
 
-// Base58Encode encodes the given string in base 58
-func Base58Encode(s string) string {
-	return base58.Encode([]byte(s))
+func getCASKey(content []byte) string {
+	hash := getHash(content)
+	buf := make([]byte, base64.URLEncoding.EncodedLen(len(hash)))
+	base64.URLEncoding.Encode(buf, hash)
+	return base58.Encode(buf)
 }
 
-// Base58Decode decodes the given base 58 string
-func Base58Decode(s string) []byte {
-	return base58.Decode(s)
+// marshalJSONMap marshals a JSON map. This variable may be overridden by unit tests.
+var marshalJSONMap = func(m map[string]interface{}) ([]byte, error) {
+	return json.Marshal(&m)
+}
+
+// unmarshalJSONMap unmarshals a JSON map from the given bytes. This variable may be overridden by unit tests.
+var unmarshalJSONMap = func(bytes []byte) (map[string]interface{}, error) {
+	m := make(map[string]interface{})
+	err := json.Unmarshal(bytes, &m)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
 }

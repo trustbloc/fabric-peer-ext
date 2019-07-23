@@ -8,6 +8,7 @@ replace github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/
 
 require (
 	github.com/DATA-DOG/godog v0.7.13
+	github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d
 	github.com/hyperledger/fabric-sdk-go v1.0.0-alpha5.0.20190429134815-48bb0d199e2c
 	github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric v0.0.0-20190429134815-48bb0d199e2c
 	github.com/pkg/errors v0.8.1

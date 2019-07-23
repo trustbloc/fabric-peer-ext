@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package dcasclient
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/hyperledger/fabric/core/ledger"
@@ -56,23 +57,46 @@ func TestDCASClient_Put(t *testing.T) {
 
 	value1 := []byte("value1")
 
-	t.Run("Success", func(t *testing.T) {
+	jsonValue := []byte(`{"fieldx":"valuex","field1":"value1","field2":"value2"}`)
+
+	t.Run("Non-JSON -> Success", func(t *testing.T) {
 		key, err := c.Put(ns1, coll1, value1)
 		require.NoError(t, err)
-		assert.Equal(t, dcas.GetCASKey(value1), key)
+		casKey, _, err := dcas.GetCASKeyAndValue(value1)
+		require.NoError(t, err)
+		assert.Equal(t, casKey, key)
+	})
+
+	t.Run("JSON -> Success", func(t *testing.T) {
+		key, err := c.Put(ns1, coll1, jsonValue)
+		require.NoError(t, err)
+		casKey, _, err := dcas.GetCASKeyAndValue(jsonValue)
+		require.NoError(t, err)
+		assert.Equal(t, casKey, key)
+	})
+
+	t.Run("JSON marshal error -> error", func(t *testing.T) {
+		reset := dcas.SetJSONMarshaller(func(m map[string]interface{}) ([]byte, error) {
+			return nil, errors.New("injected marshal error")
+		})
+		defer reset()
+
+		_, err := c.Put(ns1, coll1, jsonValue)
+		require.Error(t, err)
 	})
 
 	t.Run("Delete", func(t *testing.T) {
-		err := c.Delete(ns1, coll1, dcas.GetCASKey(value1))
+		casKey, _, err := dcas.GetCASKeyAndValue(value1)
 		require.NoError(t, err)
+		require.NoError(t, c.Delete(ns1, coll1, casKey))
 	})
 }
 
 func TestDCASClient_Get(t *testing.T) {
-	value1 := []byte("value1")
-	value2 := []byte("value2")
-	key1 := dcas.GetCASKey(value1)
-	key2 := dcas.GetCASKey(value2)
+	key1, value1, err := dcas.GetCASKeyAndValue([]byte("value1"))
+	require.NoError(t, err)
+	key2, value2, err := dcas.GetCASKeyAndValue([]byte("value2"))
+	require.NoError(t, err)
 
 	ledger := &mocks.Ledger{
 		QueryExecutor: mocks.NewQueryExecutor().
@@ -112,10 +136,10 @@ func TestDCASClient_Get(t *testing.T) {
 }
 
 func TestClient_Query(t *testing.T) {
-	value1 := []byte("value1")
-	value2 := []byte("value2")
-	key1 := dcas.GetCASKey(value1)
-	key2 := dcas.GetCASKey(value2)
+	key1, value1, err := dcas.GetCASKeyAndValue([]byte(`{"id":"id1","value":"value1"}`))
+	require.NoError(t, err)
+	key2, value2, err := dcas.GetCASKeyAndValue([]byte(`{"id":"id2","value":"value2"}`))
+	require.NoError(t, err)
 
 	query1 := "query1"
 

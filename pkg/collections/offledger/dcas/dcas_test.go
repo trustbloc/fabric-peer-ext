@@ -24,7 +24,7 @@ func TestValidator(t *testing.T) {
 	value := []byte("value1")
 
 	t.Run("Valid key/value -> success", func(t *testing.T) {
-		err := Validator("", "", "", GetCASKey(value), value)
+		err := Validator("", "", "", getCASKey(value), value)
 		assert.NoError(t, err)
 	})
 
@@ -48,19 +48,17 @@ func TestDecorator_BeforeSave(t *testing.T) {
 	}
 
 	t.Run("CAS key -> success", func(t *testing.T) {
-		key := storeapi.NewKey(txID1, ns1, coll1, GetCASKey(value1_1))
+		key := storeapi.NewKey(txID1, ns1, coll1, getCASKey(value1_1))
 		k, v, err := Decorator.BeforeSave(key, value)
-		assert.NoError(t, err)
-		assert.Equal(t, Base58Encode(key.Key), k.Key)
+		require.NoError(t, err)
+		assert.Equal(t, key.Key, k.Key)
 		assert.Equal(t, value, v)
 	})
 
-	t.Run("Empty key -> success", func(t *testing.T) {
+	t.Run("Empty key -> fail", func(t *testing.T) {
 		key := storeapi.NewKey(txID1, ns1, coll1, "")
-		k, v, err := Decorator.BeforeSave(key, value)
-		assert.NoError(t, err)
-		assert.Equal(t, GetFabricCASKey(value1_1), k.Key)
-		assert.Equal(t, value, v)
+		_, _, err := Decorator.BeforeSave(key, value)
+		require.Error(t, err)
 	})
 
 	t.Run("Invalid key -> error", func(t *testing.T) {
@@ -81,21 +79,14 @@ func TestDecorator_BeforeSave(t *testing.T) {
 	})
 }
 
-func TestDecorator_BeforeDelete(t *testing.T) {
+func TestDecorator_BeforeLoad(t *testing.T) {
 	value1_1 := []byte("value1_1")
 
 	t.Run("CAS key -> success", func(t *testing.T) {
-		key := storeapi.NewKey(txID1, ns1, coll1, GetCASKey(value1_1))
+		key := storeapi.NewKey(txID1, ns1, coll1, getCASKey(value1_1))
 		k, err := Decorator.BeforeLoad(key)
-		assert.NoError(t, err)
-		assert.Equal(t, Base58Encode(key.Key), k.Key)
-	})
-
-	t.Run("empty key -> success", func(t *testing.T) {
-		key := storeapi.NewKey(txID1, ns1, coll1, "")
-		k, err := Decorator.BeforeLoad(key)
-		assert.NoError(t, err)
-		assert.Equal(t, Base58Encode(key.Key), k.Key)
+		require.NoError(t, err)
+		assert.Equal(t, key.Key, k.Key)
 	})
 }
 
@@ -106,10 +97,18 @@ func TestDecorator_AfterQuery(t *testing.T) {
 	}
 
 	t.Run("CAS key -> success", func(t *testing.T) {
-		key := storeapi.NewKey(txID1, ns1, coll1, GetFabricCASKey(value1_1))
+		key := storeapi.NewKey(txID1, ns1, coll1, getCASKey(value1_1))
 		k, v, err := Decorator.AfterQuery(key, value)
-		assert.NoError(t, err)
-		assert.Equal(t, string(Base58Decode(key.Key)), k.Key)
+		require.NoError(t, err)
+		assert.Equal(t, key.Key, k.Key)
+		assert.Equal(t, value, v)
+	})
+
+	t.Run("Invalid CAS key -> success", func(t *testing.T) {
+		key := storeapi.NewKey(txID1, ns1, coll1, "key1")
+		k, v, err := Decorator.AfterQuery(key, value)
+		require.NoError(t, err)
+		assert.Equal(t, key, k)
 		assert.Equal(t, value, v)
 	})
 }

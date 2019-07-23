@@ -173,7 +173,7 @@ func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*c
 		return nil
 	}
 
-	logger.Debugf("[%s] Collection [%s:%s] is a  collection", s.channelID, ns, collRWSet.CollectionName)
+	logger.Debugf("[%s] Collection [%s:%s] is of type [%s]", s.channelID, ns, collRWSet.CollectionName, config.Type)
 
 	expiryTime, err := s.getExpirationTime(config)
 	if err != nil {
