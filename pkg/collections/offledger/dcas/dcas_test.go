@@ -9,6 +9,7 @@ package dcas
 import (
 	"testing"
 
+	"github.com/btcsuite/btcutil/base58"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,7 +25,7 @@ func TestValidator(t *testing.T) {
 	value := []byte("value1")
 
 	t.Run("Valid key/value -> success", func(t *testing.T) {
-		err := Validator("", "", "", getCASKey(value), value)
+		err := Validator("", "", "", base58.Encode(getCASKey(value)), value)
 		assert.NoError(t, err)
 	})
 
@@ -48,7 +49,7 @@ func TestDecorator_BeforeSave(t *testing.T) {
 	}
 
 	t.Run("CAS key -> success", func(t *testing.T) {
-		key := storeapi.NewKey(txID1, ns1, coll1, getCASKey(value1_1))
+		key := storeapi.NewKey(txID1, ns1, coll1, base58.Encode(getCASKey(value1_1)))
 		k, v, err := Decorator.BeforeSave(key, value)
 		require.NoError(t, err)
 		assert.Equal(t, key.Key, k.Key)
@@ -83,7 +84,7 @@ func TestDecorator_BeforeLoad(t *testing.T) {
 	value1_1 := []byte("value1_1")
 
 	t.Run("CAS key -> success", func(t *testing.T) {
-		key := storeapi.NewKey(txID1, ns1, coll1, getCASKey(value1_1))
+		key := storeapi.NewKey(txID1, ns1, coll1, base58.Encode(getCASKey(value1_1)))
 		k, err := Decorator.BeforeLoad(key)
 		require.NoError(t, err)
 		assert.Equal(t, key.Key, k.Key)
@@ -97,7 +98,7 @@ func TestDecorator_AfterQuery(t *testing.T) {
 	}
 
 	t.Run("CAS key -> success", func(t *testing.T) {
-		key := storeapi.NewKey(txID1, ns1, coll1, getCASKey(value1_1))
+		key := storeapi.NewKey(txID1, ns1, coll1, base58.Encode(getCASKey(value1_1)))
 		k, v, err := Decorator.AfterQuery(key, value)
 		require.NoError(t, err)
 		assert.Equal(t, key.Key, k.Key)

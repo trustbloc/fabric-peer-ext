@@ -218,10 +218,10 @@ func TestStore_PutAndGet_DCAS(t *testing.T) {
 	})
 
 	t.Run("GetData -> success", func(t *testing.T) {
-		casKey1, value1, err := dcas.GetCASKeyAndValue(value1_1)
+		casKey1, value1, err := dcas.GetCASKeyAndValueBase58(value1_1)
 		require.NoError(t, err)
 
-		casKey2, value2, err := dcas.GetCASKeyAndValue(value1_2)
+		casKey2, value2, err := dcas.GetCASKeyAndValueBase58(value1_2)
 		require.NoError(t, err)
 
 		b := mocks.NewPvtReadWriteSetBuilder()
@@ -246,7 +246,7 @@ func TestStore_PutAndGet_DCAS(t *testing.T) {
 	})
 
 	t.Run("Delete data", func(t *testing.T) {
-		casKey1, value1, err := dcas.GetCASKeyAndValue(value1_1)
+		casKey1, value1, err := dcas.GetCASKeyAndValueBase58(value1_1)
 		require.NoError(t, err)
 
 		b := mocks.NewPvtReadWriteSetBuilder()

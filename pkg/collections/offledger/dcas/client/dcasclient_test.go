@@ -10,6 +10,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
@@ -100,8 +101,8 @@ func TestDCASClient_Get(t *testing.T) {
 
 	ledger := &mocks.Ledger{
 		QueryExecutor: mocks.NewQueryExecutor().
-			WithPrivateState(ns1, coll1, key1, value1).
-			WithPrivateState(ns1, coll1, key2, value2),
+			WithPrivateState(ns1, coll1, base58.Encode([]byte(key1)), value1).
+			WithPrivateState(ns1, coll1, base58.Encode([]byte(key2)), value2),
 	}
 
 	gossip := &mockGossipAdapter{}
@@ -146,7 +147,7 @@ func TestClient_Query(t *testing.T) {
 	vk1 := &statedb.VersionedKV{
 		CompositeKey: statedb.CompositeKey{
 			Namespace: ns1 + "~" + coll1,
-			Key:       key1,
+			Key:       base58.Encode([]byte(key1)),
 		},
 		VersionedValue: statedb.VersionedValue{
 			Value: value1,
@@ -155,7 +156,7 @@ func TestClient_Query(t *testing.T) {
 	vk2 := &statedb.VersionedKV{
 		CompositeKey: statedb.CompositeKey{
 			Namespace: ns1 + "~" + coll1,
-			Key:       key2,
+			Key:       base58.Encode([]byte(key2)),
 		},
 		VersionedValue: statedb.VersionedValue{
 			Value: value2,
@@ -190,14 +191,53 @@ func TestClient_Query(t *testing.T) {
 
 		next, err := it.Next()
 		require.NoError(t, err)
-		require.Equal(t, vk1, next)
+		kv, ok := next.(*statedb.VersionedKV)
+		require.True(t, ok)
+		require.Equal(t, vk1.Namespace, kv.Namespace)
+		require.Equal(t, key1, kv.Key)
 
 		next, err = it.Next()
 		require.NoError(t, err)
-		require.Equal(t, vk2, next)
+		kv, ok = next.(*statedb.VersionedKV)
+		require.True(t, ok)
+		require.Equal(t, vk2.Namespace, kv.Namespace)
+		require.Equal(t, key2, kv.Key)
 
 		next, err = it.Next()
 		require.NoError(t, err)
+		require.Nil(t, next)
+
+		require.NotPanics(t, func() {
+			it.Close()
+		})
+	})
+
+	t.Run("Query error", func(t *testing.T) {
+		mockLedger.QueryExecutor.WithError(errors.New("injected query error"))
+		defer func() { mockLedger.QueryExecutor.WithError(nil) }()
+
+		it, err := c.Query(ns1, coll1, query1)
+		require.Error(t, err)
+		require.Nil(t, it)
+	})
+
+	t.Run("Iterator error", func(t *testing.T) {
+		mockLedger.QueryExecutor.WithIteratorProvider(func() *mocks.ResultsIterator {
+			return mocks.NewResultsIterator().WithError(errors.New("injected iterator error"))
+		})
+		defer func() {
+			// Reset the iterator
+			mockLedger.QueryExecutor.WithIteratorProvider(func() *mocks.ResultsIterator {
+				return mocks.NewResultsIterator()
+			})
+		}()
+
+		it, err := c.Query(ns1, coll1, query1)
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		next, err := it.Next()
+		require.Error(t, err)
 		require.Nil(t, next)
 	})
 }

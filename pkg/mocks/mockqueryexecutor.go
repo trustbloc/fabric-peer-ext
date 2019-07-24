@@ -19,6 +19,7 @@ type QueryExecutor struct {
 	state        map[string]map[string][]byte
 	queryResults map[string][]*statedb.VersionedKV
 	error        error
+	itProvider   func() *ResultsIterator
 }
 
 // NewQueryExecutor returns a new mock query executor
@@ -26,6 +27,7 @@ func NewQueryExecutor() *QueryExecutor {
 	return &QueryExecutor{
 		state:        make(map[string]map[string][]byte),
 		queryResults: make(map[string][]*statedb.VersionedKV),
+		itProvider:   NewResultsIterator,
 	}
 }
 
@@ -61,6 +63,12 @@ func (m *QueryExecutor) WithQueryResults(ns, query string, results []*statedb.Ve
 // WithPrivateQueryResults sets the query results for a given query on a private collection
 func (m *QueryExecutor) WithPrivateQueryResults(ns, coll, query string, results []*statedb.VersionedKV) *QueryExecutor {
 	m.queryResults[privateQueryResultsKey(ns, coll, query)] = results
+	return m
+}
+
+// WithIteratorProvider sets the iterator provider
+func (m *QueryExecutor) WithIteratorProvider(p func() *ResultsIterator) *QueryExecutor {
+	m.itProvider = p
 	return m
 }
 
@@ -109,7 +117,7 @@ func (m *QueryExecutor) GetStateRangeScanIteratorWithMetadata(namespace string, 
 
 // ExecuteQuery returns mock results for the given query
 func (m *QueryExecutor) ExecuteQuery(namespace, query string) (commonledger.ResultsIterator, error) {
-	return NewResultsIterator().WithResults(m.queryResults[queryResultsKey(namespace, query)]), m.error
+	return m.itProvider().WithResults(m.queryResults[queryResultsKey(namespace, query)]), m.error
 }
 
 // ExecuteQueryWithMetadata is not currently implemented and will panic if called
@@ -144,7 +152,7 @@ func (m *QueryExecutor) GetPrivateDataRangeScanIterator(namespace, collection, s
 
 // ExecuteQueryOnPrivateData  returns mock results for the given query
 func (m *QueryExecutor) ExecuteQueryOnPrivateData(namespace, collection, query string) (commonledger.ResultsIterator, error) {
-	return NewResultsIterator().WithResults(m.queryResults[privateQueryResultsKey(namespace, collection, query)]), m.error
+	return m.itProvider().WithResults(m.queryResults[privateQueryResultsKey(namespace, collection, query)]), m.error
 }
 
 // Done does nothing

@@ -113,7 +113,7 @@ func TestRetriever(t *testing.T) {
 		Member(org3MSPID, mocks.NewMember(p2Org3Endpoint, p2Org3PKIID, committerRole)).
 		Member(org3MSPID, mocks.NewMember(p3Org3Endpoint, p3Org3PKIID, endorserRole))
 
-	casKey1, casValue1, err := dcas.GetCASKeyAndValue([]byte(`{"id":"id1","value":"value1"}`))
+	casKey1, casValue1, err := dcas.GetCASKeyAndValueBase58([]byte(`{"id":"id1","value":"value1"}`))
 	require.NoError(t, err)
 
 	localStore := spmocks.NewStore().
@@ -301,9 +301,9 @@ func TestRetriever(t *testing.T) {
 }
 
 func TestRetriever_Query(t *testing.T) {
-	keyX, valueX, err := dcas.GetCASKeyAndValue([]byte(`{"id":"id3","value":"valueX"}`))
+	keyX, valueX, err := dcas.GetCASKeyAndValueBase58([]byte(`{"id":"id3","value":"valueX"}`))
 	require.NoError(t, err)
-	keyY, valueY, err := dcas.GetCASKeyAndValue([]byte(`{"id":"id4","value":"valueY"}`))
+	keyY, valueY, err := dcas.GetCASKeyAndValueBase58([]byte(`{"id":"id4","value":"valueY"}`))
 	require.NoError(t, err)
 
 	offLedgerQueryKey := storeapi.NewQueryKey(txID, ns1, coll1, "off-ledger query")

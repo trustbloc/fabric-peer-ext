@@ -16,13 +16,24 @@ import (
 
 // GetCASKeyAndValue first normalizes the content (i.e. if the content is a JSON doc then the fields
 // are marshaled in a deterministic order) and returns the content-addressable key
-// (encoded in base58 so that it may be used as a key in Fabric) along with the normalized value.
+// (encoded in base64) along with the normalized value.
 func GetCASKeyAndValue(content []byte) (string, []byte, error) {
 	bytes, err := getNormalizedContent(content)
 	if err != nil {
 		return "", nil, err
 	}
-	return getCASKey(bytes), bytes, nil
+	return string(getCASKey(bytes)), bytes, nil
+}
+
+// GetCASKeyAndValueBase58 first normalizes the content (i.e. if the content is a JSON doc then the fields
+// are marshaled in a deterministic order) and returns the content-addressable key
+// (first encoded in base64 and then in base58) along with the normalized value.
+func GetCASKeyAndValueBase58(content []byte) (string, []byte, error) {
+	bytes, err := getNormalizedContent(content)
+	if err != nil {
+		return "", nil, err
+	}
+	return base58.Encode(getCASKey(bytes)), bytes, nil
 }
 
 // getNormalizedContent ensures that, if the content is a JSON doc, then the fields are marshaled in a deterministic order
@@ -52,11 +63,11 @@ func getHash(bytes []byte) []byte {
 	return h.Sum(nil)
 }
 
-func getCASKey(content []byte) string {
+func getCASKey(content []byte) []byte {
 	hash := getHash(content)
 	buf := make([]byte, base64.URLEncoding.EncodedLen(len(hash)))
 	base64.URLEncoding.Encode(buf, hash)
-	return base58.Encode(buf)
+	return buf
 }
 
 // marshalJSONMap marshals a JSON map. This variable may be overridden by unit tests.

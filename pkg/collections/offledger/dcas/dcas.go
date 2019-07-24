@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package dcas
 
 import (
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/hyperledger/fabric/common/flogging"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/pkg/errors"
@@ -48,7 +49,7 @@ func validateCASKey(key string, value []byte) error {
 		return errors.Errorf("attempt to put nil value for key [%s]", key)
 	}
 
-	casKey := getCASKey(value)
+	casKey := base58.Encode(getCASKey(value))
 	logger.Debugf("Validating key [%s] against value [%s]", key, value)
 	if key != casKey {
 		return errors.Errorf("invalid CAS key - the key should be the hash of the value [%s]", casKey)

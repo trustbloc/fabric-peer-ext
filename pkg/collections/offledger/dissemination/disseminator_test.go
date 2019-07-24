@@ -252,9 +252,9 @@ func TestComputeDisseminationPlan(t *testing.T) {
 	})
 
 	t.Run("Valid CAS Key", func(t *testing.T) {
-		key1, value1, err := dcas.GetCASKeyAndValue([]byte("value1"))
+		key1, value1, err := dcas.GetCASKeyAndValueBase58([]byte("value1"))
 		require.NoError(t, err)
-		key2, _, err := dcas.GetCASKeyAndValue([]byte("value2"))
+		key2, _, err := dcas.GetCASKeyAndValueBase58([]byte("value2"))
 		require.NoError(t, err)
 		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
 			Write(key1, value1).
@@ -285,7 +285,7 @@ func TestComputeDisseminationPlan(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		key1, value1, err := dcas.GetCASKeyAndValue([]byte(`{"field1":"value1"}`))
+		key1, value1, err := dcas.GetCASKeyAndValueBase58([]byte(`{"field1":"value1"}`))
 		require.NoError(t, err)
 		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
 			Write(key1, value1).
@@ -305,7 +305,7 @@ func TestComputeDisseminationPlan(t *testing.T) {
 	})
 
 	t.Run("Unmarshal error", func(t *testing.T) {
-		key1, value1, err := dcas.GetCASKeyAndValue([]byte(`{"field1":"value1"}`))
+		key1, value1, err := dcas.GetCASKeyAndValueBase58([]byte(`{"field1":"value1"}`))
 		require.NoError(t, err)
 		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
 			Write(key1, value1).
