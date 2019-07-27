@@ -87,7 +87,7 @@ func validateAll(collType cb.CollectionType, kvRWSet *kvrwset.KVRWSet) error {
 
 func validate(collType cb.CollectionType, ws *kvrwset.KVWrite) error {
 	if collType == cb.CollectionType_COL_DCAS && ws.Value != nil {
-		expectedKey, _, err := dcas.GetCASKeyAndValue(ws.Value)
+		expectedKey, _, err := dcas.GetCASKeyAndValueBase58(ws.Value)
 		if err != nil {
 			return err
 		}
