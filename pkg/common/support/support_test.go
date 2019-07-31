@@ -11,7 +11,6 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/common/privdata"
-	"github.com/hyperledger/fabric/core/ledger"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/stretchr/testify/assert"
@@ -36,18 +35,16 @@ func TestSupport(t *testing.T) {
 	configPkgBytes, err := proto.Marshal(nsBuilder.BuildCollectionConfig())
 	require.NoError(t, err)
 
-	ledgerProvider := func(channelID string) ledger.PeerLedger {
-		return &mocks.Ledger{
-			QueryExecutor: mocks.NewQueryExecutor().WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes),
-		}
-	}
-
 	blockPublisherProvider := func(channelID string) gossipapi.BlockPublisher {
 		return mocks.NewBlockPublisher()
 	}
 
-	s := New(ledgerProvider, blockPublisherProvider)
+	s := New(blockPublisherProvider)
 	require.NotNil(t, s)
+
+	InitCollectionConfigRetriever(channelID, &mocks.Ledger{
+		QueryExecutor: mocks.NewQueryExecutor().WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes),
+	}, mocks.NewBlockPublisher())
 
 	t.Run("Policy", func(t *testing.T) {
 		policy, err := s.Policy(channelID, ns1, coll2)

@@ -284,7 +284,7 @@ var getGossipAdapter = func() GossipAdapter {
 }
 
 var getCollConfigRetriever = func(channelID string, ledger PeerLedger, blockPublisher gossipapi.BlockPublisher) CollectionConfigRetriever {
-	return support.NewCollectionConfigRetriever(channelID, ledger, blockPublisher)
+	return support.CollectionConfigRetrieverForChannel(channelID)
 }
 
 var newCreator = func() ([]byte, error) {

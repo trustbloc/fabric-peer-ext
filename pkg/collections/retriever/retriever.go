@@ -39,7 +39,7 @@ func NewProvider(
 	gossipProvider func() supportapi.GossipAdapter,
 	blockPublisherProvider func(channelID string) gossipapi.BlockPublisher) storeapi.Provider {
 
-	support := supp.New(ledgerProvider, blockPublisherProvider)
+	support := supp.New(blockPublisherProvider)
 
 	tdataStoreProvider := func(channelID string) tdataapi.Store { return storeProvider(channelID) }
 	offLedgerStoreProvider := func(channelID string) olapi.Store { return storeProvider(channelID) }

@@ -17,6 +17,7 @@ import (
 	"github.com/hyperledger/fabric/protos/ledger/rwset"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
@@ -77,10 +78,9 @@ func TestFilterPubSimulationResults(t *testing.T) {
 	require.Equal(t, 2, len(results.NsRwset[2].CollectionHashedRwset))
 	assert.Empty(t, len(results.NsRwset[2].Rwset))
 
-	f := NewCollRWSetFilter(
-		newMockQEProviderFactory(pvtBuilder.BuildCollectionConfigs()),
-		newMockBlockPublisherProvider(),
-	)
+	support.InitCollectionConfigRetriever(channelID, newMockQEProviderFactory(pvtBuilder.BuildCollectionConfigs()).GetQueryExecutorProvider(channelID), mocks.NewBlockPublisher())
+
+	f := NewCollRWSetFilter()
 
 	filteredResults, err := f.Filter(channelID, results)
 	assert.NoError(t, err)
@@ -109,10 +109,8 @@ func TestFilterPubSimulationResults_NoCollections(t *testing.T) {
 		},
 	}
 
-	f := NewCollRWSetFilter(
-		newMockQEProviderFactory(pvtBuilder.BuildCollectionConfigs()),
-		newMockBlockPublisherProvider(),
-	)
+	support.InitCollectionConfigRetriever(channelID, newMockQEProviderFactory(pvtBuilder.BuildCollectionConfigs()).GetQueryExecutorProvider(channelID), mocks.NewBlockPublisher())
+	f := NewCollRWSetFilter()
 	filteredResults, err := f.Filter(channelID, results)
 	assert.NoError(t, err)
 	assert.Equal(t, results, filteredResults)

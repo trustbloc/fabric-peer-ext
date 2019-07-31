@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/requestmgr"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
@@ -64,8 +65,6 @@ func TestDispatchUnhandled(t *testing.T) {
 		channelID,
 		&mocks.DataStore{},
 		mocks.NewMockGossipAdapter(),
-		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor()},
-		mocks.NewBlockPublisher(),
 	)
 
 	var response *gproto.GossipMessage
@@ -121,16 +120,19 @@ func TestDispatchDataRequest(t *testing.T) {
 		Member(org3MSPID, mocks.NewMember(p2Org3Endpoint, p2Org3PKIID, committerRole)).
 		Member(org3MSPID, mocks.NewMember(p3Org3Endpoint, p3Org3PKIID, endorserRole))
 
-	dispatcher := New(
+	support.InitCollectionConfigRetriever(
 		channelID,
-		mocks.NewDataStore().TransientData(key1, value1).TransientData(key2, value2).Data(key3, value3).Data(key4, value4),
-		gossipAdapter,
 		&mocks.Ledger{
 			QueryExecutor: mocks.NewQueryExecutor().
 				WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes1).
 				WithState(lscc, privdata.BuildCollectionKVSKey(ns2), configPkgBytes2),
 		},
 		mocks.NewBlockPublisher(),
+	)
+	dispatcher := New(
+		channelID,
+		mocks.NewDataStore().TransientData(key1, value1).TransientData(key2, value2).Data(key3, value3).Data(key4, value4),
+		gossipAdapter,
 	)
 	require.NotNil(t, dispatcher)
 
@@ -251,12 +253,15 @@ func TestDispatchDataResponse(t *testing.T) {
 		Self(org1MSPID, p1Org1).
 		Member(org2MSPID, p1Org2)
 
+	support.InitCollectionConfigRetriever(
+		channelID,
+		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor()},
+		mocks.NewBlockPublisher(),
+	)
 	dispatcher := New(
 		channelID,
 		mocks.NewDataStore().TransientData(key1, value1).TransientData(key2, value2),
 		gossip,
-		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor()},
-		mocks.NewBlockPublisher(),
 	)
 	require.NotNil(t, dispatcher)
 

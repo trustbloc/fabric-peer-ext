@@ -11,9 +11,11 @@ import (
 
 	pb "github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/cceventmgmt"
 	ledgerUtil "github.com/hyperledger/fabric/core/ledger/util"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
+	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
 	"github.com/hyperledger/fabric/extensions/roles"
 	common2 "github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/gossip/discovery"
@@ -24,6 +26,7 @@ import (
 	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	"github.com/hyperledger/fabric/protos/peer"
 	"github.com/pkg/errors"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
 )
 
 var logger = util.GetLogger(util.StateLogger, "")
@@ -71,14 +74,15 @@ type GossipServiceMediator interface {
 	Gossip(msg *proto.GossipMessage)
 }
 
-//AddBlockHandler handles state update in gossip
-func AddBlockHandler(publisher api.BlockPublisher) {
-	publisher.AddWriteHandler(func(txMetadata api.TxMetadata, namespace string, kvWrite *kvrwset.KVWrite) error {
+// ChannelJoined is called when a peer joins a channel
+func ChannelJoined(channelID string, ledger ledger.PeerLedger, publisher api.BlockPublisher) {
+	blockpublisher.GetProvider().ForChannel(channelID).AddWriteHandler(func(txMetadata api.TxMetadata, namespace string, kvWrite *kvrwset.KVWrite) error {
 		if namespace != "lscc" {
 			return nil
 		}
 		return handleStateUpdate(kvWrite, txMetadata.ChannelID)
 	})
+	support.InitCollectionConfigRetriever(channelID, ledger, publisher)
 }
 
 //NewGossipStateProviderExtension returns new GossipStateProvider Extension implementation

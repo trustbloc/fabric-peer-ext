@@ -113,7 +113,7 @@ func (s *store) persistKVWrite(txID, ns, coll string, w *kvrwset.KVWrite, ttl ti
 	}
 
 	if s.cache.Get(key) != nil {
-		logger.Warningf("[%s] Attempt to update transient data key [%s] in collection [%s]", s.channelID, w.Key, coll)
+		logger.Debugf("[%s] Transient data key [%s] in collection [%s] already exists", s.channelID, w.Key, coll)
 		return
 	}
 

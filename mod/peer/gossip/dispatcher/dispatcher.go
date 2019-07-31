@@ -23,7 +23,7 @@ type gossipAdapter interface {
 }
 
 type blockPublisher interface {
-	AddCCUpgradeHandler(handler gossipapi.ChaincodeUpgradeHandler)
+	AddLSCCWriteHandler(handler gossipapi.LSCCWriteHandler)
 }
 
 // New returns a new Gossip message dispatcher
@@ -33,5 +33,5 @@ func New(
 	gossipAdapter gossipAdapter,
 	ledger ledger.PeerLedger,
 	blockPublisher blockPublisher) *extdispatcher.Dispatcher {
-	return extdispatcher.New(channelID, dataStore, gossipAdapter, ledger, blockPublisher)
+	return extdispatcher.New(channelID, dataStore, gossipAdapter)
 }
