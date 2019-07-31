@@ -9,6 +9,7 @@ package mocks
 import (
 	"sync/atomic"
 
+	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
 	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
@@ -22,6 +23,7 @@ type MockBlockHandler struct {
 	numCCEvents        int32
 	numCCUpgradeEvents int32
 	numConfigUpdates   int32
+	numLSCCWrites      int32
 	err                error
 }
 
@@ -44,6 +46,11 @@ func (m *MockBlockHandler) NumReads() int {
 // NumWrites returns the number of writes handled
 func (m *MockBlockHandler) NumWrites() int {
 	return int(atomic.LoadInt32(&m.numWrites))
+}
+
+// NumLSCCWrites returns the number of LSCC writes handled
+func (m *MockBlockHandler) NumLSCCWrites() int {
+	return int(atomic.LoadInt32(&m.numLSCCWrites))
 }
 
 // NumCCEvents returns the number of chaincode events handled
@@ -88,5 +95,11 @@ func (m *MockBlockHandler) HandleChaincodeUpgradeEvent(txMetadata api.TxMetadata
 // HandleConfigUpdate handles a config update by incrementing the config update counter
 func (m *MockBlockHandler) HandleConfigUpdate(blockNum uint64, configUpdate *cb.ConfigUpdate) error {
 	atomic.AddInt32(&m.numConfigUpdates, 1)
+	return m.err
+}
+
+// HandleLSCCWrite handles an LSCC write by incrementing the LSCC write counter
+func (m *MockBlockHandler) HandleLSCCWrite(txMetadata api.TxMetadata, chaincodeName string, ccData *ccprovider.ChaincodeData, ccp *cb.CollectionConfigPackage) error {
+	atomic.AddInt32(&m.numLSCCWrites, 1)
 	return m.err
 }
