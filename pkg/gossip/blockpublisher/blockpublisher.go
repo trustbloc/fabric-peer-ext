@@ -7,12 +7,14 @@ SPDX-License-Identifier: Apache-2.0
 package blockpublisher
 
 import (
+	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/bluele/gcache"
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/common/flogging"
+	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
 	ledgerutil "github.com/hyperledger/fabric/core/ledger/util"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
@@ -25,8 +27,9 @@ import (
 )
 
 const (
-	lsccID       = "lscc"
-	upgradeEvent = "upgrade"
+	lsccID              = "lscc"
+	upgradeEvent        = "upgrade"
+	collectionSeparator = "~"
 )
 
 var logger = flogging.MustGetLogger("ext_blockpublisher")
@@ -45,6 +48,13 @@ type read struct {
 	txNum     uint64
 	namespace string
 	r         *kvrwset.KVRead
+}
+
+type lsccWrite struct {
+	blockNum uint64
+	txID     string
+	txNum    uint64
+	w        []*kvrwset.KVWrite
 }
 
 type ccEvent struct {
@@ -90,19 +100,25 @@ func (p *Provider) Close() {
 	}
 }
 
+type channels struct {
+	blockChan        chan *cb.Block
+	wChan            chan *write
+	rChan            chan *read
+	lsccChan         chan *lsccWrite
+	ccEvtChan        chan *ccEvent
+	configUpdateChan chan *configUpdate
+}
+
 // Publisher traverses a block and publishes KV read, KV write, and chaincode events to registered handlers
 type Publisher struct {
+	*channels
 	channelID            string
 	writeHandlers        []api.WriteHandler
 	readHandlers         []api.ReadHandler
+	lsccWriteHandlers    []api.LSCCWriteHandler
 	ccEventHandlers      []api.ChaincodeEventHandler
 	configUpdateHandlers []api.ConfigUpdateHandler
 	mutex                sync.RWMutex
-	blockChan            chan *cb.Block
-	wChan                chan *write
-	rChan                chan *read
-	ccEvtChan            chan *ccEvent
-	configUpdateChan     chan *configUpdate
 	doneChan             chan struct{}
 	closed               uint32
 	lastCommittedBlock   uint64
@@ -113,13 +129,16 @@ func New(channelID string) *Publisher {
 	bufferSize := config.GetBlockPublisherBufferSize()
 
 	p := &Publisher{
-		channelID:        channelID,
-		blockChan:        make(chan *cb.Block, bufferSize),
-		wChan:            make(chan *write, bufferSize),
-		rChan:            make(chan *read, bufferSize),
-		ccEvtChan:        make(chan *ccEvent, bufferSize),
-		configUpdateChan: make(chan *configUpdate, bufferSize),
-		doneChan:         make(chan struct{}),
+		channelID: channelID,
+		channels: &channels{
+			blockChan:        make(chan *cb.Block, bufferSize),
+			wChan:            make(chan *write, bufferSize),
+			rChan:            make(chan *read, bufferSize),
+			lsccChan:         make(chan *lsccWrite, bufferSize),
+			ccEvtChan:        make(chan *ccEvent, bufferSize),
+			configUpdateChan: make(chan *configUpdate, bufferSize),
+		},
+		doneChan: make(chan struct{}),
 	}
 	go p.listen()
 	return p
@@ -177,10 +196,19 @@ func (p *Publisher) AddCCUpgradeHandler(handler api.ChaincodeUpgradeHandler) {
 	p.AddCCEventHandler(newChaincodeUpgradeHandler(handler))
 }
 
+// AddLSCCWriteHandler adds a handler for chaincode instantiation/upgrade events
+func (p *Publisher) AddLSCCWriteHandler(handler api.LSCCWriteHandler) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	logger.Debugf("[%s] Adding LSCC write handler", p.channelID)
+	p.lsccWriteHandlers = append(p.lsccWriteHandlers, handler)
+}
+
 // Publish publishes a block
 func (p *Publisher) Publish(block *cb.Block) {
 	defer atomic.StoreUint64(&p.lastCommittedBlock, block.Header.Number)
-	newBlockEvent(p.channelID, block, p.wChan, p.rChan, p.ccEvtChan, p.configUpdateChan).publish()
+	newBlockEvent(p.channelID, block, p.channels).publish()
 }
 
 // LedgerHeight returns ledger height based on last block published
@@ -195,6 +223,8 @@ func (p *Publisher) listen() {
 			p.handleWrite(w)
 		case r := <-p.rChan:
 			p.handleRead(r)
+		case lscc := <-p.lsccChan:
+			p.handleLSCCWrite(lscc)
 		case ccEvt := <-p.ccEvtChan:
 			p.handleCCEvent(ccEvt)
 		case cu := <-p.configUpdateChan:
@@ -220,6 +250,27 @@ func (p *Publisher) handleWrite(w *write) {
 	for _, handleWrite := range p.getWriteHandlers() {
 		if err := handleWrite(api.TxMetadata{BlockNum: w.blockNum, ChannelID: p.channelID, TxID: w.txID, TxNum: w.txNum}, w.namespace, w.w); err != nil {
 			logger.Warningf("[%s] Error returned from KV write handler: %s", p.channelID, err)
+		}
+	}
+}
+
+func (p *Publisher) handleLSCCWrite(w *lsccWrite) {
+	logger.Debugf("[%s] Handling LSCC write: [%s]", p.channelID, w)
+
+	if len(p.getLSCCWriteHandlers()) == 0 {
+		// No handlers registered
+		return
+	}
+
+	ccID, ccData, ccp, err := getCCInfo(w.w)
+	if err != nil {
+		logger.Warningf("[%s] Error getting chaincode info: %s", p.channelID, err)
+		return
+	}
+
+	for _, handler := range p.getLSCCWriteHandlers() {
+		if err := handler(api.TxMetadata{BlockNum: w.blockNum, ChannelID: p.channelID, TxID: w.txID, TxNum: w.txNum}, ccID, ccData, ccp); err != nil {
+			logger.Warningf("[%s] Error returned from LSCC write handler: %s", p.channelID, err)
 		}
 	}
 }
@@ -260,6 +311,15 @@ func (p *Publisher) getWriteHandlers() []api.WriteHandler {
 	return handlers
 }
 
+func (p *Publisher) getLSCCWriteHandlers() []api.LSCCWriteHandler {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	handlers := make([]api.LSCCWriteHandler, len(p.lsccWriteHandlers))
+	copy(handlers, p.lsccWriteHandlers)
+	return handlers
+}
+
 func (p *Publisher) getCCEventHandlers() []api.ChaincodeEventHandler {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
@@ -279,22 +339,16 @@ func (p *Publisher) getConfigUpdateHandlers() []api.ConfigUpdateHandler {
 }
 
 type blockEvent struct {
-	channelID        string
-	block            *cb.Block
-	wChan            chan<- *write
-	rChan            chan<- *read
-	ccEvtChan        chan<- *ccEvent
-	configUpdateChan chan<- *configUpdate
+	*channels
+	channelID string
+	block     *cb.Block
 }
 
-func newBlockEvent(channelID string, block *cb.Block, wChan chan<- *write, rChan chan<- *read, ccEvtChan chan<- *ccEvent, configUpdateChan chan<- *configUpdate) *blockEvent {
+func newBlockEvent(channelID string, block *cb.Block, channels *channels) *blockEvent {
 	return &blockEvent{
-		channelID:        channelID,
-		block:            block,
-		wChan:            wChan,
-		rChan:            rChan,
-		ccEvtChan:        ccEvtChan,
-		configUpdateChan: configUpdateChan,
+		channels:  channels,
+		channelID: channelID,
+		block:     block,
 	}
 }
 
@@ -335,7 +389,7 @@ func (p *blockEvent) visitEnvelope(txNum uint64, envelope *cb.Envelope) error {
 		if err != nil {
 			return err
 		}
-		newTxEvent(p.channelID, p.block.Header.Number, txNum, chdr.TxId, tx, p.wChan, p.rChan, p.ccEvtChan).publish()
+		newTxEvent(p.channelID, p.block.Header.Number, txNum, chdr.TxId, tx, p.channels).publish()
 		return nil
 	}
 
@@ -344,7 +398,7 @@ func (p *blockEvent) visitEnvelope(txNum uint64, envelope *cb.Envelope) error {
 		if err := proto.Unmarshal(payload.Data, envelope); err != nil {
 			return err
 		}
-		newConfigUpdateEvent(p.channelID, p.block.Header.Number, envelope, p.configUpdateChan).publish()
+		newConfigUpdateEvent(p.channelID, p.block.Header.Number, envelope, p.channels).publish()
 		return nil
 	}
 
@@ -352,26 +406,22 @@ func (p *blockEvent) visitEnvelope(txNum uint64, envelope *cb.Envelope) error {
 }
 
 type txEvent struct {
+	*channels
 	channelID string
 	blockNum  uint64
 	txNum     uint64
 	txID      string
 	tx        *pb.Transaction
-	wChan     chan<- *write
-	rChan     chan<- *read
-	ccEvtChan chan<- *ccEvent
 }
 
-func newTxEvent(channelID string, blockNum uint64, txNum uint64, txID string, tx *pb.Transaction, wChan chan<- *write, rChan chan<- *read, ccEvtChan chan<- *ccEvent) *txEvent {
+func newTxEvent(channelID string, blockNum uint64, txNum uint64, txID string, tx *pb.Transaction, channels *channels) *txEvent {
 	return &txEvent{
 		channelID: channelID,
 		blockNum:  blockNum,
 		txNum:     txNum,
 		txID:      txID,
 		tx:        tx,
-		wChan:     wChan,
-		rChan:     rChan,
-		ccEvtChan: ccEvtChan,
+		channels:  channels,
 	}
 }
 
@@ -461,29 +511,47 @@ func (p *txEvent) visitNsReadWriteSet(nsRWSet *rwsetutil.NsRwSet) {
 			r:         r,
 		}
 	}
-	for _, w := range nsRWSet.KvRwSet.Writes {
+	if nsRWSet.NameSpace == lsccID {
+		p.publishLSCCWrite(nsRWSet.KvRwSet.Writes)
+	} else {
+		p.publishWrites(nsRWSet.NameSpace, nsRWSet.KvRwSet.Writes)
+	}
+}
+
+// publishLSCCWrite publishes an LSCC write event which is a result of a chaincode instantiate/upgrade.
+// The event consists of two writes: CC data and collection configs.
+func (p *txEvent) publishLSCCWrite(writes []*kvrwset.KVWrite) {
+	p.lsccChan <- &lsccWrite{
+		blockNum: p.blockNum,
+		txID:     p.txID,
+		w:        writes,
+	}
+}
+
+func (p *txEvent) publishWrites(ns string, writes []*kvrwset.KVWrite) {
+	for _, w := range writes {
 		p.wChan <- &write{
 			blockNum:  p.blockNum,
 			txID:      p.txID,
-			namespace: nsRWSet.NameSpace,
+			namespace: ns,
 			w:         w,
 		}
 	}
 }
 
 type configUpdateEvent struct {
-	channelID        string
-	blockNum         uint64
-	envelope         *cb.ConfigUpdateEnvelope
-	configUpdateChan chan<- *configUpdate
+	*channels
+	channelID string
+	blockNum  uint64
+	envelope  *cb.ConfigUpdateEnvelope
 }
 
-func newConfigUpdateEvent(channelID string, blockNum uint64, envelope *cb.ConfigUpdateEnvelope, configUpdateChan chan<- *configUpdate) *configUpdateEvent {
+func newConfigUpdateEvent(channelID string, blockNum uint64, envelope *cb.ConfigUpdateEnvelope, channels *channels) *configUpdateEvent {
 	return &configUpdateEvent{
-		channelID:        channelID,
-		blockNum:         blockNum,
-		envelope:         envelope,
-		configUpdateChan: configUpdateChan,
+		channels:  channels,
+		channelID: channelID,
+		blockNum:  blockNum,
+		envelope:  envelope,
 	}
 }
 
@@ -523,4 +591,31 @@ func newChaincodeUpgradeHandler(handleUpgrade api.ChaincodeUpgradeHandler) api.C
 		logger.Debugf("[%s] Handling chaincode upgrade of chaincode [%s]", txnMetadata.ChannelID, ccData.ChaincodeName)
 		return handleUpgrade(txnMetadata, ccData.ChaincodeName)
 	}
+}
+
+func getCCInfo(writes []*kvrwset.KVWrite) (string, *ccprovider.ChaincodeData, *cb.CollectionConfigPackage, error) {
+	var ccID string
+	var ccp *cb.CollectionConfigPackage
+	var ccData *ccprovider.ChaincodeData
+
+	for _, kvWrite := range writes {
+		if isCollectionConfigKey(kvWrite.Key) {
+			ccp = &cb.CollectionConfigPackage{}
+			if err := proto.Unmarshal(kvWrite.Value, ccp); err != nil {
+				return "", nil, nil, errors.WithMessagef(err, "error unmarshaling collection configuration")
+			}
+		} else {
+			ccID = kvWrite.Key
+			ccData = &ccprovider.ChaincodeData{}
+			if err := proto.Unmarshal(kvWrite.Value, ccData); err != nil {
+				return "", nil, nil, errors.WithMessagef(err, "error unmarshaling chaincode data")
+			}
+		}
+	}
+
+	return ccID, ccData, ccp, nil
+}
+
+func isCollectionConfigKey(key string) bool {
+	return strings.Contains(key, collectionSeparator)
 }

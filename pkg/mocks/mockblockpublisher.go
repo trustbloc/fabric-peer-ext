@@ -17,6 +17,7 @@ type MockBlockPublisher struct {
 	HandleConfigUpdate gossipapi.ConfigUpdateHandler
 	HandleWrite        gossipapi.WriteHandler
 	HandleRead         gossipapi.ReadHandler
+	HandleLSCCWrite    gossipapi.LSCCWriteHandler
 	HandleCCEvent      gossipapi.ChaincodeEventHandler
 }
 
@@ -43,6 +44,11 @@ func (m *MockBlockPublisher) AddWriteHandler(handler gossipapi.WriteHandler) {
 // AddReadHandler adds a read handler
 func (m *MockBlockPublisher) AddReadHandler(handler gossipapi.ReadHandler) {
 	m.HandleRead = handler
+}
+
+// AddLSCCWriteHandler adds a write handler
+func (m *MockBlockPublisher) AddLSCCWriteHandler(handler gossipapi.LSCCWriteHandler) {
+	m.HandleLSCCWrite = handler
 }
 
 // AddCCEventHandler adds a chaincode event handler

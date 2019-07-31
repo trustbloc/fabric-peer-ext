@@ -8,10 +8,14 @@ package blockpublisher
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric/core/common/ccprovider"
+	"github.com/hyperledger/fabric/extensions/gossip/api"
+	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	pb "github.com/hyperledger/fabric/protos/peer"
 	"github.com/stretchr/testify/assert"
@@ -86,6 +90,7 @@ func TestPublisher_PublishEndorsementEvents(t *testing.T) {
 
 	handler3 := mocks.NewMockBlockHandler()
 	p.AddCCUpgradeHandler(handler3.HandleChaincodeUpgradeEvent)
+	p.AddLSCCWriteHandler(handler3.HandleLSCCWrite)
 
 	b := mocks.NewBlockBuilder(channelID, 1100)
 
@@ -116,11 +121,20 @@ func TestPublisher_PublishEndorsementEvents(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, lceBytes)
 
+	ccData := &ccprovider.ChaincodeData{
+		Name: ccID1,
+	}
+	ccDataBytes, err := proto.Marshal(ccData)
+	require.NoError(t, err)
+
 	b.Transaction(txID1, pb.TxValidationCode_VALID).
 		ChaincodeAction(lsccID).
+		Write(ccID1, ccDataBytes).
 		ChaincodeEvent(upgradeEvent, lceBytes)
+
 	tb4 := b.Transaction(txID2, pb.TxValidationCode_VALID)
 	tb4.ChaincodeAction(lsccID).
+		Write(ccID1, ccDataBytes).
 		ChaincodeEvent(ccEvent1, nil)
 
 	p.Publish(b.Build())
@@ -142,6 +156,7 @@ func TestPublisher_PublishEndorsementEvents(t *testing.T) {
 	assert.Equal(t, 0, handler3.NumWrites())
 	assert.Equal(t, 0, handler3.NumCCEvents())
 	assert.Equal(t, 1, handler3.NumCCUpgradeEvents())
+	assert.Equal(t, 2, handler3.NumLSCCWrites())
 
 	assert.EqualValues(t, 1101, p.LedgerHeight())
 }
@@ -165,6 +180,183 @@ func TestPublisher_PublishConfigUpdateEvents(t *testing.T) {
 	assert.Equal(t, 1, handler.NumConfigUpdates())
 
 	assert.EqualValues(t, 1101, p.LedgerHeight())
+}
+
+type ccInfo struct {
+	mutex  sync.RWMutex
+	ccName string
+	ccData *ccprovider.ChaincodeData
+	ccp    *cb.CollectionConfigPackage
+}
+
+func (info *ccInfo) set(ccName string, ccData *ccprovider.ChaincodeData, ccp *cb.CollectionConfigPackage) {
+	info.mutex.Lock()
+	defer info.mutex.Unlock()
+
+	info.ccName = ccName
+	info.ccData = ccData
+	info.ccp = ccp
+}
+
+func (info *ccInfo) getCCName() string {
+	info.mutex.RLock()
+	defer info.mutex.RUnlock()
+	return info.ccName
+}
+
+func (info *ccInfo) getCCData() *ccprovider.ChaincodeData {
+	info.mutex.RLock()
+	defer info.mutex.RUnlock()
+	return info.ccData
+}
+
+func (info *ccInfo) getCCP() *cb.CollectionConfigPackage {
+	info.mutex.RLock()
+	defer info.mutex.RUnlock()
+	return info.ccp
+}
+
+func TestPublisher_LSCCWriteEvent(t *testing.T) {
+	p := New(channelID)
+	require.NotNil(t, p)
+	defer p.Close()
+
+	var info ccInfo
+
+	p.AddLSCCWriteHandler(func(txMetadata api.TxMetadata, chaincodeName string, ccData *ccprovider.ChaincodeData, ccp *cb.CollectionConfigPackage) error {
+		info.set(chaincodeName, ccData, ccp)
+		return nil
+	})
+
+	b := mocks.NewBlockBuilder(channelID, 1100)
+
+	ccData := &ccprovider.ChaincodeData{
+		Name: ccID1,
+	}
+	ccDataBytes, err := proto.Marshal(ccData)
+	require.NoError(t, err)
+
+	ccp := &cb.CollectionConfigPackage{
+		Config: []*cb.CollectionConfig{
+			{
+				Payload: &cb.CollectionConfig_StaticCollectionConfig{
+					StaticCollectionConfig: &cb.StaticCollectionConfig{
+						Name: coll1,
+						Type: cb.CollectionType_COL_TRANSIENT,
+					},
+				},
+			},
+			{
+				Payload: &cb.CollectionConfig_StaticCollectionConfig{
+					StaticCollectionConfig: &cb.StaticCollectionConfig{
+						Name: coll2,
+						Type: cb.CollectionType_COL_OFFLEDGER,
+					},
+				},
+			},
+		},
+	}
+	ccpBytes, err := proto.Marshal(ccp)
+	require.NoError(t, err)
+
+	b.Transaction(txID1, pb.TxValidationCode_VALID).
+		ChaincodeAction(lsccID).
+		Write(ccID1, ccDataBytes).
+		Write(ccID1+collectionSeparator+"collection", ccpBytes)
+
+	p.Publish(b.Build())
+
+	// Wait a bit for the events to be published
+	time.Sleep(500 * time.Millisecond)
+
+	require.Equal(t, ccID1, info.getCCName())
+	require.NotNil(t, info.getCCData())
+	require.Equal(t, ccData.Name, info.getCCData().Name)
+	require.NotNil(t, info.getCCP())
+	require.Equal(t, 2, len(info.getCCP().Config))
+
+	config1 := info.getCCP().Config[0].GetStaticCollectionConfig()
+	require.NotNil(t, config1)
+	require.Equal(t, coll1, config1.Name)
+	require.Equal(t, cb.CollectionType_COL_TRANSIENT, config1.Type)
+
+	config2 := info.getCCP().Config[1].GetStaticCollectionConfig()
+	require.NotNil(t, config2)
+	require.Equal(t, coll2, config2.Name)
+	require.Equal(t, cb.CollectionType_COL_OFFLEDGER, config2.Type)
+}
+
+func TestPublisher_LSCCWriteEventMarshalError(t *testing.T) {
+	p := New(channelID)
+	require.NotNil(t, p)
+	defer p.Close()
+
+	var evtCCName string
+	var evtCCData *ccprovider.ChaincodeData
+	var evtCCP *cb.CollectionConfigPackage
+
+	p.AddLSCCWriteHandler(func(txMetadata api.TxMetadata, chaincodeName string, ccData *ccprovider.ChaincodeData, ccp *cb.CollectionConfigPackage) error {
+		evtCCName = chaincodeName
+		evtCCData = ccData
+		evtCCP = ccp
+		return nil
+	})
+
+	ccData := &ccprovider.ChaincodeData{
+		Name: ccID1,
+	}
+	ccDataBytes, err := proto.Marshal(ccData)
+	require.NoError(t, err)
+
+	ccp := &cb.CollectionConfigPackage{
+		Config: []*cb.CollectionConfig{
+			{
+				Payload: &cb.CollectionConfig_StaticCollectionConfig{
+					StaticCollectionConfig: &cb.StaticCollectionConfig{
+						Name: coll1,
+					},
+				},
+			},
+		},
+	}
+	ccpBytes, err := proto.Marshal(ccp)
+	require.NoError(t, err)
+
+	t.Run("CCData marshal error", func(t *testing.T) {
+		b := mocks.NewBlockBuilder(channelID, 1100)
+
+		b.Transaction(txID1, pb.TxValidationCode_VALID).
+			ChaincodeAction(lsccID).
+			Write(ccID1, []byte("invalid cc data")).
+			Write(ccID1+collectionSeparator+"collection", ccpBytes)
+
+		p.Publish(b.Build())
+
+		// Wait a bit for the events to be published
+		time.Sleep(500 * time.Millisecond)
+
+		require.Empty(t, evtCCName)
+		require.Nil(t, evtCCData)
+		require.Nil(t, evtCCP)
+	})
+
+	t.Run("CCP marshal error", func(t *testing.T) {
+		b := mocks.NewBlockBuilder(channelID, 1100)
+
+		b.Transaction(txID1, pb.TxValidationCode_VALID).
+			ChaincodeAction(lsccID).
+			Write(ccID1, ccDataBytes).
+			Write(ccID1+collectionSeparator+"collection", []byte("invalid ccp"))
+
+		p.Publish(b.Build())
+
+		// Wait a bit for the events to be published
+		time.Sleep(500 * time.Millisecond)
+
+		require.Empty(t, evtCCName)
+		require.Nil(t, evtCCData)
+		require.Nil(t, evtCCP)
+	})
 }
 
 func TestPublisher_Error(t *testing.T) {

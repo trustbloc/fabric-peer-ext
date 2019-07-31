@@ -35,6 +35,11 @@ func (m *BlockPublisher) AddWriteHandler(handler api.WriteHandler) {
 	// Not implemented
 }
 
+// AddLSCCWriteHandler adds a handler for KV writes
+func (m *BlockPublisher) AddLSCCWriteHandler(handler api.LSCCWriteHandler) {
+	// Not implemented
+}
+
 // AddReadHandler adds a handler for KV reads
 func (m *BlockPublisher) AddReadHandler(handler api.ReadHandler) {
 	// Not implemented
