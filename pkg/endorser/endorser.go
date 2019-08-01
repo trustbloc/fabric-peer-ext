@@ -7,9 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package endorser
 
 import (
-	"github.com/bluele/gcache"
 	"github.com/hyperledger/fabric/common/flogging"
-	"github.com/hyperledger/fabric/extensions/endorser/api"
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/rwset"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
@@ -17,28 +15,14 @@ import (
 
 var endorserLogger = flogging.MustGetLogger("ext_endorser")
 
-type collConfigRetriever interface {
-	Config(ns, coll string) (*common.StaticCollectionConfig, error)
-}
-
 // CollRWSetFilter filters out all off-ledger (including transient data) read-write sets from the simulation results
 // so that they won't be included in the block.
 type CollRWSetFilter struct {
-	qepf                     api.QueryExecutorProviderFactory
-	bpp                      api.BlockPublisherProvider
-	collConfigRetrieverCache gcache.Cache
 }
 
 // NewCollRWSetFilter returns a new collection RW set filter
-func NewCollRWSetFilter(qepf api.QueryExecutorProviderFactory, bpp api.BlockPublisherProvider) *CollRWSetFilter {
-	return &CollRWSetFilter{
-		qepf: qepf,
-		bpp:  bpp,
-		collConfigRetrieverCache: gcache.New(0).LoaderFunc(func(chID interface{}) (interface{}, error) {
-			channelID := chID.(string)
-			return support.NewCollectionConfigRetriever(channelID, qepf.GetQueryExecutorProvider(channelID), bpp.ForChannel(channelID)), nil
-		}).Build(),
-	}
+func NewCollRWSetFilter() *CollRWSetFilter {
+	return &CollRWSetFilter{}
 }
 
 // Filter filters out all off-ledger (including transient data) read-write sets from the simulation results
@@ -93,20 +77,11 @@ func (f *CollRWSetFilter) filterNamespace(channelID string, nsRWSet *rwset.NsRea
 }
 
 func (f *CollRWSetFilter) isOffLedger(channelID, ns, coll string) (bool, error) {
-	staticConfig, err := f.getConfigRetriever(channelID).Config(ns, coll)
+	staticConfig, err := support.CollectionConfigRetrieverForChannel(channelID).Config(ns, coll)
 	if err != nil {
 		return false, err
 	}
 	return isCollOffLedger(staticConfig), nil
-}
-
-func (f *CollRWSetFilter) getConfigRetriever(channelID string) collConfigRetriever {
-	retriever, err := f.collConfigRetrieverCache.Get(channelID)
-	if err != nil {
-		// This should never happen
-		panic(err.Error())
-	}
-	return retriever.(collConfigRetriever)
 }
 
 func isCollOffLedger(collConfig *common.StaticCollectionConfig) bool {

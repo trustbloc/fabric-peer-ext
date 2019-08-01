@@ -9,9 +9,11 @@ package support
 import (
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/bluele/gcache"
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/core/ledger"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
@@ -19,6 +21,37 @@ import (
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
 )
+
+type collectionConfigRetrieverCache struct {
+	mutex      sync.RWMutex
+	retrievers map[string]*CollectionConfigRetriever
+}
+
+var collConfigRetrieverCache = &collectionConfigRetrieverCache{
+	retrievers: make(map[string]*CollectionConfigRetriever),
+}
+
+// CollectionConfigRetrieverForChannel returns the collection config retriever for the given channel
+func CollectionConfigRetrieverForChannel(channelID string) *CollectionConfigRetriever {
+	return collConfigRetrieverCache.forChannel(channelID)
+}
+
+// InitCollectionConfigRetriever initializes a collection config retriever for the given channel
+func InitCollectionConfigRetriever(channelID string, ledger peerLedger, blockPublisher blockPublisher) {
+	collConfigRetrieverCache.init(channelID, ledger, blockPublisher)
+}
+
+func (rc *collectionConfigRetrieverCache) init(channelID string, ledger peerLedger, blockPublisher blockPublisher) {
+	rc.mutex.Lock()
+	defer rc.mutex.Unlock()
+	rc.retrievers[channelID] = newCollectionConfigRetriever(channelID, ledger, blockPublisher)
+}
+
+func (rc *collectionConfigRetrieverCache) forChannel(channelID string) *CollectionConfigRetriever {
+	rc.mutex.RLock()
+	defer rc.mutex.RUnlock()
+	return rc.retrievers[channelID]
+}
 
 type peerLedger interface {
 	// NewQueryExecutor gives handle to a query executor.
@@ -35,11 +68,10 @@ type CollectionConfigRetriever struct {
 }
 
 type blockPublisher interface {
-	AddCCUpgradeHandler(handler gossipapi.ChaincodeUpgradeHandler)
+	AddLSCCWriteHandler(handler gossipapi.LSCCWriteHandler)
 }
 
-// NewCollectionConfigRetriever returns a new collection configuration retriever
-func NewCollectionConfigRetriever(channelID string, ledger peerLedger, blockPublisher blockPublisher) *CollectionConfigRetriever {
+func newCollectionConfigRetriever(channelID string, ledger peerLedger, blockPublisher blockPublisher) *CollectionConfigRetriever {
 	r := &CollectionConfigRetriever{
 		channelID: channelID,
 		ledger:    ledger,
@@ -48,6 +80,7 @@ func NewCollectionConfigRetriever(channelID string, ledger peerLedger, blockPubl
 	r.cache = gcache.New(0).Simple().LoaderFunc(
 		func(key interface{}) (interface{}, error) {
 			ccID := key.(string)
+			logger.Infof("Collection configs for chaincode [%s] are not cached. Loading...", ccID)
 			configs, err := r.loadConfigAndPolicy(ccID)
 			if err != nil {
 				logger.Debugf("Error loading collection configs for chaincode [%s]: %s", ccID, err)
@@ -56,10 +89,17 @@ func NewCollectionConfigRetriever(channelID string, ledger peerLedger, blockPubl
 			return configs, nil
 		}).Build()
 
-	// Add a handler to remove the collection configs from cache when the chaincode is upgraded
-	blockPublisher.AddCCUpgradeHandler(func(txnMetadata gossipapi.TxMetadata, chaincodeName string) error {
-		if r.cache.Remove(chaincodeName) {
-			logger.Infof("Chaincode [%s] was upgraded. Removed collection configs from cache.", chaincodeName)
+	// Add a handler to cache the collection config and policy when the chaincode is instantiated/upgraded
+	blockPublisher.AddLSCCWriteHandler(func(txnMetadata gossipapi.TxMetadata, ccID string, ccData *ccprovider.ChaincodeData, ccp *common.CollectionConfigPackage) error {
+		if ccp != nil {
+			logger.Infof("Updating collection configs for chaincode [%s].", ccID)
+			configs, err := r.getConfigAndPolicy(ccID, ccp)
+			if err != nil {
+				return errors.WithMessagef(err, "error getting collection configs for chaincode [%s]", ccID)
+			}
+			if err := r.cache.Set(ccID, configs); err != nil {
+				return errors.WithMessagef(err, "error setting collection configs for chaincode [%s]", ccID)
+			}
 		}
 		return nil
 	})
@@ -136,20 +176,15 @@ func (s *CollectionConfigRetriever) loadConfigAndPolicy(ns string) (cacheItems, 
 	if err != nil {
 		return nil, err
 	}
+	return s.cacheItemsFromConfigs(ns, configs)
+}
 
-	var items []*cacheItem
-	for _, config := range configs {
-		policy, err := s.loadPolicy(ns, config)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, &cacheItem{
-			config: config,
-			policy: policy,
-		})
+func (s *CollectionConfigRetriever) getConfigAndPolicy(ns string, ccp *common.CollectionConfigPackage) (cacheItems, error) {
+	configs, err := s.configsFromCCP(ns, ccp)
+	if err != nil {
+		return nil, err
 	}
-
-	return items, nil
+	return s.cacheItemsFromConfigs(ns, configs)
 }
 
 func (s *CollectionConfigRetriever) loadConfigs(ns string) ([]*common.StaticCollectionConfig, error) {
@@ -163,19 +198,36 @@ func (s *CollectionConfigRetriever) loadConfigs(ns string) ([]*common.StaticColl
 		return nil, errors.Errorf("no collection config for chaincode [%s]", ns)
 	}
 
-	cp := &common.CollectionConfigPackage{}
-	err = proto.Unmarshal(cpBytes, cp)
+	ccp := &common.CollectionConfigPackage{}
+	err = proto.Unmarshal(cpBytes, ccp)
 	if err != nil {
 		return nil, errors.Wrapf(err, "invalid collection configuration for [%s]", ns)
 	}
+	return s.configsFromCCP(ns, ccp)
+}
 
+func (s *CollectionConfigRetriever) cacheItemsFromConfigs(ns string, configs []*common.StaticCollectionConfig) (cacheItems, error) {
+	var items []*cacheItem
+	for _, config := range configs {
+		policy, err := s.loadPolicy(ns, config)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, &cacheItem{
+			config: config,
+			policy: policy,
+		})
+	}
+	return items, nil
+}
+
+func (s *CollectionConfigRetriever) configsFromCCP(ns string, ccp *common.CollectionConfigPackage) ([]*common.StaticCollectionConfig, error) {
 	var configs []*common.StaticCollectionConfig
-	for _, collConfig := range cp.Config {
+	for _, collConfig := range ccp.Config {
 		config := collConfig.GetStaticCollectionConfig()
 		logger.Debugf("[%s] Checking collection config for [%s:%+v]", s.channelID, ns, config)
 		if config == nil {
-			logger.Warningf("[%s] No config found for a collection in namespace [%s]", s.channelID, ns)
-			continue
+			return nil, errors.Errorf("no config found for a collection in namespace [%s]", ns)
 		}
 		configs = append(configs, config)
 	}

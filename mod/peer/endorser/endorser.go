@@ -19,6 +19,6 @@ type CollRWSetFilter interface {
 }
 
 // NewCollRWSetFilter returns a new collection RW set filter
-func NewCollRWSetFilter(qepf api.QueryExecutorProviderFactory, bpp api.BlockPublisherProvider) CollRWSetFilter {
-	return extendorser.NewCollRWSetFilter(qepf, bpp)
+func NewCollRWSetFilter(api.QueryExecutorProviderFactory, api.BlockPublisherProvider) CollRWSetFilter {
+	return extendorser.NewCollRWSetFilter()
 }

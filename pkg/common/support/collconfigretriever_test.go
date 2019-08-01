@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/protos/common"
@@ -38,7 +39,7 @@ func TestConfigRetriever(t *testing.T) {
 
 	qe := mocks.NewQueryExecutor().WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes)
 
-	r := NewCollectionConfigRetriever(channelID, &mocks.Ledger{
+	r := newCollectionConfigRetriever(channelID, &mocks.Ledger{
 		QueryExecutor: qe,
 	}, blockPublisher)
 	require.NotNil(t, r)
@@ -79,17 +80,13 @@ func TestConfigRetriever(t *testing.T) {
 		assert.Nil(t, config)
 	})
 
-	t.Run("Chaincode upgraded", func(t *testing.T) {
+	t.Run("Chaincode instantiated/upgraded", func(t *testing.T) {
 		nsBuilder := mocks.NewNamespaceBuilder(ns1)
 		nsBuilder.Collection(coll1).StaticConfig("OR ('Org1.member','Org2.member','Org3.member')", 3, 3, 100)
 		nsBuilder.Collection(coll2).TransientConfig("OR ('Org1.member','Org2.member','Org3.member')", 4, 3, "10m")
+		ccp := nsBuilder.BuildCollectionConfig()
 
-		configPkgBytes, err := proto.Marshal(nsBuilder.BuildCollectionConfig())
-		require.NoError(t, err)
-
-		qe.WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes)
-
-		err = blockPublisher.HandleUpgrade(api.TxMetadata{BlockNum: 1001, TxID: "tx1"}, ns1)
+		err = blockPublisher.HandleLSCCWrite(api.TxMetadata{BlockNum: 1001, TxID: "tx1"}, ns1, &ccprovider.ChaincodeData{Name: ns1}, ccp)
 		assert.NoError(t, err)
 
 		// Make sure the new config is loaded
@@ -118,7 +115,7 @@ func TestConfigRetrieverError(t *testing.T) {
 	blockPublisher := mocks.NewBlockPublisher()
 
 	expectedErr := fmt.Errorf("injected error")
-	r := NewCollectionConfigRetriever(channelID, &mocks.Ledger{
+	r := newCollectionConfigRetriever(channelID, &mocks.Ledger{
 		QueryExecutor: mocks.NewQueryExecutor().WithError(expectedErr),
 	}, blockPublisher)
 	require.NotNil(t, r)
@@ -135,5 +132,16 @@ func TestConfigRetrieverError(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), expectedErr.Error())
 		assert.Nil(t, config)
+	})
+
+	t.Run("Instantiate/upgrade error", func(t *testing.T) {
+		nsBuilder := mocks.NewNamespaceBuilder(ns1)
+		nsBuilder.Collection(coll1).StaticConfig("OR ('Org1.member','Org2.member','Org3.member')", 3, 3, 100)
+		ccp := nsBuilder.BuildCollectionConfig()
+		ccp.Config[0].Payload = nil
+
+		err := blockPublisher.HandleLSCCWrite(api.TxMetadata{BlockNum: 1001, TxID: "tx1"}, ns1, &ccprovider.ChaincodeData{Name: ns1}, ccp)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no config found for a collection in namespace")
 	})
 }
