@@ -39,6 +39,29 @@ Feature:
     And client queries chaincode "tdata_examplecc" with args "getprivatemultiple,collection1,keyX,collection2,keyY,collection3,keyZ" on the "mychannel" channel
     Then response from "tdata_examplecc" to client equal value "valX,valY,"
 
+    # Test for put of keys on multiple transient data collections within the same endorsement.
+    When client queries chaincode "tdata_examplecc" with args "putprivatemultiple,collection2,key_0,val_0,collection2,key_1,val_1,collection2,key_2,val_2,collection2,key_3,val_3,collection2,key_4,val_4,collection2,key_5,val_5,collection2,key_6,val_6,collection2,key_7,val_7,collection2,key_8,val_8,collection2,key_9,val_9" on the "mychannel" channel
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection2,key_0" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "val_0"
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection2,key_1" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "val_1"
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection2,key_2" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "val_2"
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection2,key_3" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "val_3"
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection2,key_4" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "val_4"
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection2,key_5" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "val_5"
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection2,key_6" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "val_6"
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection2,key_7" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "val_7"
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection2,key_8" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "val_8"
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection2,key_9" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "val_9"
+
     # Test for the case where get transient data should not return data that was stored in the current transaction.
     # When multiple peers are involved in an endorsement then one endorser may already have propagated the private
     # data to another endorser. The first endorser will think that there is no value for a given key but the second

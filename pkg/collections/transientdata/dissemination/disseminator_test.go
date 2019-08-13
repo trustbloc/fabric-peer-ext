@@ -10,7 +10,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hyperledger/fabric/extensions/collections/api/dissemination"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
+	gdiscovery "github.com/hyperledger/fabric/gossip/discovery"
+	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,6 +28,8 @@ var (
 	coll2 = "collection2"
 	key1  = "key1"
 	key2  = "key2"
+	key6  = "key6"
+	tx1   = "tx1"
 
 	org1MSPID      = "Org1MSP"
 	p1Org1Endpoint = "p1.org1.com"
@@ -194,6 +199,8 @@ func TestComputeDisseminationPlan(t *testing.T) {
 		Member(org3MSPID, p2Org3).
 		Member(org3MSPID, p3Org3)
 
+	allPeers := []gdiscovery.NetworkMember{p1Org1, p2Org1, p3Org1, p1Org2, p2Org2, p3Org2, p1Org3, p2Org3, p3Org3}
+
 	t.Run("Orgs: 2, Max Peers: 2, Keys: 1", func(t *testing.T) {
 		maxPeers := 2
 
@@ -209,25 +216,25 @@ func TestComputeDisseminationPlan(t *testing.T) {
 			Delete(key2) // Deletes should be ignored
 
 		rwSet := coll1Builder.Build()
+		pvtDataMsg, err := createPrivateDataMessage(channelID, tx1, ns1, rwSet, &cb.CollectionConfigPackage{}, 1000)
+		require.NoError(t, err)
 
-		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colAP, nil, gossip)
+		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colAP, pvtDataMsg, gossip)
 		require.NoError(t, err)
 		require.True(t, handled)
-		require.Equal(t, 1, len(dPlan))
+		require.Equal(t, 2, len(dPlan))
 
-		criteria := dPlan[0].Criteria
+		eligibiltyMap := getEligibilityMap(t, dPlan, allPeers)
 
-		assert.Equal(t, maxPeers, criteria.MaxPeers)
-
-		assert.False(t, criteria.IsEligible(p1Org1))
-		assert.False(t, criteria.IsEligible(p2Org1))
-		assert.False(t, criteria.IsEligible(p3Org1))
-		assert.False(t, criteria.IsEligible(p1Org2))
-		assert.False(t, criteria.IsEligible(p2Org2))
-		assert.True(t, criteria.IsEligible(p3Org2))
-		assert.False(t, criteria.IsEligible(p1Org3))
-		assert.False(t, criteria.IsEligible(p2Org3))
-		assert.True(t, criteria.IsEligible(p3Org3))
+		assert.False(t, eligibiltyMap[p1Org1.Endpoint])
+		assert.False(t, eligibiltyMap[p2Org1.Endpoint])
+		assert.False(t, eligibiltyMap[p3Org1.Endpoint])
+		assert.False(t, eligibiltyMap[p1Org2.Endpoint])
+		assert.False(t, eligibiltyMap[p2Org2.Endpoint])
+		assert.True(t, eligibiltyMap[p3Org2.Endpoint])
+		assert.False(t, eligibiltyMap[p1Org3.Endpoint])
+		assert.False(t, eligibiltyMap[p2Org3.Endpoint])
+		assert.True(t, eligibiltyMap[p3Org3.Endpoint])
 	})
 
 	t.Run("Orgs: 3, Max Peers: 3, Keys: 1", func(t *testing.T) {
@@ -244,27 +251,27 @@ func TestComputeDisseminationPlan(t *testing.T) {
 			Write(key1, []byte("value1"))
 
 		rwSet := coll1Builder.Build()
+		pvtDataMsg, err := createPrivateDataMessage(channelID, tx1, ns1, rwSet, &cb.CollectionConfigPackage{}, 1000)
+		require.NoError(t, err)
 
-		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colAP, nil, gossip)
+		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colAP, pvtDataMsg, gossip)
 		require.NoError(t, err)
 		require.True(t, handled)
-		require.Equal(t, 1, len(dPlan))
+		require.Equal(t, 3, len(dPlan))
 
-		criteria := dPlan[0].Criteria
-
-		assert.Equal(t, maxPeers, criteria.MaxPeers)
+		eligibiltyMap := getEligibilityMap(t, dPlan, allPeers)
 
 		// The transient data should be stored to p1Org1 and p3Org3 but, since p1Org1 is
 		// a local peer, it is not included in the dissemination plan.
-		assert.False(t, criteria.IsEligible(p1Org1))
-		assert.False(t, criteria.IsEligible(p2Org1))
-		assert.False(t, criteria.IsEligible(p3Org1))
-		assert.False(t, criteria.IsEligible(p1Org2))
-		assert.False(t, criteria.IsEligible(p2Org2))
-		assert.True(t, criteria.IsEligible(p3Org2))
-		assert.True(t, criteria.IsEligible(p1Org3))
-		assert.False(t, criteria.IsEligible(p2Org3))
-		assert.True(t, criteria.IsEligible(p3Org3))
+		assert.False(t, eligibiltyMap[p1Org1.Endpoint])
+		assert.False(t, eligibiltyMap[p2Org1.Endpoint])
+		assert.False(t, eligibiltyMap[p3Org1.Endpoint])
+		assert.False(t, eligibiltyMap[p1Org2.Endpoint])
+		assert.False(t, eligibiltyMap[p2Org2.Endpoint])
+		assert.True(t, eligibiltyMap[p3Org2.Endpoint])
+		assert.True(t, eligibiltyMap[p1Org3.Endpoint])
+		assert.False(t, eligibiltyMap[p2Org3.Endpoint])
+		assert.True(t, eligibiltyMap[p3Org3.Endpoint])
 	})
 
 	t.Run("Orgs: 3, Max Peers: 2, Keys: 2", func(t *testing.T) {
@@ -279,33 +286,35 @@ func TestComputeDisseminationPlan(t *testing.T) {
 		coll1Builder := mocks.NewPvtReadWriteSetCollectionBuilder(coll1)
 		coll1Builder.
 			Write(key1, []byte("value1")).
-			Write(key2, []byte("value2"))
+			Write(key2, []byte("value2")).
+			Write(key6, []byte("value6"))
 
 		rwSet := coll1Builder.Build()
+		pvtDataMsg, err := createPrivateDataMessage(channelID, tx1, ns1, rwSet, &cb.CollectionConfigPackage{}, 1000)
+		require.NoError(t, err)
 
-		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colAP, nil, gossip)
+		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colAP, pvtDataMsg, gossip)
 		require.NoError(t, err)
 		require.True(t, handled)
-		require.Equal(t, 1, len(dPlan))
+		require.Equal(t, 4, len(dPlan))
 
-		criteria := dPlan[0].Criteria
-
-		assert.Equal(t, maxPeers, criteria.MaxPeers)
+		eligibiltyMap := getEligibilityMap(t, dPlan, allPeers)
 
 		// The transient data for:
 		// - key1: p2Org1, p3Org3
 		// - key2: p1Org2, p1Org3
+		// - key6: p1Org1, p1Org3
 		// Since p1Org1 is a local peer, it's not included in the dissemination plan.
-		// So the data should be disseminated to p2Org1, p3Org3, p1Org2, and p1Org3
-		assert.False(t, criteria.IsEligible(p1Org1))
-		assert.True(t, criteria.IsEligible(p2Org1))
-		assert.False(t, criteria.IsEligible(p3Org1))
-		assert.True(t, criteria.IsEligible(p1Org2))
-		assert.False(t, criteria.IsEligible(p2Org2))
-		assert.False(t, criteria.IsEligible(p3Org2))
-		assert.True(t, criteria.IsEligible(p1Org3))
-		assert.False(t, criteria.IsEligible(p2Org3))
-		assert.True(t, criteria.IsEligible(p3Org3))
+		// So the data should be disseminated to p2Org1, p1Org2, p1Org3, and p3Org3
+		assert.False(t, eligibiltyMap[p1Org1.Endpoint])
+		assert.True(t, eligibiltyMap[p2Org1.Endpoint])
+		assert.False(t, eligibiltyMap[p3Org1.Endpoint])
+		assert.True(t, eligibiltyMap[p1Org2.Endpoint])
+		assert.False(t, eligibiltyMap[p2Org2.Endpoint])
+		assert.False(t, eligibiltyMap[p3Org2.Endpoint])
+		assert.True(t, eligibiltyMap[p1Org3.Endpoint])
+		assert.False(t, eligibiltyMap[p2Org3.Endpoint])
+		assert.True(t, eligibiltyMap[p3Org3.Endpoint])
 	})
 }
 
@@ -313,4 +322,20 @@ func TestMain(m *testing.M) {
 	viper.SetDefault("ledger.roles", "committer,endorser")
 
 	os.Exit(m.Run())
+}
+
+func getEligibilityMap(t *testing.T, dPlan []*dissemination.Plan, allPeers []gdiscovery.NetworkMember) map[string]bool {
+	eligibiltyMap := make(map[string]bool)
+	for _, plan := range dPlan {
+		criteria := plan.Criteria
+		require.Equal(t, 1, criteria.MinAck)
+		require.Equal(t, 1, criteria.MaxPeers)
+
+		for _, p := range allPeers {
+			if !eligibiltyMap[p.Endpoint] {
+				eligibiltyMap[p.Endpoint] = criteria.IsEligible(p)
+			}
+		}
+	}
+	return eligibiltyMap
 }
