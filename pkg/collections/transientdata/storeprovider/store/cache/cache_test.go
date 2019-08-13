@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider/store/api"
@@ -301,6 +302,18 @@ func TestTransientDataCacheConcurrency(t *testing.T) {
 	wg.Wait()
 }
 
+func Test_Error(t *testing.T) {
+	errExpected := errors.New("db error")
+	db := newMockDB().WithError(errExpected)
+	c := New(100, db)
+
+	v := c.Get(k1)
+	require.Nil(t, v)
+
+	// Let periodic purge run with DB error to ensure it doesn't panic
+	time.Sleep(200 * time.Millisecond)
+}
+
 func TestMain(m *testing.M) {
 	removeDBPath(nil)
 	viper.Set("peer.fileSystemPath", "/tmp/fabric/ledgertests/transientdatadb")
@@ -317,4 +330,38 @@ func removePath(t testing.TB, path string) {
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("Err: %s", err)
 	}
+}
+
+type mockDB struct {
+	err error
+}
+
+func newMockDB() *mockDB {
+	return &mockDB{}
+}
+
+func (m *mockDB) WithError(err error) *mockDB {
+	m.err = err
+	return m
+}
+
+func (m *mockDB) AddKey(api.Key, *api.Value) error {
+	if m.err != nil {
+		return m.err
+	}
+	panic("not implemented")
+}
+
+func (m *mockDB) DeleteExpiredKeys() error {
+	if m.err != nil {
+		return m.err
+	}
+	panic("not implemented")
+}
+
+func (m *mockDB) GetKey(key api.Key) (*api.Value, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	panic("not implemented")
 }

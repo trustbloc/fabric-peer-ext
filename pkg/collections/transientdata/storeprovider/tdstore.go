@@ -10,17 +10,25 @@ import (
 	"time"
 
 	"github.com/hyperledger/fabric/common/flogging"
+	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
+	gapi "github.com/hyperledger/fabric/gossip/api"
+	gcommon "github.com/hyperledger/fabric/gossip/common"
+	gdiscovery "github.com/hyperledger/fabric/gossip/discovery"
+	"github.com/hyperledger/fabric/gossip/service"
+	mspmgmt "github.com/hyperledger/fabric/msp/mgmt"
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	pb "github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/pkg/errors"
+	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/dissemination"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider/store/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider/store/cache"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/discovery"
 )
 
-var logger = flogging.MustGetLogger("memtransientdatastore")
+var logger = flogging.MustGetLogger("transientdata")
 
 type store struct {
 	channelID string
@@ -91,9 +99,26 @@ func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*c
 		return errors.Wrapf(err, "error parsing time-to-live for collection [%s]", collRWSet.CollectionName)
 	}
 
-	logger.Debugf("[%s] Collection [%s:%s] is a transient data collection", s.channelID, ns, collRWSet.CollectionName)
+	logger.Debugf("[%s] Collection [%s:%s] is a transient data collection. Persisting kv-writes...", s.channelID, ns, collRWSet.CollectionName)
+
+	policy, err := s.loadPolicy(ns, config)
+	if err != nil {
+		return err
+	}
+
+	resolver := getResolver(s.channelID, ns, collRWSet.CollectionName, policy, gossipProvider())
 
 	for _, wSet := range collRWSet.KvRwSet.Writes {
+		endorsers, err := resolver.ResolveEndorsers(wSet.Key)
+		if err != nil {
+			return err
+		}
+		logger.Debugf("[%s] Endorsers for key [%s:%s:%s]: %s", s.channelID, ns, collRWSet.CollectionName, wSet.Key, endorsers)
+
+		if !endorsers.ContainsLocal() {
+			logger.Debugf("[%s] Not persisting [%s:%s:%s] since local endorser is not part of the endorser group for this key", s.channelID, ns, collRWSet.CollectionName, wSet.Key)
+			continue
+		}
 		s.persistKVWrite(txID, ns, collRWSet.CollectionName, wSet, ttl)
 	}
 
@@ -102,7 +127,7 @@ func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*c
 
 func (s *store) persistKVWrite(txID, ns, coll string, w *kvrwset.KVWrite, ttl time.Duration) {
 	if w.IsDelete {
-		logger.Debugf("[%s] Skipping key [%s] in collection [%s] in private data rw-set since it was deleted", s.channelID, w.Key, coll)
+		logger.Debugf("[%s] Skipping key [%s:%s:%s] in private data rw-set since it was deleted", s.channelID, ns, coll, w.Key)
 		return
 	}
 
@@ -113,27 +138,29 @@ func (s *store) persistKVWrite(txID, ns, coll string, w *kvrwset.KVWrite, ttl ti
 	}
 
 	if s.cache.Get(key) != nil {
-		logger.Debugf("[%s] Transient data key [%s] in collection [%s] already exists", s.channelID, w.Key, coll)
+		logger.Debugf("[%s] Transient data key [%s:%s:%s] already exists", s.channelID, ns, coll, w.Key)
 		return
 	}
 
+	logger.Debugf("[%s] Add transient data key [%s]", s.channelID, key)
 	s.cache.PutWithExpire(key, w.Value, txID, ttl)
 }
 
 func (s *store) getTransientData(txID, ns, coll, key string) *storeapi.ExpiringValue {
-	value := s.cache.Get(api.Key{Namespace: ns, Collection: coll, Key: key})
+	k := api.Key{Namespace: ns, Collection: coll, Key: key}
+	value := s.cache.Get(k)
 	if value == nil {
-		logger.Debugf("[%s] Key [%s] not found in transient store", s.channelID, key)
+		logger.Debugf("[%s] Key [%s] not found in transient store", s.channelID, k)
 		return nil
 	}
 
 	// Check if the data was stored in the current transaction. If so, ignore it or else an endorsement mismatch may result.
 	if value.TxID == txID {
-		logger.Debugf("[%s] Key [%s] skipped since it was stored in the current transaction", s.channelID, key)
+		logger.Debugf("[%s] Key [%s] skipped since it was stored in the current transaction", s.channelID, k)
 		return nil
 	}
 
-	logger.Debugf("[%s] Key [%s] found in transient store", s.channelID, key)
+	logger.Debugf("[%s] Key [%s] found in transient store", s.channelID, k)
 
 	return &storeapi.ExpiringValue{Value: value.Value, Expiry: value.ExpiryTime}
 }
@@ -141,12 +168,21 @@ func (s *store) getTransientData(txID, ns, coll, key string) *storeapi.ExpiringV
 func (s *store) getTransientDataMultipleKeys(mkey *storeapi.MultiKey) storeapi.ExpiringValues {
 	var values storeapi.ExpiringValues
 	for _, key := range mkey.Keys {
-		value := s.getTransientData(mkey.EndorsedAtTxID, mkey.Namespace, mkey.Collection, key)
-		if value != nil {
-			values = append(values, value)
-		}
+		values = append(values, s.getTransientData(mkey.EndorsedAtTxID, mkey.Namespace, mkey.Collection, key))
 	}
 	return values
+}
+
+func (s *store) loadPolicy(ns string, config *common.StaticCollectionConfig) (privdata.CollectionAccessPolicy, error) {
+	logger.Debugf("[%s] Loading collection policy for [%s:%s]", s.channelID, ns, config.Name)
+
+	colAP := &privdata.SimpleCollection{}
+	err := colAP.Setup(config, mspmgmt.GetIdentityDeserializer(s.channelID))
+	if err != nil {
+		return nil, errors.Wrapf(err, "error setting up collection policy %s", config.Name)
+	}
+
+	return colAP, nil
 }
 
 func getCollectionConfig(collConfigPkgs map[string]*common.CollectionConfigPackage, namespace, collName string) (*common.StaticCollectionConfig, bool) {
@@ -163,4 +199,22 @@ func getCollectionConfig(collConfigPkgs map[string]*common.CollectionConfigPacka
 	}
 
 	return nil, false
+}
+
+type gossipAdapter interface {
+	PeersOfChannel(gcommon.ChainID) []gdiscovery.NetworkMember
+	SelfMembershipInfo() gdiscovery.NetworkMember
+	IdentityInfo() gapi.PeerIdentitySet
+}
+
+var gossipProvider = func() gossipAdapter {
+	return service.GetGossipService()
+}
+
+type endorserResolver interface {
+	ResolveEndorsers(key string) (discovery.PeerGroup, error)
+}
+
+var getResolver = func(channelID, ns, coll string, policy privdata.CollectionAccessPolicy, gossip gossipAdapter) endorserResolver {
+	return dissemination.New(channelID, ns, coll, policy, gossipProvider())
 }
