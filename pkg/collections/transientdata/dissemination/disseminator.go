@@ -46,11 +46,11 @@ func (d *Disseminator) ResolveEndorsers(key string) (discovery.PeerGroup, error)
 
 	orgs := d.chooseOrgs(h)
 
-	logger.Debugf("[%s] Chosen orgs: %s", d.ChannelID(), orgs)
+	logger.Debugf("[%s] Chosen orgs for key [%s] using hash32 [%d]: %s", d.ChannelID(), key, h, orgs)
 
 	endorsers := d.chooseEndorsers(h, orgs)
 
-	logger.Debugf("[%s] Chosen endorsers from orgs %s: %s", d.ChannelID(), orgs, endorsers)
+	logger.Debugf("[%s] Chosen endorsers for key [%s] using hash32 [%d] from orgs %s: %s", d.ChannelID(), key, h, orgs, endorsers)
 	return endorsers, nil
 }
 
@@ -71,12 +71,12 @@ func (d *Disseminator) chooseEndorsers(h uint32, orgs []string) discovery.PeerGr
 				continue
 			}
 
-			logger.Debugf("[%s] Endorsers for [%s]: %s", d.ChannelID(), org, endorsersForOrg)
+			logger.Debugf("[%s] Endorsers for [%s] using hash32 [%d]: %s", d.ChannelID(), org, h, endorsersForOrg)
 
 			// Deterministically choose an endorser
 			endorserForOrg := endorsersForOrg[(int(h)+i)%len(endorsersForOrg)]
 			if endorsers.Contains(endorserForOrg) {
-				logger.Debugf("[%s] Will not add endorser [%s] from org [%s] since it is already added", d.ChannelID(), endorserForOrg, org)
+				logger.Debugf("[%s] Will not add endorser [%s] from org [%s] using hash32 [%d] since it is already added", d.ChannelID(), endorserForOrg, org, h)
 				continue
 			}
 
