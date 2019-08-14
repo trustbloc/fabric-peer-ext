@@ -16,7 +16,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 )
 
-var logger = flogging.MustGetLogger("memtransientdatastore")
+var logger = flogging.MustGetLogger("transientdata")
 
 // Cache is an in-memory key-value cache
 type Cache struct {
@@ -120,7 +120,7 @@ func (c *Cache) storeToDB(key, value interface{}) {
 		if !isExpired {
 			dbstoreErr := c.dbstore.AddKey(k, v)
 			if dbstoreErr != nil {
-				logger.Error(dbstoreErr.Error())
+				logger.Errorf("Key [%s] could not be offloaded to DB: %s", key, dbstoreErr.Error())
 			} else {
 				logger.Debugf("Key [%s] offloaded to DB", key)
 			}

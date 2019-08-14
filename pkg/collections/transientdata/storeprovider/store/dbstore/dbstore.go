@@ -18,18 +18,26 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider/store/api"
 )
 
-var logger = flogging.MustGetLogger("transientdb")
+var logger = flogging.MustGetLogger("transientdata")
 
 var compositeKeySep = "!"
 
+type dbHandle interface {
+	Get(key []byte) ([]byte, error)
+	Put(key []byte, value []byte, sync bool) error
+	Delete(key []byte, sync bool) error
+	WriteBatch(batch *leveldbhelper.UpdateBatch, sync bool) error
+	GetIterator(startKey []byte, endKey []byte) *leveldbhelper.Iterator
+}
+
 // DBStore holds the db handle and the db name
 type DBStore struct {
-	db     *leveldbhelper.DBHandle
+	db     dbHandle
 	dbName string
 }
 
 // newDBStore constructs an instance of db store
-func newDBStore(db *leveldbhelper.DBHandle, dbName string) *DBStore {
+func newDBStore(db dbHandle, dbName string) *DBStore {
 	return &DBStore{db, dbName}
 }
 
@@ -111,7 +119,7 @@ func encodeCacheKey(key api.Key, expiryTime time.Time) []byte {
 	return compositeKey
 }
 
-func decodeCacheVal(b []byte) (*api.Value, error) {
+var decodeCacheVal = func(b []byte) (*api.Value, error) {
 	decoder := gob.NewDecoder(bytes.NewBuffer(b))
 	var v *api.Value
 	if err := decoder.Decode(&v); err != nil {
@@ -120,7 +128,7 @@ func decodeCacheVal(b []byte) (*api.Value, error) {
 	return v, nil
 }
 
-func encodeCacheVal(v *api.Value) ([]byte, error) {
+var encodeCacheVal = func(v *api.Value) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	encoder := gob.NewEncoder(buf)
 	if err := encoder.Encode(v); err != nil {
