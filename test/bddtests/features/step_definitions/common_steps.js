@@ -49,4 +49,7 @@ defineSupportCode(function ({And, But, Given, Then, When}) {
     Given(/^"([^"]*)" chaincode "([^"]*)" is upgraded with version "([^"]*)" from path "([^"]*)" on the "([^"]*)" channel with args "([^"]*)" with endorsement policy "([^"]*)" with collection policy "([^"]*)"$/, function (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, callback) {
         callback.pending();
     });
+    Given(/^"([^"]*)" chaincode "([^"]*)" is upgraded with version "([^"]*)" from path "([^"]*)" on the "([^"]*)" channel with args "([^"]*)" with endorsement policy "([^"]*)" with collection policy "([^"]*)" then the error response should contain "([^"]*)"$/, function (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, callback) {
+        callback.pending();
+    });
 });

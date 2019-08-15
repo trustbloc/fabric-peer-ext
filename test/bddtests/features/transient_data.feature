@@ -97,6 +97,11 @@ Feature:
     And we wait 5 seconds
     When client invokes chaincode "tdata_examplecc" with args "putprivatemultiple,collection1,key1,value1,collection3,keyC," on the "mychannel" channel
 
+    # Ensure collection Type cannot be changed during chaincode upgrade
+    Given transient collection config "coll3_upgrade" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
+    And "test" chaincode "tdata_examplecc" version "v999" is installed from path "github.com/trustbloc/e2e_cc" to all peers
+    And "test" chaincode "tdata_examplecc" is upgraded with version "v999" from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll1,tdata_coll2,coll3_upgrade" then the error response should contain "ENDORSEMENT_POLICY_FAILURE. Description: instantiateOrUpgradeCC failed"
+
     # Test Chaincode Upgrade and Cache Expiration
     #   When the chaincode is upgraded with a new policy, all caches should be refreshed
     #   Change the policy of collection1 so that it expires in 1m instead of 3s and
