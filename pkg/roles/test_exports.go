@@ -10,5 +10,9 @@ package roles
 
 //SetRoles used for unit test
 func SetRoles(rolesValue map[Role]struct{}) {
-	roles = rolesValue
+	if rolesValue == nil {
+		roles = initRoles()
+	} else {
+		roles = rolesValue
+	}
 }

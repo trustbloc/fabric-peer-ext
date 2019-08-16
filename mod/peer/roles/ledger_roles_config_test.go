@@ -29,7 +29,11 @@ func TestIsValidator(t *testing.T) {
 
 func TestRolesAsString(t *testing.T) {
 	roles.SetRoles(nil)
-	require.Empty(t, RolesAsString())
+	strRoles := RolesAsString()
+	require.Contains(t, strRoles, string(roles.CommitterRole))
+	require.Contains(t, strRoles, string(roles.EndorserRole))
+	require.Contains(t, strRoles, string(roles.ValidatorRole))
+
 }
 
 func TestHasEndorserRole(t *testing.T) {
