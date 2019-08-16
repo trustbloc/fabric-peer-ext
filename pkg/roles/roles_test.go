@@ -53,7 +53,7 @@ func TestLocalRoles(t *testing.T) {
 
 	testRole := ""
 	viper.Set(confRoles, testRole)
-	roles = getRoles()
+	roles = initRoles()
 	require.True(t, IsCommitter())
 	require.True(t, IsEndorser())
 	require.True(t, IsValidator())
@@ -61,7 +61,7 @@ func TestLocalRoles(t *testing.T) {
 
 	testRole = "committer,endorser,validator"
 	viper.Set(confRoles, testRole)
-	roles = getRoles()
+	roles = initRoles()
 	require.True(t, IsCommitter())
 	require.True(t, IsEndorser())
 	require.True(t, IsValidator())
@@ -70,14 +70,14 @@ func TestLocalRoles(t *testing.T) {
 
 	testRole = "CoMMiTTER,  ENDORSER,   validator"
 	viper.Set(confRoles, testRole)
-	roles = getRoles()
+	roles = initRoles()
 	require.True(t, IsCommitter())
 	require.True(t, IsEndorser())
 	require.True(t, IsValidator())
 
 	testRole = "committer,endorser"
 	viper.Set(confRoles, testRole)
-	roles = getRoles()
+	roles = initRoles()
 	require.True(t, IsCommitter())
 	require.True(t, IsEndorser())
 	require.False(t, IsValidator())

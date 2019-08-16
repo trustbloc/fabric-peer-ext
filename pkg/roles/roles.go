@@ -61,20 +61,7 @@ var roles map[Role]struct{}
 
 // HasRole returns true if the peer has the given role
 func HasRole(role Role) bool {
-	initOnce.Do(func() {
-		roles = getRoles()
-	})
-
-	if len(roles) == 0 {
-		exists := struct{}{}
-		roles = make(map[Role]struct{})
-		// No roles were explicitly set, therefore the peer is assumed to have these roles.
-		roles[CommitterRole] = exists
-		roles[EndorserRole] = exists
-		roles[ValidatorRole] = exists
-	}
-
-	_, ok := roles[role]
+	_, ok := getRoles()[role]
 	return ok
 }
 
@@ -96,7 +83,7 @@ func IsValidator() bool {
 // GetRoles returns the roles for the peer
 func GetRoles() []Role {
 	var ret []Role
-	for role := range roles {
+	for role := range getRoles() {
 		ret = append(ret, role)
 	}
 	return ret
@@ -105,23 +92,36 @@ func GetRoles() []Role {
 // AsString returns the roles for the peer
 func AsString() []string {
 	var ret []string
-	for role := range roles {
+	for role := range getRoles() {
 		ret = append(ret, string(role))
 	}
 	return ret
 }
 
 func getRoles() map[Role]struct{} {
+	initOnce.Do(func() {
+		roles = initRoles()
+	})
+	return roles
+}
+
+func initRoles() map[Role]struct{} {
+	rolesMap := make(map[Role]struct{})
 	exists := struct{}{}
 	strRoles := config.GetRoles()
+
 	if strRoles == "" {
 		// The peer has all roles by default
-		return map[Role]struct{}{}
+		rolesMap[CommitterRole] = exists
+		rolesMap[EndorserRole] = exists
+		rolesMap[ValidatorRole] = exists
+		return rolesMap
 	}
-	rolesMap := make(map[Role]struct{})
+
 	for _, r := range strings.Split(strRoles, ",") {
 		r = strings.ToLower(strings.TrimSpace(r))
 		rolesMap[Role(r)] = exists
 	}
+
 	return rolesMap
 }
