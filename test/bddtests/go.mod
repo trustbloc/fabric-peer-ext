@@ -13,5 +13,5 @@ require (
 	github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric v0.0.0-20190429134815-48bb0d199e2c
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper v1.0.2
-	github.com/trustbloc/fabric-peer-test-common v0.0.0-20190702155929-65e50b1c2186
+	github.com/trustbloc/fabric-peer-test-common v0.0.0-20190815213819-ecf8b72b9163
 )
