@@ -56,7 +56,7 @@ Feature: off-ledger
     Then response from "ol_examplecc" to client equal value "value4"
 
     # Test expiry
-    Given we wait 10 seconds
+    Given we wait 15 seconds
 
     # Should have expired
     When client queries chaincode "ol_examplecc" with args "getprivate,collection1,key1" on the "mychannel" channel
