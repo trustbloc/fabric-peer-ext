@@ -55,6 +55,8 @@ var (
 	p3Org3Endpoint = "p3.org3.com"
 	p3Org3PKIID    = gcommon.PKIidType("pkiid_P3O3")
 
+	org4MSPID = "Org4MSP"
+
 	validatorRole = string(roles.ValidatorRole)
 	endorserRole  = string(roles.EndorserRole)
 )
@@ -152,6 +154,26 @@ func TestDissemination(t *testing.T) {
 		assert.Equal(t, p1Org2Endpoint, endorsers[4].Endpoint)
 	})
 
+	t.Run("1 org", func(t *testing.T) {
+		maxPeers := 3
+
+		d := New(channelID, ns1, coll1,
+			&mocks.MockAccessPolicy{
+				MaxPeerCount: maxPeers,
+				Orgs:         []string{org3MSPID},
+			}, gossip)
+
+		// key1
+		endorsers, err := d.ResolveEndorsers(key1)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(endorsers))
+
+		t.Logf("Endorsers: %s", endorsers)
+
+		assert.Equal(t, p3Org3Endpoint, endorsers[0].Endpoint)
+		assert.Equal(t, p1Org3Endpoint, endorsers[1].Endpoint)
+	})
+
 	t.Run("Subset of orgs", func(t *testing.T) {
 		maxPeers := 3
 
@@ -172,6 +194,58 @@ func TestDissemination(t *testing.T) {
 		assert.Equal(t, p3Org3Endpoint, endorsers[0].Endpoint)
 		assert.Equal(t, p3Org2Endpoint, endorsers[1].Endpoint)
 		assert.Equal(t, p1Org3Endpoint, endorsers[2].Endpoint)
+	})
+
+	t.Run("No peers", func(t *testing.T) {
+		maxPeers := 6
+
+		d := New(channelID, ns1, coll1,
+			&mocks.MockAccessPolicy{
+				MaxPeerCount: maxPeers,
+				Orgs:         []string{org4MSPID},
+			}, gossip)
+
+		endorsers, err := d.ResolveEndorsers(key1)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no endorsers")
+		require.Empty(t, endorsers)
+	})
+
+	t.Run("No orgs", func(t *testing.T) {
+		maxPeers := 2
+
+		d := New(channelID, ns1, coll1,
+			&mocks.MockAccessPolicy{
+				MaxPeerCount: maxPeers,
+				Orgs:         []string{},
+			}, gossip)
+
+		endorsers, err := d.ResolveEndorsers(key1)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no orgs")
+		require.Empty(t, endorsers)
+	})
+
+	t.Run("Org with no peers", func(t *testing.T) {
+		maxPeers := 4
+
+		d := New(channelID, ns1, coll1,
+			&mocks.MockAccessPolicy{
+				MaxPeerCount: maxPeers,
+				Orgs:         []string{org1MSPID, org2MSPID, org3MSPID, org4MSPID}, // org4 has no peers
+			}, gossip)
+
+		// key1
+		endorsers, err := d.ResolveEndorsers(key2)
+		require.NoError(t, err)
+		require.Equal(t, maxPeers, len(endorsers))
+
+		t.Logf("Endorsers: %s", endorsers)
+
+		assert.Equal(t, p1Org3Endpoint, endorsers[0].Endpoint)
+		assert.Equal(t, p1Org1Endpoint, endorsers[1].Endpoint)
+		assert.Equal(t, p1Org2Endpoint, endorsers[2].Endpoint)
+		assert.Equal(t, p3Org3Endpoint, endorsers[3].Endpoint)
 	})
 }
 
@@ -315,6 +389,28 @@ func TestComputeDisseminationPlan(t *testing.T) {
 		assert.True(t, eligibiltyMap[p1Org3.Endpoint])
 		assert.False(t, eligibiltyMap[p2Org3.Endpoint])
 		assert.True(t, eligibiltyMap[p3Org3.Endpoint])
+	})
+
+	t.Run("No endorsers error", func(t *testing.T) {
+		maxPeers := 2
+
+		colAP := &mocks.MockAccessPolicy{
+			MaxPeerCount: maxPeers,
+			Orgs:         []string{org4MSPID},
+		}
+
+		coll1Builder := mocks.NewPvtReadWriteSetCollectionBuilder(coll1)
+		coll1Builder.Write(key1, []byte("value1"))
+
+		rwSet := coll1Builder.Build()
+		pvtDataMsg, err := createPrivateDataMessage(channelID, tx1, ns1, rwSet, &cb.CollectionConfigPackage{}, 1000)
+		require.NoError(t, err)
+
+		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colAP, pvtDataMsg, gossip)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no endorsers")
+		require.True(t, handled)
+		require.Empty(t, dPlan)
 	})
 }
 
