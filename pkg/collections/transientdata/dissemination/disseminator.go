@@ -45,51 +45,77 @@ func (d *Disseminator) ResolveEndorsers(key string) (discovery.PeerGroup, error)
 	}
 
 	orgs := d.chooseOrgs(h)
+	if len(orgs) == 0 {
+		logger.Warnf("[%s] No orgs for key [%s] using hash32 [%d]", d.ChannelID(), key, h)
+		return nil, errors.Errorf("no orgs for key [%s]", key)
+	}
 
 	logger.Debugf("[%s] Chosen orgs for key [%s] using hash32 [%d]: %s", d.ChannelID(), key, h, orgs)
 
-	endorsers := d.chooseEndorsers(h, orgs)
+	endorsers, err := d.chooseEndorsers(h, orgs)
+	if err != nil {
+		return nil, err
+	}
 
 	logger.Debugf("[%s] Chosen endorsers for key [%s] using hash32 [%d] from orgs %s: %s", d.ChannelID(), key, h, orgs, endorsers)
 	return endorsers, nil
 }
 
-func (d *Disseminator) chooseEndorsers(h uint32, orgs []string) discovery.PeerGroup {
+func (d *Disseminator) chooseEndorsers(h uint32, orgs []string) (discovery.PeerGroup, error) {
+	allEndorsers := d.getEndorsers(orgs...)
+	logger.Debugf("[%s] All endorsers for orgs %s: %s", d.ChannelID(), orgs, allEndorsers)
+
+	if len(allEndorsers) == 0 {
+		logger.Warnf("[%s] No endorsers for orgs %s", d.ChannelID(), orgs)
+		return nil, errors.Errorf("no endorsers for orgs %s", orgs)
+	}
+
 	var endorsers discovery.PeerGroup
-
-	for i := 0; i < d.policy.MaximumPeerCount(); i++ {
-		for _, org := range orgs {
-			if len(endorsers) == d.policy.MaximumPeerCount() {
-				// We have enough endorsers
-				break
-			}
-
-			// Get a sorted list of endorsers for the org
-			endorsersForOrg := d.getEndorsers(org).Sort()
-			if len(endorsersForOrg) == 0 {
-				logger.Debugf("[%s] There are no endorsers in org [%s]", d.ChannelID(), org)
-				continue
-			}
-
-			logger.Debugf("[%s] Endorsers for [%s] using hash32 [%d]: %s", d.ChannelID(), org, h, endorsersForOrg)
-
-			// Deterministically choose an endorser
-			endorserForOrg := endorsersForOrg[(int(h)+i)%len(endorsersForOrg)]
-			if endorsers.Contains(endorserForOrg) {
-				logger.Debugf("[%s] Will not add endorser [%s] from org [%s] using hash32 [%d] since it is already added", d.ChannelID(), endorserForOrg, org, h)
-				continue
-			}
-
-			endorsers = append(endorsers, endorserForOrg)
+	for i := 0; len(endorsers) < d.policy.MaximumPeerCount(); i++ {
+		// Choose a set of endorsers from the set of orgs, incrementing the hash value
+		// so that different peers are chosen each time through the loop
+		endorsers = d.appendEndorsersFromOrgs(endorsers, int(h)+i, orgs)
+		if len(endorsers) >= len(allEndorsers) {
+			logger.Debugf("[%s] Stopping after %d endorsers were chosen using hash32 [%d] since all endorsers from orgs %s have already been added", d.ChannelID(), len(endorsers), h, orgs)
+			break
 		}
+	}
+
+	return endorsers, nil
+}
+
+func (d *Disseminator) appendEndorsersFromOrgs(endorsers discovery.PeerGroup, h int, orgs []string) discovery.PeerGroup {
+	for _, org := range orgs {
+		if len(endorsers) == d.policy.MaximumPeerCount() {
+			// We have enough endorsers
+			break
+		}
+
+		// Get a sorted list of endorsers for the org
+		endorsersForOrg := d.getEndorsers(org).Sort()
+		if len(endorsersForOrg) == 0 {
+			logger.Debugf("[%s] There are no endorsers in org [%s]", d.ChannelID(), org)
+			continue
+		}
+
+		logger.Debugf("[%s] Endorsers for [%s] using hash32 [%d]: %s", d.ChannelID(), org, h, endorsersForOrg)
+
+		// Deterministically choose an endorser
+		endorserForOrg := endorsersForOrg[h%len(endorsersForOrg)]
+		if endorsers.Contains(endorserForOrg) {
+			logger.Debugf("[%s] Will not add endorser [%s] from org [%s] using hash32 [%d] since it is already added", d.ChannelID(), endorserForOrg, org, h)
+			continue
+		}
+
+		endorsers = append(endorsers, endorserForOrg)
 	}
 	return endorsers
 }
 
-func (d *Disseminator) getEndorsers(mspID string) discovery.PeerGroup {
+func (d *Disseminator) getEndorsers(mspIDs ...string) discovery.PeerGroup {
 	return d.GetMembers(func(m *discovery.Member) bool {
-		if m.MSPID != mspID {
-			logger.Debugf("[%s] Not adding peer [%s] as an endorser since it is not in org [%s]", d.ChannelID(), m.Endpoint, mspID)
+		if !contains(mspIDs, m.MSPID) {
+			logger.Debugf("[%s] Not adding peer [%s] as an endorser since it is not in org %s", d.ChannelID(), m.Endpoint, mspIDs)
 			return false
 		}
 		if !m.HasRole(roles.EndorserRole) {
@@ -98,7 +124,6 @@ func (d *Disseminator) getEndorsers(mspID string) discovery.PeerGroup {
 		}
 		return true
 	})
-
 }
 
 func (d *Disseminator) chooseOrgs(h uint32) []string {
@@ -132,4 +157,13 @@ func min(i, j int) int {
 		return i
 	}
 	return j
+}
+
+func contains(strs []string, str string) bool {
+	for _, s := range strs {
+		if s == str {
+			return true
+		}
+	}
+	return false
 }
