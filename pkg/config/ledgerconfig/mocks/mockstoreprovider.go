@@ -8,7 +8,6 @@ package mocks
 
 import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/state/api"
-	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
 // StoreProvider is a mock StoreProvider
@@ -84,16 +83,4 @@ func (m *StateStore) PutState(namespace, key string, value []byte) error {
 	}
 	m.WithState(namespace, key, value)
 	return nil
-}
-
-// StateRetriever is a mock implementation of StateRetriever
-type StateRetriever struct {
-	*mocks.QueryExecutor
-}
-
-// NewStateRetriever returns a mock StateRetriever
-func NewStateRetriever() *StateRetriever {
-	return &StateRetriever{
-		QueryExecutor: mocks.NewQueryExecutor(),
-	}
 }

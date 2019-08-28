@@ -7,7 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package mocks
 
 import (
-	"fmt"
+	"sort"
+	"strings"
 
 	commonledger "github.com/hyperledger/fabric/common/ledger"
 	"github.com/hyperledger/fabric/core/ledger"
@@ -19,7 +20,9 @@ type QueryExecutor struct {
 	state        map[string]map[string][]byte
 	queryResults map[string][]*statedb.VersionedKV
 	error        error
+	queryError   error
 	itProvider   func() *ResultsIterator
+	kvItProvider func(kvs []*statedb.VersionedKV) *KVIterator
 }
 
 // NewQueryExecutor returns a new mock query executor
@@ -28,6 +31,7 @@ func NewQueryExecutor() *QueryExecutor {
 		state:        make(map[string]map[string][]byte),
 		queryResults: make(map[string][]*statedb.VersionedKV),
 		itProvider:   NewResultsIterator,
+		kvItProvider: NewKVIterator,
 	}
 }
 
@@ -66,9 +70,15 @@ func (m *QueryExecutor) WithPrivateQueryResults(ns, coll, query string, results 
 	return m
 }
 
-// WithIteratorProvider sets the iterator provider
+// WithIteratorProvider sets the results iterator provider
 func (m *QueryExecutor) WithIteratorProvider(p func() *ResultsIterator) *QueryExecutor {
 	m.itProvider = p
+	return m
+}
+
+// WithKVIteratorProvider sets the KV iterator provider
+func (m *QueryExecutor) WithKVIteratorProvider(p func(kvs []*statedb.VersionedKV) *KVIterator) *QueryExecutor {
+	m.kvItProvider = p
 	return m
 }
 
@@ -78,18 +88,18 @@ func (m *QueryExecutor) WithError(err error) *QueryExecutor {
 	return m
 }
 
+// WithQueryError injects an error to the mock executor for queries
+func (m *QueryExecutor) WithQueryError(err error) *QueryExecutor {
+	m.queryError = err
+	return m
+}
+
 // GetState returns the mock state for the given namespace and key
 func (m *QueryExecutor) GetState(namespace string, key string) ([]byte, error) {
 	if m.error != nil {
 		return nil, m.error
 	}
-
-	ns := m.state[namespace]
-	if ns == nil {
-		return nil, fmt.Errorf("Could not retrieve namespace %s", namespace)
-	}
-
-	return ns[key], nil
+	return m.state[namespace][key], nil
 }
 
 // GetStateMultipleKeys returns the mock state for the given namespace and keys
@@ -105,9 +115,29 @@ func (m *QueryExecutor) GetStateMultipleKeys(namespace string, keys []string) ([
 	return values, nil
 }
 
-// GetStateRangeScanIterator is not currently implemented and will panic if called
+// GetStateRangeScanIterator returns an iterator for mock results ranging from startKey (inclusive) to endKey (exclusive)
 func (m *QueryExecutor) GetStateRangeScanIterator(namespace string, startKey string, endKey string) (commonledger.ResultsIterator, error) {
-	panic("not implemented")
+	if m.queryError != nil {
+		return nil, m.queryError
+	}
+
+	var kvs []*statedb.VersionedKV
+	for key, value := range m.state[namespace] {
+		if strings.Compare(key, startKey) < 0 || strings.Compare(key, endKey) >= 0 {
+			continue
+		}
+		kv := &statedb.VersionedKV{}
+		kv.Namespace = namespace
+		kv.Key = key
+		kv.Value = value
+
+		kvs = append(kvs, kv)
+	}
+	sort.Slice(kvs, func(i, j int) bool {
+		return strings.Compare(kvs[i].Key, kvs[j].Key) < 0
+	})
+
+	return m.kvItProvider(kvs), nil
 }
 
 // GetStateRangeScanIteratorWithMetadata is not currently implemented and will panic if called
@@ -117,6 +147,9 @@ func (m *QueryExecutor) GetStateRangeScanIteratorWithMetadata(namespace string, 
 
 // ExecuteQuery returns mock results for the given query
 func (m *QueryExecutor) ExecuteQuery(namespace, query string) (commonledger.ResultsIterator, error) {
+	if m.queryError != nil {
+		return nil, m.queryError
+	}
 	return m.itProvider().WithResults(m.queryResults[queryResultsKey(namespace, query)]), m.error
 }
 
@@ -152,6 +185,9 @@ func (m *QueryExecutor) GetPrivateDataRangeScanIterator(namespace, collection, s
 
 // ExecuteQueryOnPrivateData  returns mock results for the given query
 func (m *QueryExecutor) ExecuteQueryOnPrivateData(namespace, collection, query string) (commonledger.ResultsIterator, error) {
+	if m.error != nil {
+		return nil, m.error
+	}
 	return m.itProvider().WithResults(m.queryResults[privateQueryResultsKey(namespace, collection, query)]), m.error
 }
 
@@ -183,14 +219,62 @@ func privateQueryResultsKey(namespace, coll, query string) string {
 
 // QueryExecutorProvider is a mock query executor provider
 type QueryExecutorProvider struct {
+	qe *QueryExecutor
 }
 
 // NewQueryExecutorProvider returns a mock query executor provider
 func NewQueryExecutorProvider() *QueryExecutorProvider {
-	return &QueryExecutorProvider{}
+	return &QueryExecutorProvider{
+		qe: NewQueryExecutor(),
+	}
+}
+
+// WithMockQueryExecutor sets the mock query executor
+func (m *QueryExecutorProvider) WithMockQueryExecutor(qe *QueryExecutor) *QueryExecutorProvider {
+	m.qe = qe
+	return m
 }
 
 // GetQueryExecutorForLedger returns the query executor for the given channel ID
 func (m *QueryExecutorProvider) GetQueryExecutorForLedger(channelID string) (ledger.QueryExecutor, error) {
-	return NewQueryExecutor(), nil
+	return m.qe, nil
+}
+
+// KVIterator is a mock key-value iterator
+type KVIterator struct {
+	kvs     []*statedb.VersionedKV
+	nextIdx int
+	err     error
+}
+
+// NewKVIterator returns a mock key-value iterator
+func NewKVIterator(kvs []*statedb.VersionedKV) *KVIterator {
+	return &KVIterator{
+		kvs: kvs,
+	}
+}
+
+// WithError injects an error
+func (it *KVIterator) WithError(err error) *KVIterator {
+	it.err = err
+	return it
+}
+
+// Next returns the next item in the result set. The `QueryResult` is expected to be nil when
+// the iterator gets exhausted
+func (it *KVIterator) Next() (commonledger.QueryResult, error) {
+	if it.err != nil {
+		return nil, it.err
+	}
+
+	if it.nextIdx >= len(it.kvs) {
+		return nil, nil
+	}
+	qr := it.kvs[it.nextIdx]
+	it.nextIdx++
+	return qr, nil
+}
+
+// Close releases resources occupied by the iterator
+func (it *KVIterator) Close() {
 }
