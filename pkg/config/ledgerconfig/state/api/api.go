@@ -6,10 +6,22 @@ SPDX-License-Identifier: Apache-2.0
 
 package api
 
+import (
+	"github.com/hyperledger/fabric/protos/ledger/queryresult"
+)
+
 // StateRetriever retrieves ledger state
 type StateRetriever interface {
 	GetState(namespace, key string) ([]byte, error)
+	GetStateByPartialCompositeKey(namespace, objectType string, attributes []string) (ResultsIterator, error)
 	Done()
+}
+
+// ResultsIterator iterates through the results of a range query
+type ResultsIterator interface {
+	Next() (*queryresult.KV, error)
+	HasNext() bool
+	Close() error
 }
 
 // RetrieverProvider returns a State Retriever

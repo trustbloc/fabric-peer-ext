@@ -12,6 +12,7 @@ import (
 
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/pkg/errors"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/compositekey"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	state "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/state/api"
 )
@@ -21,18 +22,21 @@ var logger = flogging.MustGetLogger("ledgerconfig")
 const (
 	// keyDivider is used to separate key parts
 	keyDivider = "!"
+
+	// indexOrg is the name of the index to retrieve configurations per org
+	indexMspID = "cfgmgmt-mspid"
 )
 
-// UpdateManager allows you to update ledger configuration
+// UpdateManager allows you to query and update ledger configuration
 type UpdateManager struct {
-	namespace     string
+	*QueryManager
 	storeProvider state.StoreProvider
 }
 
 // NewUpdateManager returns a new configuration update manager
 func NewUpdateManager(namespace string, sp state.StoreProvider) *UpdateManager {
 	return &UpdateManager{
-		namespace:     namespace,
+		QueryManager:  NewQueryManager(namespace, sp),
 		storeProvider: sp,
 	}
 }
@@ -65,8 +69,25 @@ func (m *UpdateManager) save(kvMap keyValueMap) error {
 		if err != nil {
 			return errors.WithMessagef(err, "error saving config [%s]", key)
 		}
+		if err := addIndex(store, m.namespace, key); err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+func addIndex(store state.StateStore, ns string, key config.Key) error {
+	indexKey := getIndexKey(MarshalKey(&key), []string{key.MspID})
+	logger.Debugf("Adding index [%s]", indexKey)
+	err := store.PutState(ns, indexKey, []byte("{}"))
+	if err != nil {
+		return errors.WithMessage(err, "failed to create index")
+	}
+	return nil
+}
+
+func getIndexKey(key string, fields []string) string {
+	return compositekey.Create(indexMspID, append(fields, key))
 }
 
 // marshalKey marshals the key into a string that may be used as a key in the state store
