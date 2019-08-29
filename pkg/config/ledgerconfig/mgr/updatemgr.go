@@ -50,6 +50,31 @@ func (m *UpdateManager) Save(txID string, cfg *config.Config) error {
 	return m.save(configMap)
 }
 
+// Delete deletes one or more configuration items according to the given Criteria.
+func (m *UpdateManager) Delete(key *config.Criteria) error {
+	configs, err := m.query(key)
+	if err != nil {
+		return err
+	}
+
+	store, err := m.storeProvider.GetStore()
+	if err != nil {
+		return err
+	}
+	defer store.Done()
+
+	for _, value := range configs {
+		logger.Debugf("... Deleting key [%s]", value.Key)
+		if err := store.DelState(m.namespace, MarshalKey(value.Key)); err != nil {
+			return err
+		}
+		if err := deleteIndex(store, m.namespace, value.Key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 //save saves keys/values to the repository.
 func (m *UpdateManager) save(kvMap keyValueMap) error {
 	store, err := m.storeProvider.GetStore()
@@ -82,6 +107,16 @@ func addIndex(store state.StateStore, ns string, key config.Key) error {
 	err := store.PutState(ns, indexKey, []byte("{}"))
 	if err != nil {
 		return errors.WithMessage(err, "failed to create index")
+	}
+	return nil
+}
+
+func deleteIndex(store state.StateStore, ns string, key *config.Key) error {
+	indexKey := getIndexKey(MarshalKey(key), []string{key.MspID})
+	logger.Debugf("Deleting index [%s]", indexKey)
+	err := store.DelState(ns, indexKey)
+	if err != nil {
+		return errors.WithMessage(err, "failed to delete index")
 	}
 	return nil
 }

@@ -383,6 +383,103 @@ func TestUpdateManager_Save(t *testing.T) {
 	})
 }
 
+func TestUpdateManager_Delete(t *testing.T) {
+	m := NewUpdateManager(configNamespace, mocks.NewStoreProvider())
+	require.NotNil(t, m)
+
+	require.NoError(t, m.Save(txID1, msp1PeerConfig))
+	require.NoError(t, m.Save(txID1, msp1App1ComponentsConfig))
+	require.NoError(t, m.Save(txID1, msp1App1ComponentsConfigUpdate))
+	require.NoError(t, m.Save(txID1, msp1App1ComponentsConfigUpdate2))
+	require.NoError(t, m.Save(txID1, msp2Peer2Config))
+
+	t.Run("Invalid criteria -> error", func(t *testing.T) {
+		_, err := m.Query(&config.Criteria{MspID: msp1, PeerID: peer1, AppVersion: v1})
+		require.EqualError(t, err, "field [Name] is required")
+	})
+
+	t.Run("StateStoreProvider error", func(t *testing.T) {
+		expectedErr := errors.New("store provider error")
+		sp := mocks.NewStoreProvider()
+		m := NewUpdateManager(configNamespace, sp)
+		require.NoError(t, m.Save(txID1, msp1PeerConfig))
+		sp.WithError(expectedErr)
+		err := m.Delete(&config.Criteria{MspID: msp1})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), expectedErr.Error())
+	})
+
+	t.Run("StateStore error", func(t *testing.T) {
+		expectedErr := errors.New("store error")
+		s := mocks.NewStateStore()
+		sp := mocks.NewStoreProvider().WithStore(s)
+		m := NewUpdateManager(configNamespace, sp)
+		require.NoError(t, m.Save(txID1, msp1PeerConfig))
+		s.WithStoreError(expectedErr)
+		err := m.Delete(&config.Criteria{MspID: msp1})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), expectedErr.Error())
+	})
+
+	t.Run("PeerID app config -> success", func(t *testing.T) {
+		key := &config.Criteria{MspID: msp1, PeerID: peer1, AppName: app3, AppVersion: v1}
+		config, err := m.Query(key)
+		require.NoError(t, err)
+		require.NotEmpty(t, config)
+		require.NotNil(t, config[0].Value)
+
+		require.NoError(t, m.Delete(key))
+		config, err = m.Query(key)
+		require.Empty(t, config)
+	})
+
+	t.Run("Apps component -> success", func(t *testing.T) {
+		criteria := &config.Criteria{MspID: msp1, AppName: app1, AppVersion: v1, ComponentName: comp1, ComponentVersion: v1}
+		cfg, err := m.Query(criteria)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(cfg))
+		require.NotNil(t, cfg[0].Value)
+
+		require.NoError(t, m.Delete(criteria))
+
+		cfg, err = m.Query(criteria)
+		require.NoError(t, err)
+		require.Empty(t, cfg)
+
+		cfg, err = m.Query(&config.Criteria{MspID: msp1, AppName: app1, AppVersion: v1, ComponentName: comp1, ComponentVersion: v2})
+		require.NoError(t, err)
+		require.NotEmpty(t, cfg)
+	})
+
+	t.Run("ComponentName config (all versions) -> success", func(t *testing.T) {
+		k := &config.Criteria{MspID: msp1, AppName: app1, AppVersion: v1, ComponentName: comp3}
+		cfg, err := m.Query(k)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(cfg))
+		require.NoError(t, m.Delete(k))
+
+		cfg, err = m.Query(k)
+		require.NoError(t, err)
+		require.Empty(t, cfg)
+
+		k = &config.Criteria{MspID: msp1, AppName: app1, AppVersion: v1, ComponentName: comp3}
+		cfg, err = m.Query(k)
+		require.NoError(t, err)
+		require.Empty(t, cfg)
+	})
+
+	t.Run("MSP config -> success", func(t *testing.T) {
+		key := &config.Criteria{MspID: msp2}
+		config, err := m.Query(key)
+		require.NoError(t, err)
+		require.NotEmpty(t, config)
+
+		require.NoError(t, m.Delete(key))
+		config, err = m.Query(key)
+		require.Empty(t, config)
+	})
+}
+
 func requireEqualValue(t *testing.T, retriever api.StateRetriever, key *config.Key, expectedValue *config.Value) {
 	bytes, err := retriever.GetState(configNamespace, marshalKey(*key))
 	require.NoError(t, err)
