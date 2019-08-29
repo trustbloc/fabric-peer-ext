@@ -83,3 +83,26 @@ func TestValue_String(t *testing.T) {
 	kv := NewKeyValue(NewAppKey(msp1, app1, v1), NewValue(tx1, "some config", FormatOther))
 	require.Equal(t, "[(MSP:org1MSP),(Peer:),(Apps:app1),(AppVersion:v1),(Comp:),(CompVersion:)]=[(TxID:tx1),(Config:some config),(Format:OTHER)]", kv.String())
 }
+
+func TestKey_Validate(t *testing.T) {
+	key := &Key{}
+	require.EqualError(t, key.Validate(), "field [MspID] is required")
+
+	key = &Key{MspID: msp1, PeerID: peer1}
+	require.EqualError(t, key.Validate(), "field [Name] is required for PeerID [peer1]")
+
+	key = &Key{MspID: msp1, AppName: app1}
+	require.EqualError(t, key.Validate(), "field [AppVersion] is required")
+
+	key = &Key{MspID: msp1, AppVersion: v1}
+	require.EqualError(t, key.Validate(), "one of the fields [PeerID] or [Name] is required")
+
+	key = &Key{MspID: msp1, AppName: app1, AppVersion: v1, ComponentName: comp1}
+	require.EqualError(t, key.Validate(), "field [ComponentVersion] is required")
+
+	key = &Key{MspID: msp1, AppName: app1, AppVersion: v1, ComponentVersion: v1}
+	require.EqualError(t, key.Validate(), "field [ComponentName] is required")
+
+	key = NewPeerComponentKey(msp1, peer1, app1, v1, comp1, v1)
+	require.NoError(t, key.Validate())
+}

@@ -8,6 +8,8 @@ package config
 
 import (
 	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 // Key is used to uniquely identify a specific application configuration and is used as the
@@ -28,8 +30,42 @@ type Key struct {
 }
 
 // String returns a readable string for the key
-func (k Key) String() string {
+func (k *Key) String() string {
 	return fmt.Sprintf("(MSP:%s),(Peer:%s),(Apps:%s),(AppVersion:%s),(Comp:%s),(CompVersion:%s)", k.MspID, k.PeerID, k.AppName, k.AppVersion, k.ComponentName, k.ComponentVersion)
+}
+
+// Validate validates the key for completeness
+func (k *Key) Validate() error {
+	if k.MspID == "" {
+		return errors.New("field [MspID] is required")
+	}
+	if err := k.validateApp(); err != nil {
+		return err
+	}
+	return k.validateComponents()
+}
+
+func (k *Key) validateApp() error {
+	if k.PeerID == "" && k.AppName == "" {
+		return errors.New("one of the fields [PeerID] or [Name] is required")
+	}
+	if k.PeerID != "" && k.AppName == "" {
+		return errors.Errorf("field [Name] is required for PeerID [%s]", k.PeerID)
+	}
+	if k.AppVersion == "" {
+		return errors.New("field [AppVersion] is required")
+	}
+	return nil
+}
+
+func (k *Key) validateComponents() error {
+	if k.ComponentName != "" && k.ComponentVersion == "" {
+		return errors.New("field [ComponentVersion] is required")
+	}
+	if k.ComponentName == "" && k.ComponentVersion != "" {
+		return errors.New("field [ComponentName] is required")
+	}
+	return nil
 }
 
 // NewPeerKey creates a config key using mspID, peerID, appName and appVersion

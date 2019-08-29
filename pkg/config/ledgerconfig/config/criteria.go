@@ -71,6 +71,18 @@ func (c *Criteria) AsKey() (*Key, error) {
 	}, nil
 }
 
+// CriteriaFromKey constructs Criteria from the given key
+func CriteriaFromKey(key *Key) *Criteria {
+	return &Criteria{
+		MspID:            key.MspID,
+		AppName:          key.AppName,
+		PeerID:           key.PeerID,
+		AppVersion:       key.AppVersion,
+		ComponentName:    key.ComponentName,
+		ComponentVersion: key.ComponentVersion,
+	}
+}
+
 func (c *Criteria) isAppKey() bool {
 	return c.AppName != "" && c.AppVersion != "" && c.ComponentName == "" && c.ComponentVersion == ""
 }
