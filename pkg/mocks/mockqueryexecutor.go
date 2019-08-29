@@ -237,7 +237,8 @@ func privateQueryResultsKey(namespace, coll, query string) string {
 
 // QueryExecutorProvider is a mock query executor provider
 type QueryExecutorProvider struct {
-	qe *QueryExecutor
+	qe  *QueryExecutor
+	err error
 }
 
 // NewQueryExecutorProvider returns a mock query executor provider
@@ -253,8 +254,17 @@ func (m *QueryExecutorProvider) WithMockQueryExecutor(qe *QueryExecutor) *QueryE
 	return m
 }
 
+// WithError injects an error into the mock provider
+func (m *QueryExecutorProvider) WithError(err error) *QueryExecutorProvider {
+	m.err = err
+	return m
+}
+
 // GetQueryExecutorForLedger returns the query executor for the given channel ID
 func (m *QueryExecutorProvider) GetQueryExecutorForLedger(channelID string) (ledger.QueryExecutor, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
 	return m.qe, nil
 }
 
