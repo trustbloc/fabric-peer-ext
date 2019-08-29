@@ -84,3 +84,12 @@ func (m *StateStore) PutState(namespace, key string, value []byte) error {
 	m.WithState(namespace, key, value)
 	return nil
 }
+
+// DelState deletes the given key
+func (m *StateStore) DelState(namespace, key string) error {
+	if m.err != nil {
+		return m.err
+	}
+	m.WithDeletedState(namespace, key)
+	return nil
+}

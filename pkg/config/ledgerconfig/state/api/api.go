@@ -33,6 +33,7 @@ type RetrieverProvider interface {
 type StateStore interface {
 	StateRetriever
 	PutState(namespace, key string, value []byte) error
+	DelState(namespace, key string) error
 }
 
 // StoreProvider returns a State Store

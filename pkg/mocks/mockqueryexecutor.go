@@ -58,6 +58,24 @@ func (m *QueryExecutor) WithPrivateState(ns, collection, key string, value []byt
 	return m
 }
 
+// WithDeletedState deletes the state
+func (m *QueryExecutor) WithDeletedState(ns, key string) *QueryExecutor {
+	nsState, ok := m.state[ns]
+	if ok {
+		delete(nsState, key)
+	}
+	return m
+}
+
+// WithDeletedPrivateState deletes the state
+func (m *QueryExecutor) WithDeletedPrivateState(ns, collection, key string) *QueryExecutor {
+	nsState, ok := m.state[privateNamespace(ns, collection)]
+	if ok {
+		delete(nsState, key)
+	}
+	return m
+}
+
 // WithQueryResults sets the query results for a given query on a namespace
 func (m *QueryExecutor) WithQueryResults(ns, query string, results []*statedb.VersionedKV) *QueryExecutor {
 	m.queryResults[queryResultsKey(ns, query)] = results
