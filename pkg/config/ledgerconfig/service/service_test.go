@@ -9,6 +9,7 @@ package service
 import (
 	"encoding/json"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -195,6 +196,60 @@ func TestConfigService_CacheUpdate(t *testing.T) {
 	value, err = svc.Get(key4)
 	require.Nil(t, value)
 	require.EqualError(t, err, ErrConfigNotFound.Error())
+}
+
+func TestConfigService_AddUpdateHandler(t *testing.T) {
+	r := mocks.NewStateRetriever()
+	p := mocks.NewStateRetrieverProvider().WithStateRetriever(r)
+
+	publisher := blockpublisher.New(channelID)
+	svc := New(channelID, p, publisher)
+	require.NotNil(t, svc)
+
+	key1 := config.NewPeerComponentKey(msp1, peer1, app1, v1, comp1, v1)
+	_, err := svc.Get(key1)
+	require.EqualError(t, err, ErrConfigNotFound.Error())
+
+	val1 := config.NewValue(tx1, config1, config.FormatOther)
+	val1Bytes, err := json.Marshal(val1)
+	require.NoError(t, err)
+
+	key2 := config.NewPeerComponentKey(msp1, peer1, app2, v1, comp1, v1)
+	_, err = svc.Get(key2)
+	require.EqualError(t, err, ErrConfigNotFound.Error())
+	val2 := config.NewValue(tx1, config2, config.FormatOther)
+	val2Bytes, err := json.Marshal(val2)
+	require.NoError(t, err)
+
+	key3 := config.NewPeerComponentKey(msp1, peer1, app3, v1, comp1, v1)
+
+	updates := make(map[config.Key]*config.Value)
+	var mutex sync.Mutex
+	svc.AddUpdateHandler(func(kv *config.KeyValue) {
+		mutex.Lock()
+		defer mutex.Unlock()
+		updates[*kv.Key] = kv.Value
+	})
+
+	// Add key1 and key2 and delete key3
+	b := mocks2.NewBlockBuilder(channelID, 1000)
+	txb := b.Transaction(tx1, peer.TxValidationCode_VALID)
+	txb.ChaincodeAction(ConfigNS).
+		Write(mgr.MarshalKey(key1), val1Bytes).
+		Write(mgr.MarshalKey(key2), val2Bytes).
+		Delete(mgr.MarshalKey(key3))
+	publisher.Publish(b.Build())
+
+	// Give the event enough time to be processed
+	time.Sleep(100 * time.Millisecond)
+
+	mutex.Lock()
+	require.Equal(t, val1, updates[*key1])
+	require.Equal(t, val2, updates[*key2])
+	v, ok := updates[*key3]
+	require.True(t, ok)
+	require.Nil(t, v)
+	mutex.Unlock()
 }
 
 func TestManager(t *testing.T) {
