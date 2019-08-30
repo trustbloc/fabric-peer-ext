@@ -33,7 +33,7 @@ func newSvcMgr() *Manager {
 }
 
 // Init initializes the ConfigService for the given channel
-func (c *Manager) Init(channelID string, provider state.RetrieverProvider) error {
+func (c *Manager) Init(channelID string, provider state.RetrieverProvider, publisher blockPublisher) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -41,7 +41,7 @@ func (c *Manager) Init(channelID string, provider state.RetrieverProvider) error
 		return errors.Errorf("Config service already exists for channel [%s]", channelID)
 	}
 
-	c.serviceByChannel[channelID] = New(channelID, provider)
+	c.serviceByChannel[channelID] = New(channelID, provider, publisher)
 	return nil
 }
 

@@ -65,3 +65,20 @@ func (m *MockBlockPublisher) Publish(block *common.Block) {
 func (m *MockBlockPublisher) LedgerHeight() uint64 {
 	panic("not implemented")
 }
+
+// MockBlockPublisherProvider is a mock block publisher provider
+type MockBlockPublisherProvider struct {
+	publisher gossipapi.BlockPublisher
+}
+
+// NewBlockPublisherProvider returns a mock block publisher provider
+func NewBlockPublisherProvider() *MockBlockPublisherProvider {
+	return &MockBlockPublisherProvider{
+		publisher: NewBlockPublisher(),
+	}
+}
+
+// ForChannel returns the mock block publisher
+func (m *MockBlockPublisherProvider) ForChannel(channelID string) gossipapi.BlockPublisher {
+	return m.publisher
+}
