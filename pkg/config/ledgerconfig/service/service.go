@@ -8,12 +8,14 @@ package service
 
 import (
 	"encoding/json"
+	"sync"
 
 	"github.com/bluele/gcache"
 	"github.com/hyperledger/fabric/common/flogging"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	"github.com/pkg/errors"
+	cmnconfig "github.com/trustbloc/fabric-peer-ext/pkg/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/mgr"
 	state "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/state/api"
@@ -33,11 +35,17 @@ type configMgr interface {
 	Query(criteria *config.Criteria) ([]*config.KeyValue, error)
 }
 
+// ConfigUpdateHandler handles updates/deletes of config keys
+type ConfigUpdateHandler func(kv *config.KeyValue)
+
 // ConfigService manages configuration data for a given channel
 type ConfigService struct {
-	channelID string
-	configMgr configMgr
-	cache     gcache.Cache
+	channelID  string
+	configMgr  configMgr
+	cache      gcache.Cache
+	handlers   []ConfigUpdateHandler
+	mutex      sync.RWMutex
+	updateChan chan *config.KeyValue
 }
 
 type blockPublisher interface {
@@ -47,8 +55,9 @@ type blockPublisher interface {
 // New returns a new config service
 func New(channelID string, retrieverProvider state.RetrieverProvider, publisher blockPublisher) *ConfigService {
 	s := &ConfigService{
-		channelID: channelID,
-		configMgr: mgr.NewQueryManager(ConfigNS, retrieverProvider),
+		channelID:  channelID,
+		configMgr:  mgr.NewQueryManager(ConfigNS, retrieverProvider),
+		updateChan: make(chan *config.KeyValue, cmnconfig.GetConfigUpdatePublisherBufferSize()),
 	}
 
 	// Set size to 0 so that all config is cached
@@ -67,6 +76,9 @@ func New(channelID string, retrieverProvider state.RetrieverProvider, publisher 
 		return s.handleKeyUpdate(kvWrite)
 	})
 
+	// Listen for and forward config updates to subscribers
+	go s.listen()
+
 	return s
 }
 
@@ -82,6 +94,14 @@ func (s *ConfigService) Get(key *config.Key) (*config.Value, error) {
 		return nil, err
 	}
 	return value.(*config.Value), nil
+}
+
+// AddUpdateHandler adds a handler that is notified of config updates/deletes
+func (s *ConfigService) AddUpdateHandler(handler ConfigUpdateHandler) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	s.handlers = append(s.handlers, handler)
 }
 
 func (s *ConfigService) load(key config.Key) (*config.Value, error) {
@@ -117,6 +137,9 @@ func (s *ConfigService) handleKeyUpdate(kvWrite *kvrwset.KVWrite) error {
 		} else {
 			logger.Debugf("[%s] Deleted config key [%s] not found in cache", s.channelID, key)
 		}
+
+		// Notify subscribers
+		s.updateChan <- config.NewKeyValue(key, nil)
 		return nil
 	}
 
@@ -132,5 +155,29 @@ func (s *ConfigService) handleKeyUpdate(kvWrite *kvrwset.KVWrite) error {
 		return err
 	}
 
+	// Notify subscribers
+	s.updateChan <- config.NewKeyValue(key, value)
 	return nil
+}
+
+func (s *ConfigService) listen() {
+	for kv := range s.updateChan {
+		s.notify(kv)
+	}
+}
+
+func (s *ConfigService) getHandlers() []ConfigUpdateHandler {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	handlers := make([]ConfigUpdateHandler, len(s.handlers))
+	copy(handlers, s.handlers)
+	return handlers
+}
+
+func (s *ConfigService) notify(kv *config.KeyValue) {
+	logger.Debugf("[%s] Notifying subscribers of config update: [%s]", s.channelID, kv)
+	for _, handleUpdate := range s.getHandlers() {
+		handleUpdate(kv)
+	}
 }

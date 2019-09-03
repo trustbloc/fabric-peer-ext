@@ -34,7 +34,8 @@ const (
 	confOLCollCacheSize            = "coll.offledger.cache.size"
 	confOLCollPullTimeout          = "coll.offledger.gossip.pullTimeout"
 
-	confBlockPublisherBufferSize = "blockpublisher.buffersize"
+	confBlockPublisherBufferSize        = "blockpublisher.buffersize"
+	confConfigUpdatePublisherBufferSize = "configpublisher.buffersize"
 
 	defaultTransientDataCleanupIntervalTime = 5 * time.Second
 	defaultTransientDataCacheSize           = 100000
@@ -45,7 +46,8 @@ const (
 	defaultOLCollCacheSize            = 10000
 	defaultOLCollPullTimeout          = 5 * time.Second
 
-	defaultBlockPublisherBufferSize = 100
+	defaultBlockPublisherBufferSize        = 100
+	defaultConfigUpdatePublisherBufferSize = 100
 )
 
 // GetRoles returns the roles of the peer. Empty return value indicates that the peer has all roles.
@@ -149,4 +151,13 @@ func GetOLCollPullTimeout() time.Duration {
 		timeout = defaultOLCollPullTimeout
 	}
 	return timeout
+}
+
+// GetConfigUpdatePublisherBufferSize returns the size of the config update publisher channel buffer for ledger config update events
+func GetConfigUpdatePublisherBufferSize() int {
+	size := viper.GetInt(confConfigUpdatePublisherBufferSize)
+	if size == 0 {
+		return defaultConfigUpdatePublisherBufferSize
+	}
+	return size
 }

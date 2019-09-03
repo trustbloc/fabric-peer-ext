@@ -154,3 +154,14 @@ func TestGetOLCollPullTimeout(t *testing.T) {
 	viper.Set(confOLCollPullTimeout, 111*time.Second)
 	assert.Equal(t, 111*time.Second, GetOLCollPullTimeout())
 }
+
+func TestGetConfigUpdatePublisherBufferSize(t *testing.T) {
+	oldVal := viper.Get(confConfigUpdatePublisherBufferSize)
+	defer viper.Set(confConfigUpdatePublisherBufferSize, oldVal)
+
+	viper.Set(confConfigUpdatePublisherBufferSize, "")
+	assert.Equal(t, defaultConfigUpdatePublisherBufferSize, GetConfigUpdatePublisherBufferSize())
+
+	viper.Set(confConfigUpdatePublisherBufferSize, 1234)
+	assert.Equal(t, 1234, GetConfigUpdatePublisherBufferSize())
+}
