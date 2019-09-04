@@ -16,6 +16,7 @@
 # crypto-gen:                 generates crypto directory
 # channel-config-gen:         generates test channel configuration transactions and blocks
 # bddtests:                   run bddtests
+# bddtests-fabric-peer-docker: builds the image used by the BDD tests
 #
 
 ARCH=$(shell go env GOARCH)
@@ -23,18 +24,26 @@ ARCH=$(shell go env GOARCH)
 
 # Tool commands (overridable)
 DOCKER_CMD ?= docker
+GO_CMD     ?= go
+ALPINE_VER ?= 3.9
+GO_TAGS    ?=
 
 # Local variables used by makefile
 PROJECT_NAME            = fabric-peer-ext
 CONTAINER_IDS           = $(shell docker ps -a -q)
 DEV_IMAGES              = $(shell docker images dev-* -q)
 export GO111MODULE      = on
+ARCH                    = $(shell go env GOARCH)
+GO_VER                  = $(shell grep "GO_VER" .ci-properties |cut -d'=' -f2-)
 
 # Fabric tools docker image (overridable)
 FABRIC_TOOLS_IMAGE   ?= hyperledger/fabric-tools
 FABRIC_TOOLS_VERSION ?= 2.0.0-alpha
 FABRIC_TOOLS_TAG     ?= $(ARCH)-$(FABRIC_TOOLS_VERSION)
 
+FABRIC_PEER_EXT_IMAGE   ?= trustbloc/fabric-peer
+FABRIC_PEER_EXT_VERSION ?= latest
+FABRIC_PEER_EXT_TAG     ?= $(FABRIC_PEER_EXT_VERSION)
 
 checks: version license lint
 
@@ -53,8 +62,22 @@ fabric-unit-test: export FABRIC_COMMAND=unit-test
 fabric-unit-test: checks docker-thirdparty
 	@scripts/build_fabric.sh
 
-bddtests: checks build-fabric-images populate-fixtures build-cc
+bddtests: checks build-fabric-images populate-fixtures docker-thirdparty bddtests-fabric-peer-docker build-cc
 	@scripts/integration.sh
+
+bddtests-fabric-peer-cli:
+	@echo "Building fabric-peer cli"
+	@mkdir -p ./.build/bin
+	@cd test/bddtests/fixtures/fabric/peer/cmd && go build -o ../../../../../../.build/bin/fabric-peer github.com/trustbloc/fabric-peer-ext/test/bddtests/fixtures/fabric/peer/cmd
+
+bddtests-fabric-peer-docker:
+	@docker build -f ./test/bddtests/fixtures/images/fabric-peer/Dockerfile --no-cache -t trustbloc/fabric-peer-ext-test:latest \
+	--build-arg FABRIC_PEER_EXT_IMAGE=$(FABRIC_PEER_EXT_IMAGE) \
+	--build-arg FABRIC_PEER_EXT_TAG=$(FABRIC_PEER_EXT_TAG) \
+	--build-arg GO_VER=$(GO_VER) \
+	--build-arg ALPINE_VER=$(ALPINE_VER) \
+	--build-arg GO_TAGS=$(GO_TAGS) \
+	--build-arg GOPROXY=$(GOPROXY) .
 
 build-fabric-images: export FABRIC_COMMAND=peer-docker orderer-docker ccenv
 build-fabric-images:
@@ -103,4 +126,4 @@ ifneq ($(strip $(DEV_IMAGES)),)
 endif
 	@docker rmi $(docker images securekey/* -aq)
 
-.PHONY: all version clean-images unit-test docker-thirdparty license bddtests build-fabric-images crypto-gen channel-config-gen populate-fixtures
+.PHONY: all version clean-images unit-test docker-thirdparty license bddtests build-fabric-images crypto-gen channel-config-gen populate-fixtures bddtests-fabric-peer-cli bddtests-fabric-peer-docker
