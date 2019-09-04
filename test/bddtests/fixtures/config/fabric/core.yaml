@@ -557,6 +557,7 @@ chaincode:
         vscc: enable
         qscc: enable
         configscc: enable
+        testscc: enable
 
     # System chaincode plugins:
     # System chaincodes can be loaded as shared objects compiled as Go plugins.
