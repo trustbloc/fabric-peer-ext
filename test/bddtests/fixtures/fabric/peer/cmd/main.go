@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc"
 	extscc "github.com/trustbloc/fabric-peer-ext/pkg/chaincode/scc"
+	"github.com/trustbloc/fabric-peer-ext/test/scc/testscc"
 )
 
 var logger = flogging.MustGetLogger("peer-ext-test")
@@ -41,6 +42,9 @@ func setup() {
 func registerSystemChaincodes() {
 	logger.Infof("Registering configscc...")
 	extscc.Register(configscc.New)
+
+	logger.Infof("Registering testscc...")
+	extscc.Register(testscc.New)
 }
 
 func startPeer() error {
