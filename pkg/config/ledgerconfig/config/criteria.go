@@ -17,15 +17,15 @@ type Criteria struct {
 	// MspID is the ID of the MSP that owns the data
 	MspID string
 	// PeerID is the ID of the peer with which the data is associated
-	PeerID string
+	PeerID string `json:",omitempty"`
 	// AppName is the name of the application that owns the data
-	AppName string
+	AppName string `json:",omitempty"`
 	// AppVersion is the version of the application config
-	AppVersion string
+	AppVersion string `json:",omitempty"`
 	// ComponentName is the name of the application component
-	ComponentName string
+	ComponentName string `json:",omitempty"`
 	// ComponentVersion is the version of the application component config
-	ComponentVersion string
+	ComponentVersion string `json:",omitempty"`
 }
 
 // String returns a readable string for the Criteria
@@ -39,10 +39,10 @@ func (c *Criteria) Validate() error {
 		return errors.New("field [MspID] is required")
 	}
 	if c.AppVersion != "" && c.AppName == "" {
-		return errors.New("field [Name] is required")
+		return errors.New("field [AppName] is required")
 	}
 	if c.ComponentName != "" && c.AppName == "" {
-		return errors.New("field [Name] is required")
+		return errors.New("field [AppName] is required")
 	}
 	if c.ComponentVersion != "" && c.ComponentName == "" {
 		return errors.New("field [ComponentName] is required")

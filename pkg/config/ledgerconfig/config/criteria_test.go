@@ -77,10 +77,10 @@ func TestCriteria_Validate(t *testing.T) {
 		require.EqualError(t, c.Validate(), "field [MspID] is required")
 
 		c = Criteria{MspID: msp1, AppVersion: v1}
-		require.EqualError(t, c.Validate(), "field [Name] is required")
+		require.EqualError(t, c.Validate(), "field [AppName] is required")
 
 		c = Criteria{MspID: msp1, ComponentName: comp1}
-		require.EqualError(t, c.Validate(), "field [Name] is required")
+		require.EqualError(t, c.Validate(), "field [AppName] is required")
 
 		c = Criteria{MspID: msp1, AppName: app1, ComponentVersion: v1}
 		require.EqualError(t, c.Validate(), "field [ComponentName] is required")

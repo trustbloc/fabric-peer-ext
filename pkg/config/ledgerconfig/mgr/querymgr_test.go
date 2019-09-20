@@ -223,14 +223,14 @@ func TestManager_Search_AppConfig(t *testing.T) {
 	t.Run("No Name with AppVersion -> error", func(t *testing.T) {
 		results, err := m.Query(&config.Criteria{MspID: msp1, AppVersion: v1})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "field [Name] is required")
+		require.Contains(t, err.Error(), "field [AppName] is required")
 		require.Empty(t, results)
 	})
 
 	t.Run("No Name with Component -> error", func(t *testing.T) {
 		results, err := m.Query(&config.Criteria{MspID: msp1, ComponentName: comp1})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "field [Name] is required")
+		require.Contains(t, err.Error(), "field [AppName] is required")
 		require.Empty(t, results)
 	})
 
