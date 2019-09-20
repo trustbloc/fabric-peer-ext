@@ -18,15 +18,15 @@ type Key struct {
 	// MspID is the ID of the MSP that owns the data
 	MspID string
 	// PeerID is the (optional) ID of the peer with which the data is associated
-	PeerID string
+	PeerID string `json:",omitempty"`
 	// AppName is the name of the application that owns the data
 	AppName string
 	// AppVersion is the version of the application config
 	AppVersion string
 	// ComponentName is the (optional) name of the application component
-	ComponentName string
+	ComponentName string `json:",omitempty"`
 	// ComponentVersion is the (optional) version of the application component config
-	ComponentVersion string
+	ComponentVersion string `json:",omitempty"`
 }
 
 // String returns a readable string for the key

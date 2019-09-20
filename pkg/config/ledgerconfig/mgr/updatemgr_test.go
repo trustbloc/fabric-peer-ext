@@ -395,7 +395,7 @@ func TestUpdateManager_Delete(t *testing.T) {
 
 	t.Run("Invalid criteria -> error", func(t *testing.T) {
 		_, err := m.Query(&config.Criteria{MspID: msp1, PeerID: peer1, AppVersion: v1})
-		require.EqualError(t, err, "field [Name] is required")
+		require.EqualError(t, err, "field [AppName] is required")
 	})
 
 	t.Run("StateStoreProvider error", func(t *testing.T) {
