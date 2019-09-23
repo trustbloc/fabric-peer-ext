@@ -331,7 +331,11 @@ func TestManager_Search_PeerConfig(t *testing.T) {
 	})
 
 	t.Run("Peer-app-component-version -> success", func(t *testing.T) {
-		results, err := m.Query(&config.Criteria{MspID: msp1, PeerID: peer1, AppName: app5, AppVersion: v1, ComponentName: comp1})
+		results, err := m.Query(&config.Criteria{MspID: msp1, PeerID: peer1, AppName: app5, AppVersion: v1})
+		require.NoError(t, err)
+		require.Equal(t, 3, len(results))
+
+		results, err = m.Query(&config.Criteria{MspID: msp1, PeerID: peer1, AppName: app5, AppVersion: v1, ComponentName: comp1})
 		require.NoError(t, err)
 		require.Equal(t, 2, len(results))
 
