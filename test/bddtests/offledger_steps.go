@@ -11,7 +11,7 @@ import (
 	"sort"
 
 	"github.com/DATA-DOG/godog"
-	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/protos/common"
+	"github.com/hyperledger/fabric-protos-go/common"
 	"github.com/pkg/errors"
 	"github.com/trustbloc/fabric-peer-test-common/bddtests"
 )

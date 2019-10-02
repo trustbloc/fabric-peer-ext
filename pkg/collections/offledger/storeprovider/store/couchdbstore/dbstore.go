@@ -350,9 +350,9 @@ func decorateQuery(query string) (string, error) {
 	// Get the fields specified in the query
 	fieldsJSONArray, ok := jsonQuery[fieldsField]
 	if ok {
-		switch fieldsJSONArray.(type) {
+		switch f := fieldsJSONArray.(type) {
 		case []interface{}:
-			fields = fieldsJSONArray.([]interface{})
+			fields = f
 		default:
 			return "", errors.New("fields definition must be an array")
 		}

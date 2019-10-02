@@ -62,8 +62,8 @@ func TestMain(m *testing.M) {
 
 		s.AfterSuite(func() {
 			if composition != nil {
-				composition.GenerateLogs("./fixtures")
-				composition.Decompose("./fixtures")
+				composition.GenerateLogs()
+				composition.Decompose()
 			}
 		})
 
