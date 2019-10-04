@@ -104,7 +104,7 @@ func TestValues_Merge(t *testing.T) {
 }
 
 func TestTimestamp(t *testing.T) {
-	tim := time.Now()
+	tim := time.Now().Add(time.Second)
 	tim2 := FromTimestamp(ToTimestamp(tim))
 	assert.Equal(t, tim.Unix(), tim2.Unix())
 }
