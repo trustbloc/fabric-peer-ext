@@ -78,8 +78,7 @@ func IsNil(p interface{}) bool {
 
 // ToTimestamp converts the Time into Timestamp
 func ToTimestamp(t time.Time) *timestamp.Timestamp {
-	now := time.Now().UTC()
-	return &(timestamp.Timestamp{Seconds: now.Unix()})
+	return &(timestamp.Timestamp{Seconds: t.Unix()})
 }
 
 // FromTimestamp converts the Timestamp into Time
