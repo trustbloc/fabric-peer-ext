@@ -20,11 +20,13 @@ import (
 	pb "github.com/hyperledger/fabric/protos/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/blockvisitor"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
 const (
-	channelID = "testchannel"
+	channel1 = "channel1"
+	channel2 = "channel2"
 
 	txID1 = "tx1"
 	txID2 = "tx2"
@@ -43,6 +45,23 @@ const (
 	ccEvent1 = "ccevent1"
 )
 
+func TestProvider(t *testing.T) {
+	provider := NewProvider()
+	require.NotNil(t, provider)
+
+	p1 := provider.ForChannel(channel1)
+	require.NotNil(t, p1)
+
+	p2 := provider.ForChannel(channel2)
+	require.NotNil(t, p2)
+
+	require.NotEqual(t, p1, p2)
+
+	provider.Close()
+	// Call Close again
+	require.NotPanics(t, func() { provider.Close() })
+}
+
 func TestPublisher_Get(t *testing.T) {
 	p := New("mychannel")
 	require.NotNil(t, p)
@@ -50,7 +69,7 @@ func TestPublisher_Get(t *testing.T) {
 }
 
 func TestPublisher_Close(t *testing.T) {
-	p := New(channelID)
+	p := New(channel1)
 	require.NotNil(t, p)
 
 	p.Close()
@@ -76,7 +95,7 @@ func TestPublisher_PublishEndorsementEvents(t *testing.T) {
 		}
 	)
 
-	p := New(channelID)
+	p := New(channel1)
 	require.NotNil(t, p)
 	defer p.Close()
 
@@ -92,7 +111,7 @@ func TestPublisher_PublishEndorsementEvents(t *testing.T) {
 	p.AddCCUpgradeHandler(handler3.HandleChaincodeUpgradeEvent)
 	p.AddLSCCWriteHandler(handler3.HandleLSCCWrite)
 
-	b := mocks.NewBlockBuilder(channelID, 1100)
+	b := mocks.NewBlockBuilder(channel1, 1100)
 
 	tb1 := b.Transaction(txID1, pb.TxValidationCode_VALID)
 	tb1.ChaincodeAction(ccID1).
@@ -128,12 +147,12 @@ func TestPublisher_PublishEndorsementEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	b.Transaction(txID1, pb.TxValidationCode_VALID).
-		ChaincodeAction(lsccID).
+		ChaincodeAction(blockvisitor.LsccID).
 		Write(ccID1, ccDataBytes).
 		ChaincodeEvent(upgradeEvent, lceBytes)
 
 	tb4 := b.Transaction(txID2, pb.TxValidationCode_VALID)
-	tb4.ChaincodeAction(lsccID).
+	tb4.ChaincodeAction(blockvisitor.LsccID).
 		Write(ccID1, ccDataBytes).
 		ChaincodeEvent(ccEvent1, nil)
 
@@ -162,14 +181,14 @@ func TestPublisher_PublishEndorsementEvents(t *testing.T) {
 }
 
 func TestPublisher_PublishConfigUpdateEvents(t *testing.T) {
-	p := New(channelID)
+	p := New(channel1)
 	require.NotNil(t, p)
 	defer p.Close()
 
 	handler := mocks.NewMockBlockHandler()
 	p.AddConfigUpdateHandler(handler.HandleConfigUpdate)
 
-	b := mocks.NewBlockBuilder(channelID, 1100)
+	b := mocks.NewBlockBuilder(channel1, 1100)
 	b.ConfigUpdate()
 
 	p.Publish(b.Build())
@@ -217,7 +236,7 @@ func (info *ccInfo) getCCP() *cb.CollectionConfigPackage {
 }
 
 func TestPublisher_LSCCWriteEvent(t *testing.T) {
-	p := New(channelID)
+	p := New(channel1)
 	require.NotNil(t, p)
 	defer p.Close()
 
@@ -228,7 +247,7 @@ func TestPublisher_LSCCWriteEvent(t *testing.T) {
 		return nil
 	})
 
-	b := mocks.NewBlockBuilder(channelID, 1100)
+	b := mocks.NewBlockBuilder(channel1, 1100)
 
 	ccData := &ccprovider.ChaincodeData{
 		Name: ccID1,
@@ -260,9 +279,9 @@ func TestPublisher_LSCCWriteEvent(t *testing.T) {
 	require.NoError(t, err)
 
 	b.Transaction(txID1, pb.TxValidationCode_VALID).
-		ChaincodeAction(lsccID).
+		ChaincodeAction(blockvisitor.LsccID).
 		Write(ccID1, ccDataBytes).
-		Write(ccID1+collectionSeparator+"collection", ccpBytes)
+		Write(ccID1+blockvisitor.CollectionSeparator+"collection", ccpBytes)
 
 	p.Publish(b.Build())
 
@@ -286,79 +305,6 @@ func TestPublisher_LSCCWriteEvent(t *testing.T) {
 	require.Equal(t, cb.CollectionType_COL_OFFLEDGER, config2.Type)
 }
 
-func TestPublisher_LSCCWriteEventMarshalError(t *testing.T) {
-	p := New(channelID)
-	require.NotNil(t, p)
-	defer p.Close()
-
-	var evtCCName string
-	var evtCCData *ccprovider.ChaincodeData
-	var evtCCP *cb.CollectionConfigPackage
-
-	p.AddLSCCWriteHandler(func(txMetadata api.TxMetadata, chaincodeName string, ccData *ccprovider.ChaincodeData, ccp *cb.CollectionConfigPackage) error {
-		evtCCName = chaincodeName
-		evtCCData = ccData
-		evtCCP = ccp
-		return nil
-	})
-
-	ccData := &ccprovider.ChaincodeData{
-		Name: ccID1,
-	}
-	ccDataBytes, err := proto.Marshal(ccData)
-	require.NoError(t, err)
-
-	ccp := &cb.CollectionConfigPackage{
-		Config: []*cb.CollectionConfig{
-			{
-				Payload: &cb.CollectionConfig_StaticCollectionConfig{
-					StaticCollectionConfig: &cb.StaticCollectionConfig{
-						Name: coll1,
-					},
-				},
-			},
-		},
-	}
-	ccpBytes, err := proto.Marshal(ccp)
-	require.NoError(t, err)
-
-	t.Run("CCData marshal error", func(t *testing.T) {
-		b := mocks.NewBlockBuilder(channelID, 1100)
-
-		b.Transaction(txID1, pb.TxValidationCode_VALID).
-			ChaincodeAction(lsccID).
-			Write(ccID1, []byte("invalid cc data")).
-			Write(ccID1+collectionSeparator+"collection", ccpBytes)
-
-		p.Publish(b.Build())
-
-		// Wait a bit for the events to be published
-		time.Sleep(500 * time.Millisecond)
-
-		require.Empty(t, evtCCName)
-		require.Nil(t, evtCCData)
-		require.Nil(t, evtCCP)
-	})
-
-	t.Run("CCP marshal error", func(t *testing.T) {
-		b := mocks.NewBlockBuilder(channelID, 1100)
-
-		b.Transaction(txID1, pb.TxValidationCode_VALID).
-			ChaincodeAction(lsccID).
-			Write(ccID1, ccDataBytes).
-			Write(ccID1+collectionSeparator+"collection", []byte("invalid ccp"))
-
-		p.Publish(b.Build())
-
-		// Wait a bit for the events to be published
-		time.Sleep(500 * time.Millisecond)
-
-		require.Empty(t, evtCCName)
-		require.Nil(t, evtCCData)
-		require.Nil(t, evtCCP)
-	})
-}
-
 func TestPublisher_Error(t *testing.T) {
 	var (
 		value1 = []byte("value1")
@@ -374,7 +320,7 @@ func TestPublisher_Error(t *testing.T) {
 		}
 	)
 
-	p := New(channelID)
+	p := New(channel1)
 	require.NotNil(t, p)
 	defer p.Close()
 
@@ -386,7 +332,7 @@ func TestPublisher_Error(t *testing.T) {
 	p.AddCCEventHandler(handler1.HandleChaincodeEvent)
 	p.AddCCUpgradeHandler(handler1.HandleChaincodeUpgradeEvent)
 
-	b := mocks.NewBlockBuilder(channelID, 1100)
+	b := mocks.NewBlockBuilder(channel1, 1100)
 
 	tb1 := b.Transaction(txID1, pb.TxValidationCode_VALID)
 	tb1.ChaincodeAction(ccID1).
@@ -410,10 +356,10 @@ func TestPublisher_Error(t *testing.T) {
 	require.NotNil(t, lceBytes)
 
 	b.Transaction(txID1, pb.TxValidationCode_VALID).
-		ChaincodeAction(lsccID).
+		ChaincodeAction(blockvisitor.LsccID).
 		ChaincodeEvent(upgradeEvent, lceBytes)
 	tb4 := b.Transaction(txID2, pb.TxValidationCode_VALID)
-	tb4.ChaincodeAction(lsccID).
+	tb4.ChaincodeAction(blockvisitor.LsccID).
 		ChaincodeEvent(ccEvent1, nil)
 
 	p.Publish(b.Build())
