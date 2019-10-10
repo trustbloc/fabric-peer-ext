@@ -32,8 +32,8 @@ type ChaincodeUpgradeHandler func(txMetadata TxMetadata, chaincodeName string) e
 // LSCCWriteHandler handles chaincode instantiation/upgrade events
 type LSCCWriteHandler func(txMetadata TxMetadata, chaincodeName string, ccData *ccprovider.ChaincodeData, ccp *cb.CollectionConfigPackage) error
 
-// BlockPublisher allows clients to add handlers for various block events
-type BlockPublisher interface {
+// BlockHandler allows clients to add handlers for various block events
+type BlockHandler interface {
 	// AddCCUpgradeHandler adds a handler for chaincode upgrades
 	AddCCUpgradeHandler(handler ChaincodeUpgradeHandler)
 	// AddConfigUpdateHandler adds a handler for config updates
@@ -46,10 +46,22 @@ type BlockPublisher interface {
 	AddLSCCWriteHandler(handler LSCCWriteHandler)
 	// AddCCEventHandler adds a handler for chaincode events
 	AddCCEventHandler(handler ChaincodeEventHandler)
-	// Publish traverses the block and invokes all applicable handlers
-	Publish(block *cb.Block)
 	//LedgerHeight returns current in memory ledger height
 	LedgerHeight() uint64
+}
+
+// BlockVisitor allows clients to add handlers for various block events
+type BlockVisitor interface {
+	BlockHandler
+	// Visit traverses the block and invokes all applicable handlers
+	Visit(block *cb.Block) error
+}
+
+// BlockPublisher allows clients to add handlers for various block events
+type BlockPublisher interface {
+	BlockHandler
+	// Publish traverses the block and invokes all applicable handlers
+	Publish(block *cb.Block)
 }
 
 // TxMetadata contain txn metadata

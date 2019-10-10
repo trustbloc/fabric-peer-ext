@@ -7,67 +7,23 @@ SPDX-License-Identifier: Apache-2.0
 package blockpublisher
 
 import (
-	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/bluele/gcache"
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/common/flogging"
-	"github.com/hyperledger/fabric/core/common/ccprovider"
-	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
-	ledgerutil "github.com/hyperledger/fabric/core/ledger/util"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
 	cb "github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	pb "github.com/hyperledger/fabric/protos/peer"
-	"github.com/hyperledger/fabric/protoutil"
 	"github.com/pkg/errors"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/blockvisitor"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
-)
-
-const (
-	lsccID              = "lscc"
-	upgradeEvent        = "upgrade"
-	collectionSeparator = "~"
 )
 
 var logger = flogging.MustGetLogger("ext_blockpublisher")
 
-type write struct {
-	blockNum  uint64
-	txID      string
-	txNum     uint64
-	namespace string
-	w         *kvrwset.KVWrite
-}
-
-type read struct {
-	blockNum  uint64
-	txID      string
-	txNum     uint64
-	namespace string
-	r         *kvrwset.KVRead
-}
-
-type lsccWrite struct {
-	blockNum uint64
-	txID     string
-	txNum    uint64
-	w        []*kvrwset.KVWrite
-}
-
-type ccEvent struct {
-	blockNum uint64
-	txID     string
-	txNum    uint64
-	event    *pb.ChaincodeEvent
-}
-
-type configUpdate struct {
-	blockNum     uint64
-	configUpdate *cb.ConfigUpdate
-}
+const upgradeEvent = "upgrade"
 
 // Provider maintains a cache of Block Publishers - one per channel
 type Provider struct {
@@ -100,19 +56,10 @@ func (p *Provider) Close() {
 	}
 }
 
-type channels struct {
-	blockChan        chan *cb.Block
-	wChan            chan *write
-	rChan            chan *read
-	lsccChan         chan *lsccWrite
-	ccEvtChan        chan *ccEvent
-	configUpdateChan chan *configUpdate
-}
-
 // Publisher traverses a block and publishes KV read, KV write, and chaincode events to registered handlers
 type Publisher struct {
+	*blockvisitor.Visitor
 	*channels
-	channelID            string
 	writeHandlers        []api.WriteHandler
 	readHandlers         []api.ReadHandler
 	lsccWriteHandlers    []api.LSCCWriteHandler
@@ -121,25 +68,26 @@ type Publisher struct {
 	mutex                sync.RWMutex
 	doneChan             chan struct{}
 	closed               uint32
-	lastCommittedBlock   uint64
 }
 
 // New returns a new block Publisher for the given channel
 func New(channelID string) *Publisher {
-	bufferSize := config.GetBlockPublisherBufferSize()
+	channels := newChannels(config.GetBlockPublisherBufferSize())
 
 	p := &Publisher{
-		channelID: channelID,
-		channels: &channels{
-			blockChan:        make(chan *cb.Block, bufferSize),
-			wChan:            make(chan *write, bufferSize),
-			rChan:            make(chan *read, bufferSize),
-			lsccChan:         make(chan *lsccWrite, bufferSize),
-			ccEvtChan:        make(chan *ccEvent, bufferSize),
-			configUpdateChan: make(chan *configUpdate, bufferSize),
-		},
+		channels: channels,
 		doneChan: make(chan struct{}),
+		Visitor: blockvisitor.New(
+			channelID,
+			blockvisitor.WithNoStopOnError(),
+			blockvisitor.WithCCEventHandler(channels.sendCCEvent),
+			blockvisitor.WithReadHandler(channels.sendRead),
+			blockvisitor.WithWriteHandler(channels.sendWrite),
+			blockvisitor.WithLSCCWriteHandler(channels.sendLSCCWrite),
+			blockvisitor.WithConfigUpdateHandler(channels.sendConfigUpdate),
+		),
 	}
+
 	go p.listen()
 	return p
 }
@@ -150,7 +98,7 @@ func (p *Publisher) Close() {
 	if atomic.CompareAndSwapUint32(&p.closed, 0, 1) {
 		p.doneChan <- struct{}{}
 	} else {
-		logger.Debugf("[%s] Block Publisher already closed", p.channelID)
+		logger.Debugf("[%s] Block Publisher already closed", p.ChannelID())
 	}
 }
 
@@ -159,7 +107,7 @@ func (p *Publisher) AddConfigUpdateHandler(handler api.ConfigUpdateHandler) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	logger.Debugf("[%s] Adding config update", p.channelID)
+	logger.Debugf("[%s] Adding config update", p.ChannelID())
 	p.configUpdateHandlers = append(p.configUpdateHandlers, handler)
 }
 
@@ -168,7 +116,7 @@ func (p *Publisher) AddWriteHandler(handler api.WriteHandler) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	logger.Debugf("[%s] Adding write", p.channelID)
+	logger.Debugf("[%s] Adding write handler", p.ChannelID())
 	p.writeHandlers = append(p.writeHandlers, handler)
 }
 
@@ -177,7 +125,7 @@ func (p *Publisher) AddReadHandler(handler api.ReadHandler) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	logger.Debugf("[%s] Adding read", p.channelID)
+	logger.Debugf("[%s] Adding read handler", p.ChannelID())
 	p.readHandlers = append(p.readHandlers, handler)
 }
 
@@ -186,13 +134,13 @@ func (p *Publisher) AddCCEventHandler(handler api.ChaincodeEventHandler) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	logger.Debugf("[%s] Adding chaincode event", p.channelID)
+	logger.Debugf("[%s] Adding chaincode event handler", p.ChannelID())
 	p.ccEventHandlers = append(p.ccEventHandlers, handler)
 }
 
 // AddCCUpgradeHandler adds a handler for chaincode upgrade events
 func (p *Publisher) AddCCUpgradeHandler(handler api.ChaincodeUpgradeHandler) {
-	logger.Debugf("[%s] Adding chaincode upgrade", p.channelID)
+	logger.Debugf("[%s] Adding chaincode upgrade handler", p.ChannelID())
 	p.AddCCEventHandler(newChaincodeUpgradeHandler(handler))
 }
 
@@ -201,96 +149,103 @@ func (p *Publisher) AddLSCCWriteHandler(handler api.LSCCWriteHandler) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	logger.Debugf("[%s] Adding LSCC write handler", p.channelID)
+	logger.Debugf("[%s] Adding LSCC write handler", p.ChannelID())
 	p.lsccWriteHandlers = append(p.lsccWriteHandlers, handler)
 }
 
 // Publish publishes a block
 func (p *Publisher) Publish(block *cb.Block) {
-	defer atomic.StoreUint64(&p.lastCommittedBlock, block.Header.Number)
-	newBlockEvent(p.channelID, block, p.channels).publish()
-}
-
-// LedgerHeight returns ledger height based on last block published
-func (p *Publisher) LedgerHeight() uint64 {
-	return atomic.LoadUint64(&p.lastCommittedBlock) + 1
+	if err := p.Visit(block); err != nil {
+		// Errors are never expected
+		panic(err.Error())
+	}
 }
 
 func (p *Publisher) listen() {
 	for {
 		select {
 		case w := <-p.wChan:
-			p.handleWrite(w)
+			panicOnError(p.handleWrite(w))
 		case r := <-p.rChan:
-			p.handleRead(r)
+			panicOnError(p.handleRead(r))
 		case lscc := <-p.lsccChan:
-			p.handleLSCCWrite(lscc)
+			panicOnError(p.handleLSCCWrite(lscc))
 		case ccEvt := <-p.ccEvtChan:
-			p.handleCCEvent(ccEvt)
+			panicOnError(p.handleCCEvent(ccEvt))
 		case cu := <-p.configUpdateChan:
-			p.handleConfigUpdate(cu)
+			panicOnError(p.handleConfigUpdate(cu))
 		case <-p.doneChan:
-			logger.Debugf("[%s] Exiting block Publisher", p.channelID)
+			logger.Debugf("[%s] Exiting block Publisher", p.ChannelID())
 			return
 		}
 	}
 }
 
-func (p *Publisher) handleRead(r *read) {
-	logger.Debugf("[%s] Handling read: [%s]", p.channelID, r)
+func (p *Publisher) handleRead(r *blockvisitor.Read) error {
+	logger.Debugf("[%s] Handling read: [%s]", p.ChannelID(), r)
 	for _, handleRead := range p.getReadHandlers() {
-		if err := handleRead(api.TxMetadata{BlockNum: r.blockNum, ChannelID: p.channelID, TxID: r.txID, TxNum: r.txNum}, r.namespace, r.r); err != nil {
-			logger.Warningf("[%s] Error returned from KV read handler: %s", p.channelID, err)
+		if err := handleRead(api.TxMetadata{BlockNum: r.BlockNum, ChannelID: p.ChannelID(), TxID: r.TxID, TxNum: r.TxNum}, r.Namespace, r.Read); err != nil {
+			if p.StopOnError {
+				return err
+			}
+			logger.Warningf("[%s] Error returned from KV Read handler: %s", p.ChannelID(), err)
 		}
 	}
+	return nil
 }
 
-func (p *Publisher) handleWrite(w *write) {
-	logger.Debugf("[%s] Handling write: [%s]", p.channelID, w)
+func (p *Publisher) handleWrite(w *blockvisitor.Write) error {
+	logger.Debugf("[%s] Handling write: [%s]", p.ChannelID(), w)
 	for _, handleWrite := range p.getWriteHandlers() {
-		if err := handleWrite(api.TxMetadata{BlockNum: w.blockNum, ChannelID: p.channelID, TxID: w.txID, TxNum: w.txNum}, w.namespace, w.w); err != nil {
-			logger.Warningf("[%s] Error returned from KV write handler: %s", p.channelID, err)
+		if err := handleWrite(api.TxMetadata{BlockNum: w.BlockNum, ChannelID: p.ChannelID(), TxID: w.TxID, TxNum: w.TxNum}, w.Namespace, w.Write); err != nil {
+			if p.StopOnError {
+				return err
+			}
+			logger.Warningf("[%s] Error returned from KV Write handler: %s", p.ChannelID(), err)
 		}
 	}
+	return nil
 }
 
-func (p *Publisher) handleLSCCWrite(w *lsccWrite) {
-	logger.Debugf("[%s] Handling LSCC write: [%s]", p.channelID, w)
-
-	if len(p.getLSCCWriteHandlers()) == 0 {
-		// No handlers registered
-		return
-	}
-
-	ccID, ccData, ccp, err := getCCInfo(w.w)
-	if err != nil {
-		logger.Warningf("[%s] Error getting chaincode info: %s", p.channelID, err)
-		return
-	}
+func (p *Publisher) handleLSCCWrite(w *blockvisitor.LSCCWrite) error {
+	logger.Debugf("[%s] Handling LSCC write: [%s]", p.ChannelID(), w)
 
 	for _, handler := range p.getLSCCWriteHandlers() {
-		if err := handler(api.TxMetadata{BlockNum: w.blockNum, ChannelID: p.channelID, TxID: w.txID, TxNum: w.txNum}, ccID, ccData, ccp); err != nil {
-			logger.Warningf("[%s] Error returned from LSCC write handler: %s", p.channelID, err)
+		if err := handler(
+			api.TxMetadata{BlockNum: w.BlockNum, ChannelID: p.ChannelID(), TxID: w.TxID, TxNum: w.TxNum}, w.CCID, w.CCData, w.CCP); err != nil {
+			if p.StopOnError {
+				return err
+			}
+			logger.Warningf("[%s] Error returned from LSCC Write handler: %s", p.ChannelID(), err)
 		}
 	}
+	return nil
 }
 
-func (p *Publisher) handleCCEvent(event *ccEvent) {
-	logger.Debugf("[%s] Handling chaincode event: [%s]", p.channelID, event)
+func (p *Publisher) handleCCEvent(event *blockvisitor.CCEvent) error {
+	logger.Debugf("[%s] Handling chaincode event: [%s]", p.ChannelID(), event)
 	for _, handleCCEvent := range p.getCCEventHandlers() {
-		if err := handleCCEvent(api.TxMetadata{BlockNum: event.blockNum, ChannelID: p.channelID, TxID: event.txID, TxNum: event.txNum}, event.event); err != nil {
-			logger.Warningf("[%s] Error returned from CC event handler: %s", p.channelID, err)
+		if err := handleCCEvent(api.TxMetadata{BlockNum: event.BlockNum, ChannelID: p.ChannelID(), TxID: event.TxID, TxNum: event.TxNum}, event.Event); err != nil {
+			if p.StopOnError {
+				return err
+			}
+			logger.Warningf("[%s] Error returned from CC event handler: %s", p.ChannelID(), err)
 		}
 	}
+	return nil
 }
 
-func (p *Publisher) handleConfigUpdate(cu *configUpdate) {
-	logger.Debugf("[%s] Handling config update [%s]", p.channelID, cu)
+func (p *Publisher) handleConfigUpdate(cu *blockvisitor.ConfigUpdate) error {
+	logger.Debugf("[%s] Handling config update [%s]", p.ChannelID(), cu)
 	for _, handleConfigUpdate := range p.getConfigUpdateHandlers() {
-		if err := handleConfigUpdate(cu.blockNum, cu.configUpdate); err != nil {
-			logger.Warningf("[%s] Error returned from config update handler: %s", p.channelID, err)
+		if err := handleConfigUpdate(cu.BlockNum, cu.ConfigUpdate); err != nil {
+			if p.StopOnError {
+				return err
+			}
+			logger.Warningf("[%s] Error returned from config update handler: %s", p.ChannelID(), err)
 		}
 	}
+	return nil
 }
 
 func (p *Publisher) getReadHandlers() []api.ReadHandler {
@@ -338,247 +293,60 @@ func (p *Publisher) getConfigUpdateHandlers() []api.ConfigUpdateHandler {
 	return handlers
 }
 
-type blockEvent struct {
-	*channels
-	channelID string
-	block     *cb.Block
+type channels struct {
+	blockChan        chan *cb.Block
+	wChan            chan *blockvisitor.Write
+	rChan            chan *blockvisitor.Read
+	lsccChan         chan *blockvisitor.LSCCWrite
+	ccEvtChan        chan *blockvisitor.CCEvent
+	configUpdateChan chan *blockvisitor.ConfigUpdate
 }
 
-func newBlockEvent(channelID string, block *cb.Block, channels *channels) *blockEvent {
-	return &blockEvent{
-		channels:  channels,
-		channelID: channelID,
-		block:     block,
-	}
-}
-
-func (p *blockEvent) publish() {
-	logger.Debugf("[%s] Publishing block #%d", p.channelID, p.block.Header.Number)
-	for txNum := range p.block.Data.Data {
-		envelope, err := protoutil.ExtractEnvelope(p.block, txNum)
-		if err != nil {
-			logger.Warningf("[%s] Error extracting envelope at index %d in block %d: %s", p.channelID, txNum, p.block.Header.Number, err)
-		} else {
-			err = p.visitEnvelope(uint64(txNum), envelope)
-			if err != nil {
-				logger.Warningf("[%s] Error checking envelope at index %d in block %d: %s", p.channelID, txNum, p.block.Header.Number, err)
-			}
-		}
+func newChannels(bufferSize int) *channels {
+	return &channels{
+		blockChan:        make(chan *cb.Block, bufferSize),
+		wChan:            make(chan *blockvisitor.Write, bufferSize),
+		rChan:            make(chan *blockvisitor.Read, bufferSize),
+		lsccChan:         make(chan *blockvisitor.LSCCWrite, bufferSize),
+		ccEvtChan:        make(chan *blockvisitor.CCEvent, bufferSize),
+		configUpdateChan: make(chan *blockvisitor.ConfigUpdate, bufferSize),
 	}
 }
 
-func (p *blockEvent) visitEnvelope(txNum uint64, envelope *cb.Envelope) error {
-	payload, err := protoutil.ExtractPayload(envelope)
-	if err != nil {
-		return err
-	}
-
-	chdr, err := protoutil.UnmarshalChannelHeader(payload.Header.ChannelHeader)
-	if err != nil {
-		return err
-	}
-
-	if cb.HeaderType(chdr.Type) == cb.HeaderType_ENDORSER_TRANSACTION {
-		txFilter := ledgerutil.TxValidationFlags(p.block.Metadata.Metadata[cb.BlockMetadataIndex_TRANSACTIONS_FILTER])
-		code := txFilter.Flag(int(txNum))
-		if code != pb.TxValidationCode_VALID {
-			logger.Debugf("[%s] Transaction at index %d in block %d is not valid. Status code: %s", p.channelID, txNum, p.block.Header.Number, code)
-			return nil
-		}
-		tx, err := protoutil.GetTransaction(payload.Data)
-		if err != nil {
-			return err
-		}
-		newTxEvent(p.channelID, p.block.Header.Number, txNum, chdr.TxId, tx, p.channels).publish()
-		return nil
-	}
-
-	if cb.HeaderType(chdr.Type) == cb.HeaderType_CONFIG_UPDATE {
-		envelope := &cb.ConfigUpdateEnvelope{}
-		if err := proto.Unmarshal(payload.Data, envelope); err != nil {
-			return err
-		}
-		newConfigUpdateEvent(p.channelID, p.block.Header.Number, envelope, p.channels).publish()
-		return nil
-	}
-
+func (c *channels) sendRead(r *blockvisitor.Read) error {
+	c.rChan <- r
 	return nil
 }
 
-type txEvent struct {
-	*channels
-	channelID string
-	blockNum  uint64
-	txNum     uint64
-	txID      string
-	tx        *pb.Transaction
-}
-
-func newTxEvent(channelID string, blockNum uint64, txNum uint64, txID string, tx *pb.Transaction, channels *channels) *txEvent {
-	return &txEvent{
-		channelID: channelID,
-		blockNum:  blockNum,
-		txNum:     txNum,
-		txID:      txID,
-		tx:        tx,
-		channels:  channels,
-	}
-}
-
-func (p *txEvent) publish() {
-	logger.Debugf("[%s] Publishing Tx %s in block #%d", p.channelID, p.txID, p.blockNum)
-	for i, action := range p.tx.Actions {
-		err := p.visitTXAction(action)
-		if err != nil {
-			logger.Warningf("[%s] Error checking TxAction at index %d: %s", p.channelID, i, err)
-		}
-	}
-}
-
-func (p *txEvent) visitTXAction(action *pb.TransactionAction) error {
-	chaPayload, err := protoutil.GetChaincodeActionPayload(action.Payload)
-	if err != nil {
-		return err
-	}
-	return p.visitChaincodeActionPayload(chaPayload)
-}
-
-func (p *txEvent) visitChaincodeActionPayload(chaPayload *pb.ChaincodeActionPayload) error {
-	cpp := &pb.ChaincodeProposalPayload{}
-	err := proto.Unmarshal(chaPayload.ChaincodeProposalPayload, cpp)
-	if err != nil {
-		return err
-	}
-
-	return p.visitAction(chaPayload.Action)
-}
-
-func (p *txEvent) visitAction(action *pb.ChaincodeEndorsedAction) error {
-	prp := &pb.ProposalResponsePayload{}
-	err := proto.Unmarshal(action.ProposalResponsePayload, prp)
-	if err != nil {
-		return err
-	}
-	return p.visitProposalResponsePayload(prp)
-}
-
-func (p *txEvent) visitProposalResponsePayload(prp *pb.ProposalResponsePayload) error {
-	chaincodeAction := &pb.ChaincodeAction{}
-	err := proto.Unmarshal(prp.Extension, chaincodeAction)
-	if err != nil {
-		return err
-	}
-	return p.visitChaincodeAction(chaincodeAction)
-}
-
-func (p *txEvent) visitChaincodeAction(chaincodeAction *pb.ChaincodeAction) error {
-	if len(chaincodeAction.Results) > 0 {
-		txRWSet := &rwsetutil.TxRwSet{}
-		if err := txRWSet.FromProtoBytes(chaincodeAction.Results); err != nil {
-			return err
-		}
-		p.visitTxReadWriteSet(txRWSet)
-	}
-
-	if len(chaincodeAction.Events) > 0 {
-		evt := &pb.ChaincodeEvent{}
-		if err := proto.Unmarshal(chaincodeAction.Events, evt); err != nil {
-			logger.Warningf("[%s] Invalid chaincode event for chaincode [%s]", p.channelID, chaincodeAction.ChaincodeId)
-			return errors.WithMessagef(err, "invalid chaincode event for chaincode [%s]", chaincodeAction.ChaincodeId)
-		}
-		p.ccEvtChan <- &ccEvent{
-			blockNum: p.blockNum,
-			txID:     p.txID,
-			event:    evt,
-		}
-	}
-
+func (c *channels) sendWrite(w *blockvisitor.Write) error {
+	c.wChan <- w
 	return nil
 }
 
-func (p *txEvent) visitTxReadWriteSet(txRWSet *rwsetutil.TxRwSet) {
-	for _, nsRWSet := range txRWSet.NsRwSets {
-		p.visitNsReadWriteSet(nsRWSet)
-	}
+func (c *channels) sendLSCCWrite(w *blockvisitor.LSCCWrite) error {
+	c.lsccChan <- w
+	return nil
 }
 
-func (p *txEvent) visitNsReadWriteSet(nsRWSet *rwsetutil.NsRwSet) {
-	for _, r := range nsRWSet.KvRwSet.Reads {
-		p.rChan <- &read{
-			blockNum:  p.blockNum,
-			txID:      p.txID,
-			namespace: nsRWSet.NameSpace,
-			r:         r,
-		}
-	}
-	if nsRWSet.NameSpace == lsccID {
-		p.publishLSCCWrite(nsRWSet.KvRwSet.Writes)
-	} else {
-		p.publishWrites(nsRWSet.NameSpace, nsRWSet.KvRwSet.Writes)
-	}
+func (c *channels) sendCCEvent(event *blockvisitor.CCEvent) error {
+	c.ccEvtChan <- event
+	return nil
 }
 
-// publishLSCCWrite publishes an LSCC write event which is a result of a chaincode instantiate/upgrade.
-// The event consists of two writes: CC data and collection configs.
-func (p *txEvent) publishLSCCWrite(writes []*kvrwset.KVWrite) {
-	p.lsccChan <- &lsccWrite{
-		blockNum: p.blockNum,
-		txID:     p.txID,
-		w:        writes,
-	}
-}
-
-func (p *txEvent) publishWrites(ns string, writes []*kvrwset.KVWrite) {
-	for _, w := range writes {
-		p.wChan <- &write{
-			blockNum:  p.blockNum,
-			txID:      p.txID,
-			namespace: ns,
-			w:         w,
-		}
-	}
-}
-
-type configUpdateEvent struct {
-	*channels
-	channelID string
-	blockNum  uint64
-	envelope  *cb.ConfigUpdateEnvelope
-}
-
-func newConfigUpdateEvent(channelID string, blockNum uint64, envelope *cb.ConfigUpdateEnvelope, channels *channels) *configUpdateEvent {
-	return &configUpdateEvent{
-		channels:  channels,
-		channelID: channelID,
-		blockNum:  blockNum,
-		envelope:  envelope,
-	}
-}
-
-func (p *configUpdateEvent) publish() {
-	cu := &cb.ConfigUpdate{}
-	if err := proto.Unmarshal(p.envelope.ConfigUpdate, cu); err != nil {
-		logger.Warningf("[%s] Error unmarshalling config update: %s", p.channelID, err)
-		return
-	}
-
-	logger.Debugf("[%s] Publishing Config Update [%s] in block #%d", p.channelID, cu, p.blockNum)
-
-	p.configUpdateChan <- &configUpdate{
-		blockNum:     p.blockNum,
-		configUpdate: cu,
-	}
+func (c *channels) sendConfigUpdate(cu *blockvisitor.ConfigUpdate) error {
+	c.configUpdateChan <- cu
+	return nil
 }
 
 func newChaincodeUpgradeHandler(handleUpgrade api.ChaincodeUpgradeHandler) api.ChaincodeEventHandler {
 	return func(txnMetadata api.TxMetadata, event *pb.ChaincodeEvent) error {
 		logger.Debugf("[%s] Handling chaincode event: %s", txnMetadata.ChannelID, event)
-		if event.ChaincodeId != lsccID {
+		if event.ChaincodeId != blockvisitor.LsccID {
 			logger.Debugf("[%s] Chaincode event is not from 'lscc'", txnMetadata.ChannelID)
 			return nil
 		}
 		if event.EventName != upgradeEvent {
-			logger.Debugf("[%s] Chaincode event from 'lscc' is not an upgrade event", txnMetadata.ChannelID)
+			logger.Debugf("[%s] Chaincode event from 'lscc' is not an upgrade Event", txnMetadata.ChannelID)
 			return nil
 		}
 
@@ -593,29 +361,9 @@ func newChaincodeUpgradeHandler(handleUpgrade api.ChaincodeUpgradeHandler) api.C
 	}
 }
 
-func getCCInfo(writes []*kvrwset.KVWrite) (string, *ccprovider.ChaincodeData, *cb.CollectionConfigPackage, error) {
-	var ccID string
-	var ccp *cb.CollectionConfigPackage
-	var ccData *ccprovider.ChaincodeData
-
-	for _, kvWrite := range writes {
-		if isCollectionConfigKey(kvWrite.Key) {
-			ccp = &cb.CollectionConfigPackage{}
-			if err := proto.Unmarshal(kvWrite.Value, ccp); err != nil {
-				return "", nil, nil, errors.WithMessagef(err, "error unmarshaling collection configuration")
-			}
-		} else {
-			ccID = kvWrite.Key
-			ccData = &ccprovider.ChaincodeData{}
-			if err := proto.Unmarshal(kvWrite.Value, ccData); err != nil {
-				return "", nil, nil, errors.WithMessagef(err, "error unmarshaling chaincode data")
-			}
-		}
+// panicOnError panics if there's an error.
+func panicOnError(err error) {
+	if err != nil {
+		panic(err.Error())
 	}
-
-	return ccID, ccData, ccp, nil
-}
-
-func isCollectionConfigKey(key string) bool {
-	return strings.Contains(key, collectionSeparator)
 }
