@@ -57,14 +57,6 @@ func TestValidateOffLedgerCollectionConfig(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("Off-Ledger req == 0 -> error", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
-		err := v.Validate(createOffLedgerCollectionConfig(coll1, policyEnvelope, 0, 2, "1m"))
-		require.Error(t, err)
-		expectedErr := "required peer count must be greater than 0"
-		assert.Truef(t, strings.Contains(err.Error(), expectedErr), "Expected error to contain '%s' but got '%s'", expectedErr, err)
-	})
-
 	t.Run("transient collection req > max -> error", func(t *testing.T) {
 		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
 		err := v.Validate(createTransientCollectionConfig(coll1, policyEnvelope, 3, 2, "1m"))
@@ -109,14 +101,6 @@ func TestValidateDCASCollectionConfig(t *testing.T) {
 		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
 		err := v.Validate(createDCASCollectionConfig(coll1, policyEnvelope, 1, 2, "1m"))
 		assert.NoError(t, err)
-	})
-
-	t.Run("DCAS req == 0 -> error", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
-		err := v.Validate(createDCASCollectionConfig(coll1, policyEnvelope, 0, 2, "1m"))
-		require.Error(t, err)
-		expectedErr := "required peer count must be greater than 0"
-		assert.Truef(t, strings.Contains(err.Error(), expectedErr), "Expected error to contain '%s' but got '%s'", expectedErr, err)
 	})
 
 	t.Run("transient collection req > max -> error", func(t *testing.T) {

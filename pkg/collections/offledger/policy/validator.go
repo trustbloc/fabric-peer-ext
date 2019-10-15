@@ -19,10 +19,6 @@ func ValidateConfig(config *common.StaticCollectionConfig) error {
 		return errors.Errorf("unsupported off-ledger collection type: %s", config.Type)
 	}
 
-	if config.RequiredPeerCount <= 0 {
-		return errors.Errorf("collection-name: %s -- required peer count must be greater than 0", config.Name)
-	}
-
 	if config.RequiredPeerCount > config.MaximumPeerCount {
 		return errors.Errorf("collection-name: %s -- maximum peer count (%d) must be greater than or equal to required peer count (%d)", config.Name, config.MaximumPeerCount, config.RequiredPeerCount)
 	}
