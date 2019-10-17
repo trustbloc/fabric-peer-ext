@@ -7,6 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package dissemination
 
 import (
+	"math/rand"
+
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/discovery"
@@ -39,26 +41,34 @@ func (d *Disseminator) resolvePeersForDissemination() discovery.PeerGroup {
 	orgs := d.policy.MemberOrgs()
 	maxPeerCount := d.policy.MaximumPeerCount()
 
-	logger.Debugf("[%s] Member orgs: %s", d.ChannelID(), orgs)
+	logger.Debugf("[%s] MaximumPeerCount: %d, RequiredPeerCount: %d, Member orgs: %s", d.ChannelID(), maxPeerCount, d.policy.RequiredPeerCount(), orgs)
 
-	// Include all committers
-	peersForDissemination := d.getPeersWithRole(roles.CommitterRole, orgs)
+	var committers discovery.PeerGroup
 
-	if len(peersForDissemination) < maxPeerCount {
-		logger.Debugf("[%s] MaximumPeerCount in collection policy is %d and we only have %d committers. Adding some endorsers too...", d.ChannelID(), maxPeerCount, len(peersForDissemination))
+	logger.Debugf("maxPeerCount: %d, Roles: %s", maxPeerCount, d.Self().Roles())
+	if maxPeerCount == 0 && !d.Self().HasRole(roles.CommitterRole) {
+		logger.Debugf("[%s] MaximumPeerCount is 0 and I am not a committer. Getting a random peer for dissemination from orgs %s", d.ChannelID(), orgs)
+		committers = getRandomPeers(d.getPeersWithRole(roles.CommitterRole, orgs), 1)
+	} else {
+		logger.Debugf("[%s] Getting %d random peer(s) with the 'committer' role for dissemination from orgs %s", d.ChannelID(), maxPeerCount, orgs)
+		committers = getRandomPeers(d.getPeersWithRole(roles.CommitterRole, orgs), maxPeerCount)
+	}
+
+	if len(committers) < maxPeerCount {
+		logger.Debugf("[%s] MaximumPeerCount in collection policy is %d and we only have %d peer(s) with the 'committer' role. Adding some endorsers too...", d.ChannelID(), maxPeerCount, len(committers))
 		for _, peer := range d.getPeersWithRole(roles.EndorserRole, orgs).Remote().Shuffle() {
-			if len(peersForDissemination) >= maxPeerCount {
+			if len(committers) >= maxPeerCount {
 				// We have enough peers
 				break
 			}
 			logger.Debugf("Adding endorser [%s] ...", peer)
-			peersForDissemination = append(peersForDissemination, peer)
+			committers = append(committers, peer)
 		}
 	}
 
-	logger.Debugf("[%s] Peers for dissemination from orgs %s: %s", d.ChannelID(), orgs, peersForDissemination)
+	logger.Debugf("[%s] Peers for dissemination from orgs %s: %s", d.ChannelID(), orgs, committers)
 
-	return peersForDissemination
+	return committers
 }
 
 // ResolvePeersForRetrieval resolves to a set of peers from which data should may be retrieved
@@ -123,4 +133,16 @@ func contains(mspIDs []string, mspID string) bool {
 // getMaxPeersForRetrieval may be overridden by unit tests
 var getMaxPeersForRetrieval = func() int {
 	return config.GetOLCollMaxPeersForRetrieval()
+}
+
+// getRandomPeers returns a random set of peers from the given set - up to a maximum of maxPeers
+func getRandomPeers(peers discovery.PeerGroup, maxPeers int) discovery.PeerGroup {
+	var result discovery.PeerGroup
+	for _, index := range rand.Perm(len(peers)) {
+		if len(result) == maxPeers {
+			break
+		}
+		result = append(result, peers[index])
+	}
+	return result
 }

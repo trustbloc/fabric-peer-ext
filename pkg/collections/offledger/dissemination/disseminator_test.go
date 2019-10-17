@@ -87,6 +87,7 @@ func TestDisseminator_ResolvePeersForDissemination(t *testing.T) {
 		d := New(channelID, ns1, coll1,
 			&mocks.MockAccessPolicy{
 				ReqPeerCount: 1,
+				MaxPeerCount: 4,
 				Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
 			}, gossip)
 
@@ -134,6 +135,31 @@ func TestDisseminator_ResolvePeersForDissemination(t *testing.T) {
 		require.Equal(t, 9, len(peers))
 		assert.NotContains(t, peers.String(), "org4")
 	})
+
+	t.Run("MaxPeerCount is 0 and not committer", func(t *testing.T) {
+		restore := roles.GetRoles()
+		defer func() {
+			rolesValue := make(map[roles.Role]struct{})
+			for _, role := range restore {
+				rolesValue[role] = struct{}{}
+			}
+			roles.SetRoles(rolesValue)
+		}()
+
+		rolesValue := make(map[roles.Role]struct{})
+		rolesValue[roles.EndorserRole] = struct{}{}
+		roles.SetRoles(rolesValue)
+
+		d := New(channelID, ns1, coll1,
+			&mocks.MockAccessPolicy{
+				ReqPeerCount: 0,
+				MaxPeerCount: 0,
+				Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
+			}, gossip)
+
+		peers := d.resolvePeersForDissemination()
+		require.Equal(t, 1, len(peers))
+	})
 }
 
 func TestDisseminator_ResolvePeersForRetrieval(t *testing.T) {
@@ -156,6 +182,7 @@ func TestDisseminator_ResolvePeersForRetrieval(t *testing.T) {
 		d := New(channelID, ns1, coll1,
 			&mocks.MockAccessPolicy{
 				ReqPeerCount: 1,
+				MaxPeerCount: 2,
 				Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
 			}, gossip)
 
@@ -174,6 +201,7 @@ func TestDisseminator_ResolvePeersForRetrieval(t *testing.T) {
 		d := New(channelID, ns1, coll1,
 			&mocks.MockAccessPolicy{
 				ReqPeerCount: 1,
+				MaxPeerCount: 7,
 				Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
 			}, gossip)
 
@@ -218,6 +246,7 @@ func TestComputeDisseminationPlan(t *testing.T) {
 
 	colAP := &mocks.MockAccessPolicy{
 		ReqPeerCount: 1,
+		MaxPeerCount: 2,
 		Orgs:         []string{org2MSPID, org3MSPID},
 	}
 
