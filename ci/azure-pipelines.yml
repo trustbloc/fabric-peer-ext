@@ -1,0 +1,35 @@
+# Copyright SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: $(SourceBranchName)-$(Date:yyyyMMdd).$(Rev:r)
+variables:
+  GO_VERSION: 1.12.5
+  GOPATH: $(Agent.BuildDirectory)/go
+
+jobs:
+  - job: UnitTest
+    pool:
+      vmImage: ubuntu-16.04
+    timeoutInMinutes: 30
+    steps:
+    - template: azp-dependencies.yml
+    - checkout: self
+    - script: |
+        # TODO: remove when fabric-mod supports sampleconfig outside GOPATH
+        mkdir -p ${GOPATH}/src/github.com/trustbloc/fabric-peer-ext/pkg/testutil
+        cp -R pkg/testutil/sampleconfig ${GOPATH}/src/github.com/trustbloc/fabric-peer-ext/pkg/testutil
+        make unit-test
+      displayName: Run checks and unit test
+    - script: bash <(curl https://codecov.io/bash)
+      displayName: Upload coverage to Codecov 
+
+  - job: BDDTest
+    pool:
+      vmImage: ubuntu-16.04
+    timeoutInMinutes: 60
+    steps:
+    - template: azp-dependencies.yml
+    - checkout: self
+    - script: make bddtests
+      displayName: Run BDD tests
