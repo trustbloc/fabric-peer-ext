@@ -25,12 +25,12 @@ var composition *bddtests.Composition
 
 func TestMain(m *testing.M) {
 	projectPath, err := filepath.Abs("../..")
- 	if err != nil {
- 		panic(err.Error())
- 	}
- 	if err := os.Setenv("PROJECT_PATH", projectPath); err != nil {
- 		panic(err.Error())
- 	}
+	if err != nil {
+		panic(err.Error())
+	}
+	if err := os.Setenv("PROJECT_PATH", projectPath); err != nil {
+		panic(err.Error())
+	}
 
 	// default is to run all tests with tag @all
 	tags := "all"
@@ -58,7 +58,9 @@ func TestMain(m *testing.M) {
 				composition = newComposition
 
 				fmt.Println("docker-compose up ... waiting for peer to start ...")
-				testSleep := 30
+				// TODO: Setting this to 60s for now (since Azure is timing out) but this should be addressed
+				// 	by changing the join peer retry options in fabric-peer-test-common.
+				testSleep := 60
 				if os.Getenv("TEST_SLEEP") != "" {
 					testSleep, _ = strconv.Atoi(os.Getenv("TEST_SLEEP"))
 				}
