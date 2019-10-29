@@ -13,12 +13,13 @@ import (
 	commonledger "github.com/hyperledger/fabric/common/ledger"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
+	"github.com/hyperledger/fabric/protos/ledger/queryresult"
 )
 
 // QueryExecutor is a mock query executor
 type QueryExecutor struct {
 	state        map[string]map[string][]byte
-	queryResults map[string][]*statedb.VersionedKV
+	queryResults map[string][]*queryresult.KV
 	error        error
 	queryError   error
 	itProvider   func() *ResultsIterator
@@ -29,7 +30,7 @@ type QueryExecutor struct {
 func NewQueryExecutor() *QueryExecutor {
 	return &QueryExecutor{
 		state:        make(map[string]map[string][]byte),
-		queryResults: make(map[string][]*statedb.VersionedKV),
+		queryResults: make(map[string][]*queryresult.KV),
 		itProvider:   NewResultsIterator,
 		kvItProvider: NewKVIterator,
 	}
@@ -77,13 +78,13 @@ func (m *QueryExecutor) WithDeletedPrivateState(ns, collection, key string) *Que
 }
 
 // WithQueryResults sets the query results for a given query on a namespace
-func (m *QueryExecutor) WithQueryResults(ns, query string, results []*statedb.VersionedKV) *QueryExecutor {
+func (m *QueryExecutor) WithQueryResults(ns, query string, results []*queryresult.KV) *QueryExecutor {
 	m.queryResults[queryResultsKey(ns, query)] = results
 	return m
 }
 
 // WithPrivateQueryResults sets the query results for a given query on a private collection
-func (m *QueryExecutor) WithPrivateQueryResults(ns, coll, query string, results []*statedb.VersionedKV) *QueryExecutor {
+func (m *QueryExecutor) WithPrivateQueryResults(ns, coll, query string, results []*queryresult.KV) *QueryExecutor {
 	m.queryResults[privateQueryResultsKey(ns, coll, query)] = results
 	return m
 }
