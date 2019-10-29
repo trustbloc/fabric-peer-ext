@@ -53,7 +53,8 @@ func TestDCASClient_Put(t *testing.T) {
 	})
 	olclient.SetCreatorProvider(func() ([]byte, error) { return []byte("creator"), creatorError })
 
-	c := New(channelID)
+	c, err := New(channelID)
+	require.NoError(t, err)
 	require.NotNil(t, c)
 
 	value1 := []byte("value1")
@@ -91,6 +92,13 @@ func TestDCASClient_Put(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, c.Delete(ns1, coll1, casKey))
 	})
+
+	t.Run("No ledger", func(t *testing.T) {
+		olclient.SetLedgerProvider(func(channelID string) olclient.PeerLedger { return nil })
+		c, err := New(channelID)
+		require.Error(t, err)
+		require.Nil(t, c)
+	})
 }
 
 func TestDCASClient_Get(t *testing.T) {
@@ -118,7 +126,8 @@ func TestDCASClient_Get(t *testing.T) {
 	})
 	olclient.SetCreatorProvider(func() ([]byte, error) { return []byte("creator"), creatorError })
 
-	c := New(channelID)
+	c, err := New(channelID)
+	require.NoError(t, err)
 	require.NotNil(t, c)
 
 	t.Run("Get - success", func(t *testing.T) {
@@ -181,7 +190,8 @@ func TestClient_Query(t *testing.T) {
 	})
 	olclient.SetCreatorProvider(func() ([]byte, error) { return []byte("creator"), creatorError })
 
-	c := New(channelID)
+	c, err := New(channelID)
+	require.NoError(t, err)
 	require.NotNil(t, c)
 
 	t.Run("Query - success", func(t *testing.T) {

@@ -20,10 +20,14 @@ type DCASClient struct {
 }
 
 // New returns a new DCAS olclient
-func New(channelID string) *DCASClient {
-	return &DCASClient{
-		Client: olclient.New(channelID),
+func New(channelID string) (*DCASClient, error) {
+	olClient, err := olclient.New(channelID)
+	if err != nil {
+		return nil, err
 	}
+	return &DCASClient{
+		Client: olClient,
+	}, nil
 }
 
 // Put puts the DCAS value and returns the key for the value

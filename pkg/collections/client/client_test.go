@@ -62,7 +62,8 @@ func TestClient_Put(t *testing.T) {
 	}
 	newCreator = func() ([]byte, error) { return []byte("creator"), creatorError }
 
-	c := New(channelID)
+	c, err := New(channelID)
+	require.NoError(t, err)
 	require.NotNil(t, c)
 
 	value1 := []byte("value1")
@@ -139,6 +140,13 @@ func TestClient_Put(t *testing.T) {
 		err := c.Delete(ns1, coll1, key1, key2)
 		require.NoError(t, err)
 	})
+
+	t.Run("No ledger", func(t *testing.T) {
+		getLedger = func(channelID string) PeerLedger { return nil }
+		c, err := New(channelID)
+		require.Error(t, err)
+		require.Nil(t, c)
+	})
 }
 
 func TestClient_Get(t *testing.T) {
@@ -164,7 +172,8 @@ func TestClient_Get(t *testing.T) {
 	}
 	newCreator = func() ([]byte, error) { return []byte("creator"), creatorError }
 
-	c := New(channelID)
+	c, err := New(channelID)
+	require.NoError(t, err)
 	require.NotNil(t, c)
 
 	t.Run("Get - success", func(t *testing.T) {
@@ -241,7 +250,8 @@ func TestClient_Query(t *testing.T) {
 	}
 	newCreator = func() ([]byte, error) { return []byte("creator"), creatorError }
 
-	c := New(channelID)
+	c, err := New(channelID)
+	require.NoError(t, err)
 	require.NotNil(t, c)
 
 	t.Run("Query - success", func(t *testing.T) {

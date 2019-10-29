@@ -73,8 +73,12 @@ type Client struct {
 }
 
 // New returns a new client
-func New(channelID string) *Client {
+func New(channelID string) (*Client, error) {
 	ledger := getLedger(channelID)
+	if ledger == nil {
+		return nil, errors.Errorf("ledger not found for channel [%s]", channelID)
+	}
+
 	blockPublisher := getBlockPublisher(channelID)
 
 	return &Client{
@@ -82,7 +86,7 @@ func New(channelID string) *Client {
 		ledger:          ledger,
 		gossip:          getGossipAdapter(),
 		configRetriever: getCollConfigRetriever(channelID, ledger, blockPublisher),
-	}
+	}, nil
 }
 
 // Put puts the value for the given key
