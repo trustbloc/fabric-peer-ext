@@ -11,7 +11,7 @@ require (
 	github.com/hyperledger/fabric-sdk-go v1.0.0-beta1.0.20190930220855-cea2ffaf627c
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper v1.0.2
-	github.com/trustbloc/fabric-peer-test-common v0.0.0-20191001161824-e89c26cf9121
+	github.com/trustbloc/fabric-peer-test-common v0.0.0-20191029204148-075911ef5e01
 )
 
 replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.0.0-20191001172134-1815f5c382ff

@@ -1,6 +1,5 @@
 /*
 Copyright SecureKey Technologies Inc. All Rights Reserved.
-
 SPDX-License-Identifier: Apache-2.0
 */
 
@@ -9,7 +8,7 @@ package dcasclient
 import (
 	"github.com/btcsuite/btcutil/base58"
 	commonledger "github.com/hyperledger/fabric/common/ledger"
-	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
+	"github.com/hyperledger/fabric/protos/ledger/queryresult"
 	olclient "github.com/trustbloc/fabric-peer-ext/pkg/collections/client"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 )
@@ -111,7 +110,7 @@ func (it *decodingResultsIterator) Next() (commonledger.QueryResult, error) {
 		return nil, nil
 	}
 
-	kv := qr.(*statedb.VersionedKV)
+	kv := qr.(*queryresult.KV)
 	dkv := *kv
 	dkv.Key = string(base58.Decode(kv.Key))
 	return &dkv, nil
