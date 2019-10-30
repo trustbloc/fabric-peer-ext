@@ -8,12 +8,12 @@ package mocks
 
 import (
 	commonledger "github.com/hyperledger/fabric/common/ledger"
-	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
+	"github.com/hyperledger/fabric/protos/ledger/queryresult"
 )
 
 // ResultsIterator is a mock key-value iterator
 type ResultsIterator struct {
-	results []*statedb.VersionedKV
+	results []*queryresult.KV
 	nextIdx int
 	err     error
 }
@@ -24,7 +24,7 @@ func NewResultsIterator() *ResultsIterator {
 }
 
 // WithResults sets the mock results
-func (m *ResultsIterator) WithResults(results []*statedb.VersionedKV) *ResultsIterator {
+func (m *ResultsIterator) WithResults(results []*queryresult.KV) *ResultsIterator {
 	m.results = results
 	return m
 }

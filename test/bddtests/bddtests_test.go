@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -45,29 +44,15 @@ func TestMain(m *testing.M) {
 
 	status := godog.RunWithOptions("godogs", func(s *godog.Suite) {
 		s.BeforeSuite(func() {
-
 			if os.Getenv("DISABLE_COMPOSITION") != "true" {
-
 				// Need a unique name, but docker does not allow '-' in names
 				composeProjectName := strings.Replace(GenerateUUID(), "-", "", -1)
 				newComposition, err := bddtests.NewComposition(composeProjectName, "docker-compose.yml", "./fixtures")
 				if err != nil {
 					panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
 				}
-
 				composition = newComposition
-
-				fmt.Println("docker-compose up ... waiting for peer to start ...")
-				// TODO: Setting this to 60s for now (since Azure is timing out) but this should be addressed
-				// 	by changing the join peer retry options in fabric-peer-test-common.
-				testSleep := 60
-				if os.Getenv("TEST_SLEEP") != "" {
-					testSleep, _ = strconv.Atoi(os.Getenv("TEST_SLEEP"))
-				}
-				fmt.Printf("*** testSleep=%d", testSleep)
-				time.Sleep(time.Second * time.Duration(testSleep))
 			}
-
 		})
 
 		s.AfterSuite(func() {

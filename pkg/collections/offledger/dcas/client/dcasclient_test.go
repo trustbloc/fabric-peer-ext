@@ -1,6 +1,5 @@
 /*
 Copyright SecureKey Technologies Inc. All Rights Reserved.
-
 SPDX-License-Identifier: Apache-2.0
 */
 
@@ -12,10 +11,10 @@ import (
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/hyperledger/fabric/core/ledger"
-	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	gmocks "github.com/hyperledger/fabric/extensions/gossip/mocks"
 	cb "github.com/hyperledger/fabric/protos/common"
+	"github.com/hyperledger/fabric/protos/ledger/queryresult"
 	"github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -153,28 +152,20 @@ func TestClient_Query(t *testing.T) {
 
 	query1 := "query1"
 
-	vk1 := &statedb.VersionedKV{
-		CompositeKey: statedb.CompositeKey{
-			Namespace: ns1 + "~" + coll1,
-			Key:       base58.Encode([]byte(key1)),
-		},
-		VersionedValue: statedb.VersionedValue{
-			Value: value1,
-		},
+	vk1 := &queryresult.KV{
+		Namespace: ns1 + "~" + coll1,
+		Key:       base58.Encode([]byte(key1)),
+		Value:     value1,
 	}
-	vk2 := &statedb.VersionedKV{
-		CompositeKey: statedb.CompositeKey{
-			Namespace: ns1 + "~" + coll1,
-			Key:       base58.Encode([]byte(key2)),
-		},
-		VersionedValue: statedb.VersionedValue{
-			Value: value2,
-		},
+	vk2 := &queryresult.KV{
+		Namespace: ns1 + "~" + coll1,
+		Key:       base58.Encode([]byte(key2)),
+		Value:     value2,
 	}
 
 	mockLedger := &mocks.Ledger{
 		QueryExecutor: mocks.NewQueryExecutor().
-			WithPrivateQueryResults(ns1, coll1, query1, []*statedb.VersionedKV{vk1, vk2}),
+			WithPrivateQueryResults(ns1, coll1, query1, []*queryresult.KV{vk1, vk2}),
 	}
 
 	gossip := &mockGossipAdapter{}
@@ -201,14 +192,14 @@ func TestClient_Query(t *testing.T) {
 
 		next, err := it.Next()
 		require.NoError(t, err)
-		kv, ok := next.(*statedb.VersionedKV)
+		kv, ok := next.(*queryresult.KV)
 		require.True(t, ok)
 		require.Equal(t, vk1.Namespace, kv.Namespace)
 		require.Equal(t, key1, kv.Key)
 
 		next, err = it.Next()
 		require.NoError(t, err)
-		kv, ok = next.(*statedb.VersionedKV)
+		kv, ok = next.(*queryresult.KV)
 		require.True(t, ok)
 		require.Equal(t, vk2.Namespace, kv.Namespace)
 		require.Equal(t, key2, kv.Key)

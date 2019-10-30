@@ -1,6 +1,5 @@
 /*
 Copyright SecureKey Technologies Inc. All Rights Reserved.
-
 SPDX-License-Identifier: Apache-2.0
 */
 
@@ -12,9 +11,9 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/ledger"
-	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	cb "github.com/hyperledger/fabric/protos/common"
+	"github.com/hyperledger/fabric/protos/ledger/queryresult"
 	pb "github.com/hyperledger/fabric/protos/peer"
 	"github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/pkg/errors"
@@ -213,28 +212,20 @@ func TestClient_Query(t *testing.T) {
 
 	query1 := "query1"
 
-	vk1 := &statedb.VersionedKV{
-		CompositeKey: statedb.CompositeKey{
-			Namespace: ns1 + "~" + coll1,
-			Key:       key1,
-		},
-		VersionedValue: statedb.VersionedValue{
-			Value: []byte("v1_1"),
-		},
+	vk1 := &queryresult.KV{
+		Namespace: ns1 + "~" + coll1,
+		Key:       key1,
+		Value:     []byte("v1_1"),
 	}
-	vk2 := &statedb.VersionedKV{
-		CompositeKey: statedb.CompositeKey{
-			Namespace: ns1 + "~" + coll1,
-			Key:       key2,
-		},
-		VersionedValue: statedb.VersionedValue{
-			Value: []byte("v1_2"),
-		},
+	vk2 := &queryresult.KV{
+		Namespace: ns1 + "~" + coll1,
+		Key:       key2,
+		Value:     []byte("v1_2"),
 	}
 
 	mockLedger := &mocks.Ledger{
 		QueryExecutor: mocks.NewQueryExecutor().
-			WithPrivateQueryResults(ns1, coll1, query1, []*statedb.VersionedKV{vk1, vk2}),
+			WithPrivateQueryResults(ns1, coll1, query1, []*queryresult.KV{vk1, vk2}),
 	}
 
 	gossip := &mockGossipAdapter{}
