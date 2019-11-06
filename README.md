@@ -1,7 +1,7 @@
 [![Release](https://img.shields.io/github/release/trustbloc/fabric-peer-ext.svg?style=flat-square)](https://github.com/trustbloc/fabric-peer-ext/releases/latest)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://raw.githubusercontent.com/trustbloc/fabric-peer-ext/master/LICENSE)
 
-[![Build Status](https://dev.azure.com/trustbloc/fabric-peer-ext/_apis/build/status/trustbloc.fabric-peer-ext?branchName=master)](https://dev.azure.com/trustbloc/fabric-peer-ext/_build/latest?definitionId=5&branchName=master)
+[![Build Status](https://dev.azure.com/trustbloc/fabric/_apis/build/status/trustbloc.fabric-peer-ext?branchName=master)](https://dev.azure.com/trustbloc/fabric/_build/latest?definitionId=15&branchName=master)
 [![codecov](https://codecov.io/gh/trustbloc/fabric-peer-ext/branch/master/graph/badge.svg)](https://codecov.io/gh/trustbloc/fabric-peer-ext)
 [![Go Report Card](https://goreportcard.com/badge/github.com/trustbloc/fabric-peer-ext?style=flat-square)](https://goreportcard.com/report/github.com/trustbloc/fabric-peer-ext)
 [![codebeat badge](https://codebeat.co/badges/fad74203-ae47-4acf-a0be-dc22696df874)](https://codebeat.co/projects/github-com-trustbloc-fabric-peer-ext-master)
