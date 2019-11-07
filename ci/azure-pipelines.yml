@@ -35,3 +35,4 @@ jobs:
       displayName: Run BDD tests
     - publish: test/bddtests/docker-compose.log
       artifact: docker-compose.log
+      condition: always()
