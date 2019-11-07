@@ -11,7 +11,9 @@ import (
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/core/scc"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/injectinvoker"
 )
 
 const (
@@ -68,7 +70,7 @@ func TestBuilder_BuildError(t *testing.T) {
 	t.Run("Dependency not found -> error", func(t *testing.T) {
 		_, err := New().Add(UnknownProvider).Build(&nameAndPathProviderImpl{})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "No provider found that satisfies interface")
+		require.Equal(t, injectinvoker.ErrProviderNotFound, errors.Cause(err))
 	})
 }
 

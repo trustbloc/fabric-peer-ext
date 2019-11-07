@@ -9,6 +9,7 @@ package injectinvoker
 import (
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,24 +21,25 @@ const (
 )
 
 func TestInvoker_Invoke(t *testing.T) {
+	inj := New(
+		&nameAndPathProviderImpl{
+			name: ccName1,
+			path: ccPath1,
+		},
+		&argsProviderImpl{
+			args: [][]byte{
+				[]byte(arg1),
+				[]byte(arg2),
+			},
+		},
+	)
+
 	t.Run("Success", func(t *testing.T) {
-		inj := New(
-			&nameAndPathProviderImpl{
-				name: ccName1,
-				path: ccPath1,
-			},
-			&argsProviderImpl{
-				args: [][]byte{
-					[]byte(arg1),
-					[]byte(arg2),
-				},
-			},
-		)
 		retVals, err := inj.Invoke(ValidFunc)
 		require.NoError(t, err)
 		require.Equal(t, 1, len(retVals))
 		retVal := retVals[0]
-		r, ok := retVal.Interface().(someIface)
+		r, ok := retVal.Interface().(SomeIface)
 		require.True(t, ok)
 		require.NotNil(t, r)
 		require.Equal(t, ccName1, r.GetValue1())
@@ -47,20 +49,77 @@ func TestInvoker_Invoke(t *testing.T) {
 		require.Equal(t, arg2, string(r.GetValue3()[1]))
 	})
 
+	t.Run("Success with struct", func(t *testing.T) {
+		retVals, err := inj.Invoke(ValidFuncWithStruct)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(retVals))
+
+		retVal1 := retVals[0]
+		r1, ok := retVal1.Interface().(SomeIface)
+		require.True(t, ok)
+		require.NotNil(t, r1)
+		require.Equal(t, ccName1, r1.GetValue1())
+		require.Equal(t, ccPath1, r1.GetValue2())
+		require.Equal(t, 2, len(r1.GetValue3()))
+		require.Equal(t, arg1, string(r1.GetValue3()[0]))
+		require.Equal(t, arg2, string(r1.GetValue3()[1]))
+
+		retVal2 := retVals[1]
+		r2, ok := retVal2.Interface().(SomeOtherIface)
+		require.True(t, ok)
+		require.NotNil(t, r2)
+		require.Equal(t, ccName1, r2.GetValue4())
+	})
+
+	t.Run("Success with nested struct pointer", func(t *testing.T) {
+		retVals, err := inj.Invoke(ValidFuncWithNestedStructPtr)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(retVals))
+
+		retVal1 := retVals[0]
+		r1, ok := retVal1.Interface().(SomeIface)
+		require.True(t, ok)
+		require.NotNil(t, r1)
+		require.Equal(t, ccName1, r1.GetValue1())
+		require.Equal(t, ccPath1, r1.GetValue2())
+		require.Equal(t, 2, len(r1.GetValue3()))
+		require.Equal(t, arg1, string(r1.GetValue3()[0]))
+		require.Equal(t, arg2, string(r1.GetValue3()[1]))
+
+		retVal2 := retVals[1]
+		r2, ok := retVal2.Interface().(SomeOtherIface)
+		require.True(t, ok)
+		require.NotNil(t, r2)
+		require.Equal(t, ccName1, r2.GetValue4())
+	})
+
 	t.Run("Invalid arg -> error", func(t *testing.T) {
 		inj := New(&nameAndPathProviderImpl{})
-		sccDesc, err := inj.Invoke(InvalidArg)
+		ret, err := inj.Invoke(InvalidArg)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "not an interface")
-		require.Nil(t, sccDesc)
+		require.Equal(t, ErrUnsupportedType, errors.Cause(err))
+		require.Nil(t, ret)
 	})
 
 	t.Run("Dependency not found -> error", func(t *testing.T) {
 		inj := New(&nameAndPathProviderImpl{})
-		sccDesc, err := inj.Invoke(InvalidProvider)
+		ret, err := inj.Invoke(InvalidProvider)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "No provider found that satisfies interface")
-		require.Nil(t, sccDesc)
+		require.Equal(t, ErrProviderNotFound, errors.Cause(err))
+		require.Nil(t, ret)
+	})
+
+	t.Run("AddProvider -> error", func(t *testing.T) {
+		inj := New()
+		ret, err := inj.Invoke(ValidFuncWithStruct)
+		require.Error(t, err)
+		require.Equal(t, ErrProviderNotFound, errors.Cause(err))
+		require.Nil(t, ret)
+
+		inj.AddProvider(&nameAndPathProviderImpl{})
+		inj.AddProvider(&argsProviderImpl{})
+		_, err = inj.Invoke(ValidFuncWithStruct)
+		require.NoError(t, err)
 	})
 }
 
@@ -97,7 +156,7 @@ type argsProvider interface {
 	GetValue3() [][]byte
 }
 
-func ValidFunc(np nameProvider, pp pathProvider, argsp argsProvider) someIface {
+func ValidFunc(np nameProvider, pp pathProvider, argsp argsProvider) SomeIface {
 	return &someImpl{
 		name:     np.GetValue1(),
 		path:     pp.GetValue2(),
@@ -105,21 +164,43 @@ func ValidFunc(np nameProvider, pp pathProvider, argsp argsProvider) someIface {
 	}
 }
 
+func ValidFuncWithStruct(ph ProviderHolder) (SomeIface, SomeOtherIface) {
+	return &someImpl{
+			name:     ph.NP.GetValue1(),
+			path:     ph.PP.GetValue2(),
+			initArgs: ph.ArgsP.GetValue3(),
+		},
+		&someOtherImpl{value4: ph.NP.GetValue1()}
+}
+
+func ValidFuncWithNestedStructPtr(nph *NestedProviderHolder) (SomeIface, SomeOtherIface) {
+	return &someImpl{
+			name:     nph.PH.NP.GetValue1(),
+			path:     nph.PH.PP.GetValue2(),
+			initArgs: nph.PH.ArgsP.GetValue3(),
+		},
+		&someOtherImpl{value4: nph.AnotherNP.GetValue1()}
+}
+
 type customProvider interface {
 	GetData(arg int) string
 }
 
-type someIface interface {
+type SomeIface interface {
 	GetValue1() string
 	GetValue2() string
 	GetValue3() [][]byte
 }
 
-func InvalidProvider(customProvider) someIface {
+type SomeOtherIface interface {
+	GetValue4() string
+}
+
+func InvalidProvider(customProvider) SomeIface {
 	return &someImpl{}
 }
 
-func InvalidArg(string) someIface {
+func InvalidArg(string) SomeIface {
 	return &someImpl{}
 }
 
@@ -139,4 +220,25 @@ func (s *someImpl) GetValue2() string {
 
 func (s *someImpl) GetValue3() [][]byte {
 	return s.initArgs
+}
+
+type someOtherImpl struct {
+	value4 string
+}
+
+func (s *someOtherImpl) GetValue4() string {
+	return s.value4
+}
+
+type ProviderHolder struct {
+	NP    nameProvider
+	PP    pathProvider
+	ArgsP argsProvider
+	pvt   string // Private field should be ignored
+	f     func() // Function field should be ignored
+}
+
+type NestedProviderHolder struct {
+	PH        *ProviderHolder
+	AnotherNP nameProvider
 }
