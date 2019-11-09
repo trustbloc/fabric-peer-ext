@@ -23,6 +23,8 @@ github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+Ce
 github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kBD4zp0CCIs=
 github.com/bluele/gcache v0.0.0-20190301044115-79ae3b2d8680 h1:jk2k2FUNIg9ogv9yFIzjA5NTrJeaAkHev4AFspbmyvo=
 github.com/bluele/gcache v0.0.0-20190301044115-79ae3b2d8680/go.mod h1:8c4/i2VlovMO2gBnHGQPN5EJw+H0lx1u/5p+cgsXtCk=
+github.com/bstasyszyn/fabric-mod v0.0.0-20191109205010-bef763d7059b h1:uMq0I/OKyG5Zuha4jnZVQVMXMxE5OnPGkrAgZClEYYo=
+github.com/bstasyszyn/fabric-mod v0.0.0-20191109205010-bef763d7059b/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
 github.com/btcsuite/btcutil v0.0.0-20170419141449-a5ecb5d9547a h1:UwuNC3d8iGIAwMyAO92ZGuVQYmdGkWXtQEGZdiIrJQs=
 github.com/btcsuite/btcutil v0.0.0-20170419141449-a5ecb5d9547a/go.mod h1:+5NJ2+qvTyV9exUAL/rxXi3DcLg2Ts+ymUAY5y4NvMg=
 github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghfAqPWnc=

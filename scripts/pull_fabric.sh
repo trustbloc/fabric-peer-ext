@@ -7,12 +7,12 @@
 set -e
 
 mkdir -p $GOPATH/src/github.com/hyperledger/fabric
-git clone https://github.com/trustbloc/fabric-mod.git $GOPATH/src/github.com/hyperledger/fabric
+git clone https://github.com/bstasyszyn/fabric-mod.git $GOPATH/src/github.com/hyperledger/fabric
 cp -r . $GOPATH/src/github.com/hyperledger/fabric/fabric-peer-ext
 cd $GOPATH/src/github.com/hyperledger/fabric
 git config advice.detachedHead false
 # fabric-mod (Nov 6, 2019)
-git checkout v0.1.0
+git checkout bef763d7059b5559447cec7d99d8c10b3d102a7e
 
 # Rewrite viper import to allow plugins to load different version of viper
 sed 's/\github.com\/spf13\/viper.*/github.com\/spf13\/oldviper v0.0.0/g' -i fabric-peer-ext/mod/peer/go.mod
