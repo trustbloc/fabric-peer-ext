@@ -35,10 +35,7 @@ func TestProvider(t *testing.T) {
 		}
 	)
 
-	p := GetProvider()
-	require.NotNil(t, p)
-
-	publisher := p.ForChannel(channelID)
+	publisher := ProviderInstance.ForChannel(channelID)
 	require.NotNil(t, publisher)
 
 	handler := mocks.NewMockBlockHandler()
@@ -48,7 +45,7 @@ func TestProvider(t *testing.T) {
 	publisher.AddCCEventHandler(handler.HandleChaincodeEvent)
 
 	b := mocks.NewBlockBuilder(channelID, 1100)
-	defer p.Close()
+	defer ProviderInstance.Close()
 
 	b.Transaction(txID1, pb.TxValidationCode_VALID).
 		ChaincodeAction(ccID1).

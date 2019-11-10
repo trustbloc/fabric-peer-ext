@@ -279,7 +279,7 @@ var getLedger = func(channelID string) PeerLedger {
 
 // getLedger returns the peer ledger. This var may be overridden in unit tests
 var getBlockPublisher = func(channelID string) gossipapi.BlockPublisher {
-	return blockpublisher.GetProvider().ForChannel(channelID)
+	return blockpublisher.ForChannel(channelID)
 }
 
 // getGossipAdapter returns the gossip adapter. This var may be overridden in unit tests
