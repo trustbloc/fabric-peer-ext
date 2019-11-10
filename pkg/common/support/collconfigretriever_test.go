@@ -41,7 +41,7 @@ func TestConfigRetriever(t *testing.T) {
 
 	r := newCollectionConfigRetriever(channelID, &mocks.Ledger{
 		QueryExecutor: qe,
-	}, blockPublisher)
+	}, blockPublisher, &mocks.IdentityDeserializer{})
 	require.NotNil(t, r)
 
 	t.Run("Policy", func(t *testing.T) {
@@ -117,7 +117,7 @@ func TestConfigRetrieverError(t *testing.T) {
 	expectedErr := fmt.Errorf("injected error")
 	r := newCollectionConfigRetriever(channelID, &mocks.Ledger{
 		QueryExecutor: mocks.NewQueryExecutor().WithError(expectedErr),
-	}, blockPublisher)
+	}, blockPublisher, &mocks.IdentityDeserializer{})
 	require.NotNil(t, r)
 
 	t.Run("Policy", func(t *testing.T) {
