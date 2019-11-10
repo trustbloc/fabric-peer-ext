@@ -16,65 +16,41 @@ import (
 	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/core/ledger"
-	"github.com/hyperledger/fabric/extensions/collections/api/support"
-	"github.com/hyperledger/fabric/extensions/endorser/api"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
-	"github.com/hyperledger/fabric/msp"
+	mspmgmt "github.com/hyperledger/fabric/msp/mgmt"
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
-	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 )
 
-type ledgerProvider interface {
-	GetLedger(cid string) ledger.PeerLedger
+type collectionConfigRetrieverCache struct {
+	mutex      sync.RWMutex
+	retrievers map[string]*CollectionConfigRetriever
 }
 
-// CollectionConfigRetrieverProvider is a collection config retriever provider
-type CollectionConfigRetrieverProvider struct {
-	mutex                  sync.RWMutex
-	retrievers             map[string]*CollectionConfigRetriever
-	ledgerProvider         ledgerProvider
-	blockPublisherProvider api.BlockPublisherProvider
-	idProvider             collcommon.IdentityDeserializerProvider
+var collConfigRetrieverCache = &collectionConfigRetrieverCache{
+	retrievers: make(map[string]*CollectionConfigRetriever),
 }
 
-// NewCollectionConfigRetrieverProvider returns a new CollectionConfigRetrieverProvider
-func NewCollectionConfigRetrieverProvider(ledgerProvider ledgerProvider, blockPublisherProvider api.BlockPublisherProvider, idProvider collcommon.IdentityDeserializerProvider) *CollectionConfigRetrieverProvider {
-	logger.Info("Creating collection config retriever provider")
-	return &CollectionConfigRetrieverProvider{
-		retrievers:             make(map[string]*CollectionConfigRetriever),
-		ledgerProvider:         ledgerProvider,
-		blockPublisherProvider: blockPublisherProvider,
-		idProvider:             idProvider,
-	}
+// CollectionConfigRetrieverForChannel returns the collection config retriever for the given channel
+func CollectionConfigRetrieverForChannel(channelID string) *CollectionConfigRetriever {
+	return collConfigRetrieverCache.forChannel(channelID)
 }
 
-// ForChannel returns the retriever for the given channel
-func (rc *CollectionConfigRetrieverProvider) ForChannel(channelID string) support.CollectionConfigRetriever {
-	rc.mutex.RLock()
-	r, ok := rc.retrievers[channelID]
-	rc.mutex.RUnlock()
+// InitCollectionConfigRetriever initializes a collection config retriever for the given channel
+func InitCollectionConfigRetriever(channelID string, ledger peerLedger, blockPublisher blockPublisher) {
+	collConfigRetrieverCache.init(channelID, ledger, blockPublisher)
+}
 
-	if ok {
-		logger.Infof("Returning cached collection config retriever for channel [%s]", channelID)
-		return r
-	}
-
+func (rc *collectionConfigRetrieverCache) init(channelID string, ledger peerLedger, blockPublisher blockPublisher) {
 	rc.mutex.Lock()
 	defer rc.mutex.Unlock()
+	rc.retrievers[channelID] = newCollectionConfigRetriever(channelID, ledger, blockPublisher)
+}
 
-	r, ok = rc.retrievers[channelID]
-	if !ok {
-		logger.Infof("Creating new collection config retriever for channel [%s]", channelID)
-		r = newCollectionConfigRetriever(
-			channelID,
-			rc.ledgerProvider.GetLedger(channelID),
-			rc.blockPublisherProvider.ForChannel(channelID),
-			rc.idProvider.GetIdentityDeserializer(channelID),
-		)
-		rc.retrievers[channelID] = r
-	}
-	return r
+func (rc *collectionConfigRetrieverCache) forChannel(channelID string) *CollectionConfigRetriever {
+	rc.mutex.RLock()
+	defer rc.mutex.RUnlock()
+	return rc.retrievers[channelID]
 }
 
 type peerLedger interface {
@@ -86,21 +62,19 @@ type peerLedger interface {
 
 // CollectionConfigRetriever loads and caches collection configuration and policies
 type CollectionConfigRetriever struct {
-	channelID            string
-	ledger               peerLedger
-	identityDeserializer msp.IdentityDeserializer
-	cache                gcache.Cache
+	channelID string
+	ledger    peerLedger
+	cache     gcache.Cache
 }
 
 type blockPublisher interface {
 	AddLSCCWriteHandler(handler gossipapi.LSCCWriteHandler)
 }
 
-func newCollectionConfigRetriever(channelID string, ledger peerLedger, blockPublisher blockPublisher, identityDeserializer msp.IdentityDeserializer) *CollectionConfigRetriever {
+func newCollectionConfigRetriever(channelID string, ledger peerLedger, blockPublisher blockPublisher) *CollectionConfigRetriever {
 	r := &CollectionConfigRetriever{
-		channelID:            channelID,
-		ledger:               ledger,
-		identityDeserializer: identityDeserializer,
+		channelID: channelID,
+		ledger:    ledger,
 	}
 
 	r.cache = gcache.New(0).Simple().LoaderFunc(
@@ -265,7 +239,7 @@ func (s *CollectionConfigRetriever) loadPolicy(ns string, config *common.StaticC
 	logger.Debugf("[%s] Loading collection policy for [%s:%s]", s.channelID, ns, config.Name)
 
 	colAP := &privdata.SimpleCollection{}
-	err := colAP.Setup(config, s.identityDeserializer)
+	err := colAP.Setup(config, mspmgmt.GetIdentityDeserializer(s.channelID))
 	if err != nil {
 		return nil, errors.Wrapf(err, "error setting up collection policy %s", config.Name)
 	}

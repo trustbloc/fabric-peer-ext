@@ -11,7 +11,7 @@ replace github.com/hyperledger/fabric/extensions => ./
 replace github.com/trustbloc/fabric-peer-ext => ../..
 
 require (
-	github.com/golang/protobuf v1.3.2
+	github.com/golang/protobuf v1.3.1
 	github.com/hyperledger/fabric v2.0.0-alpha+incompatible
 	github.com/hyperledger/fabric/extensions v0.0.0
 	github.com/magiconair/properties v1.8.1

@@ -12,8 +12,8 @@ import (
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/peer/node"
 	"github.com/spf13/viper"
+	"github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc"
 	extscc "github.com/trustbloc/fabric-peer-ext/pkg/chaincode/scc"
-	extpeer "github.com/trustbloc/fabric-peer-ext/pkg/peer"
 	"github.com/trustbloc/fabric-peer-ext/test/scc/testscc"
 )
 
@@ -22,10 +22,7 @@ var logger = flogging.MustGetLogger("peer-ext-test")
 func main() {
 	setup()
 
-	extpeer.Initialize()
-
-	logger.Infof("Registering testscc...")
-	extscc.Register(testscc.New)
+	registerSystemChaincodes()
 
 	if err := startPeer(); err != nil {
 		panic(err)
@@ -40,6 +37,14 @@ func setup() {
 	viper.SetEnvKeyReplacer(replacer)
 
 	node.InitCmd(nil, nil)
+}
+
+func registerSystemChaincodes() {
+	logger.Infof("Registering configscc...")
+	extscc.Register(configscc.New)
+
+	logger.Infof("Registering testscc...")
+	extscc.Register(testscc.New)
 }
 
 func startPeer() error {

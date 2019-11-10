@@ -7,9 +7,8 @@ module github.com/trustbloc/fabric-peer-ext
 require (
 	github.com/bluele/gcache v0.0.0-20190301044115-79ae3b2d8680
 	github.com/btcsuite/btcutil v0.0.0-20170419141449-a5ecb5d9547a
-	github.com/golang/protobuf v1.3.2
+	github.com/golang/protobuf v1.3.1
 	github.com/hyperledger/fabric v2.0.0-alpha+incompatible
-	github.com/hyperledger/fabric-protos-go v0.0.0-20190823190507-26c33c998676
 	github.com/hyperledger/fabric/extensions v0.0.0
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper v0.0.0-20150908122457-1967d93db724
