@@ -22,9 +22,6 @@ github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+Ce
 github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kBD4zp0CCIs=
 github.com/bluele/gcache v0.0.0-20190301044115-79ae3b2d8680 h1:jk2k2FUNIg9ogv9yFIzjA5NTrJeaAkHev4AFspbmyvo=
 github.com/bluele/gcache v0.0.0-20190301044115-79ae3b2d8680/go.mod h1:8c4/i2VlovMO2gBnHGQPN5EJw+H0lx1u/5p+cgsXtCk=
-github.com/bstasyszyn/fabric-mod v0.0.0-20191109205010-bef763d7059b/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
-github.com/bstasyszyn/fabric-mod v0.0.0-20191109212729-1a1b10eb4e79 h1:Bu+HzTYBOQIaiR99M2g7TEEJBEFZjNQbVQb58UlhNEI=
-github.com/bstasyszyn/fabric-mod v0.0.0-20191109212729-1a1b10eb4e79/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
 github.com/btcsuite/btcutil v0.0.0-20170419141449-a5ecb5d9547a h1:UwuNC3d8iGIAwMyAO92ZGuVQYmdGkWXtQEGZdiIrJQs=
 github.com/btcsuite/btcutil v0.0.0-20170419141449-a5ecb5d9547a/go.mod h1:+5NJ2+qvTyV9exUAL/rxXi3DcLg2Ts+ymUAY5y4NvMg=
 github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghfAqPWnc=
@@ -201,8 +198,8 @@ github.com/syndtr/goleveldb v0.0.0-20190318030020-c3a204f8e965/go.mod h1:9OrXJhf
 github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc h1:LUUe4cdABGrIJAhl1P1ZpWY76AwukVszFdwkVFVLwIk=
 github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc/go.mod h1:eyZnKCc955uh98WQvzOm0dgAeLnf2O0Rz0LPoC5ze+0=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
-github.com/trustbloc/fabric-mod v0.1.0 h1:d1ImzYEMl1kWSSdVh3C6nHCqOBYLlEXFPs22nYduqrA=
-github.com/trustbloc/fabric-mod v0.1.0/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
+github.com/trustbloc/fabric-mod v0.1.1-0.20191111152942-df7071104249 h1:qqvbfzLIvV906BgcsR1ivP4b9ESpERiGQpgWL93vQG4=
+github.com/trustbloc/fabric-mod v0.1.1-0.20191111152942-df7071104249/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
 github.com/ugorji/go v1.1.1/go.mod h1:hnLbHMwcvSihnDhEfx2/BzKp2xb0Y+ErdfYcrs9tkJQ=
 github.com/urfave/cli v1.18.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/willf/bitset v1.1.10 h1:NotGKqX0KwQ72NUzqrjZq5ipPNDQex9lo3WpaS8L2sc=
