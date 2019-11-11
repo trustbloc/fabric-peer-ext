@@ -15,6 +15,6 @@ import (
 //AddCCUpgradeHandler adds chaincode upgrade handler to blockpublisher
 func AddCCUpgradeHandler(chainName string, handler gossipapi.ChaincodeUpgradeHandler) {
 	if !roles.IsCommitter() {
-		blockpublisher.GetProvider().ForChannel(chainName).AddCCUpgradeHandler(handler)
+		blockpublisher.ForChannel(chainName).AddCCUpgradeHandler(handler)
 	}
 }
