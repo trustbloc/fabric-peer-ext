@@ -76,7 +76,7 @@ type GossipServiceMediator interface {
 
 // ChannelJoined is called when a peer joins a channel
 func ChannelJoined(channelID string, ledger ledger.PeerLedger, publisher api.BlockPublisher) {
-	blockpublisher.GetProvider().ForChannel(channelID).AddWriteHandler(func(txMetadata api.TxMetadata, namespace string, kvWrite *kvrwset.KVWrite) error {
+	blockpublisher.ForChannel(channelID).AddWriteHandler(func(txMetadata api.TxMetadata, namespace string, kvWrite *kvrwset.KVWrite) error {
 		if namespace != "lscc" {
 			return nil
 		}
