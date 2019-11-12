@@ -10,16 +10,20 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider/store/dbstore"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 )
 
 // New returns a new transient data store provider
-func New() *StoreProvider {
+func New(gossip gossipAdapter, idProvider collcommon.IdentityDeserializerProvider) *StoreProvider {
+	logger.Infof("Creating new transient data store provider")
 	return &StoreProvider{
 		stores:     make(map[string]*store),
 		dbProvider: dbstore.NewDBProvider(),
+		gossip:     gossip,
+		idProvider: idProvider,
 	}
 }
 
@@ -27,6 +31,8 @@ func New() *StoreProvider {
 type StoreProvider struct {
 	stores     map[string]*store
 	dbProvider *dbstore.LevelDBProvider
+	gossip     gossipAdapter
+	idProvider collcommon.IdentityDeserializerProvider
 	sync.RWMutex
 }
 
@@ -52,7 +58,7 @@ func (sp *StoreProvider) OpenStore(channelID string) (api.Store, error) {
 		return nil, err
 	}
 
-	store := newStore(channelID, config.GetTransientDataCacheSize(), db)
+	store := newStore(channelID, config.GetTransientDataCacheSize(), db, sp.gossip, sp.idProvider.GetIdentityDeserializer(channelID))
 	sp.stores[channelID] = store
 
 	return store, nil

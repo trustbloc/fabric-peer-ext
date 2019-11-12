@@ -11,6 +11,7 @@ import (
 
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/hyperledger/fabric/protos/common"
+	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/couchdbstore"
@@ -56,11 +57,13 @@ type collTypeConfig struct {
 }
 
 // New returns a store provider factory
-func New(opts ...Option) *StoreProvider {
+func New(identifierProvider collcommon.IdentifierProvider, identityDeserializerProvider collcommon.IdentityDeserializerProvider, opts ...Option) *StoreProvider {
 	p := &StoreProvider{
-		stores:      make(map[string]olapi.Store),
-		dbProvider:  getDBProvider(),
-		collConfigs: make(map[common.CollectionType]*collTypeConfig),
+		stores:                       make(map[string]olapi.Store),
+		dbProvider:                   getDBProvider(),
+		identifierProvider:           identifierProvider,
+		identityDeserializerProvider: identityDeserializerProvider,
+		collConfigs:                  make(map[common.CollectionType]*collTypeConfig),
 	}
 
 	// OFF_LEDGER collection type supported by default
@@ -77,8 +80,10 @@ func New(opts ...Option) *StoreProvider {
 type StoreProvider struct {
 	stores map[string]olapi.Store
 	sync.RWMutex
-	dbProvider  api.DBProvider
-	collConfigs map[common.CollectionType]*collTypeConfig
+	dbProvider                   api.DBProvider
+	identifierProvider           collcommon.IdentifierProvider
+	identityDeserializerProvider collcommon.IdentityDeserializerProvider
+	collConfigs                  map[common.CollectionType]*collTypeConfig
 }
 
 // StoreForChannel returns the store for the given channel
@@ -95,7 +100,12 @@ func (sp *StoreProvider) OpenStore(channelID string) (olapi.Store, error) {
 
 	store, ok := sp.stores[channelID]
 	if !ok {
-		store = newStore(channelID, sp.dbProvider, sp.collConfigs)
+		store = newStore(
+			channelID,
+			sp.dbProvider,
+			sp.identifierProvider,
+			sp.identityDeserializerProvider.GetIdentityDeserializer(channelID),
+			sp.collConfigs)
 		sp.stores[channelID] = store
 	}
 	return store, nil

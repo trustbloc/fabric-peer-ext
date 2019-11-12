@@ -61,7 +61,7 @@ var (
 )
 
 func TestStore(t *testing.T) {
-	s := newStore(channelID, 100, newMockDB())
+	s := newStore(channelID, 100, newMockDB(), mocks.NewMockGossipAdapter(), &mocks.IdentityDeserializer{})
 	require.NotNil(t, s)
 	s.Close()
 
@@ -84,10 +84,6 @@ func TestStorePutAndGet(t *testing.T) {
 	value2_1 := []byte("value2_1")
 	value3_1 := []byte("value3_1")
 	value4_1 := []byte("value4_1")
-
-	s := newStore(channelID, 1, newMockDB())
-	require.NotNil(t, s)
-	defer s.Close()
 
 	b := mocks.NewPvtReadWriteSetBuilder()
 	ns1Builder := b.Namespace(ns1)
@@ -119,9 +115,9 @@ func TestStorePutAndGet(t *testing.T) {
 		Member(org2MSPID, p1Org2).
 		Member(org2MSPID, p2Org2)
 
-	gossipProvider = func() gossipAdapter {
-		return gossip
-	}
+	s := newStore(channelID, 1, newMockDB(), gossip, &mocks.IdentityDeserializer{})
+	require.NotNil(t, s)
+	defer s.Close()
 
 	// Expected endorsers:
 	// - coll1-key1: p2.org2.com, p2.org1.com
@@ -238,7 +234,7 @@ func TestStorePutAndGet(t *testing.T) {
 }
 
 func TestStoreInvalidData(t *testing.T) {
-	s := newStore(channelID, 100, newMockDB())
+	s := newStore(channelID, 100, newMockDB(), mocks.NewMockGossipAdapter(), &mocks.IdentityDeserializer{})
 	require.NotNil(t, s)
 	defer s.Close()
 

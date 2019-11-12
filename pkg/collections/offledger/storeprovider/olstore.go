@@ -13,12 +13,13 @@ import (
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	mspmgmt "github.com/hyperledger/fabric/msp/mgmt"
+	"github.com/hyperledger/fabric/msp"
 	"github.com/hyperledger/fabric/protos/common"
 	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	pb "github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/pkg/errors"
+	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/cache"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
@@ -27,19 +28,23 @@ import (
 var logger = flogging.MustGetLogger("ext_offledger")
 
 type store struct {
-	channelID   string
-	dbProvider  api.DBProvider
-	cache       *cache.Cache
-	collConfigs map[common.CollectionType]*collTypeConfig
+	channelID            string
+	dbProvider           api.DBProvider
+	identifierProvider   collcommon.IdentifierProvider
+	identityDeserializer msp.IdentityDeserializer
+	cache                *cache.Cache
+	collConfigs          map[common.CollectionType]*collTypeConfig
 }
 
-func newStore(channelID string, dbProvider api.DBProvider, collConfigs map[common.CollectionType]*collTypeConfig) *store {
+func newStore(channelID string, dbProvider api.DBProvider, identifierProvider collcommon.IdentifierProvider, identityDeserializer msp.IdentityDeserializer, collConfigs map[common.CollectionType]*collTypeConfig) *store {
 	logger.Debugf("constructing collection data store")
 
 	store := &store{
-		channelID:   channelID,
-		collConfigs: collConfigs,
-		dbProvider:  dbProvider,
+		channelID:            channelID,
+		collConfigs:          collConfigs,
+		dbProvider:           dbProvider,
+		identifierProvider:   identifierProvider,
+		identityDeserializer: identityDeserializer,
 	}
 
 	if config.GetOLCollCacheEnabled() {
@@ -334,7 +339,7 @@ func (s *store) isAuthorized(ns string, config *common.StaticCollectionConfig) (
 		return false, err
 	}
 
-	localMSPID, err := getLocalMSPID()
+	localMSPID, err := getLocalMSPID(s.identifierProvider)
 	if err != nil {
 		logger.Errorf("[%s] Error getting local MSP ID: %s", s.channelID, err)
 		return false, err
@@ -352,7 +357,7 @@ func (s *store) loadPolicy(ns string, config *common.StaticCollectionConfig) (pr
 	logger.Debugf("[%s] Loading collection policy for [%s:%s]", s.channelID, ns, config.Name)
 
 	colAP := &privdata.SimpleCollection{}
-	err := colAP.Setup(config, mspmgmt.GetIdentityDeserializer(s.channelID))
+	err := colAP.Setup(config, s.identityDeserializer)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error setting up collection policy %s", config.Name)
 	}
@@ -411,6 +416,6 @@ func (s *store) collTypeSupported(collType cb.CollectionType) bool {
 }
 
 // getLocalMSPID returns the MSP ID of the local peer. This variable may be overridden by unit tests.
-var getLocalMSPID = func() (string, error) {
-	return mspmgmt.GetLocalMSP().GetIdentifier()
+var getLocalMSPID = func(identifierProvider collcommon.IdentifierProvider) (string, error) {
+	return identifierProvider.GetIdentifier()
 }

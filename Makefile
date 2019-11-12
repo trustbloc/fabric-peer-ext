@@ -27,6 +27,7 @@ DOCKER_CMD ?= docker
 GO_CMD     ?= go
 ALPINE_VER ?= 3.9
 GO_TAGS    ?=
+GOPROXY    ?= "https://proxy.golang.org"
 
 # Local variables used by makefile
 PROJECT_NAME            = fabric-peer-ext
@@ -62,7 +63,7 @@ fabric-unit-test: export FABRIC_COMMAND=unit-test
 fabric-unit-test: checks docker-thirdparty
 	@scripts/build_fabric.sh
 
-bddtests: checks build-fabric-images populate-fixtures docker-thirdparty bddtests-fabric-peer-docker build-cc
+bddtests: build-fabric-images populate-fixtures docker-thirdparty bddtests-fabric-peer-docker build-cc
 	@scripts/integration.sh
 
 bddtests-fabric-peer-cli:
