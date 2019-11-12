@@ -26,15 +26,13 @@ const (
 )
 
 func TestManager_Initialize(t *testing.T) {
-	mgr := NewManager()
-
 	creators := &creators{}
-	mgr.Register(creators.creator4, PriorityLow)
-	mgr.Register(creators.creator3, PriorityLow)
-	mgr.Register(creators.creator2, PriorityNormal)
-	mgr.Register(creators.creator1, PriorityHighest)
+	Register(creators.creator4, PriorityLow)
+	Register(creators.creator3, PriorityLow)
+	Register(creators.creator2, PriorityNormal)
+	Register(creators.creator1, PriorityHighest)
 
-	err := mgr.Initialize(
+	err := Mgr.Initialize(
 		&nameAndPathProviderImpl{
 			name: ccName1,
 			path: ccPath1,
@@ -47,42 +45,42 @@ func TestManager_Initialize(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	require.Len(t, mgr.resources, 4)
+	require.Len(t, Mgr.resources, 4)
 
 	require.Equal(t, 1, creators.creator1InitOrder)
 	require.Equal(t, 2, creators.creator2InitOrder)
 	require.Equal(t, 3, creators.creator4InitOrder)
 	require.Equal(t, 4, creators.creator3InitOrder)
 
-	r1, ok := mgr.resources[0].(*testResource1)
+	r1, ok := Mgr.resources[0].(*testResource1)
 	require.True(t, ok)
 	require.NotNil(t, r1)
 	require.Equal(t, ccName1, r1.name)
 	require.Equal(t, ccPath1, r1.path)
 
-	r2, ok := mgr.resources[1].(*testResource2)
+	r2, ok := Mgr.resources[1].(*testResource2)
 	require.True(t, ok)
 	require.NotNil(t, r2)
 	require.Equal(t, ccName1, r2.name)
 	require.Empty(t, r2.ChannelIDs())
 
-	r4, ok := mgr.resources[2].(*testResource4)
+	r4, ok := Mgr.resources[2].(*testResource4)
 	require.True(t, ok)
 	require.NotNil(t, r4)
 
 	// testResource3 depends on the previous resources as providers
-	r3, ok := mgr.resources[3].(*testResource3)
+	r3, ok := Mgr.resources[3].(*testResource3)
 	require.True(t, ok)
 	require.NotNil(t, r3)
 	require.Equal(t, ccName1+" - "+ccPath1, r3.nameAndPath)
 
-	mgr.ChannelJoined(channel1)
-	mgr.ChannelJoined(channel2)
+	Mgr.ChannelJoined(channel1)
+	Mgr.ChannelJoined(channel2)
 
 	time.Sleep(100 * time.Millisecond)
 	require.Len(t, r2.ChannelIDs(), 2)
 
-	mgr.Close()
+	Mgr.Close()
 	require.True(t, r2.closed)
 }
 

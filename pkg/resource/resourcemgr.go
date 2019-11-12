@@ -75,6 +75,12 @@ const (
 	PriorityLowest Priority = 100
 )
 
+// Register is a convenience function that registers a resource creator function.
+// See Manager.Register for details.
+func Register(creator interface{}, priority Priority) {
+	Mgr.Register(creator, priority)
+}
+
 // Register registers a resource creator function. The function is invoked on peer startup.
 // The creator function defines a set of arguments (which must all be of type interface{},
 // struct{}, or *struct{}) and returns a single pointer to a struct. Each of the args are resolved

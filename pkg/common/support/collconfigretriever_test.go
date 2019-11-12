@@ -21,7 +21,9 @@ import (
 )
 
 const (
-	coll3 = "collection3"
+	channel1 = "channel1"
+	channel2 = "channel2"
+	coll3    = "collection3"
 )
 
 func TestConfigRetriever(t *testing.T) {
@@ -41,7 +43,7 @@ func TestConfigRetriever(t *testing.T) {
 
 	r := newCollectionConfigRetriever(channelID, &mocks.Ledger{
 		QueryExecutor: qe,
-	}, blockPublisher)
+	}, blockPublisher, &mocks.IdentityDeserializer{})
 	require.NotNil(t, r)
 
 	t.Run("Policy", func(t *testing.T) {
@@ -117,7 +119,7 @@ func TestConfigRetrieverError(t *testing.T) {
 	expectedErr := fmt.Errorf("injected error")
 	r := newCollectionConfigRetriever(channelID, &mocks.Ledger{
 		QueryExecutor: mocks.NewQueryExecutor().WithError(expectedErr),
-	}, blockPublisher)
+	}, blockPublisher, &mocks.IdentityDeserializer{})
 	require.NotNil(t, r)
 
 	t.Run("Policy", func(t *testing.T) {
@@ -144,4 +146,22 @@ func TestConfigRetrieverError(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no config found for a collection in namespace")
 	})
+}
+
+func TestCollectionConfigRetrieverForChannel(t *testing.T) {
+	p := NewCollectionConfigRetrieverProvider(
+		&mocks.LedgerProvider{},
+		mocks.NewBlockPublisherProvider(),
+		&mocks.IdentityDeserializerProvider{},
+	)
+	require.NotNil(t, p)
+
+	r1 := p.ForChannel(channel1)
+	require.NotNil(t, r1)
+	r1_1 := p.ForChannel(channel1)
+	require.Equal(t, r1, r1_1)
+
+	r2 := p.ForChannel(channel2)
+	require.NotNil(t, r1)
+	require.NotEqual(t, r1, r2)
 }
