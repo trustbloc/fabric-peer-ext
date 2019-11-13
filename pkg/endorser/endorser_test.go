@@ -11,8 +11,6 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/common/privdata"
-	"github.com/hyperledger/fabric/extensions/endorser/api"
-	xgossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/rwset"
 	"github.com/stretchr/testify/assert"
@@ -78,9 +76,11 @@ func TestFilterPubSimulationResults(t *testing.T) {
 	require.Equal(t, 2, len(results.NsRwset[2].CollectionHashedRwset))
 	assert.Empty(t, len(results.NsRwset[2].Rwset))
 
-	support.InitCollectionConfigRetriever(channelID, newMockQEProviderFactory(pvtBuilder.BuildCollectionConfigs()).GetQueryExecutorProvider(channelID), mocks.NewBlockPublisher())
-
-	f := NewCollRWSetFilter()
+	lp := &mocks.LedgerProvider{}
+	lp.GetLedgerReturns(&mocks.Ledger{
+		QueryExecutor: newMockQueryExecutor(pvtBuilder.BuildCollectionConfigs()),
+	})
+	f := NewCollRWSetFilter().Initialize(support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}))
 
 	filteredResults, err := f.Filter(channelID, results)
 	assert.NoError(t, err)
@@ -109,20 +109,19 @@ func TestFilterPubSimulationResults_NoCollections(t *testing.T) {
 		},
 	}
 
-	support.InitCollectionConfigRetriever(channelID, newMockQEProviderFactory(pvtBuilder.BuildCollectionConfigs()).GetQueryExecutorProvider(channelID), mocks.NewBlockPublisher())
-	f := NewCollRWSetFilter()
+	lp := &mocks.LedgerProvider{}
+	lp.GetLedgerReturns(&mocks.Ledger{
+		QueryExecutor: newMockQueryExecutor(pvtBuilder.BuildCollectionConfigs()),
+	})
+
+	f := NewCollRWSetFilter().Initialize(support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}))
 	filteredResults, err := f.Filter(channelID, results)
 	assert.NoError(t, err)
 	assert.Equal(t, results, filteredResults)
 }
 
-type mockQEProviderFactory struct {
-	ledger *mocks.Ledger
-}
-
-func newMockQEProviderFactory(ccp map[string]*common.CollectionConfigPackage) *mockQEProviderFactory {
+func newMockQueryExecutor(ccp map[string]*common.CollectionConfigPackage) *mocks.QueryExecutor {
 	qe := mocks.NewQueryExecutor()
-
 	for ns, cc := range ccp {
 		bytes, err := proto.Marshal(cc)
 		if err != nil {
@@ -130,28 +129,5 @@ func newMockQEProviderFactory(ccp map[string]*common.CollectionConfigPackage) *m
 		}
 		qe.WithState("lscc", privdata.BuildCollectionKVSKey(ns), bytes)
 	}
-
-	return &mockQEProviderFactory{
-		ledger: &mocks.Ledger{
-			QueryExecutor: qe,
-		},
-	}
-}
-
-func (m *mockQEProviderFactory) GetQueryExecutorProvider(channelID string) api.QueryExecutorProvider {
-	return m.ledger
-}
-
-type mockBlockPublisherProvider struct {
-	bp *mocks.MockBlockPublisher
-}
-
-func newMockBlockPublisherProvider() *mockBlockPublisherProvider {
-	return &mockBlockPublisherProvider{
-		bp: mocks.NewBlockPublisher(),
-	}
-}
-
-func (m *mockBlockPublisherProvider) ForChannel(channelID string) xgossipapi.BlockPublisher {
-	return m.bp
+	return qe
 }

@@ -22,8 +22,8 @@ func TestProvider(t *testing.T) {
 		channelID,
 		&mocks.DataStore{},
 		mocks.NewMockGossipAdapter(),
-		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor()},
-		mocks.NewBlockPublisher(),
+		nil,
+		nil,
 	)
 
 	var response *gproto.GossipMessage

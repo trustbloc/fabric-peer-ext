@@ -61,10 +61,12 @@ var (
 func TestDispatchUnhandled(t *testing.T) {
 	const channelID = "testchannel"
 
-	dispatcher := New(
+	dispatcher := NewProvider().Initialize(
+		mocks.NewMockGossipAdapter(),
+		&mocks.CollectionConfigProvider{},
+	).ForChannel(
 		channelID,
 		&mocks.DataStore{},
-		mocks.NewMockGossipAdapter(),
 	)
 
 	var response *gproto.GossipMessage
@@ -120,19 +122,19 @@ func TestDispatchDataRequest(t *testing.T) {
 		Member(org3MSPID, mocks.NewMember(p2Org3Endpoint, p2Org3PKIID, committerRole)).
 		Member(org3MSPID, mocks.NewMember(p3Org3Endpoint, p3Org3PKIID, endorserRole))
 
-	support.InitCollectionConfigRetriever(
-		channelID,
-		&mocks.Ledger{
-			QueryExecutor: mocks.NewQueryExecutor().
-				WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes1).
-				WithState(lscc, privdata.BuildCollectionKVSKey(ns2), configPkgBytes2),
-		},
-		mocks.NewBlockPublisher(),
-	)
-	dispatcher := New(
+	lp := &mocks.LedgerProvider{}
+	lp.GetLedgerReturns(&mocks.Ledger{
+		QueryExecutor: mocks.NewQueryExecutor().
+			WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes1).
+			WithState(lscc, privdata.BuildCollectionKVSKey(ns2), configPkgBytes2),
+	})
+
+	dispatcher := NewProvider().Initialize(
+		gossipAdapter,
+		support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}),
+	).ForChannel(
 		channelID,
 		mocks.NewDataStore().TransientData(key1, value1).TransientData(key2, value2).Data(key3, value3).Data(key4, value4),
-		gossipAdapter,
 	)
 	require.NotNil(t, dispatcher)
 
@@ -253,15 +255,15 @@ func TestDispatchDataResponse(t *testing.T) {
 		Self(org1MSPID, p1Org1).
 		Member(org2MSPID, p1Org2)
 
-	support.InitCollectionConfigRetriever(
-		channelID,
-		&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor()},
-		mocks.NewBlockPublisher(),
-	)
-	dispatcher := New(
+	lp := &mocks.LedgerProvider{}
+	lp.GetLedgerReturns(&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor()})
+
+	dispatcher := NewProvider().Initialize(
+		gossip,
+		support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}),
+	).ForChannel(
 		channelID,
 		mocks.NewDataStore().TransientData(key1, value1).TransientData(key2, value2),
-		gossip,
 	)
 	require.NotNil(t, dispatcher)
 
