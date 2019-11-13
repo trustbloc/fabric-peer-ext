@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 	olstoreapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
 	olmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/mocks"
@@ -62,7 +63,7 @@ var (
 )
 
 func TestStore_Close(t *testing.T) {
-	s := newStore(channelID, olmocks.NewDBProvider(), typeConfig)
+	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
 	require.NotNil(t, s)
 
 	s.Close()
@@ -75,11 +76,11 @@ func TestStore_Close(t *testing.T) {
 
 func TestStore_PutAndGet(t *testing.T) {
 
-	s := newStore(channelID, olmocks.NewDBProvider(), typeConfig)
+	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
 	require.NotNil(t, s)
 	defer s.Close()
 
-	getLocalMSPID = func() (string, error) { return org1MSP, nil }
+	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
 	b := mocks.NewPvtReadWriteSetBuilder()
 	ns1Builder := b.Namespace(ns1)
@@ -199,11 +200,11 @@ func TestStore_PutAndGet(t *testing.T) {
 }
 
 func TestStore_PutAndGet_DCAS(t *testing.T) {
-	s := newStore(channelID, olmocks.NewDBProvider(), typeConfig)
+	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
 	require.NotNil(t, s)
 	defer s.Close()
 
-	getLocalMSPID = func() (string, error) { return org1MSP, nil }
+	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
 	t.Run("Persist invalid CAS key -> fail", func(t *testing.T) {
 		b := mocks.NewPvtReadWriteSetBuilder()
@@ -277,12 +278,12 @@ func TestStore_PutAndGet_DCAS(t *testing.T) {
 }
 
 func TestStore_LoadFromDB(t *testing.T) {
-	getLocalMSPID = func() (string, error) { return org1MSP, nil }
+	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
 	dbProvider := olmocks.NewDBProvider().
 		WithValue(ns1, coll1, key1, &olstoreapi.Value{Value: value1_1})
 
-	s := newStore(channelID, dbProvider, typeConfig)
+	s := newStore(channelID, dbProvider, &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
 	require.NotNil(t, s)
 	defer s.Close()
 
@@ -294,9 +295,9 @@ func TestStore_LoadFromDB(t *testing.T) {
 }
 
 func TestStore_PersistError(t *testing.T) {
-	getLocalMSPID = func() (string, error) { return org1MSP, nil }
+	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
-	s := newStore(channelID, olmocks.NewDBProvider(), typeConfig)
+	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
 	require.NotNil(t, s)
 
 	defer s.Close()
@@ -327,9 +328,9 @@ func TestStore_PersistError(t *testing.T) {
 }
 
 func TestStore_PutData(t *testing.T) {
-	getLocalMSPID = func() (string, error) { return org1MSP, nil }
+	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
-	s := newStore(channelID, olmocks.NewDBProvider(), typeConfig)
+	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
 	require.NotNil(t, s)
 
 	defer s.Close()
@@ -421,10 +422,10 @@ func TestStore_PutData(t *testing.T) {
 }
 
 func TestStore_DBError(t *testing.T) {
-	getLocalMSPID = func() (string, error) { return org1MSP, nil }
+	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
 	dbProvider := olmocks.NewDBProvider()
-	s := newStore(channelID, dbProvider, typeConfig)
+	s := newStore(channelID, dbProvider, &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
 	require.NotNil(t, s)
 
 	t.Run("GetData -> error", func(t *testing.T) {
@@ -508,9 +509,9 @@ func TestStore_DBError(t *testing.T) {
 }
 
 func TestStore_PersistNotAuthorized(t *testing.T) {
-	getLocalMSPID = func() (string, error) { return org2MSP, nil }
+	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org2MSP, nil }
 
-	s := newStore(channelID, olmocks.NewDBProvider(), typeConfig)
+	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
 	require.NotNil(t, s)
 	defer s.Close()
 
@@ -581,11 +582,11 @@ func TestStore_ExecuteQuery(t *testing.T) {
 	}
 
 	dbProvider := olmocks.NewDBProvider().WithQueryResults(ns1, coll1, query, results)
-	s := newStore(channelID, dbProvider, typeConfig)
+	s := newStore(channelID, dbProvider, &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
 	require.NotNil(t, s)
 	defer s.Close()
 
-	getLocalMSPID = func() (string, error) { return org1MSP, nil }
+	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
 	t.Run("Query in same transaction -> empty", func(t *testing.T) {
 		it, err := s.Query(storeapi.NewQueryKey(txID1, ns1, coll1, query))
@@ -643,11 +644,11 @@ func TestStore_PutAndGet_NoCache(t *testing.T) {
 	viper.Set("coll.offledger.cache.enable", "false")
 	defer viper.Set("coll.offledger.cache.enable", "true")
 
-	s := newStore(channelID, olmocks.NewDBProvider(), typeConfig)
+	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
 	require.NotNil(t, s)
 	defer s.Close()
 
-	getLocalMSPID = func() (string, error) { return org1MSP, nil }
+	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
 	b := mocks.NewPvtReadWriteSetBuilder()
 	ns1Builder := b.Namespace(ns1)
@@ -748,10 +749,10 @@ func TestStore_DBError_NoCache(t *testing.T) {
 	viper.Set("coll.offledger.cache.enable", "false")
 	defer viper.Set("coll.offledger.cache.enable", "true")
 
-	getLocalMSPID = func() (string, error) { return org1MSP, nil }
+	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
 	dbProvider := olmocks.NewDBProvider()
-	s := newStore(channelID, dbProvider, typeConfig)
+	s := newStore(channelID, dbProvider, &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
 	require.NotNil(t, s)
 
 	t.Run("GetData -> error", func(t *testing.T) {

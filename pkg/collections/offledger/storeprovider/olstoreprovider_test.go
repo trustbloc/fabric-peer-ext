@@ -18,13 +18,14 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
 func TestStoreProvider_OpenStore(t *testing.T) {
 	channel1 := "channel1"
 	channel2 := "channel2"
 
-	f := New()
+	f := New(&mocks.IdentifierProvider{}, &mocks.IdentityDeserializerProvider{})
 	require.NotNil(t, f)
 
 	s1, err := f.OpenStore(channel1)
@@ -46,6 +47,7 @@ func TestStoreProvider_OpenStore(t *testing.T) {
 
 func TestStoreProvider_WithDecorator(t *testing.T) {
 	f := New(
+		&mocks.IdentifierProvider{}, &mocks.IdentityDeserializerProvider{},
 		WithCollectionType(
 			common.CollectionType_COL_DCAS,
 			WithDecorator(&mockDecorator{}),

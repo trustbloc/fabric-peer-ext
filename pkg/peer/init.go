@@ -21,6 +21,9 @@ func Initialize() {
 
 func registerResources() {
 	resource.Register(support.NewCollectionConfigRetrieverProvider, resource.PriorityHighest)
+	// The following should be uncommented after all resources are converted to use dependency injection
+	//resource.Register(tdatastore.New, resource.PriorityHigh)
+	//resource.Register(storeprovider.NewOffLedgerProvider, resource.PriorityHigh)
 }
 
 func registerSystemChaincodes() {

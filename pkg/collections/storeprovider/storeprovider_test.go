@@ -218,3 +218,9 @@ func TestStore_ExecuteQuery(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, next)
 }
+
+func TestMspProvider_GetIdentityDeserializer(t *testing.T) {
+	p := newMSPProvider()
+	require.NotNil(t, p)
+	require.NotNil(t, p.GetIdentityDeserializer("testchannel"))
+}

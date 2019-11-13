@@ -16,8 +16,7 @@ import (
 	gapi "github.com/hyperledger/fabric/gossip/api"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	gdiscovery "github.com/hyperledger/fabric/gossip/discovery"
-	"github.com/hyperledger/fabric/gossip/service"
-	mspmgmt "github.com/hyperledger/fabric/msp/mgmt"
+	"github.com/hyperledger/fabric/msp"
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	pb "github.com/hyperledger/fabric/protos/transientstore"
@@ -30,9 +29,17 @@ import (
 
 var logger = flogging.MustGetLogger("transientdata")
 
+type gossipAdapter interface {
+	PeersOfChannel(gcommon.ChainID) []gdiscovery.NetworkMember
+	SelfMembershipInfo() gdiscovery.NetworkMember
+	IdentityInfo() gapi.PeerIdentitySet
+}
+
 type store struct {
-	channelID string
-	cache     *cache.Cache
+	channelID            string
+	cache                *cache.Cache
+	gossip               gossipAdapter
+	identityDeserializer msp.IdentityDeserializer
 }
 
 type db interface {
@@ -41,11 +48,13 @@ type db interface {
 	GetKey(key api.Key) (*api.Value, error)
 }
 
-func newStore(channelID string, cacheSize int, transientDB db) *store {
+func newStore(channelID string, cacheSize int, transientDB db, gossip gossipAdapter, identityDeserializer msp.IdentityDeserializer) *store {
 	logger.Debugf("[%s] Creating new store - cacheSize=%d", channelID, cacheSize)
 	return &store{
-		channelID: channelID,
-		cache:     cache.New(cacheSize, transientDB),
+		channelID:            channelID,
+		cache:                cache.New(cacheSize, transientDB),
+		gossip:               gossip,
+		identityDeserializer: identityDeserializer,
 	}
 }
 
@@ -106,7 +115,7 @@ func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*c
 		return err
 	}
 
-	resolver := getResolver(s.channelID, ns, collRWSet.CollectionName, policy, gossipProvider())
+	resolver := getResolver(s.channelID, ns, collRWSet.CollectionName, policy, s.gossip)
 
 	for _, wSet := range collRWSet.KvRwSet.Writes {
 		endorsers, err := resolver.ResolveEndorsers(wSet.Key)
@@ -177,7 +186,7 @@ func (s *store) loadPolicy(ns string, config *common.StaticCollectionConfig) (pr
 	logger.Debugf("[%s] Loading collection policy for [%s:%s]", s.channelID, ns, config.Name)
 
 	colAP := &privdata.SimpleCollection{}
-	err := colAP.Setup(config, mspmgmt.GetIdentityDeserializer(s.channelID))
+	err := colAP.Setup(config, s.identityDeserializer)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error setting up collection policy %s", config.Name)
 	}
@@ -201,20 +210,10 @@ func getCollectionConfig(collConfigPkgs map[string]*common.CollectionConfigPacka
 	return nil, false
 }
 
-type gossipAdapter interface {
-	PeersOfChannel(gcommon.ChainID) []gdiscovery.NetworkMember
-	SelfMembershipInfo() gdiscovery.NetworkMember
-	IdentityInfo() gapi.PeerIdentitySet
-}
-
-var gossipProvider = func() gossipAdapter {
-	return service.GetGossipService()
-}
-
 type endorserResolver interface {
 	ResolveEndorsers(key string) (discovery.PeerGroup, error)
 }
 
 var getResolver = func(channelID, ns, coll string, policy privdata.CollectionAccessPolicy, gossip gossipAdapter) endorserResolver {
-	return dissemination.New(channelID, ns, coll, policy, gossipProvider())
+	return dissemination.New(channelID, ns, coll, policy, gossip)
 }

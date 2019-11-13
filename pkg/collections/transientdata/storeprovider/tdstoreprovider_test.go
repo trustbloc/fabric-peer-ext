@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
 func TestStoreProvider(t *testing.T) {
@@ -21,7 +22,7 @@ func TestStoreProvider(t *testing.T) {
 	channel1 := "channel1"
 	channel2 := "channel2"
 
-	p := New()
+	p := New(mocks.NewMockGossipAdapter(), &mocks.IdentityDeserializerProvider{})
 	require.NotNil(t, p)
 
 	s1, err := p.OpenStore(channel1)
