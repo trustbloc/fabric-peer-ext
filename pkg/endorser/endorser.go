@@ -10,7 +10,7 @@ import (
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/rwset"
-	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
+	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 )
 
 var endorserLogger = flogging.MustGetLogger("ext_endorser")
@@ -18,11 +18,19 @@ var endorserLogger = flogging.MustGetLogger("ext_endorser")
 // CollRWSetFilter filters out all off-ledger (including transient data) read-write sets from the simulation results
 // so that they won't be included in the block.
 type CollRWSetFilter struct {
+	configProvider collcommon.CollectionConfigProvider
 }
 
 // NewCollRWSetFilter returns a new collection RW set filter
 func NewCollRWSetFilter() *CollRWSetFilter {
 	return &CollRWSetFilter{}
+}
+
+// Initialize is called at startup by the resource manager
+func (f *CollRWSetFilter) Initialize(configProvider collcommon.CollectionConfigProvider) *CollRWSetFilter {
+	endorserLogger.Infof("Initializing collection read/write-set filter")
+	f.configProvider = configProvider
+	return f
 }
 
 // Filter filters out all off-ledger (including transient data) read-write sets from the simulation results
@@ -77,7 +85,7 @@ func (f *CollRWSetFilter) filterNamespace(channelID string, nsRWSet *rwset.NsRea
 }
 
 func (f *CollRWSetFilter) isOffLedger(channelID, ns, coll string) (bool, error) {
-	staticConfig, err := support.CollectionConfigRetrieverForChannel(channelID).Config(ns, coll)
+	staticConfig, err := f.configProvider.ForChannel(channelID).Config(ns, coll)
 	if err != nil {
 		return false, err
 	}
