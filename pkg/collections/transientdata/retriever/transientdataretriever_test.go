@@ -12,14 +12,13 @@ import (
 	"time"
 
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	supportapi "github.com/hyperledger/fabric/extensions/collections/api/support"
-	spmocks "github.com/hyperledger/fabric/extensions/collections/storeprovider/mocks"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	gproto "github.com/hyperledger/fabric/protos/gossip"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tdataapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
+	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/requestmgr"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
@@ -71,13 +70,16 @@ func TestTransientDataProvider(t *testing.T) {
 	value2 := &storeapi.ExpiringValue{Value: []byte("value2")}
 	value3 := &storeapi.ExpiringValue{Value: []byte("value3")}
 
-	support := mocks.NewMockSupport().
-		CollectionPolicy(&mocks.MockAccessPolicy{
+	ccRetriever := mocks.NewCollectionConfigRetriever().
+		WithCollectionPolicy(&mocks.MockAccessPolicy{
 			MaxPeerCount: 2,
 			Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
 		})
+	ccProvider := &mocks.CollectionConfigProvider{}
+	ccProvider.ForChannelReturns(ccRetriever)
 
-	getLocalMSPID = func() (string, error) { return org1MSPID, nil }
+	identifierProvider := &mocks.IdentifierProvider{}
+	identifierProvider.GetIdentifierReturns(org1MSPID, nil)
 
 	gossip := mocks.NewMockGossipAdapter()
 	gossip.Self(org1MSPID, mocks.NewMember(p1Org1Endpoint, p1Org1PKIID)).
@@ -90,14 +92,20 @@ func TestTransientDataProvider(t *testing.T) {
 		Member(org3MSPID, mocks.NewMember(p2Org3Endpoint, p2Org3PKIID, validatorRole)).
 		Member(org3MSPID, mocks.NewMember(p3Org3Endpoint, p3Org3PKIID, endorserRole)).IdentityInfo()
 
-	localStore := spmocks.NewTransientDataStore().
-		Data(storeapi.NewKey(txID, ns1, coll1, key1), value1)
+	localStore := mocks.NewDataStore().
+		TransientData(storeapi.NewKey(txID, ns1, coll1, key1), value1)
 
-	p := &Provider{
-		support:         support,
-		storeForChannel: func(channelID string) tdataapi.Store { return localStore },
-		gossipAdapter:   func() supportapi.GossipAdapter { return gossip },
+	storeProvider := &mocks.StoreProvider{}
+	storeProvider.StoreForChannelReturns(localStore)
+
+	providers := &collcommon.Providers{
+		BlockPublisherProvider: mocks.NewBlockPublisherProvider(),
+		StoreProvider:          storeProvider,
+		GossipAdapter:          gossip,
+		CCProvider:             ccProvider,
+		IdentifierProvider:     identifierProvider,
 	}
+	p := NewProvider(providers)
 
 	retriever := p.RetrieverForChannel(channelID)
 	require.NotNil(t, retriever)
@@ -108,6 +116,17 @@ func TestTransientDataProvider(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, value)
 		require.Equal(t, value1, value)
+	})
+
+	t.Run("GetTransientData - From local peer", func(t *testing.T) {
+		errExpected := errors.New("identifier error")
+		identifierProvider.GetIdentifierReturns("", errExpected)
+		defer func() { identifierProvider.GetIdentifierReturns(org1MSPID, nil) }()
+
+		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
+		value, err := retriever.GetTransientData(ctx, storeapi.NewKey(txID, ns1, coll1, key1))
+		require.EqualError(t, errors.Cause(err), errExpected.Error())
+		require.Nil(t, value)
 	})
 
 	t.Run("GetTransientData - From remote peer", func(t *testing.T) {
@@ -216,7 +235,8 @@ func TestTransientDataProvider_AccessDenied(t *testing.T) {
 	value1 := &storeapi.ExpiringValue{Value: []byte("value1")}
 	value2 := &storeapi.ExpiringValue{Value: []byte("value2")}
 
-	getLocalMSPID = func() (string, error) { return org3MSPID, nil }
+	identifierProvider := &mocks.IdentifierProvider{}
+	identifierProvider.GetIdentifierReturns(org3MSPID, nil)
 
 	gossip := mocks.NewMockGossipAdapter()
 	gossip.Self(org3MSPID, mocks.NewMember(p1Org3Endpoint, p1Org3PKIID)).
@@ -231,20 +251,30 @@ func TestTransientDataProvider_AccessDenied(t *testing.T) {
 			Value(key2, value2).
 			Handle)
 
-	localStore := spmocks.NewTransientDataStore().
-		Data(storeapi.NewKey(txID, ns1, coll1, key1), value1)
+	localStore := mocks.NewDataStore().
+		TransientData(storeapi.NewKey(txID, ns1, coll1, key1), value1)
 
-	support := mocks.NewMockSupport().
-		CollectionPolicy(&mocks.MockAccessPolicy{
+	ccRetriever := mocks.NewCollectionConfigRetriever().
+		WithCollectionPolicy(&mocks.MockAccessPolicy{
 			MaxPeerCount: 2,
 			Orgs:         []string{org1MSPID, org2MSPID},
 		})
+	ccProvider := &mocks.CollectionConfigProvider{}
+	ccProvider.ForChannelReturns(ccRetriever)
 
-	p := &Provider{
-		support:         support,
-		storeForChannel: func(channelID string) tdataapi.Store { return localStore },
-		gossipAdapter:   func() supportapi.GossipAdapter { return gossip },
+	blockPublisher := mocks.NewBlockPublisher()
+
+	storeProvider := &mocks.StoreProvider{}
+	storeProvider.StoreForChannelReturns(localStore)
+
+	providers := &collcommon.Providers{
+		BlockPublisherProvider: mocks.NewBlockPublisherProvider().WithBlockPublisher(blockPublisher),
+		StoreProvider:          storeProvider,
+		GossipAdapter:          gossip,
+		CCProvider:             ccProvider,
+		IdentifierProvider:     identifierProvider,
 	}
+	p := NewProvider(providers)
 
 	retriever := p.RetrieverForChannel(channelID)
 	require.NotNil(t, retriever)
@@ -265,12 +295,12 @@ func TestTransientDataProvider_AccessDenied(t *testing.T) {
 	})
 
 	t.Run("GetTransientData - From remote peer after CC upgrade -> success", func(t *testing.T) {
-		support.CollectionPolicy(&mocks.MockAccessPolicy{
+		ccRetriever.WithCollectionPolicy(&mocks.MockAccessPolicy{
 			MaxPeerCount: 2,
 			Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
 		})
 
-		require.NoError(t, support.Publisher.HandleUpgrade(gossipapi.TxMetadata{BlockNum: 1001, TxID: txID}, ns1))
+		require.NoError(t, blockPublisher.HandleUpgrade(gossipapi.TxMetadata{BlockNum: 1001, TxID: txID}, ns1))
 		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
 		value, err := retriever.GetTransientData(ctx, storeapi.NewKey(txID, ns1, coll1, key2))
 		assert.NoError(t, err)

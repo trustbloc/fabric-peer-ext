@@ -78,6 +78,12 @@ func NewBlockPublisherProvider() *MockBlockPublisherProvider {
 	}
 }
 
+// WithBlockPublisher sets the block publisher
+func (m *MockBlockPublisherProvider) WithBlockPublisher(publisher gossipapi.BlockPublisher) *MockBlockPublisherProvider {
+	m.publisher = publisher
+	return m
+}
+
 // ForChannel returns the mock block publisher
 func (m *MockBlockPublisherProvider) ForChannel(channelID string) gossipapi.BlockPublisher {
 	return m.publisher

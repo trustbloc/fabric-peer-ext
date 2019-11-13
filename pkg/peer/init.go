@@ -24,6 +24,8 @@ func registerResources() {
 	// The following should be uncommented after all resources are converted to use dependency injection
 	//resource.Register(tdatastore.New, resource.PriorityHigh)
 	//resource.Register(storeprovider.NewOffLedgerProvider, resource.PriorityHigh)
+	//resource.Register(tretriever.NewProvider, resource.PriorityHigh)
+	//resource.Register(extretriever.NewOffLedgerProvider, resource.PriorityHigh)
 }
 
 func registerSystemChaincodes() {

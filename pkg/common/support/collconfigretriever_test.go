@@ -23,6 +23,9 @@ import (
 const (
 	channel1 = "channel1"
 	channel2 = "channel2"
+	ns1      = "chaincode1"
+	coll1    = "collection1"
+	coll2    = "collection2"
 	coll3    = "collection3"
 )
 
