@@ -3,8 +3,6 @@ package mocks
 
 import (
 	"sync"
-
-	"github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 )
 
 type IdentifierProvider struct {
@@ -89,5 +87,3 @@ func (fake *IdentifierProvider) recordInvocation(key string, args []interface{})
 	}
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
-
-var _ common.IdentifierProvider = new(IdentifierProvider)

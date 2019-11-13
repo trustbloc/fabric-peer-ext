@@ -11,12 +11,9 @@ import (
 	"testing"
 
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	supportapi "github.com/hyperledger/fabric/extensions/collections/api/support"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
 	olmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/mocks"
-	tdataapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
 	tdatamocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/mocks"
 )
 
@@ -25,23 +22,7 @@ const (
 )
 
 func TestRetriever(t *testing.T) {
-	tdataProvider := getTransientDataProvider
-	SetTransientDataProvider(func(storeProvider func(channelID string) tdataapi.Store, support Support, gossipProvider func() supportapi.GossipAdapter) tdataapi.Provider {
-		return &tdatamocks.TransientDataProvider{}
-	})
-	defer func() {
-		SetTransientDataProvider(tdataProvider)
-	}()
-
-	olProvider := getOffLedgerProvider
-	SetOffLedgerProvider(func(storeProvider func(channelID string) olapi.Store, support Support, gossipProvider func() supportapi.GossipAdapter) olapi.Provider {
-		return &olmocks.Provider{}
-	})
-	defer func() {
-		SetOffLedgerProvider(olProvider)
-	}()
-
-	p := NewProvider(nil, nil, nil, nil)
+	p := NewProvider().Initialize(&tdatamocks.TransientDataProvider{}, &olmocks.Provider{})
 	require.NotNil(t, p)
 
 	const key1 = "key1"
@@ -94,12 +75,4 @@ func TestRetriever(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, it)
 	})
-}
-
-func TestGetTransientDataProvider(t *testing.T) {
-	require.NotNil(t, getTransientDataProvider(nil, nil, nil))
-}
-
-func TestGetOffLedgerProvider(t *testing.T) {
-	require.NotNil(t, getOffLedgerProvider(nil, nil, nil))
 }

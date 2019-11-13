@@ -17,6 +17,8 @@ type DataStore struct {
 	transientData map[storeapi.Key]*storeapi.ExpiringValue
 	olData        map[storeapi.Key]*storeapi.ExpiringValue
 	err           error
+	queryResults  map[storeapi.QueryKey][]*storeapi.QueryResult
+	itErr         error
 }
 
 // NewDataStore returns a mock transient data store
@@ -24,6 +26,7 @@ func NewDataStore() *DataStore {
 	return &DataStore{
 		transientData: make(map[storeapi.Key]*storeapi.ExpiringValue),
 		olData:        make(map[storeapi.Key]*storeapi.ExpiringValue),
+		queryResults:  make(map[storeapi.QueryKey][]*storeapi.QueryResult),
 	}
 }
 
@@ -42,6 +45,18 @@ func (m *DataStore) Data(key *storeapi.Key, value *storeapi.ExpiringValue) *Data
 // Error sets an err
 func (m *DataStore) Error(err error) *DataStore {
 	m.err = err
+	return m
+}
+
+// WithQueryResults sets the mock query results for the given query string
+func (m *DataStore) WithQueryResults(key *storeapi.QueryKey, results []*storeapi.QueryResult) *DataStore {
+	m.queryResults[*key] = results
+	return m
+}
+
+// WithResultsIteratorError sets an error on the results iterator
+func (m *DataStore) WithResultsIteratorError(err error) *DataStore {
+	m.itErr = err
 	return m
 }
 
@@ -96,11 +111,45 @@ func (m *DataStore) GetDataMultipleKeys(key *storeapi.MultiKey) (storeapi.Expiri
 	return values, m.err
 }
 
-// Query is not implemented and will panic if called.
+// Query executes the given rich query
 func (m *DataStore) Query(key *storeapi.QueryKey) (storeapi.ResultsIterator, error) {
-	panic("not implemented")
+	if m.err != nil {
+		return nil, m.err
+	}
+	return newStoreResultsIterator(m.queryResults[*key], m.itErr), nil
 }
 
 // Close closes the store
 func (m *DataStore) Close() {
+}
+
+type storeResultsIterator struct {
+	results []*storeapi.QueryResult
+	nextIdx int
+	err     error
+}
+
+func newStoreResultsIterator(results []*storeapi.QueryResult, err error) *storeResultsIterator {
+	return &storeResultsIterator{
+		results: results,
+		err:     err,
+	}
+}
+
+// Next returns the next item in the result set. The `QueryResult` is expected to be nil when
+// the iterator gets exhausted
+func (it *storeResultsIterator) Next() (*storeapi.QueryResult, error) {
+	if it.err != nil {
+		return nil, it.err
+	}
+	if it.nextIdx >= len(it.results) {
+		return nil, nil
+	}
+	qr := it.results[it.nextIdx]
+	it.nextIdx++
+	return qr, nil
+}
+
+// Close releases resources occupied by the iterator
+func (it *storeResultsIterator) Close() {
 }

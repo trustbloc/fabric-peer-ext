@@ -8,6 +8,9 @@ package common
 
 import (
 	"github.com/hyperledger/fabric/core/ledger"
+	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
+	"github.com/hyperledger/fabric/extensions/collections/api/support"
+	"github.com/hyperledger/fabric/extensions/endorser/api"
 	"github.com/hyperledger/fabric/msp"
 )
 
@@ -15,6 +18,8 @@ import (
 //go:generate counterfeiter -o ../../mocks/identitydeserializer.gen.go --fake-name IdentityDeserializer github.com/hyperledger/fabric/msp.IdentityDeserializer
 //go:generate counterfeiter -o ../../mocks/ledgerprovider.gen.go --fake-name LedgerProvider . LedgerProvider
 //go:generate counterfeiter -o ../../mocks/identifierprovider.gen.go --fake-name IdentifierProvider . IdentifierProvider
+//go:generate counterfeiter -o ../../mocks/storeprovider.gen.go --fake-name StoreProvider . StoreProvider
+//go:generate counterfeiter -o ../../mocks/collconfigprovider.gen.go --fake-name CollectionConfigProvider . CollectionConfigProvider
 
 // LedgerProvider retrieves ledgers by channel ID
 type LedgerProvider interface {
@@ -29,4 +34,23 @@ type IdentityDeserializerProvider interface {
 // IdentifierProvider is the signing identity provider
 type IdentifierProvider interface {
 	GetIdentifier() (string, error)
+}
+
+// StoreProvider provides stores by channel
+type StoreProvider interface {
+	StoreForChannel(channelID string) storeapi.Store
+}
+
+// CollectionConfigProvider provides collection config retrievers by channel
+type CollectionConfigProvider interface {
+	ForChannel(channelID string) support.CollectionConfigRetriever
+}
+
+// Providers holds all of the dependencies required by the retriever provider
+type Providers struct {
+	BlockPublisherProvider api.BlockPublisherProvider
+	StoreProvider          StoreProvider
+	GossipAdapter          support.GossipAdapter
+	CCProvider             CollectionConfigProvider
+	IdentifierProvider     IdentifierProvider
 }

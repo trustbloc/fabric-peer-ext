@@ -10,19 +10,19 @@ import (
 	"context"
 	"sync"
 
+	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/common/privdata"
-	"github.com/hyperledger/fabric/core/ledger"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	supportapi "github.com/hyperledger/fabric/extensions/collections/api/support"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	cb "github.com/hyperledger/fabric/protos/common"
+	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 	olretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/retriever"
 	tdataapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
-	tretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/retriever"
-	supp "github.com/trustbloc/fabric-peer-ext/pkg/common/support"
 )
+
+var logger = flogging.MustGetLogger("ext_retriever")
 
 // Provider is a transient data provider.
 type Provider struct {
@@ -33,22 +33,19 @@ type Provider struct {
 }
 
 // NewProvider returns a new transient data Retriever provider
-func NewProvider(
-	storeProvider func(channelID string) storeapi.Store,
-	ledgerProvider func(channelID string) ledger.PeerLedger,
-	gossipProvider func() supportapi.GossipAdapter,
-	blockPublisherProvider func(channelID string) gossipapi.BlockPublisher) storeapi.Provider {
-
-	support := supp.New(blockPublisherProvider)
-
-	tdataStoreProvider := func(channelID string) tdataapi.Store { return storeProvider(channelID) }
-	offLedgerStoreProvider := func(channelID string) olapi.Store { return storeProvider(channelID) }
-
+func NewProvider() *Provider {
 	return &Provider{
-		transientDataProvider: getTransientDataProvider(tdataStoreProvider, support, gossipProvider),
-		offLedgerProvider:     getOffLedgerProvider(offLedgerStoreProvider, support, gossipProvider),
-		retrievers:            make(map[string]*retriever),
+		retrievers: make(map[string]*retriever),
 	}
+}
+
+// Initialize is called at startup by the resource manager
+func (p *Provider) Initialize(tdProvider tdataapi.Provider, olProvider olapi.Provider) *Provider {
+	logger.Info("Initializing collection data retriever")
+	p.transientDataProvider = tdProvider
+	p.offLedgerProvider = olProvider
+	p.retrievers = make(map[string]*retriever)
+	return p
 }
 
 // RetrieverForChannel returns the collection retriever for the given channel
@@ -117,12 +114,9 @@ type Support interface {
 	BlockPublisher(channelID string) gossipapi.BlockPublisher
 }
 
-var getTransientDataProvider = func(storeProvider func(channelID string) tdataapi.Store, support Support, gossipProvider func() supportapi.GossipAdapter) tdataapi.Provider {
-	return tretriever.NewProvider(storeProvider, support, gossipProvider)
-}
-
-var getOffLedgerProvider = func(storeProvider func(channelID string) olapi.Store, support Support, gossipProvider func() supportapi.GossipAdapter) olapi.Provider {
-	return olretriever.NewProvider(storeProvider, support, gossipProvider,
+// NewOffLedgerProvider returns a new off-ledger retriever provider that supports DCAS
+func NewOffLedgerProvider(providers *collcommon.Providers) olapi.Provider {
+	return olretriever.NewProvider(providers,
 		olretriever.WithValidator(cb.CollectionType_COL_DCAS, dcas.Validator),
 		olretriever.WithDecorator(cb.CollectionType_COL_DCAS, dcas.Decorator),
 	)

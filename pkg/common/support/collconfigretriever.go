@@ -13,6 +13,7 @@ import (
 
 	"github.com/bluele/gcache"
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/core/ledger"
@@ -24,6 +25,8 @@ import (
 	"github.com/pkg/errors"
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 )
+
+var logger = flogging.MustGetLogger("ext_support")
 
 type ledgerProvider interface {
 	GetLedger(cid string) ledger.PeerLedger

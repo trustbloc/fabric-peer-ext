@@ -12,7 +12,6 @@ import (
 	"time"
 
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	supportapi "github.com/hyperledger/fabric/extensions/collections/api/support"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	cb "github.com/hyperledger/fabric/protos/common"
@@ -20,9 +19,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
+	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
-	spmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/storeprovider/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/requestmgr"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	ledgerconfig "github.com/trustbloc/fabric-peer-ext/pkg/roles"
@@ -82,25 +80,24 @@ var (
 )
 
 func TestRetriever(t *testing.T) {
-	support := mocks.NewMockSupport().
-		CollectionPolicy(&mocks.MockAccessPolicy{
+	ccProvider := &mocks.CollectionConfigProvider{}
+	ccProvider.ForChannelReturns(mocks.NewCollectionConfigRetriever().
+		WithCollectionPolicy(&mocks.MockAccessPolicy{
 			MaxPeerCount: 2,
 			Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
 		}).
-		CollectionConfig(&cb.StaticCollectionConfig{
+		WithCollectionConfig(&cb.StaticCollectionConfig{
 			Type: cb.CollectionType_COL_OFFLEDGER,
 			Name: coll1,
 		}).
-		CollectionConfig(&cb.StaticCollectionConfig{
+		WithCollectionConfig(&cb.StaticCollectionConfig{
 			Type: cb.CollectionType_COL_DCAS,
 			Name: coll2,
-		})
+		}),
+	)
 
-	getLocalMSPIDRestore := getLocalMSPID
-	getLocalMSPID = func() (string, error) { return org1MSPID, nil }
-	defer func() {
-		getLocalMSPID = getLocalMSPIDRestore
-	}()
+	identifierProvider := &mocks.IdentifierProvider{}
+	identifierProvider.GetIdentifierReturns(org1MSPID, nil)
 
 	gossip := mocks.NewMockGossipAdapter()
 	gossip.Self(org1MSPID, mocks.NewMember(p1Org1Endpoint, p1Org1PKIID)).
@@ -116,15 +113,22 @@ func TestRetriever(t *testing.T) {
 	casKey1, casValue1, err := dcas.GetCASKeyAndValueBase58([]byte(`{"id":"id1","value":"value1"}`))
 	require.NoError(t, err)
 
-	localStore := spmocks.NewStore().
+	localStore := mocks.NewDataStore().
 		Data(storeapi.NewKey(txID, ns1, coll1, key1), value1).
 		Data(storeapi.NewKey(txID, ns1, coll2, key1), value1).                                      // Invalid CAS key
 		Data(storeapi.NewKey(txID, ns1, coll2, casKey1), &storeapi.ExpiringValue{Value: casValue1}) // Valid CAS key
 
-	storeProvider := func(channelID string) olapi.Store { return localStore }
-	gossipProvider := func() supportapi.GossipAdapter { return gossip }
+	storeProvider := &mocks.StoreProvider{}
+	storeProvider.StoreForChannelReturns(localStore)
 
-	p := NewProvider(storeProvider, support, gossipProvider,
+	providers := &collcommon.Providers{
+		BlockPublisherProvider: mocks.NewBlockPublisherProvider(),
+		StoreProvider:          storeProvider,
+		GossipAdapter:          gossip,
+		CCProvider:             ccProvider,
+		IdentifierProvider:     identifierProvider,
+	}
+	p := NewProvider(providers,
 		WithValidator(cb.CollectionType_COL_DCAS, dcas.Validator),
 		WithDecorator(cb.CollectionType_COL_DCAS, dcas.Decorator),
 	)
@@ -138,6 +142,17 @@ func TestRetriever(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, value)
 		require.Equal(t, value1, value)
+	})
+
+	t.Run("GetData - From local peer - IdentifierProvider error", func(t *testing.T) {
+		errExpected := errors.New("identifier error")
+		identifierProvider.GetIdentifierReturns("", errExpected)
+		defer func() { identifierProvider.GetIdentifierReturns(org1MSPID, nil) }()
+
+		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
+		value, err := retriever.GetData(ctx, storeapi.NewKey(txID, ns1, coll1, key1))
+		require.EqualError(t, errors.Cause(err), errExpected.Error())
+		require.Nil(t, value)
 	})
 
 	t.Run("GetData - From remote peer", func(t *testing.T) {
@@ -330,36 +345,42 @@ func TestRetriever_Query(t *testing.T) {
 		},
 	}
 
-	support := mocks.NewMockSupport().
-		CollectionPolicy(&mocks.MockAccessPolicy{
+	ccProvider := &mocks.CollectionConfigProvider{}
+	ccRetriever := mocks.NewCollectionConfigRetriever().
+		WithCollectionPolicy(&mocks.MockAccessPolicy{
 			MaxPeerCount: 2,
 			Orgs:         []string{org1MSPID, org2MSPID},
 		}).
-		CollectionConfig(&cb.StaticCollectionConfig{
+		WithCollectionConfig(&cb.StaticCollectionConfig{
 			Type: cb.CollectionType_COL_OFFLEDGER,
 			Name: coll1,
 		}).
-		CollectionConfig(&cb.StaticCollectionConfig{
+		WithCollectionConfig(&cb.StaticCollectionConfig{
 			Type: cb.CollectionType_COL_DCAS,
 			Name: coll2,
 		})
+	ccProvider.ForChannelReturns(ccRetriever)
 
-	getLocalMSPIDRestore := getLocalMSPID
-	getLocalMSPID = func() (string, error) { return org1MSPID, nil }
-	defer func() {
-		getLocalMSPID = getLocalMSPIDRestore
-	}()
+	identifierProvider := &mocks.IdentifierProvider{}
+	identifierProvider.GetIdentifierReturns(org1MSPID, nil)
 
 	gossip := mocks.NewMockGossipAdapter()
 
-	localStore := spmocks.NewStore().
+	localStore := mocks.NewDataStore().
 		WithQueryResults(dcasQueryKey, dcasQueryResults).
 		WithQueryResults(offLedgerQueryKey, offLedgerQueryResults)
 
-	storeProvider := func(channelID string) olapi.Store { return localStore }
-	gossipProvider := func() supportapi.GossipAdapter { return gossip }
+	storeProvider := &mocks.StoreProvider{}
+	storeProvider.StoreForChannelReturns(localStore)
 
-	p := NewProvider(storeProvider, support, gossipProvider,
+	providers := &collcommon.Providers{
+		BlockPublisherProvider: mocks.NewBlockPublisherProvider(),
+		StoreProvider:          storeProvider,
+		GossipAdapter:          gossip,
+		CCProvider:             ccProvider,
+		IdentifierProvider:     identifierProvider,
+	}
+	p := NewProvider(providers,
 		WithValidator(cb.CollectionType_COL_DCAS, dcas.Validator),
 		WithDecorator(cb.CollectionType_COL_DCAS, dcas.Decorator),
 	)
@@ -417,7 +438,7 @@ func TestRetriever_Query(t *testing.T) {
 
 	t.Run("Query iterator error", func(t *testing.T) {
 		expectedErr := errors.New("injected error")
-		localStore.ResultsIteratorError(expectedErr)
+		localStore.WithResultsIteratorError(expectedErr)
 		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
 		it, err := retriever.Query(ctx, dcasQueryKey)
 		require.NoError(t, err)
@@ -430,11 +451,8 @@ func TestRetriever_Query(t *testing.T) {
 	})
 
 	t.Run("Query access denied -> empty", func(t *testing.T) {
-		restore := getLocalMSPID
-		getLocalMSPID = func() (string, error) { return org3MSPID, nil }
-		defer func() {
-			getLocalMSPID = restore
-		}()
+		identifierProvider.GetIdentifierReturns(org3MSPID, nil)
+		defer func() { identifierProvider.GetIdentifierReturns(org1MSPID, nil) }()
 
 		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
 		it, err := retriever.Query(ctx, offLedgerQueryKey)
@@ -447,33 +465,34 @@ func TestRetriever_Query(t *testing.T) {
 	})
 
 	t.Run("Is authorized error -> fail", func(t *testing.T) {
-		support.Err = errors.New("injected error")
-		defer func() { support.Err = nil }()
+		ccProvider.ForChannelReturns(nil)
+		errExpected := errors.New("injected error")
+		ccRetriever.WithError(errExpected)
+		defer func() { ccRetriever.WithError(nil) }()
 
 		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
 		it, err := retriever.Query(ctx, offLedgerQueryKey)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), support.Err.Error())
+		require.Contains(t, err.Error(), errExpected.Error())
 		require.Nil(t, it)
 	})
 }
 
 func TestRetriever_AccessDenied(t *testing.T) {
-	support := mocks.NewMockSupport().
-		CollectionPolicy(&mocks.MockAccessPolicy{
+	ccProvider := &mocks.CollectionConfigProvider{}
+	ccRetriever := mocks.NewCollectionConfigRetriever().
+		WithCollectionPolicy(&mocks.MockAccessPolicy{
 			MaxPeerCount: 2,
 			Orgs:         []string{org1MSPID, org2MSPID},
 		}).
-		CollectionConfig(&cb.StaticCollectionConfig{
+		WithCollectionConfig(&cb.StaticCollectionConfig{
 			Type: cb.CollectionType_COL_OFFLEDGER,
 			Name: coll1,
 		})
+	ccProvider.ForChannelReturns(ccRetriever)
 
-	getLocalMSPIDRestore := getLocalMSPID
-	getLocalMSPID = func() (string, error) { return org3MSPID, nil }
-	defer func() {
-		getLocalMSPID = getLocalMSPIDRestore
-	}()
+	identifierProvider := &mocks.IdentifierProvider{}
+	identifierProvider.GetIdentifierReturns(org3MSPID, nil)
 
 	gossip := mocks.NewMockGossipAdapter()
 	gossip.Self(org3MSPID, mocks.NewMember(p1Org3Endpoint, p1Org3PKIID)).
@@ -483,13 +502,22 @@ func TestRetriever_AccessDenied(t *testing.T) {
 		Member(org2MSPID, mocks.NewMember(p2Org2Endpoint, p2Org2PKIID, committerRole)).
 		Member(org2MSPID, mocks.NewMember(p3Org2Endpoint, p3Org2PKIID, endorserRole))
 
-	localStore := spmocks.NewStore().
+	localStore := mocks.NewDataStore().
 		Data(storeapi.NewKey(txID, ns1, coll1, key1), value1)
 
-	storeProvider := func(channelID string) olapi.Store { return localStore }
-	gossipProvider := func() supportapi.GossipAdapter { return gossip }
+	storeProvider := &mocks.StoreProvider{}
+	storeProvider.StoreForChannelReturns(localStore)
 
-	p := NewProvider(storeProvider, support, gossipProvider)
+	blockPublisher := mocks.NewBlockPublisher()
+
+	providers := &collcommon.Providers{
+		BlockPublisherProvider: mocks.NewBlockPublisherProvider().WithBlockPublisher(blockPublisher),
+		StoreProvider:          storeProvider,
+		GossipAdapter:          gossip,
+		CCProvider:             ccProvider,
+		IdentifierProvider:     identifierProvider,
+	}
+	p := NewProvider(providers)
 
 	retriever := p.RetrieverForChannel(channelID)
 	require.NotNil(t, retriever)
@@ -532,23 +560,17 @@ func TestRetriever_AccessDenied(t *testing.T) {
 				Value(key2, value4).
 				Handle)
 
-		support.CollectionPolicy(&mocks.MockAccessPolicy{
+		ccRetriever.WithCollectionPolicy(&mocks.MockAccessPolicy{
 			MaxPeerCount: 2,
 			Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
 		})
 
-		require.NoError(t, support.Publisher.HandleUpgrade(gossipapi.TxMetadata{BlockNum: 1001, TxID: txID}, ns1))
+		require.NoError(t, blockPublisher.HandleUpgrade(gossipapi.TxMetadata{BlockNum: 1001, TxID: txID}, ns1))
 		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
 		value, err := retriever.GetData(ctx, storeapi.NewKey(txID, ns1, coll1, key2))
 		assert.NoError(t, err)
 		assert.NotNil(t, value)
 	})
-}
-
-func TestGetLocalMSPID(t *testing.T) {
-	m, err := getLocalMSPID()
-	require.NoError(t, err)
-	require.NotNil(t, m)
 }
 
 type mockGossipMsgHandler struct {

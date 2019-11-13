@@ -11,15 +11,14 @@ import (
 	"sync"
 
 	"github.com/hyperledger/fabric/common/flogging"
-	"github.com/hyperledger/fabric/core/common/privdata"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	supportapi "github.com/hyperledger/fabric/extensions/collections/api/support"
+	"github.com/hyperledger/fabric/extensions/collections/api/support"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/gossip/comm"
-	mspmgmt "github.com/hyperledger/fabric/msp/mgmt"
 	cb "github.com/hyperledger/fabric/protos/common"
 	gproto "github.com/hyperledger/fabric/protos/gossip"
 	"github.com/pkg/errors"
+	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dissemination"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common"
@@ -30,12 +29,6 @@ import (
 )
 
 var logger = flogging.MustGetLogger("ext_offledger")
-
-type support interface {
-	Config(channelID, ns, coll string) (*cb.StaticCollectionConfig, error)
-	Policy(channel, ns, collection string) (privdata.CollectionAccessPolicy, error)
-	BlockPublisher(channelID string) gossipapi.BlockPublisher
-}
 
 // Validator is a key/value validator
 type Validator func(txID, ns, coll, key string, value []byte) error
@@ -52,11 +45,9 @@ type Decorator interface {
 
 // Provider is a collection data data provider.
 type Provider struct {
-	support
-	storeForChannel func(channelID string) olapi.Store
-	gossipAdapter   func() supportapi.GossipAdapter
-	validators      map[cb.CollectionType]Validator
-	decorators      map[cb.CollectionType]Decorator
+	*collcommon.Providers
+	validators map[cb.CollectionType]Validator
+	decorators map[cb.CollectionType]Decorator
 }
 
 // Option is a provider option
@@ -77,13 +68,11 @@ func WithDecorator(collType cb.CollectionType, decorator Decorator) Option {
 }
 
 // NewProvider returns a new collection data provider
-func NewProvider(storeProvider func(channelID string) olapi.Store, support support, gossipProvider func() supportapi.GossipAdapter, opts ...Option) olapi.Provider {
+func NewProvider(providers *collcommon.Providers, opts ...Option) olapi.Provider {
 	p := &Provider{
-		support:         support,
-		storeForChannel: storeProvider,
-		gossipAdapter:   gossipProvider,
-		validators:      make(map[cb.CollectionType]Validator),
-		decorators:      make(map[cb.CollectionType]Decorator),
+		Providers:  providers,
+		validators: make(map[cb.CollectionType]Validator),
+		decorators: make(map[cb.CollectionType]Decorator),
 	}
 
 	// Apply options
@@ -96,18 +85,19 @@ func NewProvider(storeProvider func(channelID string) olapi.Store, support suppo
 // RetrieverForChannel returns the collection data retriever for the given channel
 func (p *Provider) RetrieverForChannel(channelID string) olapi.Retriever {
 	r := &retriever{
-		support:       p.support,
-		gossipAdapter: p.gossipAdapter(),
-		store:         p.storeForChannel(channelID),
-		channelID:     channelID,
-		reqMgr:        requestmgr.Get(channelID),
-		resolvers:     make(map[collKey]resolver),
-		validators:    p.validators,
-		decorators:    p.decorators,
+		CollectionConfigRetriever: p.CCProvider.ForChannel(channelID),
+		gossipAdapter:             p.GossipAdapter,
+		identifierProvider:        p.IdentifierProvider,
+		store:                     p.StoreProvider.StoreForChannel(channelID),
+		channelID:                 channelID,
+		reqMgr:                    requestmgr.Get(channelID),
+		resolvers:                 make(map[collKey]resolver),
+		validators:                p.validators,
+		decorators:                p.decorators,
 	}
 
 	// Add a handler so that we can remove the resolver for a chaincode that has been upgraded
-	p.support.BlockPublisher(channelID).AddCCUpgradeHandler(func(txMetadata gossipapi.TxMetadata, chaincodeID string) error {
+	p.BlockPublisherProvider.ForChannel(channelID).AddCCUpgradeHandler(func(txMetadata gossipapi.TxMetadata, chaincodeID string) error {
 		logger.Infof("[%s] Chaincode [%s] has been upgraded. Clearing resolver cache for chaincode.", channelID, chaincodeID)
 		r.removeResolvers(chaincodeID)
 		return nil
@@ -131,15 +121,16 @@ func newCollKey(ns, coll string) collKey {
 }
 
 type retriever struct {
-	support
-	gossipAdapter supportapi.GossipAdapter
-	channelID     string
-	store         olapi.Store
-	resolvers     map[collKey]resolver
-	lock          sync.RWMutex
-	reqMgr        requestmgr.RequestMgr
-	validators    map[cb.CollectionType]Validator
-	decorators    map[cb.CollectionType]Decorator
+	support.CollectionConfigRetriever
+	gossipAdapter      support.GossipAdapter
+	identifierProvider collcommon.IdentifierProvider
+	channelID          string
+	store              olapi.Store
+	resolvers          map[collKey]resolver
+	lock               sync.RWMutex
+	reqMgr             requestmgr.RequestMgr
+	validators         map[cb.CollectionType]Validator
+	decorators         map[cb.CollectionType]Decorator
 }
 
 // GetData gets the values for the data item
@@ -259,7 +250,7 @@ func (r *retriever) getMultipleKeysFromLocal(key *storeapi.MultiKey) (storeapi.E
 }
 
 func (r *retriever) getDecorator(ns, coll string) (Decorator, error) {
-	collConfig, err := r.Config(r.channelID, ns, coll)
+	collConfig, err := r.Config(ns, coll)
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +290,7 @@ func (r *retriever) persistMissingKeys(key *storeapi.MultiKey, localValues, valu
 
 func (r *retriever) persistMissingKey(k *storeapi.Key, val *storeapi.ExpiringValue) {
 	logger.Debugf("Persisting key [%s] that was missing from the local store", k)
-	collConfig, err := r.Config(r.channelID, k.Namespace, k.Collection)
+	collConfig, err := r.Config(k.Namespace, k.Collection)
 	if err != nil {
 		logger.Warningf("Error persisting key [%s] that was missing from the local store: %s", k, err)
 	}
@@ -309,7 +300,7 @@ func (r *retriever) persistMissingKey(k *storeapi.Key, val *storeapi.ExpiringVal
 }
 
 func (r *retriever) validateValues(key *storeapi.MultiKey, values storeapi.ExpiringValues) error {
-	config, err := r.Config(r.channelID, key.Namespace, key.Collection)
+	config, err := r.Config(key.Namespace, key.Collection)
 	if err != nil {
 		return err
 	}
@@ -372,7 +363,7 @@ func (r *retriever) getOrCreateResolver(key collKey) (resolver, error) {
 		return resolver, nil
 	}
 
-	policy, err := r.Policy(r.channelID, key.ns, key.coll)
+	policy, err := r.Policy(key.ns, key.coll)
 	if err != nil {
 		return nil, err
 	}
@@ -433,12 +424,12 @@ func (r *retriever) getData(ctxt context.Context, key *storeapi.MultiKey, peers 
 
 // isAuthorized returns true if the local peer has access to the given collection
 func (r *retriever) isAuthorized(ns, coll string) (bool, error) {
-	policy, err := r.Policy(r.channelID, ns, coll)
+	policy, err := r.Policy(ns, coll)
 	if err != nil {
 		return false, errors.WithMessagef(err, "unable to get policy for [%s:%s]", ns, coll)
 	}
 
-	localMSPID, err := getLocalMSPID()
+	localMSPID, err := r.identifierProvider.GetIdentifier()
 	if err != nil {
 		return false, errors.WithMessagef(err, "unable to get local MSP ID")
 	}
@@ -484,11 +475,6 @@ func asRemotePeers(members []*discovery.Member) []*comm.RemotePeer {
 		})
 	}
 	return peers
-}
-
-// getLocalMSPID returns the MSP ID of the local peer. This variable may be overridden by unit tests.
-var getLocalMSPID = func() (string, error) {
-	return mspmgmt.GetLocalMSP().GetIdentifier()
 }
 
 func asExpiringValues(cv common.Values) storeapi.ExpiringValues {

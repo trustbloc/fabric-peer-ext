@@ -11,14 +11,14 @@ import (
 	"sync"
 
 	"github.com/hyperledger/fabric/common/flogging"
-	"github.com/hyperledger/fabric/core/common/privdata"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
+	"github.com/hyperledger/fabric/extensions/collections/api/support"
 	supportapi "github.com/hyperledger/fabric/extensions/collections/api/support"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/gossip/comm"
-	mspmgmt "github.com/hyperledger/fabric/msp/mgmt"
 	gproto "github.com/hyperledger/fabric/protos/gossip"
 	"github.com/pkg/errors"
+	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	tdataapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/dissemination"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common"
@@ -29,40 +29,32 @@ import (
 
 var logger = flogging.MustGetLogger("transientdata")
 
-type support interface {
-	Policy(channel, ns, collection string) (privdata.CollectionAccessPolicy, error)
-	BlockPublisher(channelID string) gossipapi.BlockPublisher
-}
-
 // Provider is a transient data provider.
 type Provider struct {
-	support
-	storeForChannel func(channelID string) tdataapi.Store
-	gossipAdapter   func() supportapi.GossipAdapter
+	*collcommon.Providers
 }
 
 // NewProvider returns a new transient data provider
-func NewProvider(storeProvider func(channelID string) tdataapi.Store, support support, gossipProvider func() supportapi.GossipAdapter) tdataapi.Provider {
+func NewProvider(providers *collcommon.Providers) tdataapi.Provider {
 	return &Provider{
-		support:         support,
-		storeForChannel: storeProvider,
-		gossipAdapter:   gossipProvider,
+		Providers: providers,
 	}
 }
 
 // RetrieverForChannel returns the transient data dataRetriever for the given channel
 func (p *Provider) RetrieverForChannel(channelID string) tdataapi.Retriever {
 	r := &retriever{
-		support:       p.support,
-		gossipAdapter: p.gossipAdapter(),
-		store:         p.storeForChannel(channelID),
-		channelID:     channelID,
-		reqMgr:        requestmgr.Get(channelID),
-		resolvers:     make(map[collKey]resolver),
+		CollectionConfigRetriever: p.CCProvider.ForChannel(channelID),
+		gossipAdapter:             p.GossipAdapter,
+		identifierProvider:        p.IdentifierProvider,
+		store:                     p.StoreProvider.StoreForChannel(channelID),
+		channelID:                 channelID,
+		reqMgr:                    requestmgr.Get(channelID),
+		resolvers:                 make(map[collKey]resolver),
 	}
 
 	// Add a handler so that we can remove the resolver for a chaincode that has been upgraded
-	p.support.BlockPublisher(channelID).AddCCUpgradeHandler(func(txnMetadata gossipapi.TxMetadata, chaincodeID string) error {
+	p.BlockPublisherProvider.ForChannel(channelID).AddCCUpgradeHandler(func(txnMetadata gossipapi.TxMetadata, chaincodeID string) error {
 		logger.Infof("[%s] Chaincode [%s] has been upgraded. Clearing resolver cache for chaincode.", channelID, chaincodeID)
 		r.removeResolvers(chaincodeID)
 		return nil
@@ -86,13 +78,14 @@ func newCollKey(ns, coll string) collKey {
 }
 
 type retriever struct {
-	support
-	channelID     string
-	gossipAdapter supportapi.GossipAdapter
-	store         tdataapi.Store
-	resolvers     map[collKey]resolver
-	lock          sync.RWMutex
-	reqMgr        requestmgr.RequestMgr
+	support.CollectionConfigRetriever
+	channelID          string
+	gossipAdapter      supportapi.GossipAdapter
+	identifierProvider collcommon.IdentifierProvider
+	store              tdataapi.Store
+	resolvers          map[collKey]resolver
+	lock               sync.RWMutex
+	reqMgr             requestmgr.RequestMgr
 }
 
 func (r *retriever) GetTransientData(ctxt context.Context, key *storeapi.Key) (*storeapi.ExpiringValue, error) {
@@ -268,7 +261,7 @@ func (r *retriever) getOrCreateResolver(key collKey) (resolver, error) {
 		return resolver, nil
 	}
 
-	policy, err := r.Policy(r.channelID, key.ns, key.coll)
+	policy, err := r.Policy(key.ns, key.coll)
 	if err != nil {
 		return nil, err
 	}
@@ -348,12 +341,12 @@ func (r *retriever) createCollDataRequestMsg(req requestmgr.Request, key *storea
 
 // isAuthorized returns true if the local peer has access to the given collection
 func (r *retriever) isAuthorized(ns, coll string) (bool, error) {
-	policy, err := r.Policy(r.channelID, ns, coll)
+	policy, err := r.Policy(ns, coll)
 	if err != nil {
 		return false, errors.WithMessagef(err, "unable to get policy for [%s:%s]", ns, coll)
 	}
 
-	localMSPID, err := getLocalMSPID()
+	localMSPID, err := r.identifierProvider.GetIdentifier()
 	if err != nil {
 		return false, errors.WithMessagef(err, "unable to get local MSP ID")
 	}
@@ -376,9 +369,4 @@ func asRemotePeers(members []*discovery.Member) []*comm.RemotePeer {
 		})
 	}
 	return peers
-}
-
-// getLocalMSPID returns the MSP ID of the local peer. This variable may be overridden by unit tests.
-var getLocalMSPID = func() (string, error) {
-	return mspmgmt.GetLocalMSP().GetIdentifier()
 }
