@@ -10,25 +10,20 @@ import (
 	"encoding/hex"
 	"sync"
 
-	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
-
 	"github.com/hyperledger/fabric/bccsp"
 	"github.com/hyperledger/fabric/bccsp/factory"
 	"github.com/hyperledger/fabric/common/crypto"
 	"github.com/hyperledger/fabric/common/flogging"
 	commonledger "github.com/hyperledger/fabric/common/ledger"
 	"github.com/hyperledger/fabric/core/ledger"
-	"github.com/hyperledger/fabric/core/peer"
-	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
-	"github.com/hyperledger/fabric/gossip/service"
-	mspmgmt "github.com/hyperledger/fabric/msp/mgmt"
+	"github.com/hyperledger/fabric/extensions/collections/api/support"
 	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/pkg/errors"
-	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
+	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 )
 
-var logger = flogging.MustGetLogger("offledger")
+var logger = flogging.MustGetLogger("ext_offledger")
 
 // PeerLedger defines the ledger functions required by the client
 type PeerLedger interface {
@@ -44,16 +39,10 @@ type PeerLedger interface {
 	GetBlockchainInfo() (*cb.BlockchainInfo, error)
 }
 
-// GossipAdapter defines the Gossip functions required by the client
-type GossipAdapter interface {
-	// DistributePrivateData distributes private data to the peers in the collections
-	// according to policies induced by the PolicyStore and PolicyParser
+// PvtDataDistributor distributes private data to the peers in the collections
+// according to policies induced by the PolicyStore and PolicyParser
+type PvtDataDistributor interface {
 	DistributePrivateData(chainID string, txID string, privateData *transientstore.TxPvtReadWriteSetWithConfigInfo, blkHt uint64) error
-}
-
-// CollectionConfigRetriever defines the collection config retrieval functions required by the client
-type CollectionConfigRetriever interface {
-	Config(ns, coll string) (*cb.StaticCollectionConfig, error)
 }
 
 // KeyValue holds a key-value pair
@@ -62,31 +51,28 @@ type KeyValue struct {
 	Value []byte
 }
 
-// Client allows you to put and get Client from outside of a chaincode
-type Client struct {
-	channelID       string
-	ledger          PeerLedger
-	gossip          GossipAdapter
-	configRetriever CollectionConfigRetriever
-	creator         []byte
-	mutex           sync.RWMutex
+// ChannelProviders holds all of the providers required by the client
+type ChannelProviders struct {
+	Ledger           PeerLedger
+	Distributor      PvtDataDistributor
+	ConfigRetriever  support.CollectionConfigRetriever
+	IdentityProvider collcommon.IdentityProvider
 }
 
-// New returns a new client
-func New(channelID string) (*Client, error) {
-	ledger := getLedger(channelID)
-	if ledger == nil {
-		return nil, errors.Errorf("ledger not found for channel [%s]", channelID)
-	}
+// Client allows you to put and get Client from outside of a chaincode
+type Client struct {
+	*ChannelProviders
+	channelID string
+	creator   []byte
+	mutex     sync.RWMutex
+}
 
-	blockPublisher := getBlockPublisher(channelID)
-
+// New returns a new collection client
+func New(channelID string, providers *ChannelProviders) *Client {
 	return &Client{
-		channelID:       channelID,
-		ledger:          ledger,
-		gossip:          getGossipAdapter(),
-		configRetriever: getCollConfigRetriever(channelID, ledger, blockPublisher),
-	}, nil
+		ChannelProviders: providers,
+		channelID:        channelID,
+	}
 }
 
 // Put puts the value for the given key
@@ -96,7 +82,7 @@ func (d *Client) Put(ns, coll, key string, value []byte) error {
 
 // PutMultipleValues puts the given key/values
 func (d *Client) PutMultipleValues(ns, coll string, kvs []*KeyValue) error {
-	bcInfo, err := d.ledger.GetBlockchainInfo()
+	bcInfo, err := d.Ledger.GetBlockchainInfo()
 	if err != nil {
 		logger.Warningf("[%s] Error getting blockchain info: %s", d.channelID, err)
 		return errors.WithMessagef(err, "error getting blockchain info in channel [%s]", d.channelID)
@@ -110,7 +96,7 @@ func (d *Client) PutMultipleValues(ns, coll string, kvs []*KeyValue) error {
 		return errors.WithMessagef(err, "error generating transaction ID in channel [%s]", d.channelID)
 	}
 
-	sim, err := d.ledger.NewTxSimulator(txID)
+	sim, err := d.Ledger.NewTxSimulator(txID)
 	if err != nil {
 		logger.Warningf("[%s] Error getting TxSimulator for transaction [%s]: %s", d.channelID, txID, err)
 		return errors.WithMessagef(err, "error getting TxSimulator for transaction [%s] in channel [%s]", txID, d.channelID)
@@ -148,7 +134,7 @@ func (d *Client) PutMultipleValues(ns, coll string, kvs []*KeyValue) error {
 		},
 	}
 
-	err = d.gossip.DistributePrivateData(d.channelID, txID, pvtData, bcInfo.Height)
+	err = d.Distributor.DistributePrivateData(d.channelID, txID, pvtData, bcInfo.Height)
 	if err != nil {
 		logger.Warningf("[%s] Failed to distribute private data: %s", d.channelID, err)
 		return errors.WithMessagef(err, "error distributing private data in channel [%s]", d.channelID)
@@ -168,7 +154,7 @@ func (d *Client) Delete(ns, coll string, keys ...string) error {
 
 // Get retrieves the value for the given key
 func (d *Client) Get(ns, coll, key string) ([]byte, error) {
-	qe, err := d.ledger.NewQueryExecutor()
+	qe, err := d.Ledger.NewQueryExecutor()
 	if err != nil {
 		logger.Warningf("[%s] Error getting QueryExecutor: %s", d.channelID, err)
 		return nil, errors.WithMessagef(err, "error getting QueryExecutor in channel [%s]", d.channelID)
@@ -180,7 +166,7 @@ func (d *Client) Get(ns, coll, key string) ([]byte, error) {
 
 // GetMultipleKeys retrieves the values for the given keys
 func (d *Client) GetMultipleKeys(ns, coll string, keys ...string) ([][]byte, error) {
-	qe, err := d.ledger.NewQueryExecutor()
+	qe, err := d.Ledger.NewQueryExecutor()
 	if err != nil {
 		logger.Warningf("[%s] Error getting QueryExecutor: %s", d.channelID, err)
 		return nil, errors.WithMessagef(err, "error getting QueryExecutor in channel [%s]", d.channelID)
@@ -195,7 +181,7 @@ func (d *Client) GetMultipleKeys(ns, coll string, keys ...string) ([][]byte, err
 // (Note that this function is not supported by transient data collections)
 // The returned ResultsIterator contains results of type *KV which is defined in protos/ledger/queryresult.
 func (d *Client) Query(ns, coll, query string) (commonledger.ResultsIterator, error) {
-	qe, err := d.ledger.NewQueryExecutor()
+	qe, err := d.Ledger.NewQueryExecutor()
 	if err != nil {
 		logger.Warningf("[%s] Error getting QueryExecutor: %s", d.channelID, err)
 		return nil, errors.WithMessagef(err, "error getting QueryExecutor in channel [%s]", d.channelID)
@@ -206,7 +192,7 @@ func (d *Client) Query(ns, coll, query string) (commonledger.ResultsIterator, er
 }
 
 func (d *Client) getCollectionConfigPackage(ns, coll string) (*cb.CollectionConfigPackage, error) {
-	collConfig, err := d.configRetriever.Config(ns, coll)
+	collConfig, err := d.ConfigRetriever.Config(ns, coll)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +240,7 @@ func (d *Client) getCreator() ([]byte, error) {
 	defer d.mutex.Unlock()
 
 	if d.creator == nil {
-		creator, err := newCreator()
+		creator, err := d.newCreator()
 		if err != nil {
 			return nil, errors.WithMessage(err, "error serializing local signing identity")
 		}
@@ -264,37 +250,18 @@ func (d *Client) getCreator() ([]byte, error) {
 	return d.creator, nil
 }
 
+func (d *Client) newCreator() ([]byte, error) {
+	id, err := d.IdentityProvider.GetDefaultSigningIdentity()
+	if err != nil {
+		return nil, errors.WithMessage(err, "error getting local signing identity")
+	}
+	return id.Serialize()
+}
+
 func computeTxID(nonce, creator []byte) (string, error) {
 	digest, err := factory.GetDefault().Hash(append(nonce, creator...), &bccsp.SHA256Opts{})
 	if err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(digest), nil
-}
-
-// getLedger returns the peer ledger. This var may be overridden in unit tests
-var getLedger = func(channelID string) PeerLedger {
-	return peer.GetLedger(channelID)
-}
-
-// getLedger returns the peer ledger. This var may be overridden in unit tests
-var getBlockPublisher = func(channelID string) gossipapi.BlockPublisher {
-	return blockpublisher.ForChannel(channelID)
-}
-
-// getGossipAdapter returns the gossip adapter. This var may be overridden in unit tests
-var getGossipAdapter = func() GossipAdapter {
-	return service.GetGossipService()
-}
-
-var getCollConfigRetriever = func(channelID string, ledger PeerLedger, blockPublisher gossipapi.BlockPublisher) CollectionConfigRetriever {
-	return support.CollectionConfigRetrieverForChannel(channelID)
-}
-
-var newCreator = func() ([]byte, error) {
-	id, err := mspmgmt.GetLocalMSP().GetDefaultSigningIdentity()
-	if err != nil {
-		return nil, errors.WithMessage(err, "error getting local signing identity")
-	}
-	return id.Serialize()
 }

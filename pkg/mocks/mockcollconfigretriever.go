@@ -49,6 +49,10 @@ func (s *CollectionConfigRetriever) Policy(ns, coll string) (privdata.Collection
 
 // Config returns the collection config for the given collection
 func (s *CollectionConfigRetriever) Config(ns, coll string) (*common.StaticCollectionConfig, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+
 	for _, config := range s.configs {
 		if config.Name == coll {
 			return config, nil

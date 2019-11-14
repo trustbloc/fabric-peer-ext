@@ -3,7 +3,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package dcasclient
+package client
 
 import (
 	"github.com/btcsuite/btcutil/base58"
@@ -18,15 +18,11 @@ type DCASClient struct {
 	*olclient.Client
 }
 
-// New returns a new DCAS olclient
-func New(channelID string) (*DCASClient, error) {
-	olClient, err := olclient.New(channelID)
-	if err != nil {
-		return nil, err
-	}
+// New returns a new DCAS client
+func New(channelID string, providers *olclient.ChannelProviders) *DCASClient {
 	return &DCASClient{
-		Client: olClient,
-	}, nil
+		Client: olclient.New(channelID, providers),
+	}
 }
 
 // Put puts the DCAS value and returns the key for the value
