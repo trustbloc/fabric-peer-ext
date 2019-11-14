@@ -16,6 +16,8 @@ import (
 
 //go:generate counterfeiter -o ../../mocks/identitydeserializerprovider.gen.go --fake-name IdentityDeserializerProvider . IdentityDeserializerProvider
 //go:generate counterfeiter -o ../../mocks/identitydeserializer.gen.go --fake-name IdentityDeserializer github.com/hyperledger/fabric/msp.IdentityDeserializer
+//go:generate counterfeiter -o ../../mocks/signingidentity.gen.go --fake-name SigningIdentity github.com/hyperledger/fabric/msp.SigningIdentity
+//go:generate counterfeiter -o ../../mocks/identityprovider.gen.go --fake-name IdentityProvider . IdentityProvider
 //go:generate counterfeiter -o ../../mocks/ledgerprovider.gen.go --fake-name LedgerProvider . LedgerProvider
 //go:generate counterfeiter -o ../../mocks/identifierprovider.gen.go --fake-name IdentifierProvider . IdentifierProvider
 //go:generate counterfeiter -o ../../mocks/storeprovider.gen.go --fake-name StoreProvider . StoreProvider
@@ -34,6 +36,11 @@ type IdentityDeserializerProvider interface {
 // IdentifierProvider is the signing identity provider
 type IdentifierProvider interface {
 	GetIdentifier() (string, error)
+}
+
+// IdentityProvider is the signing identity provider
+type IdentityProvider interface {
+	GetDefaultSigningIdentity() (msp.SigningIdentity, error)
 }
 
 // StoreProvider provides stores by channel

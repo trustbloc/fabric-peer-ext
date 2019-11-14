@@ -3,7 +3,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package dcasclient
+package client
 
 import (
 	"errors"
@@ -11,14 +11,12 @@ import (
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/hyperledger/fabric/core/ledger"
-	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
-	gmocks "github.com/hyperledger/fabric/extensions/gossip/mocks"
 	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/queryresult"
-	"github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	olclient "github.com/trustbloc/fabric-peer-ext/pkg/collections/client"
+	clientmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/client/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
@@ -39,21 +37,24 @@ func TestDCASClient_Put(t *testing.T) {
 			Height: blockHeight,
 		},
 	}
-	gossip := &mockGossipAdapter{}
-	configRetriever := &mockCollectionConfigRetriever{}
-	var creatorError error
+
+	distributor := &clientmocks.PvtDataDistributor{}
+	configRetriever := mocks.NewCollectionConfigRetriever().WithCollectionConfig(&cb.StaticCollectionConfig{Name: coll1})
 
 	// Mock out all of the dependencies
-	olclient.SetLedgerProvider(func(channelID string) olclient.PeerLedger { return ledger })
-	olclient.SetGossipProvider(func() olclient.GossipAdapter { return gossip })
-	olclient.SetBlockPublisherProvider(func(channelID string) gossipapi.BlockPublisher { return gmocks.NewBlockPublisher() })
-	olclient.SetCollConfigRetrieverProvider(func(_ string, _ olclient.PeerLedger, _ gossipapi.BlockPublisher) olclient.CollectionConfigRetriever {
-		return configRetriever
-	})
-	olclient.SetCreatorProvider(func() ([]byte, error) { return []byte("creator"), creatorError })
+	signingIdentity := &mocks.SigningIdentity{}
+	signingIdentity.SerializeReturns([]byte("creator"), nil)
 
-	c, err := New(channelID)
-	require.NoError(t, err)
+	identityProvider := &mocks.IdentityProvider{}
+	identityProvider.GetDefaultSigningIdentityReturns(signingIdentity, nil)
+
+	providers := &olclient.ChannelProviders{
+		Ledger:           ledger,
+		Distributor:      distributor,
+		ConfigRetriever:  configRetriever,
+		IdentityProvider: identityProvider,
+	}
+	c := New(channelID, providers)
 	require.NotNil(t, c)
 
 	value1 := []byte("value1")
@@ -91,13 +92,6 @@ func TestDCASClient_Put(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, c.Delete(ns1, coll1, casKey))
 	})
-
-	t.Run("No ledger", func(t *testing.T) {
-		olclient.SetLedgerProvider(func(channelID string) olclient.PeerLedger { return nil })
-		c, err := New(channelID)
-		require.Error(t, err)
-		require.Nil(t, c)
-	})
 }
 
 func TestDCASClient_Get(t *testing.T) {
@@ -112,21 +106,23 @@ func TestDCASClient_Get(t *testing.T) {
 			WithPrivateState(ns1, coll1, base58.Encode([]byte(key2)), value2),
 	}
 
-	gossip := &mockGossipAdapter{}
-	configRetriever := &mockCollectionConfigRetriever{}
-	var creatorError error
+	distributor := &clientmocks.PvtDataDistributor{}
+	configRetriever := &mocks.CollectionConfigRetriever{}
 
 	// Mock out all of the dependencies
-	olclient.SetLedgerProvider(func(channelID string) olclient.PeerLedger { return ledger })
-	olclient.SetGossipProvider(func() olclient.GossipAdapter { return gossip })
-	olclient.SetBlockPublisherProvider(func(channelID string) gossipapi.BlockPublisher { return gmocks.NewBlockPublisher() })
-	olclient.SetCollConfigRetrieverProvider(func(_ string, _ olclient.PeerLedger, _ gossipapi.BlockPublisher) olclient.CollectionConfigRetriever {
-		return configRetriever
-	})
-	olclient.SetCreatorProvider(func() ([]byte, error) { return []byte("creator"), creatorError })
+	signingIdentity := &mocks.SigningIdentity{}
+	signingIdentity.SerializeReturns([]byte("creator"), nil)
 
-	c, err := New(channelID)
-	require.NoError(t, err)
+	identityProvider := &mocks.IdentityProvider{}
+	identityProvider.GetDefaultSigningIdentityReturns(signingIdentity, nil)
+
+	providers := &olclient.ChannelProviders{
+		Ledger:           ledger,
+		Distributor:      distributor,
+		ConfigRetriever:  configRetriever,
+		IdentityProvider: &mocks.IdentityProvider{},
+	}
+	c := New(channelID, providers)
 	require.NotNil(t, c)
 
 	t.Run("Get - success", func(t *testing.T) {
@@ -168,21 +164,23 @@ func TestClient_Query(t *testing.T) {
 			WithPrivateQueryResults(ns1, coll1, query1, []*queryresult.KV{vk1, vk2}),
 	}
 
-	gossip := &mockGossipAdapter{}
-	configRetriever := &mockCollectionConfigRetriever{}
-	var creatorError error
+	distributor := &clientmocks.PvtDataDistributor{}
+	configRetriever := &mocks.CollectionConfigRetriever{}
 
 	// Mock out all of the dependencies
-	olclient.SetLedgerProvider(func(channelID string) olclient.PeerLedger { return mockLedger })
-	olclient.SetGossipProvider(func() olclient.GossipAdapter { return gossip })
-	olclient.SetBlockPublisherProvider(func(channelID string) gossipapi.BlockPublisher { return gmocks.NewBlockPublisher() })
-	olclient.SetCollConfigRetrieverProvider(func(_ string, _ olclient.PeerLedger, _ gossipapi.BlockPublisher) olclient.CollectionConfigRetriever {
-		return configRetriever
-	})
-	olclient.SetCreatorProvider(func() ([]byte, error) { return []byte("creator"), creatorError })
+	signingIdentity := &mocks.SigningIdentity{}
+	signingIdentity.SerializeReturns([]byte("creator"), nil)
 
-	c, err := New(channelID)
-	require.NoError(t, err)
+	identityProvider := &mocks.IdentityProvider{}
+	identityProvider.GetDefaultSigningIdentityReturns(signingIdentity, nil)
+
+	providers := &olclient.ChannelProviders{
+		Ledger:           mockLedger,
+		Distributor:      distributor,
+		ConfigRetriever:  configRetriever,
+		IdentityProvider: &mocks.IdentityProvider{},
+	}
+	c := New(channelID, providers)
 	require.NotNil(t, c)
 
 	t.Run("Query - success", func(t *testing.T) {
@@ -241,20 +239,4 @@ func TestClient_Query(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, next)
 	})
-}
-
-type mockCollectionConfigRetriever struct {
-	Error error
-}
-
-func (m *mockCollectionConfigRetriever) Config(ns, coll string) (*cb.StaticCollectionConfig, error) {
-	return &cb.StaticCollectionConfig{}, m.Error
-}
-
-type mockGossipAdapter struct {
-	Error error
-}
-
-func (m *mockGossipAdapter) DistributePrivateData(chainID string, txID string, privateData *transientstore.TxPvtReadWriteSetWithConfigInfo, blkHt uint64) error {
-	return m.Error
 }

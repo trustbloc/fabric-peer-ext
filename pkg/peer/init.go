@@ -26,6 +26,8 @@ func registerResources() {
 	//resource.Register(storeprovider.NewOffLedgerProvider, resource.PriorityHigh)
 	//resource.Register(tretriever.NewProvider, resource.PriorityHigh)
 	//resource.Register(extretriever.NewOffLedgerProvider, resource.PriorityHigh)
+	//resource.Register(client.NewProvider, resource.PriorityNormal)
+	//resource.Register(dcasclient.NewProvider, resource.PriorityNormal)
 }
 
 func registerSystemChaincodes() {

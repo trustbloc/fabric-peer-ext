@@ -6,19 +6,15 @@ SPDX-License-Identifier: Apache-2.0
 package client
 
 import (
-	"sync"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/ledger"
-	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/queryresult"
-	pb "github.com/hyperledger/fabric/protos/peer"
-	"github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	clientmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/client/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
@@ -29,15 +25,7 @@ const (
 	key1        = "key1"
 	key2        = "key2"
 	blockHeight = uint64(1000)
-
-	lsccID       = "lscc"
-	upgradeEvent = "upgrade"
-
-	txID = "tx123"
-	ccID = "cc123"
 )
-
-var testOnce sync.Once
 
 func TestClient_Put(t *testing.T) {
 	ledger := &mocks.Ledger{
@@ -48,28 +36,32 @@ func TestClient_Put(t *testing.T) {
 			Height: blockHeight,
 		},
 	}
-	gossip := &mockGossipAdapter{}
-	configRetriever := &mockCollectionConfigRetriever{}
-	var creatorError error
+
+	distributor := &clientmocks.PvtDataDistributor{}
+	configRetriever := mocks.NewCollectionConfigRetriever().WithCollectionConfig(&cb.StaticCollectionConfig{Name: coll1})
 
 	// Mock out all of the dependencies
-	getLedger = func(channelID string) PeerLedger { return ledger }
-	getGossipAdapter = func() GossipAdapter { return gossip }
-	getBlockPublisher = getMockPublisher(t)
-	getCollConfigRetriever = func(_ string, _ PeerLedger, _ gossipapi.BlockPublisher) CollectionConfigRetriever {
-		return configRetriever
-	}
-	newCreator = func() ([]byte, error) { return []byte("creator"), creatorError }
+	signingIdentity := &mocks.SigningIdentity{}
+	signingIdentity.SerializeReturns([]byte("creator"), nil)
 
-	c, err := New(channelID)
-	require.NoError(t, err)
+	identityProvider := &mocks.IdentityProvider{}
+	identityProvider.GetDefaultSigningIdentityReturns(signingIdentity, nil)
+
+	providers := &ChannelProviders{
+		Ledger:           ledger,
+		Distributor:      distributor,
+		ConfigRetriever:  configRetriever,
+		IdentityProvider: identityProvider,
+	}
+	c := New(channelID, providers)
 	require.NotNil(t, c)
 
 	value1 := []byte("value1")
 
 	t.Run("TxID error", func(t *testing.T) {
-		creatorError = errors.New("mock creator error")
-		defer func() { creatorError = nil }()
+		creatorError := errors.New("mock creator error")
+		signingIdentity.SerializeReturns(nil, creatorError)
+		defer signingIdentity.SerializeReturns([]byte("creator"), nil)
 
 		err := c.Put(ns1, coll1, key1, value1)
 		require.Error(t, err)
@@ -108,9 +100,9 @@ func TestClient_Put(t *testing.T) {
 		assert.Contains(t, err.Error(), "error setting keys")
 	})
 
-	t.Run("Gossip error", func(t *testing.T) {
-		gossip.Error = errors.New("mock gossip error")
-		defer func() { gossip.Error = nil }()
+	t.Run("Distributor error", func(t *testing.T) {
+		distributor.DistributePrivateDataReturns(errors.New("mock distributor error"))
+		defer distributor.DistributePrivateDataReturns(nil)
 
 		err := c.Put(ns1, coll1, key1, value1)
 		require.Error(t, err)
@@ -127,8 +119,8 @@ func TestClient_Put(t *testing.T) {
 	})
 
 	t.Run("CollectionConfig error", func(t *testing.T) {
-		configRetriever.Error = errors.New("mock config error")
-		defer func() { configRetriever.Error = nil }()
+		configRetriever.WithError(errors.New("mock config error"))
+		defer configRetriever.WithError(nil)
 
 		err := c.Put(ns1, coll1, key1, value1)
 		require.Error(t, err)
@@ -138,13 +130,6 @@ func TestClient_Put(t *testing.T) {
 	t.Run("Delete", func(t *testing.T) {
 		err := c.Delete(ns1, coll1, key1, key2)
 		require.NoError(t, err)
-	})
-
-	t.Run("No ledger", func(t *testing.T) {
-		getLedger = func(channelID string) PeerLedger { return nil }
-		c, err := New(channelID)
-		require.Error(t, err)
-		require.Nil(t, c)
 	})
 }
 
@@ -158,21 +143,25 @@ func TestClient_Get(t *testing.T) {
 			WithPrivateState(ns1, coll1, key2, value2),
 	}
 
-	gossip := &mockGossipAdapter{}
-	configRetriever := &mockCollectionConfigRetriever{}
+	distributor := &clientmocks.PvtDataDistributor{}
+	configRetriever := &mocks.CollectionConfigRetriever{}
 	var creatorError error
 
 	// Mock out all of the dependencies
-	getLedger = func(channelID string) PeerLedger { return ledger }
-	getGossipAdapter = func() GossipAdapter { return gossip }
-	getBlockPublisher = getMockPublisher(t)
-	getCollConfigRetriever = func(_ string, _ PeerLedger, _ gossipapi.BlockPublisher) CollectionConfigRetriever {
-		return configRetriever
-	}
-	newCreator = func() ([]byte, error) { return []byte("creator"), creatorError }
+	signingIdentity := &mocks.SigningIdentity{}
+	signingIdentity.SerializeReturns([]byte("creator"), creatorError)
 
-	c, err := New(channelID)
-	require.NoError(t, err)
+	identityProvider := &mocks.IdentityProvider{}
+	identityProvider.GetDefaultSigningIdentityReturns(signingIdentity, nil)
+
+	providers := &ChannelProviders{
+		Ledger:           ledger,
+		Distributor:      distributor,
+		ConfigRetriever:  configRetriever,
+		IdentityProvider: identityProvider,
+	}
+	c := New(channelID, providers)
+	require.NotNil(t, c)
 	require.NotNil(t, c)
 
 	t.Run("Get - success", func(t *testing.T) {
@@ -228,21 +217,26 @@ func TestClient_Query(t *testing.T) {
 			WithPrivateQueryResults(ns1, coll1, query1, []*queryresult.KV{vk1, vk2}),
 	}
 
-	gossip := &mockGossipAdapter{}
-	configRetriever := &mockCollectionConfigRetriever{}
+	distributor := &clientmocks.PvtDataDistributor{}
+	configRetriever := &mocks.CollectionConfigRetriever{}
+
 	var creatorError error
 
 	// Mock out all of the dependencies
-	getLedger = func(channelID string) PeerLedger { return mockLedger }
-	getGossipAdapter = func() GossipAdapter { return gossip }
-	getBlockPublisher = getMockPublisher(t)
-	getCollConfigRetriever = func(_ string, _ PeerLedger, _ gossipapi.BlockPublisher) CollectionConfigRetriever {
-		return configRetriever
-	}
-	newCreator = func() ([]byte, error) { return []byte("creator"), creatorError }
+	signingIdentity := &mocks.SigningIdentity{}
+	signingIdentity.SerializeReturns([]byte("creator"), creatorError)
 
-	c, err := New(channelID)
-	require.NoError(t, err)
+	identityProvider := &mocks.IdentityProvider{}
+	identityProvider.GetDefaultSigningIdentityReturns(signingIdentity, nil)
+
+	providers := &ChannelProviders{
+		Ledger:           mockLedger,
+		Distributor:      distributor,
+		ConfigRetriever:  configRetriever,
+		IdentityProvider: identityProvider,
+	}
+	c := New(channelID, providers)
+	require.NotNil(t, c)
 	require.NotNil(t, c)
 
 	t.Run("Query - success", func(t *testing.T) {
@@ -262,50 +256,4 @@ func TestClient_Query(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, next)
 	})
-}
-
-func testGetBlockPublisher(t *testing.T) {
-	publisher := getBlockPublisher(channelID)
-	require.NotNil(t, publisher)
-
-	const blkNum = 1100
-
-	b := mocks.NewBlockBuilder(channelID, 1100)
-
-	lceBytes, err := proto.Marshal(&pb.LifecycleEvent{ChaincodeName: ccID})
-	require.NoError(t, err)
-	require.NotNil(t, lceBytes)
-
-	b.Transaction(txID, pb.TxValidationCode_VALID).
-		ChaincodeAction(lsccID).
-		ChaincodeEvent(upgradeEvent, lceBytes)
-
-	publisher.Publish(b.Build())
-
-	require.EqualValues(t, blkNum+1, publisher.LedgerHeight())
-}
-
-func getMockPublisher(t *testing.T) func(channelID string) gossipapi.BlockPublisher {
-
-	testOnce.Do(func() {
-		testGetBlockPublisher(t)
-	})
-
-	return func(channelID string) gossipapi.BlockPublisher { return mocks.NewBlockPublisher() }
-}
-
-type mockCollectionConfigRetriever struct {
-	Error error
-}
-
-func (m *mockCollectionConfigRetriever) Config(ns, coll string) (*cb.StaticCollectionConfig, error) {
-	return &cb.StaticCollectionConfig{}, m.Error
-}
-
-type mockGossipAdapter struct {
-	Error error
-}
-
-func (m *mockGossipAdapter) DistributePrivateData(chainID string, txID string, privateData *transientstore.TxPvtReadWriteSetWithConfigInfo, blkHt uint64) error {
-	return m.Error
 }
