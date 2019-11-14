@@ -14,26 +14,16 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
 	spmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/storeprovider/mocks"
-	tdapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
 func TestStoreProvider(t *testing.T) {
 	tdataProvider := spmocks.NewTransientDataStoreProvider()
-	olProvider := spmocks.NewOffLedgerStoreProvider()
-
-	newTransientDataProvider = func() tdapi.StoreProvider {
-		return tdataProvider
-	}
-
-	newOffLedgerProvider = func() olapi.StoreProvider {
-		return olProvider
-	}
+	olProvider := NewOffLedgerProvider(&mocks.IdentifierProvider{}, &mocks.IdentityDeserializerProvider{})
 
 	t.Run("OpenStore - success", func(t *testing.T) {
-		p := New()
+		p := New().Initialize(tdataProvider, olProvider)
 		require.NotNil(t, p)
 
 		s, err := p.OpenStore("testchannel")
@@ -45,7 +35,7 @@ func TestStoreProvider(t *testing.T) {
 	})
 
 	t.Run("OpenStore - transient data error", func(t *testing.T) {
-		p := New()
+		p := New().Initialize(tdataProvider, olProvider)
 		require.NotNil(t, p)
 
 		expectedErr := errors.New("transientdata error")
@@ -58,7 +48,7 @@ func TestStoreProvider(t *testing.T) {
 	})
 
 	t.Run("Close - success", func(t *testing.T) {
-		p := New()
+		p := New().Initialize(tdataProvider, olProvider)
 		require.NotNil(t, p)
 
 		s, err := p.OpenStore("testchannel")
@@ -93,15 +83,7 @@ func TestStore_PutAndGetData(t *testing.T) {
 	tdataProvider := spmocks.NewTransientDataStoreProvider()
 	olProvider := spmocks.NewOffLedgerStoreProvider()
 
-	newTransientDataProvider = func() tdapi.StoreProvider {
-		return tdataProvider.Data(k1, v1).Data(k2, v2)
-	}
-
-	newOffLedgerProvider = func() olapi.StoreProvider {
-		return olProvider.Data(k1, v2).Data(k2, v1)
-	}
-
-	p := New()
+	p := New().Initialize(tdataProvider.Data(k1, v1).Data(k2, v2), olProvider.Data(k1, v2).Data(k2, v1))
 	require.NotNil(t, p)
 
 	s, err := p.OpenStore("testchannel")
@@ -187,11 +169,7 @@ func TestStore_ExecuteQuery(t *testing.T) {
 		},
 	}
 
-	newOffLedgerProvider = func() olapi.StoreProvider {
-		return spmocks.NewOffLedgerStoreProvider().WithQueryResults(storeapi.NewQueryKey(tx1, ns1, coll1, query), results)
-	}
-
-	p := New()
+	p := New().Initialize(spmocks.NewTransientDataStoreProvider(), spmocks.NewOffLedgerStoreProvider().WithQueryResults(storeapi.NewQueryKey(tx1, ns1, coll1, query), results))
 	require.NotNil(t, p)
 
 	s, err := p.OpenStore("testchannel")
@@ -217,10 +195,4 @@ func TestStore_ExecuteQuery(t *testing.T) {
 	next, err = it.Next()
 	require.NoError(t, err)
 	require.Nil(t, next)
-}
-
-func TestMspProvider_GetIdentityDeserializer(t *testing.T) {
-	p := newMSPProvider()
-	require.NotNil(t, p)
-	require.NotNil(t, p.GetIdentityDeserializer("testchannel"))
 }

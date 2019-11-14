@@ -9,17 +9,17 @@ package storeprovider
 import (
 	"sync"
 
+	"github.com/hyperledger/fabric/common/flogging"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	"github.com/hyperledger/fabric/gossip/service"
-	"github.com/hyperledger/fabric/msp"
-	"github.com/hyperledger/fabric/msp/mgmt"
 	cb "github.com/hyperledger/fabric/protos/common"
+	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 	olstoreprovider "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider"
 	tdapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
-	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider"
 )
+
+var logger = flogging.MustGetLogger("ext_store")
 
 // New returns a new store provider factory
 func New() *StoreProvider {
@@ -36,10 +36,14 @@ type StoreProvider struct {
 	olProvider            olapi.StoreProvider
 	stores                map[string]*store
 	sync.RWMutex
+}
 
-	// Temporary code
-	initTDProvider sync.Once
-	initOLProvider sync.Once
+// Initialize is called at startup by the resource manager
+func (sp *StoreProvider) Initialize(tDataProvider tdapi.StoreProvider, olProvider olapi.StoreProvider) *StoreProvider {
+	logger.Infof("Initializing collection store provider")
+	sp.transientDataProvider = tDataProvider
+	sp.olProvider = olProvider
+	return sp
 }
 
 // StoreForChannel returns the store for the given channel
@@ -56,11 +60,11 @@ func (sp *StoreProvider) OpenStore(channelID string) (storeapi.Store, error) {
 
 	store, ok := sp.stores[channelID]
 	if !ok {
-		tdataStore, err := sp.getTransientDataProvider().OpenStore(channelID)
+		tdataStore, err := sp.transientDataProvider.OpenStore(channelID)
 		if err != nil {
 			return nil, err
 		}
-		olStore, err := sp.getOLProvider().OpenStore(channelID)
+		olStore, err := sp.olProvider.OpenStore(channelID)
 		if err != nil {
 			return nil, err
 		}
@@ -82,55 +86,14 @@ func (sp *StoreProvider) Close() {
 	}
 }
 
-// newTransientDataProvider may be overridden in unit tests
-var newTransientDataProvider = func() tdapi.StoreProvider {
-	return storeprovider.New(service.GetGossipService(), newMSPProvider())
-}
-
-// newOffLedgerProvider may be overridden in unit tests
-var newOffLedgerProvider = func() olapi.StoreProvider {
+// NewOffLedgerProvider creates a new off-ledger store provider that supports DCAS
+func NewOffLedgerProvider(identifierProvider collcommon.IdentifierProvider, idDProvider collcommon.IdentityDeserializerProvider) olapi.StoreProvider {
+	logger.Infof("Creating off-ledger store provider with DCAS")
 	return olstoreprovider.New(
-		newMSPProvider(), newMSPProvider(),
+		identifierProvider, idDProvider,
 		olstoreprovider.WithCollectionType(
 			cb.CollectionType_COL_DCAS,
 			olstoreprovider.WithDecorator(dcas.Decorator),
 		),
 	)
-}
-
-// The code below is temporarily added to facilitate the migration to dependency injected resources.
-// This code should be removed once all resources have been converted to use dependency injection.
-
-// Temporarily add mspProvider.
-type mspProvider struct {
-	msp.MSP
-}
-
-func newMSPProvider() *mspProvider {
-	return &mspProvider{
-		MSP: mgmt.GetLocalMSP(),
-	}
-}
-
-// GetIdentityDeserializer returns the identity deserializer for the given channel
-func (m *mspProvider) GetIdentityDeserializer(channelID string) msp.IdentityDeserializer {
-	return mgmt.GetIdentityDeserializer(channelID)
-}
-
-// Temporarily defer the retrieval of the transient data provider since the GossipService
-// is not yet initialized when the store provider is initialized.
-func (sp *StoreProvider) getTransientDataProvider() tdapi.StoreProvider {
-	sp.initTDProvider.Do(func() {
-		sp.transientDataProvider = newTransientDataProvider()
-	})
-	return sp.transientDataProvider
-}
-
-// Temporarily defer the retrieval of the off-ledger provider since the GossipService
-// is not yet initialized when the store provider is initialized.
-func (sp *StoreProvider) getOLProvider() olapi.StoreProvider {
-	sp.initOLProvider.Do(func() {
-		sp.olProvider = newOffLedgerProvider()
-	})
-	return sp.olProvider
 }

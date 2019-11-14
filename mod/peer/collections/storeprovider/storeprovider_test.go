@@ -10,24 +10,19 @@ import (
 	"testing"
 
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	spmocks "github.com/hyperledger/fabric/extensions/collections/storeprovider/mocks"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	extstoreprovider "github.com/trustbloc/fabric-peer-ext/pkg/collections/storeprovider"
-	tdapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
+	spmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/storeprovider/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
 func TestStoreProvider(t *testing.T) {
-	tdataProvider := spmocks.NewTransientDataStoreProvider()
-
-	extstoreprovider.SetNewTransientDataProvider(func() tdapi.StoreProvider {
-		return tdataProvider
-	})
+	oldataProvider := spmocks.NewOffLedgerStoreProvider()
 
 	t.Run("OpenStore - success", func(t *testing.T) {
-		p := NewProviderFactory()
+		tdataProvider := spmocks.NewTransientDataStoreProvider()
+		p := NewProviderFactory().Initialize(tdataProvider, oldataProvider)
 		require.NotNil(t, p)
 
 		s, err := p.OpenStore("testchannel")
@@ -39,7 +34,8 @@ func TestStoreProvider(t *testing.T) {
 	})
 
 	t.Run("OpenStore - transient data error", func(t *testing.T) {
-		p := NewProviderFactory()
+		tdataProvider := spmocks.NewTransientDataStoreProvider()
+		p := NewProviderFactory().Initialize(tdataProvider, oldataProvider)
 		require.NotNil(t, p)
 
 		expectedErr := errors.New("transientdata error")
@@ -67,13 +63,10 @@ func TestStore_PutAndGetData(t *testing.T) {
 	v1 := &storeapi.ExpiringValue{Value: []byte("value1")}
 	v2 := &storeapi.ExpiringValue{Value: []byte("value1")}
 
-	tdataProvider := spmocks.NewTransientDataStoreProvider()
+	tdataProvider := spmocks.NewTransientDataStoreProvider().Data(k1, v1).Data(k2, v2)
+	oldataProvider := spmocks.NewOffLedgerStoreProvider()
 
-	extstoreprovider.SetNewTransientDataProvider(func() tdapi.StoreProvider {
-		return tdataProvider.Data(k1, v1).Data(k2, v2)
-	})
-
-	p := NewProviderFactory()
+	p := NewProviderFactory().Initialize(tdataProvider, oldataProvider)
 	require.NotNil(t, p)
 
 	s, err := p.OpenStore("testchannel")

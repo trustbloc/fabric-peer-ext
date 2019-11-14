@@ -33,7 +33,7 @@ type channelNotifier interface {
 
 // Manager initializes resources at peer startup and closes them at peer shutdown.
 type Manager struct {
-	mutex         sync.Mutex
+	mutex         sync.RWMutex
 	registrations registrations
 	resources     []interface{}
 	joinedChan    chan string
@@ -133,6 +133,9 @@ func (b *Manager) ChannelJoined(channelID string) {
 
 // Close closes all applicable resources (i.e. the ones that implement closable).
 func (b *Manager) Close() {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+
 	close(b.joinedChan)
 	for _, r := range b.resources {
 		doClose(r)
@@ -141,9 +144,16 @@ func (b *Manager) Close() {
 
 func (b *Manager) listenChannel() {
 	for channelID := range b.joinedChan {
-		for _, r := range b.resources {
-			notifyChannelJoined(r, channelID)
-		}
+		b.notifyChannelJoined(channelID)
+	}
+}
+
+func (b *Manager) notifyChannelJoined(channelID string) {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
+
+	for _, r := range b.resources {
+		notifyChannelJoined(r, channelID)
 	}
 }
 

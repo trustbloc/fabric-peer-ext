@@ -26,7 +26,6 @@ import (
 	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	"github.com/hyperledger/fabric/protos/peer"
 	"github.com/pkg/errors"
-	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
 )
 
 var logger = util.GetLogger(util.StateLogger, "")
@@ -82,7 +81,6 @@ func ChannelJoined(channelID string, ledger ledger.PeerLedger, publisher api.Blo
 		}
 		return handleStateUpdate(kvWrite, txMetadata.ChannelID)
 	})
-	support.InitCollectionConfigRetriever(channelID, ledger, publisher)
 }
 
 //NewGossipStateProviderExtension returns new GossipStateProvider Extension implementation

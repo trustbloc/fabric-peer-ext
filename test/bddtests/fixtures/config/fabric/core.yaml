@@ -611,7 +611,7 @@ ledger:
        # to prevent unintended users from discovering the password.
        password:
        # Number of retries for CouchDB errors
-       maxRetries: 3
+       maxRetries: 10
        # Number of retries for CouchDB errors during peer startup
        maxRetriesOnStartup: 12
        # CouchDB request timeout (unit: duration, e.g. 20s)
