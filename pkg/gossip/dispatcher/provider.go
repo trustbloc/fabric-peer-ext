@@ -36,10 +36,10 @@ func (p *Provider) Initialize(gossip gossipAdapter, ccProvider collcommon.Collec
 func (p *Provider) ForChannel(channelID string, dataStore storeapi.Store) *Dispatcher {
 	logger.Infof("Returning a new gossip dispatcher for channel [%s]", channelID)
 	return &Dispatcher{
-		ccRetriever: p.ccProvider.ForChannel(channelID),
-		channelID:   channelID,
-		reqMgr:      requestmgr.Get(channelID),
-		dataStore:   dataStore,
-		discovery:   discovery.New(channelID, p.gossip),
+		ccProvider: p.ccProvider,
+		channelID:  channelID,
+		reqMgr:     requestmgr.Get(channelID),
+		dataStore:  dataStore,
+		discovery:  discovery.New(channelID, p.gossip),
 	}
 }

@@ -18,16 +18,11 @@ const (
 )
 
 func TestFilterPubSimulationResults(t *testing.T) {
-	f := NewCollRWSetFilter(nil, nil)
+	f := NewCollRWSetFilter()
 	require.NotNil(t, f)
 
 	pubSimulationResults := &rwset.TxReadWriteSet{}
 	p, err := f.Filter(channelID, pubSimulationResults)
 	require.NoError(t, err)
 	require.Equal(t, pubSimulationResults, p)
-}
-
-func TestCcProvider_ForChannel(t *testing.T) {
-	p := &ccProvider{}
-	require.Nil(t, p.ForChannel("channel1"))
 }

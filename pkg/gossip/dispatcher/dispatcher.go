@@ -12,7 +12,6 @@ import (
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/extensions/collections/api/store"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	"github.com/hyperledger/fabric/extensions/collections/api/support"
 	ledgerconfig "github.com/hyperledger/fabric/extensions/roles"
 	gossipapi "github.com/hyperledger/fabric/gossip/api"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
@@ -21,6 +20,7 @@ import (
 	cb "github.com/hyperledger/fabric/protos/common"
 	gproto "github.com/hyperledger/fabric/protos/gossip"
 	"github.com/pkg/errors"
+	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/discovery"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/requestmgr"
@@ -42,11 +42,11 @@ var isEndorser = func() bool {
 
 // Dispatcher is a Gossip message dispatcher
 type Dispatcher struct {
-	ccRetriever support.CollectionConfigRetriever
-	channelID   string
-	reqMgr      requestmgr.RequestMgr
-	dataStore   storeapi.Store
-	discovery   *discovery.Discovery
+	ccProvider collcommon.CollectionConfigProvider
+	channelID  string
+	reqMgr     requestmgr.RequestMgr
+	dataStore  storeapi.Store
+	discovery  *discovery.Discovery
 }
 
 // Dispatch handles the message and returns true if the message was handled; false if the message is unrecognized
@@ -204,7 +204,7 @@ func (s *Dispatcher) getResponseData(res *gproto.RemoteCollDataResponse) []*requ
 
 func (s *Dispatcher) getDataForKey(key *storeapi.Key) (*storeapi.ExpiringValue, error) {
 	logger.Debugf("[%s] Getting config for [%s:%s]", s.channelID, key.Namespace, key.Collection)
-	config, err := s.ccRetriever.Config(key.Namespace, key.Collection)
+	config, err := s.ccProvider.ForChannel(s.channelID).Config(key.Namespace, key.Collection)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +225,7 @@ func (s *Dispatcher) getDataForKey(key *storeapi.Key) (*storeapi.ExpiringValue, 
 
 // isAuthorized determines whether the given MSP ID is authorized to read data from the given collection
 func (s *Dispatcher) isAuthorized(mspID string, ns, coll string) (bool, error) {
-	policy, err := s.ccRetriever.Policy(ns, coll)
+	policy, err := s.ccProvider.ForChannel(s.channelID).Policy(ns, coll)
 	if err != nil {
 		return false, errors.WithMessagef(err, "unable to get policy for collection [%s:%s]", ns, coll)
 	}

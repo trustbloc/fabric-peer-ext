@@ -12,14 +12,19 @@ import (
 	"path/filepath"
 	"time"
 
-	coreconfig "github.com/hyperledger/fabric/core/config"
-	"github.com/hyperledger/fabric/core/ledger"
-
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/metrics/disabled"
+	coreconfig "github.com/hyperledger/fabric/core/config"
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/hyperledger/fabric/integration/runner"
 	"github.com/spf13/viper"
+	clientmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/client/mocks"
+	olretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/mocks"
+	storemocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/storeprovider/mocks"
+	tdretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/mocks"
+	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
+	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
 )
 
 var logger = flogging.MustGetLogger("testutil")
@@ -43,6 +48,25 @@ func SetupExtTestEnv() (addr string, cleanup func(string), stop func()) {
 	//update config
 	updateConfig(couchDB.Address())
 
+	// Register all of the dependent (mock) resources
+	resource.Register(func() *mocks.CollectionConfigProvider { return &mocks.CollectionConfigProvider{} }, resource.PriorityHighest)
+	resource.Register(func() *storemocks.TransientDataStoreProvider { return storemocks.NewTransientDataStoreProvider() }, resource.PriorityHigh)
+	resource.Register(func() *storemocks.StoreProvider { return storemocks.NewOffLedgerStoreProvider() }, resource.PriorityHigh)
+	resource.Register(func() *tdretriever.TransientDataProvider { return &tdretriever.TransientDataProvider{} }, resource.PriorityAboveNormal)
+	resource.Register(func() *olretriever.Provider { return &olretriever.Provider{} }, resource.PriorityAboveNormal)
+
+	if err := resource.Mgr.Initialize(
+		mocks.NewBlockPublisherProvider(),
+		&mocks.LedgerProvider{},
+		mocks.NewMockGossipAdapter(),
+		&clientmocks.PvtDataDistributor{},
+		&mocks.IdentityDeserializerProvider{},
+		&mocks.IdentifierProvider{},
+		&mocks.IdentityProvider{},
+	); err != nil {
+		panic(err)
+	}
+
 	return couchDB.Address(),
 		func(name string) {
 			cleanupCouchDB(name)
@@ -52,6 +76,7 @@ func SetupExtTestEnv() (addr string, cleanup func(string), stop func()) {
 			if err := couchDB.Stop(); err != nil {
 				panic(err.Error())
 			}
+			resource.Mgr.Clear()
 		}
 }
 

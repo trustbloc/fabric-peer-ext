@@ -18,13 +18,8 @@ import (
 func TestProvider(t *testing.T) {
 	const channelID = "testchannel"
 
-	dispatcher := New(
-		channelID,
-		&mocks.DataStore{},
-		mocks.NewMockGossipAdapter(),
-		nil,
-		nil,
-	)
+	p := NewProvider().Initialize(mocks.NewMockGossipAdapter(), &mocks.CollectionConfigProvider{})
+	dispatcher := p.ForChannel(channelID, &mocks.DataStore{})
 
 	var response *gproto.GossipMessage
 	msg := &mocks.MockReceivedMessage{
