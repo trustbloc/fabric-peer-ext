@@ -49,11 +49,11 @@ func SetupExtTestEnv() (addr string, cleanup func(string), stop func()) {
 	updateConfig(couchDB.Address())
 
 	// Register all of the dependent (mock) resources
-	resource.Register(func() *mocks.CollectionConfigProvider { return &mocks.CollectionConfigProvider{} }, resource.PriorityHighest)
-	resource.Register(func() *storemocks.TransientDataStoreProvider { return storemocks.NewTransientDataStoreProvider() }, resource.PriorityHigh)
-	resource.Register(func() *storemocks.StoreProvider { return storemocks.NewOffLedgerStoreProvider() }, resource.PriorityHigh)
-	resource.Register(func() *tdretriever.TransientDataProvider { return &tdretriever.TransientDataProvider{} }, resource.PriorityAboveNormal)
-	resource.Register(func() *olretriever.Provider { return &olretriever.Provider{} }, resource.PriorityAboveNormal)
+	resource.Register(func() *mocks.CollectionConfigProvider { return &mocks.CollectionConfigProvider{} })
+	resource.Register(func() *storemocks.TransientDataStoreProvider { return storemocks.NewTransientDataStoreProvider() })
+	resource.Register(func() *storemocks.StoreProvider { return storemocks.NewOffLedgerStoreProvider() })
+	resource.Register(func() *tdretriever.TransientDataProvider { return &tdretriever.TransientDataProvider{} })
+	resource.Register(func() *olretriever.Provider { return &olretriever.Provider{} })
 
 	if err := resource.Mgr.Initialize(
 		mocks.NewBlockPublisherProvider(),

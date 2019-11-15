@@ -8,7 +8,6 @@ package resource
 
 import (
 	"reflect"
-	"sort"
 	"sync"
 
 	"github.com/hyperledger/fabric/common/flogging"
@@ -33,11 +32,10 @@ type channelNotifier interface {
 
 // Manager initializes resources at peer startup and closes them at peer shutdown.
 type Manager struct {
-	mutex         sync.RWMutex
-	registrations registrations
-	resources     []interface{}
-	joinedChan    chan string
-	order         int
+	mutex      sync.RWMutex
+	creators   []interface{}
+	resources  []interface{}
+	joinedChan chan string
 }
 
 // NewManager returns a new resource Manager
@@ -49,36 +47,10 @@ func NewManager() *Manager {
 	return m
 }
 
-// Priority is the relative priority of the resource
-type Priority uint
-
-const (
-	// PriorityHighest indicates that the resource should be initialized first
-	PriorityHighest Priority = 0
-
-	// PriorityHigh indicates that the resource should be among the first to be initialized
-	PriorityHigh Priority = 10
-
-	// PriorityAboveNormal indicates that the resource should be initialized before normal resources
-	PriorityAboveNormal Priority = 25
-
-	// PriorityNormal indicates that the resource can be initialized in any order
-	PriorityNormal Priority = 50
-
-	// PriorityBelowNormal indicates that the resource should be initialized after normal resources
-	PriorityBelowNormal Priority = 75
-
-	// PriorityLow indicates that the resource should be among the last to be initialized
-	PriorityLow Priority = 90
-
-	// PriorityLowest indicates that the resource should be initialized last
-	PriorityLowest Priority = 100
-)
-
 // Register is a convenience function that registers a resource creator function.
 // See Manager.Register for details.
-func Register(creator interface{}, priority Priority) {
-	Mgr.Register(creator, priority)
+func Register(creator interface{}) {
+	Mgr.Register(creator)
 }
 
 // Register registers a resource creator function. The function is invoked on peer startup.
@@ -87,23 +59,19 @@ func Register(creator interface{}, priority Priority) {
 // against a set of registered providers. If a provider is found then it is passed in as the argument
 // value. If a provider is not found then a panic results.
 //
-// Argument, priority, specifies the order in which the resource should be initialized
-// relative to other resources.
-//
 // Example:
 //
 //	func CreateMyResource(x someProvider, y someOtherProvider) *MyStruct {
 //		return &MyResource{x: x, y: y}
 //	}
 //
-//	Register(CreateMyResource, resource.PriorityNormal)
+//	Register(CreateMyResource)
 //
-func (b *Manager) Register(creator interface{}, priority Priority) {
+func (b *Manager) Register(creator interface{}) {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
-	b.order++
-	b.registrations = append(b.registrations, newRegistration(creator, priority, b.order))
+	b.creators = append(b.creators, creator)
 }
 
 // Initialize initializes all of the registered resources with the given set of providers.
@@ -112,18 +80,52 @@ func (b *Manager) Initialize(providers ...interface{}) error {
 	defer b.mutex.Unlock()
 
 	invoker := injectinvoker.New(providers...)
-	for _, creator := range b.registrations.sort().creators() {
+
+	attempt := 0
+	creators := b.creators
+	for len(creators) > 0 {
+		resources, unsatisfied, err := b.initialize(invoker, creators)
+		attempt++
+		if len(unsatisfied) == 0 {
+			logger.Debugf("All resource providers were resolved on attempt #%d", attempt)
+		} else {
+			logger.Debugf("%d of %d resource providers were resolved on attempt #%d", len(resources), len(creators), attempt)
+		}
+
+		creators = unsatisfied
+
+		b.resources = append(b.resources, resources...)
+
+		if err != nil && (errors.Cause(err) != injectinvoker.ErrProviderNotFound || len(resources) == 0) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (b *Manager) initialize(invoker *injectinvoker.Invoker, creators []interface{}) ([]interface{}, []interface{}, error) {
+	var resources []interface{}
+	var unsatisfied []interface{}
+	var errLast error
+
+	for _, creator := range creators {
 		r, err := create(invoker, creator)
 		if err != nil {
-			return errors.WithMessagef(err, "Error creating resource [%s]", reflect.TypeOf(creator))
+			if errors.Cause(err) == injectinvoker.ErrProviderNotFound {
+				unsatisfied = append(unsatisfied, creator)
+				errLast = errors.WithMessagef(err, "Error creating resource [%s]", reflect.TypeOf(creator))
+				continue
+			}
+			return nil, nil, errors.WithMessagef(err, "Error creating resource [%s]", reflect.TypeOf(creator))
 		}
-		b.resources = append(b.resources, r)
+		resources = append(resources, r)
 
 		// Add the resource to the set of providers to be available
 		// for subsequent resources' dependencies
 		invoker.AddProvider(r)
 	}
-	return nil
+	return resources, unsatisfied, errLast
 }
 
 // ChannelJoined notifies all applicable resources that the peer has joined a channel
@@ -185,38 +187,4 @@ func notifyChannelJoined(res interface{}, channelID string) {
 		logger.Debugf("Notifying resource %s that channel [%s] was joined", reflect.TypeOf(res), channelID)
 		n.ChannelJoined(channelID)
 	}
-}
-
-type registration struct {
-	creator  interface{}
-	priority Priority
-	order    int
-}
-
-func newRegistration(creator interface{}, priority Priority, order int) *registration {
-	return &registration{creator: creator, priority: priority, order: order}
-}
-
-type registrations []*registration
-
-// sort sorts the resources first by priority and then by the
-// order in which the resources were registered.
-func (r registrations) sort() registrations {
-	sort.Slice(r, func(i, j int) bool {
-		ri := r[i]
-		rj := r[j]
-		if ri.priority == rj.priority {
-			return ri.order < rj.order
-		}
-		return ri.priority < rj.priority
-	})
-	return r
-}
-
-func (r registrations) creators() []interface{} {
-	creators := make([]interface{}, len(r))
-	for i, entry := range r {
-		creators[i] = entry.creator
-	}
-	return creators
 }

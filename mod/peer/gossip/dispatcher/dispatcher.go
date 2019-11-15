@@ -14,6 +14,6 @@ import (
 // New returns a new Gossip message dispatcher provider
 func NewProvider() *extdispatcher.Provider {
 	p := extdispatcher.NewProvider()
-	resource.Register(p.Initialize, resource.PriorityAboveNormal)
+	resource.Register(p.Initialize)
 	return p
 }

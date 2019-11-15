@@ -14,6 +14,6 @@ import (
 // NewProviderFactory returns a new store provider factory
 func NewProviderFactory() *extstoreprovider.StoreProvider {
 	p := extstoreprovider.New()
-	resource.Register(p.Initialize, resource.PriorityAboveNormal)
+	resource.Register(p.Initialize)
 	return p
 }

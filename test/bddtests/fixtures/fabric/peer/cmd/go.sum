@@ -230,6 +230,7 @@ github.com/trustbloc/fabric-mod v0.0.0-20191017151307-dbb9e53d90a3 h1:akLCiFI1Um
 github.com/trustbloc/fabric-mod v0.0.0-20191017151307-dbb9e53d90a3/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
 github.com/trustbloc/fabric-mod v0.1.1-0.20191111152942-df7071104249/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
 github.com/trustbloc/fabric-mod v0.1.1-0.20191112212227-59cf3006b800/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
+github.com/trustbloc/fabric-mod v0.1.1-0.20191115184302-84db05f49385/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
 github.com/trustbloc/fabric-peer-ext/mod/peer v0.0.0-20191017182554-d11444dac65c/go.mod h1:jJ4XeGSXDsQ6PjRMNHrizu/CibiMGATnJnfA8B1ZghI=
 github.com/trustbloc/fabric-peer-ext/mod/peer v0.0.0-20191030134454-451f83bd8d70/go.mod h1:jJ4XeGSXDsQ6PjRMNHrizu/CibiMGATnJnfA8B1ZghI=
 github.com/trustbloc/fabric-peer-ext/mod/peer v0.0.0-20191108193100-ebf066ade812/go.mod h1:TfkXiV2pNdjfTl5/JmGP12IBay/YaozkH67UkxA4q2o=
