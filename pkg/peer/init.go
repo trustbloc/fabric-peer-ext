@@ -26,13 +26,13 @@ func Initialize() {
 }
 
 func registerResources() {
-	resource.Register(support.NewCollectionConfigRetrieverProvider, resource.PriorityHighest)
-	resource.Register(tdatastore.New, resource.PriorityHigh)
-	resource.Register(storeprovider.NewOffLedgerProvider, resource.PriorityHigh)
-	resource.Register(tretriever.NewProvider, resource.PriorityAboveNormal)
-	resource.Register(extretriever.NewOffLedgerProvider, resource.PriorityAboveNormal)
-	resource.Register(client.NewProvider, resource.PriorityNormal)
-	resource.Register(dcasclient.NewProvider, resource.PriorityNormal)
+	resource.Register(support.NewCollectionConfigRetrieverProvider)
+	resource.Register(tdatastore.New)
+	resource.Register(storeprovider.NewOffLedgerProvider)
+	resource.Register(tretriever.NewProvider)
+	resource.Register(extretriever.NewOffLedgerProvider)
+	resource.Register(client.NewProvider)
+	resource.Register(dcasclient.NewProvider)
 }
 
 func registerSystemChaincodes() {

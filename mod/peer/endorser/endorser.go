@@ -15,6 +15,6 @@ import (
 // read-write sets from the simulation results so that they won't be included in the block.
 func NewCollRWSetFilter() *extendorser.CollRWSetFilter {
 	f := extendorser.NewCollRWSetFilter()
-	resource.Register(f.Initialize, resource.PriorityAboveNormal)
+	resource.Register(f.Initialize)
 	return f
 }

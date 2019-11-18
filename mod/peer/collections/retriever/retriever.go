@@ -14,6 +14,6 @@ import (
 // NewProvider returns a new private data Retriever provider
 func NewProvider() *extretriever.Provider {
 	p := extretriever.NewProvider()
-	resource.Register(p.Initialize, resource.PriorityAboveNormal)
+	resource.Register(p.Initialize)
 	return p
 }

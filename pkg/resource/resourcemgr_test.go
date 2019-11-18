@@ -26,11 +26,10 @@ const (
 )
 
 func TestManager_Initialize(t *testing.T) {
-	creators := &creators{}
-	Register(creators.creator4, PriorityLow)
-	Register(creators.creator3, PriorityLow)
-	Register(creators.creator2, PriorityNormal)
-	Register(creators.creator1, PriorityHighest)
+	Register(creator4)
+	Register(creator3)
+	Register(creator2)
+	Register(creator1)
 
 	err := Mgr.Initialize(
 		&nameAndPathProviderImpl{
@@ -47,32 +46,33 @@ func TestManager_Initialize(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, Mgr.resources, 4)
 
-	require.Equal(t, 1, creators.creator1InitOrder)
-	require.Equal(t, 2, creators.creator2InitOrder)
-	require.Equal(t, 3, creators.creator4InitOrder)
-	require.Equal(t, 4, creators.creator3InitOrder)
+	var r1 *testResource1
+	var r2 *testResource2
+	var r3 *testResource3
+	var r4 *testResource4
 
-	r1, ok := Mgr.resources[0].(*testResource1)
-	require.True(t, ok)
+	for _, r := range Mgr.resources {
+		switch r := r.(type) {
+		case *testResource1:
+			require.Equal(t, ccName1, r.name)
+			require.Equal(t, ccPath1, r.path)
+			r1 = r
+		case *testResource2:
+			require.Equal(t, ccName1, r.name)
+			require.Empty(t, r.ChannelIDs())
+			r2 = r
+		case *testResource3:
+			require.Equal(t, ccName1+" - "+ccPath1, r.nameAndPath)
+			r3 = r
+		case *testResource4:
+			r4 = r
+		}
+	}
+
 	require.NotNil(t, r1)
-	require.Equal(t, ccName1, r1.name)
-	require.Equal(t, ccPath1, r1.path)
-
-	r2, ok := Mgr.resources[1].(*testResource2)
-	require.True(t, ok)
 	require.NotNil(t, r2)
-	require.Equal(t, ccName1, r2.name)
-	require.Empty(t, r2.ChannelIDs())
-
-	r4, ok := Mgr.resources[2].(*testResource4)
-	require.True(t, ok)
-	require.NotNil(t, r4)
-
-	// testResource3 depends on the previous resources as providers
-	r3, ok := Mgr.resources[3].(*testResource3)
-	require.True(t, ok)
 	require.NotNil(t, r3)
-	require.Equal(t, ccName1+" - "+ccPath1, r3.nameAndPath)
+	require.NotNil(t, r4)
 
 	Mgr.ChannelJoined(channel1)
 	Mgr.ChannelJoined(channel2)
@@ -88,7 +88,7 @@ func TestManager_InitializeError(t *testing.T) {
 	t.Run("Invalid number of return args -> error", func(t *testing.T) {
 		mgr := NewManager()
 		require.NotNil(t, mgr)
-		mgr.Register(NoRetArgs, PriorityNormal)
+		mgr.Register(NoRetArgs)
 		err := mgr.Initialize(&nameAndPathProviderImpl{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid number of return values")
@@ -96,11 +96,29 @@ func TestManager_InitializeError(t *testing.T) {
 	t.Run("Dependency not found -> error", func(t *testing.T) {
 		mgr := NewManager()
 		require.NotNil(t, mgr)
-		mgr.Register(UnknownProvider, PriorityNormal)
+		mgr.Register(UnknownProvider)
 		err := mgr.Initialize(&nameAndPathProviderImpl{})
 		require.Error(t, err)
 		require.Equal(t, injectinvoker.ErrProviderNotFound, errors.Cause(err))
 	})
+}
+
+func TestManager_NoProvider(t *testing.T) {
+	Register(creator5)
+
+	err := Mgr.Initialize(
+		&nameAndPathProviderImpl{
+			name: ccName1,
+			path: ccPath1,
+		},
+		&argsProviderImpl{
+			args: [][]byte{
+				[]byte(arg1),
+				[]byte(arg2),
+			},
+		},
+	)
+	require.Error(t, errors.Cause(err), injectinvoker.ErrProviderNotFound)
 }
 
 type nameAndPathProviderImpl struct {
@@ -136,17 +154,7 @@ type argsProvider interface {
 	GetArgs() [][]byte
 }
 
-type creators struct {
-	order             int
-	creator1InitOrder int
-	creator2InitOrder int
-	creator3InitOrder int
-	creator4InitOrder int
-}
-
-func (c *creators) creator1(np nameProvider, pp pathProvider, argsp argsProvider) *testResource1 {
-	c.order++
-	c.creator1InitOrder = c.order
+func creator1(np nameProvider, pp pathProvider, argsp argsProvider) *testResource1 {
 	return &testResource1{
 		name:     np.GetName(),
 		path:     pp.GetPath(),
@@ -154,15 +162,14 @@ func (c *creators) creator1(np nameProvider, pp pathProvider, argsp argsProvider
 	}
 }
 
-func (c *creators) creator2(np nameProvider) *testResource2 {
-	c.order++
-	c.creator2InitOrder = c.order
+func creator2(np nameProvider, pp pathProvider) *testResource2 {
 	r := &testResource2{}
 	r.name = np.GetName()
+	r.path = pp.GetPath()
 	return r
 }
 
-type nameAddPathProvider interface {
+type nameAndPathProvider interface {
 	GetNameAndPath() string
 }
 
@@ -170,9 +177,7 @@ type someFunctionProvider interface {
 	SomeFunction(arg string) error
 }
 
-func (c *creators) creator3(npp nameAddPathProvider, sfp someFunctionProvider) *testResource3 {
-	c.order++
-	c.creator3InitOrder = c.order
+func creator3(npp nameAndPathProvider, sfp someFunctionProvider) *testResource3 {
 	err := sfp.SomeFunction("arg1")
 	if err != nil {
 		panic(err.Error())
@@ -182,10 +187,16 @@ func (c *creators) creator3(npp nameAddPathProvider, sfp someFunctionProvider) *
 	}
 }
 
-func (c *creators) creator4() *testResource4 {
-	c.order++
-	c.creator4InitOrder = c.order
+func creator4() *testResource4 {
 	return &testResource4{}
+}
+
+type unknownProvider interface {
+	SomeUnknownFunc()
+}
+
+func creator5(p unknownProvider) *testResource5 {
+	return &testResource5{}
 }
 
 func NoRetArgs() {
@@ -253,4 +264,7 @@ type testResource3 struct {
 }
 
 type testResource4 struct {
+}
+
+type testResource5 struct {
 }
