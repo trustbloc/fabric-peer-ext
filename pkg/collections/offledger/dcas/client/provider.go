@@ -79,7 +79,7 @@ func newClient(channelID string, p *olclient.Providers) (*DCASClient, error) {
 	return New(channelID,
 		&olclient.ChannelProviders{
 			Ledger:           l,
-			Distributor:      p.GossipAdapter,
+			Distributor:      p.GossipProvider.GetGossipService(),
 			ConfigRetriever:  p.ConfigProvider.ForChannel(channelID),
 			IdentityProvider: p.IdentityProvider,
 		},

@@ -11,7 +11,10 @@ import (
 	"github.com/hyperledger/fabric/gossip/comm"
 	"github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/gossip/discovery"
+	"github.com/hyperledger/fabric/gossip/gossip"
+	"github.com/hyperledger/fabric/gossip/protoext"
 	gossipproto "github.com/hyperledger/fabric/protos/gossip"
+	"github.com/hyperledger/fabric/protos/transientstore"
 )
 
 // MessageHandler defines a function that handles a gossip message.
@@ -82,6 +85,42 @@ func (m *MockGossipAdapter) Send(msg *gossipproto.GossipMessage, peers ...*comm.
 	if m.handler != nil {
 		go m.handler(msg)
 	}
+}
+
+// SelfChannelInfo returns the peer's latest StateInfo message of a given channel
+func (m *MockGossipAdapter) SelfChannelInfo(common.ChainID) *protoext.SignedGossipMessage {
+	panic("not implemented")
+}
+
+// SendByCriteria sends a given message to all peers that match the given SendCriteria
+func (m *MockGossipAdapter) SendByCriteria(*protoext.SignedGossipMessage, gossip.SendCriteria) error {
+	panic("not implemented")
+}
+
+// Peers returns the NetworkMembers considered alive
+func (m *MockGossipAdapter) Peers() []discovery.NetworkMember {
+	panic("not implemented")
+}
+
+// Gossip sends a message to other peers to the network
+func (m *MockGossipAdapter) Gossip(msg *gossipproto.GossipMessage) {
+	panic("not implemented")
+}
+
+// Accept returns a dedicated read-only channel for messages sent by other nodes that match a certain predicate.
+func (m *MockGossipAdapter) Accept(acceptor common.MessageAcceptor, passThrough bool) (<-chan *gossipproto.GossipMessage, <-chan protoext.ReceivedMessage) {
+	panic("not implemented")
+}
+
+// IsInMyOrg checks whether a network member is in this peer's org
+func (m *MockGossipAdapter) IsInMyOrg(member discovery.NetworkMember) bool {
+	panic("not implemented")
+}
+
+// DistributePrivateData distributes private data to the peers in the collections
+// according to policies induced by the PolicyStore and PolicyParser
+func (m *MockGossipAdapter) DistributePrivateData(chainID string, txID string, privateData *transientstore.TxPvtReadWriteSetWithConfigInfo, blkHt uint64) error {
+	panic("not implemented")
 }
 
 // NewMember creates a new network member

@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	clientmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/client/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
@@ -30,7 +29,7 @@ func TestProvider(t *testing.T) {
 
 	providers := &Providers{
 		LedgerProvider:   lp,
-		GossipAdapter:    &clientmocks.PvtDataDistributor{},
+		GossipProvider:   &mocks.GossipProvider{},
 		ConfigProvider:   &mocks.CollectionConfigProvider{},
 		IdentityProvider: &mocks.IdentityProvider{},
 	}

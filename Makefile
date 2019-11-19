@@ -54,7 +54,7 @@ lint:
 license: version
 	@scripts/check_license.sh
 
-all: checks unit-test fabric-unit-test bddtests
+all: clean checks unit-test fabric-unit-test bddtests
 
 unit-test: checks docker-thirdparty
 	@scripts/unit.sh
@@ -115,6 +115,9 @@ build-cc:
 	@echo "Building cc"
 	@mkdir -p ./.build
 	@scripts/copycc.sh
+
+clean:
+	@rm -rf ./.build
 
 clean-images:
 	@echo "Stopping all containers, pruning containers and images, deleting dev images"

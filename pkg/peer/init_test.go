@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	clientmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/client/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
 )
@@ -21,8 +20,7 @@ func TestInitialize(t *testing.T) {
 	require.NoError(t, resource.Mgr.Initialize(
 		mocks.NewBlockPublisherProvider(),
 		&mocks.LedgerProvider{},
-		mocks.NewMockGossipAdapter(),
-		&clientmocks.PvtDataDistributor{},
+		&mocks.GossipProvider{},
 		&mocks.IdentityDeserializerProvider{},
 		&mocks.IdentifierProvider{},
 		&mocks.IdentityProvider{},

@@ -13,7 +13,6 @@ import (
 	"github.com/hyperledger/fabric/common/flogging"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/hyperledger/fabric/extensions/collections/api/support"
-	supportapi "github.com/hyperledger/fabric/extensions/collections/api/support"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/gossip/comm"
 	gproto "github.com/hyperledger/fabric/protos/gossip"
@@ -45,7 +44,7 @@ func NewProvider(providers *collcommon.Providers) tdataapi.Provider {
 func (p *Provider) RetrieverForChannel(channelID string) tdataapi.Retriever {
 	r := &retriever{
 		CollectionConfigRetriever: p.CCProvider.ForChannel(channelID),
-		gossipAdapter:             p.GossipAdapter,
+		gossipProvider:            p.GossipProvider,
 		identifierProvider:        p.IdentifierProvider,
 		store:                     p.StoreProvider.StoreForChannel(channelID),
 		channelID:                 channelID,
@@ -80,7 +79,7 @@ func newCollKey(ns, coll string) collKey {
 type retriever struct {
 	support.CollectionConfigRetriever
 	channelID          string
-	gossipAdapter      supportapi.GossipAdapter
+	gossipProvider     collcommon.GossipProvider
 	identifierProvider collcommon.IdentifierProvider
 	store              tdataapi.Store
 	resolvers          map[collKey]resolver
@@ -266,7 +265,7 @@ func (r *retriever) getOrCreateResolver(key collKey) (resolver, error) {
 		return nil, err
 	}
 
-	resolver = dissemination.New(r.channelID, key.ns, key.coll, policy, r.gossipAdapter)
+	resolver = dissemination.New(r.channelID, key.ns, key.coll, policy, r.gossipProvider.GetGossipService())
 
 	r.resolvers[key] = resolver
 
@@ -294,7 +293,7 @@ func (r *retriever) getTransientData(ctxt context.Context, key *storeapi.Key, en
 	msg := r.createCollDataRequestMsg(req, key)
 
 	logger.Debugf("[%s] Sending Gossip request %d for transient data for [%s]", r.channelID, req.ID(), key)
-	r.gossipAdapter.Send(msg, asRemotePeers(endorsers)...)
+	r.gossipProvider.GetGossipService().Send(msg, asRemotePeers(endorsers)...)
 
 	logger.Debugf("[%s] Waiting for response for %d for transient data for [%s]", r.channelID, req.ID(), key)
 	res, err := req.GetResponse(ctxt)

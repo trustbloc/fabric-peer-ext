@@ -12,7 +12,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	olclient "github.com/trustbloc/fabric-peer-ext/pkg/collections/client"
-	clientmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/client/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
@@ -29,7 +28,7 @@ func TestProvider(t *testing.T) {
 
 	providers := &olclient.Providers{
 		LedgerProvider:   lp,
-		GossipAdapter:    &clientmocks.PvtDataDistributor{},
+		GossipProvider:   &mocks.GossipProvider{},
 		ConfigProvider:   &mocks.CollectionConfigProvider{},
 		IdentityProvider: &mocks.IdentityProvider{},
 	}

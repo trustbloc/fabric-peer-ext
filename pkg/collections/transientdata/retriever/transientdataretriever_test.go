@@ -98,10 +98,13 @@ func TestTransientDataProvider(t *testing.T) {
 	storeProvider := &mocks.StoreProvider{}
 	storeProvider.StoreForChannelReturns(localStore)
 
+	gossipProvider := &mocks.GossipProvider{}
+	gossipProvider.GetGossipServiceReturns(gossip)
+
 	providers := &collcommon.Providers{
 		BlockPublisherProvider: mocks.NewBlockPublisherProvider(),
 		StoreProvider:          storeProvider,
-		GossipAdapter:          gossip,
+		GossipProvider:         gossipProvider,
 		CCProvider:             ccProvider,
 		IdentifierProvider:     identifierProvider,
 	}
@@ -267,10 +270,13 @@ func TestTransientDataProvider_AccessDenied(t *testing.T) {
 	storeProvider := &mocks.StoreProvider{}
 	storeProvider.StoreForChannelReturns(localStore)
 
+	gossipProvider := &mocks.GossipProvider{}
+	gossipProvider.GetGossipServiceReturns(gossip)
+
 	providers := &collcommon.Providers{
 		BlockPublisherProvider: mocks.NewBlockPublisherProvider().WithBlockPublisher(blockPublisher),
 		StoreProvider:          storeProvider,
-		GossipAdapter:          gossip,
+		GossipProvider:         gossipProvider,
 		CCProvider:             ccProvider,
 		IdentifierProvider:     identifierProvider,
 	}

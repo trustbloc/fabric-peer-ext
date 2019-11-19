@@ -22,7 +22,10 @@ func TestStoreProvider(t *testing.T) {
 	channel1 := "channel1"
 	channel2 := "channel2"
 
-	p := New(mocks.NewMockGossipAdapter(), &mocks.IdentityDeserializerProvider{})
+	gossipProvider := &mocks.GossipProvider{}
+	gossipProvider.GetGossipServiceReturns(mocks.NewMockGossipAdapter())
+
+	p := New(gossipProvider, &mocks.IdentityDeserializerProvider{})
 	require.NotNil(t, p)
 
 	s1, err := p.OpenStore(channel1)

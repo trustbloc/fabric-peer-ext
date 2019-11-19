@@ -11,6 +11,7 @@ import (
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/hyperledger/fabric/extensions/collections/api/support"
 	"github.com/hyperledger/fabric/extensions/endorser/api"
+	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/msp"
 )
 
@@ -22,6 +23,7 @@ import (
 //go:generate counterfeiter -o ../../mocks/identifierprovider.gen.go --fake-name IdentifierProvider . IdentifierProvider
 //go:generate counterfeiter -o ../../mocks/storeprovider.gen.go --fake-name StoreProvider . StoreProvider
 //go:generate counterfeiter -o ../../mocks/collconfigprovider.gen.go --fake-name CollectionConfigProvider . CollectionConfigProvider
+//go:generate counterfeiter -o ../../mocks/gossipprovider.gen.go --fake-name GossipProvider . GossipProvider
 
 // LedgerProvider retrieves ledgers by channel ID
 type LedgerProvider interface {
@@ -53,11 +55,16 @@ type CollectionConfigProvider interface {
 	ForChannel(channelID string) support.CollectionConfigRetriever
 }
 
+// GossipProvider is a Gossip service provider
+type GossipProvider interface {
+	GetGossipService() gossipapi.GossipService
+}
+
 // Providers holds all of the dependencies required by the retriever provider
 type Providers struct {
 	BlockPublisherProvider api.BlockPublisherProvider
 	StoreProvider          StoreProvider
-	GossipAdapter          support.GossipAdapter
+	GossipProvider         GossipProvider
 	CCProvider             CollectionConfigProvider
 	IdentifierProvider     IdentifierProvider
 }

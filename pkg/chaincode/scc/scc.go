@@ -9,6 +9,7 @@ package scc
 import (
 	"github.com/hyperledger/fabric/core/scc"
 	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/scc/builder"
+	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
 )
 
 var sccBuilder = builder.New()
@@ -23,7 +24,8 @@ func Register(c creator) {
 
 // Create returns a list of system chain codes, initialized with the given providers.
 func Create(providers ...interface{}) []scc.SelfDescribingSysCC {
-	descs, err := sccBuilder.Build(providers...)
+	// Merge the given providers with all of the registered resources
+	descs, err := sccBuilder.Build(append(providers, resource.Mgr.Resources()...)...)
 	if err != nil {
 		panic(err.Error())
 	}

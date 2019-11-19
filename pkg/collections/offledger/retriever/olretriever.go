@@ -86,7 +86,7 @@ func NewProvider(providers *collcommon.Providers, opts ...Option) olapi.Provider
 func (p *Provider) RetrieverForChannel(channelID string) olapi.Retriever {
 	r := &retriever{
 		CollectionConfigRetriever: p.CCProvider.ForChannel(channelID),
-		gossipAdapter:             p.GossipAdapter,
+		gossipAdapter:             p.GossipProvider.GetGossipService(),
 		identifierProvider:        p.IdentifierProvider,
 		store:                     p.StoreProvider.StoreForChannel(channelID),
 		channelID:                 channelID,
