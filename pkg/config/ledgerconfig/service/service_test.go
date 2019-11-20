@@ -253,16 +253,15 @@ func TestConfigService_AddUpdateHandler(t *testing.T) {
 }
 
 func TestManager(t *testing.T) {
-	rp := mocks.NewStateRetrieverProvider()
+	lp := &mocks2.LedgerProvider{}
+	lp.GetLedgerReturns(&mocks2.Ledger{QueryExecutor: mocks2.NewQueryExecutor()})
 
-	svc := GetSvcMgr().ForChannel(channelID)
-	require.Nil(t, svc)
+	manager := NewSvcMgr(lp, mocks2.NewBlockPublisherProvider())
 
-	err := GetSvcMgr().Init(channelID, rp, mocks2.NewBlockPublisher())
-	require.NoError(t, err)
-
-	svc = GetSvcMgr().ForChannel(channelID)
+	svc := manager.ForChannel(channelID)
 	require.NotNil(t, svc)
 
-	require.EqualError(t, GetSvcMgr().Init(channelID, rp, mocks2.NewBlockPublisher()), "Config service already exists for channel [testchannel]")
+	value, err := svc.Get(&config.Key{MspID: msp1, AppName: app2, AppVersion: v1})
+	require.EqualError(t, err, ErrConfigNotFound.Error())
+	require.Nil(t, value)
 }

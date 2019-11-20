@@ -16,6 +16,7 @@ import (
 	tretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/retriever"
 	tdatastore "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
+	cfgservice "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/service"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
 )
 
@@ -33,6 +34,7 @@ func registerResources() {
 	resource.Register(extretriever.NewOffLedgerProvider)
 	resource.Register(client.NewProvider)
 	resource.Register(dcasclient.NewProvider)
+	resource.Register(cfgservice.NewSvcMgr)
 }
 
 func registerSystemChaincodes() {

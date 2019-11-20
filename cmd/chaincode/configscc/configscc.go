@@ -12,9 +12,7 @@ import (
 
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
-	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/scc"
-	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	pb "github.com/hyperledger/fabric/protos/peer"
 	"github.com/pkg/errors"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
@@ -38,32 +36,13 @@ type configMgr interface {
 
 type function func(shim.ChaincodeStubInterface, [][]byte) pb.Response
 
-type queryExecutorProvider interface {
-	GetQueryExecutorForLedger(cid string) (ledger.QueryExecutor, error)
-}
-
-type blockPublisherProvider interface {
-	ForChannel(channelID string) gossipapi.BlockPublisher
-}
-
 type configSCC struct {
-	qeProvider       queryExecutorProvider
-	pubProvider      blockPublisherProvider
 	functionRegistry map[string]function
 }
 
 // New returns a new configuration system chaincode
-func New(qeProvider queryExecutorProvider, pubProvider blockPublisherProvider) scc.SelfDescribingSysCC {
-	if qeProvider == nil {
-		panic("nil query executor provider")
-	}
-	if pubProvider == nil {
-		panic("nil block publisher provider")
-	}
-	cc := &configSCC{
-		qeProvider:  qeProvider,
-		pubProvider: pubProvider,
-	}
+func New() scc.SelfDescribingSysCC {
+	cc := &configSCC{}
 	cc.initFunctionRegistry()
 	return cc
 }
@@ -78,14 +57,6 @@ func (scc *configSCC) Enabled() bool             { return true }
 
 // Init initializes the config SCC
 func (scc *configSCC) Init(stub shim.ChaincodeStubInterface) pb.Response {
-	if stub.GetChannelID() != "" {
-		logger.Infof("Initializing configuration service for channel: [%s]", stub.GetChannelID())
-		retriever := state.NewQERetrieverProvider(stub.GetChannelID(), scc.qeProvider)
-		publisher := scc.pubProvider.ForChannel(stub.GetChannelID())
-		if err := service.GetSvcMgr().Init(stub.GetChannelID(), retriever, publisher); err != nil {
-			return shim.Error(err.Error())
-		}
-	}
 	return shim.Success(nil)
 }
 

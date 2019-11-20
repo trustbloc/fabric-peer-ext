@@ -17,7 +17,6 @@ import (
 	configmocks "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/service"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/state/api"
-	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
 const (
@@ -26,30 +25,20 @@ const (
 )
 
 func TestConfigSCC_New(t *testing.T) {
-	t.Run("Unresolved dependency: QE Provider", func(t *testing.T) {
-		require.Panics(t, func() { New(nil, mocks.NewBlockPublisherProvider()) })
-	})
-	t.Run("Unresolved dependency: Block Publisher", func(t *testing.T) {
-		require.Panics(t, func() { New(mocks.NewQueryExecutorProvider(), nil) })
-	})
-	t.Run("Success", func(t *testing.T) {
-		qep := mocks.NewQueryExecutorProvider()
-		cc := New(qep, mocks.NewBlockPublisherProvider())
-		require.NotNil(t, cc)
+	cc := New()
+	require.NotNil(t, cc)
 
-		require.Equal(t, service.ConfigNS, cc.Name())
-		require.Equal(t, sccPath, cc.Path())
-		require.Nil(t, cc.InitArgs())
-		require.Equal(t, cc, cc.Chaincode())
-		require.True(t, cc.Enabled())
-		require.True(t, cc.InvokableCC2CC())
-		require.True(t, cc.InvokableExternal())
-	})
+	require.Equal(t, service.ConfigNS, cc.Name())
+	require.Equal(t, sccPath, cc.Path())
+	require.Nil(t, cc.InitArgs())
+	require.Equal(t, cc, cc.Chaincode())
+	require.True(t, cc.Enabled())
+	require.True(t, cc.InvokableCC2CC())
+	require.True(t, cc.InvokableExternal())
 }
 
 func TestConfigSCC_Init(t *testing.T) {
-	qep := mocks.NewQueryExecutorProvider()
-	cc := New(qep, mocks.NewBlockPublisherProvider())
+	cc := New()
 	require.NotNil(t, cc)
 
 	t.Run("System channel", func(t *testing.T) {
@@ -64,8 +53,6 @@ func TestConfigSCC_Init(t *testing.T) {
 	t.Run("With channel", func(t *testing.T) {
 		const channelID = "testchannel"
 
-		require.Nil(t, service.GetSvcMgr().ForChannel(channelID))
-
 		stub := shim.NewMockStub("mock_stub", cc.Chaincode())
 		stub.ChannelID = channelID
 		r := stub.MockInit(tx1, nil)
@@ -73,20 +60,11 @@ func TestConfigSCC_Init(t *testing.T) {
 		require.Equal(t, shim.OK, int(r.Status))
 		require.Nil(t, r.Payload)
 		require.Empty(t, r.Message)
-
-		require.NotNil(t, service.GetSvcMgr().ForChannel(channelID))
-
-		r = stub.MockInit(tx1, nil)
-		require.NotNil(t, r)
-		require.Equal(t, shim.ERROR, int(r.Status))
-		require.Nil(t, r.Payload)
-		require.Contains(t, r.Message, "Config service already exists for channel")
 	})
 }
 
 func TestConfigSCC_Invoke_Invalid(t *testing.T) {
-	qep := mocks.NewQueryExecutorProvider()
-	cc := New(qep, mocks.NewBlockPublisherProvider())
+	cc := New()
 	require.NotNil(t, cc)
 
 	t.Run("No func arg", func(t *testing.T) {
@@ -107,8 +85,7 @@ func TestConfigSCC_Invoke_Invalid(t *testing.T) {
 }
 
 func TestConfigSCC_Invoke_Save(t *testing.T) {
-	qep := mocks.NewQueryExecutorProvider()
-	cc := New(qep, mocks.NewBlockPublisherProvider())
+	cc := New()
 	require.NotNil(t, cc)
 
 	t.Run("Empty config", func(t *testing.T) {
@@ -163,8 +140,7 @@ func TestConfigSCC_Invoke_Save(t *testing.T) {
 }
 
 func TestConfigSCC_Invoke_Get(t *testing.T) {
-	qep := mocks.NewQueryExecutorProvider()
-	cc := New(qep, mocks.NewBlockPublisherProvider())
+	cc := New()
 	require.NotNil(t, cc)
 
 	t.Run("No criteria", func(t *testing.T) {
@@ -259,8 +235,7 @@ func TestConfigSCC_Invoke_Get(t *testing.T) {
 }
 
 func TestConfigSCC_Invoke_Delete(t *testing.T) {
-	qep := mocks.NewQueryExecutorProvider()
-	cc := New(qep, mocks.NewBlockPublisherProvider())
+	cc := New()
 	require.NotNil(t, cc)
 
 	t.Run("No criteria", func(t *testing.T) {
