@@ -121,10 +121,13 @@ func TestRetriever(t *testing.T) {
 	storeProvider := &mocks.StoreProvider{}
 	storeProvider.StoreForChannelReturns(localStore)
 
+	gossipProvider := &mocks.GossipProvider{}
+	gossipProvider.GetGossipServiceReturns(gossip)
+
 	providers := &collcommon.Providers{
 		BlockPublisherProvider: mocks.NewBlockPublisherProvider(),
 		StoreProvider:          storeProvider,
-		GossipAdapter:          gossip,
+		GossipProvider:         gossipProvider,
 		CCProvider:             ccProvider,
 		IdentifierProvider:     identifierProvider,
 	}
@@ -373,10 +376,13 @@ func TestRetriever_Query(t *testing.T) {
 	storeProvider := &mocks.StoreProvider{}
 	storeProvider.StoreForChannelReturns(localStore)
 
+	gossipProvider := &mocks.GossipProvider{}
+	gossipProvider.GetGossipServiceReturns(gossip)
+
 	providers := &collcommon.Providers{
 		BlockPublisherProvider: mocks.NewBlockPublisherProvider(),
 		StoreProvider:          storeProvider,
-		GossipAdapter:          gossip,
+		GossipProvider:         gossipProvider,
 		CCProvider:             ccProvider,
 		IdentifierProvider:     identifierProvider,
 	}
@@ -510,10 +516,13 @@ func TestRetriever_AccessDenied(t *testing.T) {
 
 	blockPublisher := mocks.NewBlockPublisher()
 
+	gossipProvider := &mocks.GossipProvider{}
+	gossipProvider.GetGossipServiceReturns(gossip)
+
 	providers := &collcommon.Providers{
 		BlockPublisherProvider: mocks.NewBlockPublisherProvider().WithBlockPublisher(blockPublisher),
 		StoreProvider:          storeProvider,
-		GossipAdapter:          gossip,
+		GossipProvider:         gossipProvider,
 		CCProvider:             ccProvider,
 		IdentifierProvider:     identifierProvider,
 	}

@@ -17,22 +17,22 @@ import (
 )
 
 // New returns a new transient data store provider
-func New(gossip gossipAdapter, idProvider collcommon.IdentityDeserializerProvider) *StoreProvider {
+func New(gossipProvider collcommon.GossipProvider, idProvider collcommon.IdentityDeserializerProvider) *StoreProvider {
 	logger.Infof("Creating new transient data store provider")
 	return &StoreProvider{
-		stores:     make(map[string]*store),
-		dbProvider: dbstore.NewDBProvider(),
-		gossip:     gossip,
-		idProvider: idProvider,
+		stores:         make(map[string]*store),
+		dbProvider:     dbstore.NewDBProvider(),
+		gossipProvider: gossipProvider,
+		idProvider:     idProvider,
 	}
 }
 
 // StoreProvider is a transient data store provider
 type StoreProvider struct {
-	stores     map[string]*store
-	dbProvider *dbstore.LevelDBProvider
-	gossip     gossipAdapter
-	idProvider collcommon.IdentityDeserializerProvider
+	stores         map[string]*store
+	dbProvider     *dbstore.LevelDBProvider
+	gossipProvider collcommon.GossipProvider
+	idProvider     collcommon.IdentityDeserializerProvider
 	sync.RWMutex
 }
 
@@ -58,7 +58,7 @@ func (sp *StoreProvider) OpenStore(channelID string) (api.Store, error) {
 		return nil, err
 	}
 
-	store := newStore(channelID, config.GetTransientDataCacheSize(), db, sp.gossip, sp.idProvider.GetIdentityDeserializer(channelID))
+	store := newStore(channelID, config.GetTransientDataCacheSize(), db, sp.gossipProvider.GetGossipService(), sp.idProvider.GetIdentityDeserializer(channelID))
 	sp.stores[channelID] = store
 
 	return store, nil

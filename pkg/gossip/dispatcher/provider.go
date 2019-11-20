@@ -15,8 +15,8 @@ import (
 
 // Provider is a gossip dispatcher provider
 type Provider struct {
-	gossip     gossipAdapter
-	ccProvider collcommon.CollectionConfigProvider
+	gossipProvider collcommon.GossipProvider
+	ccProvider     collcommon.CollectionConfigProvider
 }
 
 // NewProvider returns a new gossip message dispatcher provider
@@ -25,9 +25,9 @@ func NewProvider() *Provider {
 }
 
 // Initialize is called at startup by the resource manager
-func (p *Provider) Initialize(gossip gossipAdapter, ccProvider collcommon.CollectionConfigProvider) *Provider {
+func (p *Provider) Initialize(gossipProvider collcommon.GossipProvider, ccProvider collcommon.CollectionConfigProvider) *Provider {
 	logger.Infof("Initializing gossip dispatcher provider")
-	p.gossip = gossip
+	p.gossipProvider = gossipProvider
 	p.ccProvider = ccProvider
 	return p
 }
@@ -40,6 +40,6 @@ func (p *Provider) ForChannel(channelID string, dataStore storeapi.Store) *Dispa
 		channelID:  channelID,
 		reqMgr:     requestmgr.Get(channelID),
 		dataStore:  dataStore,
-		discovery:  discovery.New(channelID, p.gossip),
+		discovery:  discovery.New(channelID, p.gossipProvider.GetGossipService()),
 	}
 }

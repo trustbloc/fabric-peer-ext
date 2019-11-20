@@ -62,7 +62,7 @@ func TestDispatchUnhandled(t *testing.T) {
 	const channelID = "testchannel"
 
 	dispatcher := NewProvider().Initialize(
-		mocks.NewMockGossipAdapter(),
+		&mocks.GossipProvider{},
 		&mocks.CollectionConfigProvider{},
 	).ForChannel(
 		channelID,
@@ -129,8 +129,11 @@ func TestDispatchDataRequest(t *testing.T) {
 			WithState(lscc, privdata.BuildCollectionKVSKey(ns2), configPkgBytes2),
 	})
 
+	gossipProvider := &mocks.GossipProvider{}
+	gossipProvider.GetGossipServiceReturns(gossipAdapter)
+
 	dispatcher := NewProvider().Initialize(
-		gossipAdapter,
+		gossipProvider,
 		support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}),
 	).ForChannel(
 		channelID,
@@ -258,8 +261,11 @@ func TestDispatchDataResponse(t *testing.T) {
 	lp := &mocks.LedgerProvider{}
 	lp.GetLedgerReturns(&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor()})
 
+	gossipProvider := &mocks.GossipProvider{}
+	gossipProvider.GetGossipServiceReturns(gossip)
+
 	dispatcher := NewProvider().Initialize(
-		gossip,
+		gossipProvider,
 		support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}),
 	).ForChannel(
 		channelID,

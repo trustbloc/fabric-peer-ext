@@ -44,14 +44,14 @@ func TestManager_Initialize(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	require.Len(t, Mgr.resources, 4)
+	require.Len(t, Mgr.Resources(), 6)
 
 	var r1 *testResource1
 	var r2 *testResource2
 	var r3 *testResource3
 	var r4 *testResource4
 
-	for _, r := range Mgr.resources {
+	for _, r := range Mgr.Resources() {
 		switch r := r.(type) {
 		case *testResource1:
 			require.Equal(t, ccName1, r.name)
@@ -119,6 +119,22 @@ func TestManager_NoProvider(t *testing.T) {
 		},
 	)
 	require.Error(t, errors.Cause(err), injectinvoker.ErrProviderNotFound)
+}
+
+func TestManager_Clear(t *testing.T) {
+	mgr := NewManager()
+	require.NotNil(t, mgr)
+
+	err := mgr.Initialize(
+		&nameAndPathProviderImpl{
+			name: ccName1,
+			path: ccPath1,
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, mgr.Resources(), 1)
+	mgr.Clear()
+	require.Empty(t, mgr.Resources())
 }
 
 type nameAndPathProviderImpl struct {

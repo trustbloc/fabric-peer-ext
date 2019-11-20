@@ -48,24 +48,7 @@ func SetupExtTestEnv() (addr string, cleanup func(string), stop func()) {
 	//update config
 	updateConfig(couchDB.Address())
 
-	// Register all of the dependent (mock) resources
-	resource.Register(func() *mocks.CollectionConfigProvider { return &mocks.CollectionConfigProvider{} })
-	resource.Register(func() *storemocks.TransientDataStoreProvider { return storemocks.NewTransientDataStoreProvider() })
-	resource.Register(func() *storemocks.StoreProvider { return storemocks.NewOffLedgerStoreProvider() })
-	resource.Register(func() *tdretriever.TransientDataProvider { return &tdretriever.TransientDataProvider{} })
-	resource.Register(func() *olretriever.Provider { return &olretriever.Provider{} })
-
-	if err := resource.Mgr.Initialize(
-		mocks.NewBlockPublisherProvider(),
-		&mocks.LedgerProvider{},
-		mocks.NewMockGossipAdapter(),
-		&clientmocks.PvtDataDistributor{},
-		&mocks.IdentityDeserializerProvider{},
-		&mocks.IdentifierProvider{},
-		&mocks.IdentityProvider{},
-	); err != nil {
-		panic(err)
-	}
+	clearResources := SetupResources()
 
 	return couchDB.Address(),
 		func(name string) {
@@ -76,8 +59,36 @@ func SetupExtTestEnv() (addr string, cleanup func(string), stop func()) {
 			if err := couchDB.Stop(); err != nil {
 				panic(err.Error())
 			}
-			resource.Mgr.Clear()
+			clearResources()
 		}
+}
+
+// SetupResources sets up all of the mock resource providers
+func SetupResources() func() {
+	logger.Info("... registering all resources...")
+
+	// Register all of the dependent (mock) resources
+	resource.Register(func() *mocks.CollectionConfigProvider { return &mocks.CollectionConfigProvider{} })
+	resource.Register(func() *storemocks.TransientDataStoreProvider { return storemocks.NewTransientDataStoreProvider() })
+	resource.Register(func() *storemocks.StoreProvider { return storemocks.NewOffLedgerStoreProvider() })
+	resource.Register(func() *tdretriever.TransientDataProvider { return &tdretriever.TransientDataProvider{} })
+	resource.Register(func() *olretriever.Provider { return &olretriever.Provider{} })
+
+	if err := resource.Mgr.Initialize(
+		mocks.NewBlockPublisherProvider(),
+		&mocks.LedgerProvider{},
+		&mocks.GossipProvider{},
+		&clientmocks.PvtDataDistributor{},
+		&mocks.IdentityDeserializerProvider{},
+		&mocks.IdentifierProvider{},
+		&mocks.IdentityProvider{},
+	); err != nil {
+		panic(err)
+	}
+
+	return func() {
+		resource.Mgr.Clear()
+	}
 }
 
 func cleanupCouchDB(name string) {

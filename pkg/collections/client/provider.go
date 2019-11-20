@@ -44,7 +44,7 @@ type Provider struct {
 // Providers contains all of the dependencies for the client
 type Providers struct {
 	LedgerProvider   collcommon.LedgerProvider
-	GossipAdapter    PvtDataDistributor
+	GossipProvider   collcommon.GossipProvider
 	ConfigProvider   collcommon.CollectionConfigProvider
 	IdentityProvider collcommon.IdentityProvider
 }
@@ -84,7 +84,7 @@ func newClient(channelID string, p *Providers) (*Client, error) {
 	return New(channelID,
 		&ChannelProviders{
 			Ledger:           l,
-			Distributor:      p.GossipAdapter,
+			Distributor:      p.GossipProvider.GetGossipService(),
 			ConfigRetriever:  p.ConfigProvider.ForChannel(channelID),
 			IdentityProvider: p.IdentityProvider,
 		},

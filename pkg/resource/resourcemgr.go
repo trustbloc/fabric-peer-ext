@@ -79,6 +79,9 @@ func (b *Manager) Initialize(providers ...interface{}) error {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
+	// Add all of the providers since they are also considered to be resources
+	b.resources = append(b.resources, providers...)
+
 	invoker := injectinvoker.New(providers...)
 
 	attempt := 0
@@ -102,6 +105,14 @@ func (b *Manager) Initialize(providers ...interface{}) error {
 	}
 
 	return nil
+}
+
+// Resources returns all resources
+func (b *Manager) Resources() []interface{} {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
+
+	return b.resources
 }
 
 func (b *Manager) initialize(invoker *injectinvoker.Invoker, creators []interface{}) ([]interface{}, []interface{}, error) {

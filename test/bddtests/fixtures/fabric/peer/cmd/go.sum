@@ -25,6 +25,11 @@ github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6r
 github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kBD4zp0CCIs=
 github.com/bluele/gcache v0.0.0-20190301044115-79ae3b2d8680 h1:jk2k2FUNIg9ogv9yFIzjA5NTrJeaAkHev4AFspbmyvo=
 github.com/bluele/gcache v0.0.0-20190301044115-79ae3b2d8680/go.mod h1:8c4/i2VlovMO2gBnHGQPN5EJw+H0lx1u/5p+cgsXtCk=
+github.com/bstasyszyn/fabric-mod v0.0.0-20191118213618-f9217c186ca1/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
+github.com/bstasyszyn/fabric-mod v0.0.0-20191118230052-78ccf7ef7057/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
+github.com/bstasyszyn/fabric-mod v0.0.0-20191119125806-7fb0f58fdd61/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
+github.com/bstasyszyn/fabric-mod v0.0.0-20191119214054-b9a9aa2d5269/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
+github.com/bstasyszyn/fabric-mod v0.1.1-0.20191119175803-35592e5ca249/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
 github.com/btcsuite/btcutil v0.0.0-20170419141449-a5ecb5d9547a h1:UwuNC3d8iGIAwMyAO92ZGuVQYmdGkWXtQEGZdiIrJQs=
 github.com/btcsuite/btcutil v0.0.0-20170419141449-a5ecb5d9547a/go.mod h1:+5NJ2+qvTyV9exUAL/rxXi3DcLg2Ts+ymUAY5y4NvMg=
 github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghfAqPWnc=
@@ -231,6 +236,9 @@ github.com/trustbloc/fabric-mod v0.0.0-20191017151307-dbb9e53d90a3/go.mod h1:LxT
 github.com/trustbloc/fabric-mod v0.1.1-0.20191111152942-df7071104249/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
 github.com/trustbloc/fabric-mod v0.1.1-0.20191112212227-59cf3006b800/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
 github.com/trustbloc/fabric-mod v0.1.1-0.20191115184302-84db05f49385/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
+github.com/trustbloc/fabric-mod v0.1.1-0.20191119143343-1941301257c1/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
+github.com/trustbloc/fabric-mod v0.1.1-0.20191119175803-35592e5ca249/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
+github.com/trustbloc/fabric-mod v0.1.1-0.20191119224631-b446f4dd9bb1/go.mod h1:LxTDde3l64j/c3QAlxxkkTc3TT70rrU5fDDej92Y9oI=
 github.com/trustbloc/fabric-peer-ext/mod/peer v0.0.0-20191017182554-d11444dac65c/go.mod h1:jJ4XeGSXDsQ6PjRMNHrizu/CibiMGATnJnfA8B1ZghI=
 github.com/trustbloc/fabric-peer-ext/mod/peer v0.0.0-20191030134454-451f83bd8d70/go.mod h1:jJ4XeGSXDsQ6PjRMNHrizu/CibiMGATnJnfA8B1ZghI=
 github.com/trustbloc/fabric-peer-ext/mod/peer v0.0.0-20191108193100-ebf066ade812/go.mod h1:TfkXiV2pNdjfTl5/JmGP12IBay/YaozkH67UkxA4q2o=

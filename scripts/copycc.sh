@@ -23,6 +23,8 @@ do
 
 mkdir -p ./.build/cc/src/github.com/trustbloc/"${i}"
 cp -r test/bddtests/fixtures/testdata/src/github.com/trustbloc/"${i}"/* ./.build/cc/src/github.com/trustbloc/"${i}"/
+find ./vendor/ -type f -name go.mod -delete
+find ./vendor/ -type f -name go.sum -delete
 find ./vendor ! -name '*_test.go' | cpio -pdm ./.build/cc/src/github.com/trustbloc/"${i}"
 
 done

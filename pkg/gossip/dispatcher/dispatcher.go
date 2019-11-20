@@ -13,9 +13,6 @@ import (
 	"github.com/hyperledger/fabric/extensions/collections/api/store"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	ledgerconfig "github.com/hyperledger/fabric/extensions/roles"
-	gossipapi "github.com/hyperledger/fabric/gossip/api"
-	gcommon "github.com/hyperledger/fabric/gossip/common"
-	gdiscovery "github.com/hyperledger/fabric/gossip/discovery"
 	"github.com/hyperledger/fabric/gossip/protoext"
 	cb "github.com/hyperledger/fabric/protos/common"
 	gproto "github.com/hyperledger/fabric/protos/gossip"
@@ -28,12 +25,6 @@ import (
 )
 
 var logger = flogging.MustGetLogger("ext_dispatcher")
-
-type gossipAdapter interface {
-	PeersOfChannel(gcommon.ChainID) []gdiscovery.NetworkMember
-	SelfMembershipInfo() gdiscovery.NetworkMember
-	IdentityInfo() gossipapi.PeerIdentitySet
-}
 
 // isEndorser should only be overridden for unit testing
 var isEndorser = func() bool {
