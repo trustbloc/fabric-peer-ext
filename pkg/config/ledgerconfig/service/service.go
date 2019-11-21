@@ -35,15 +35,12 @@ type configMgr interface {
 	Query(criteria *config.Criteria) ([]*config.KeyValue, error)
 }
 
-// ConfigUpdateHandler handles updates/deletes of config keys
-type ConfigUpdateHandler func(kv *config.KeyValue)
-
 // ConfigService manages configuration data for a given channel
 type ConfigService struct {
 	channelID  string
 	configMgr  configMgr
 	cache      gcache.Cache
-	handlers   []ConfigUpdateHandler
+	handlers   []config.UpdateHandler
 	mutex      sync.RWMutex
 	updateChan chan *config.KeyValue
 }
@@ -97,7 +94,7 @@ func (s *ConfigService) Get(key *config.Key) (*config.Value, error) {
 }
 
 // AddUpdateHandler adds a handler that is notified of config updates/deletes
-func (s *ConfigService) AddUpdateHandler(handler ConfigUpdateHandler) {
+func (s *ConfigService) AddUpdateHandler(handler config.UpdateHandler) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -166,11 +163,11 @@ func (s *ConfigService) listen() {
 	}
 }
 
-func (s *ConfigService) getHandlers() []ConfigUpdateHandler {
+func (s *ConfigService) getHandlers() []config.UpdateHandler {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	handlers := make([]ConfigUpdateHandler, len(s.handlers))
+	handlers := make([]config.UpdateHandler, len(s.handlers))
 	copy(handlers, s.handlers)
 	return handlers
 }

@@ -34,26 +34,31 @@ const (
 
 type function func(shim.ChaincodeStubInterface, [][]byte) pb.Response
 
+type configServiceProvider interface {
+	ForChannel(channelID string) config.Service
+}
+
 type testSCC struct {
 	functionRegistry map[string]function
 	localMSPID       string
 	localPeerID      string
 	mutex            sync.RWMutex
-	configSvc        *configsvc.ConfigService
+	configProvider   configServiceProvider
 	config           map[config.Key]*config.Value
 }
 
-// New returns a new configuration system chaincode
-func New() scc.SelfDescribingSysCC {
+// New returns a new test system chaincode
+func New(configServiceProvider configServiceProvider) scc.SelfDescribingSysCC {
 	peerConfig, err := newPeerViper()
 	if err != nil {
 		panic("Error reading peer config: " + err.Error())
 	}
 
 	cc := &testSCC{
-		config:      make(map[config.Key]*config.Value),
-		localMSPID:  peerConfig.GetString("peer.localMspId"),
-		localPeerID: peerConfig.GetString("peer.id"),
+		config:         make(map[config.Key]*config.Value),
+		localMSPID:     peerConfig.GetString("peer.localMspId"),
+		localPeerID:    peerConfig.GetString("peer.id"),
+		configProvider: configServiceProvider,
 	}
 	cc.initFunctionRegistry()
 	return cc
@@ -70,11 +75,8 @@ func (scc *testSCC) Enabled() bool             { return true }
 // Init initializes the config SCC
 func (scc *testSCC) Init(stub shim.ChaincodeStubInterface) pb.Response {
 	if stub.GetChannelID() != "" {
-		scc.configSvc = configsvc.GetSvcMgr().ForChannel(stub.GetChannelID())
-
 		logger.Infof("Registering for config update events for local MSP [%s] and local peer [%s] and app [%s]", scc.localMSPID, scc.localPeerID, sccName)
-
-		scc.configSvc.AddUpdateHandler(func(kv *config.KeyValue) {
+		scc.configProvider.ForChannel(stub.GetChannelID()).AddUpdateHandler(func(kv *config.KeyValue) {
 			if kv.MspID == scc.localMSPID && kv.PeerID == scc.localPeerID {
 				scc.updateConfig(kv.Key, kv.Value)
 			}
@@ -118,7 +120,7 @@ func (scc *testSCC) getConfig(stub shim.ChaincodeStubInterface, args [][]byte) p
 
 	if key.MspID == generalMSPID {
 		logger.Infof("Retrieving value for key [%s] from the config service...", key)
-		value, err := scc.configSvc.Get(key)
+		value, err := scc.configProvider.ForChannel(stub.GetChannelID()).Get(key)
 		if err != nil {
 			if err == configsvc.ErrConfigNotFound {
 				logger.Infof("... value for key [%s] not found in the config service", key)
