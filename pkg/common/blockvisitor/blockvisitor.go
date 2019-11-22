@@ -189,6 +189,17 @@ func (p *Visitor) LedgerHeight() uint64 {
 	return atomic.LoadUint64(&p.lastCommittedBlock) + 1
 }
 
+// SetLastCommittedBlockNum initializes the visitor with the given block number - only if the given block number
+// is greater than the current last committed block number.
+func (p *Visitor) SetLastCommittedBlockNum(blockNum uint64) {
+	for n := atomic.LoadUint64(&p.lastCommittedBlock); n < blockNum; {
+		if atomic.CompareAndSwapUint64(&p.lastCommittedBlock, n, blockNum) {
+			logger.Debugf("Changed lastCommittedBlockNumber from %d to %d", n, blockNum)
+			break
+		}
+	}
+}
+
 type blockEvent struct {
 	*Options
 	channelID string
@@ -393,6 +404,10 @@ func (p *txEvent) visitNsReadWriteSet(nsRWSet *rwsetutil.NsRwSet) error {
 // publishLSCCWrite publishes an LSCC Write Event which is a result of a chaincode instantiate/upgrade.
 // The Event consists of two writes: CC data and collection configs.
 func (p *txEvent) publishLSCCWrite(writes []*kvrwset.KVWrite) error {
+	if len(writes) == 0 {
+		return nil
+	}
+
 	ccID, ccData, ccp, err := getCCInfo(writes)
 	if err != nil {
 		if p.StopOnError {

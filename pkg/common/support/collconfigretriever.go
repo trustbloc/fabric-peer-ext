@@ -59,7 +59,7 @@ func (rc *CollectionConfigRetrieverProvider) ForChannel(channelID string) suppor
 	rc.mutex.RUnlock()
 
 	if ok {
-		logger.Infof("Returning cached collection config retriever for channel [%s]", channelID)
+		logger.Debugf("Returning cached collection config retriever for channel [%s]", channelID)
 		return r
 	}
 
@@ -68,7 +68,7 @@ func (rc *CollectionConfigRetrieverProvider) ForChannel(channelID string) suppor
 
 	r, ok = rc.retrievers[channelID]
 	if !ok {
-		logger.Infof("Creating new collection config retriever for channel [%s]", channelID)
+		logger.Debugf("Creating new collection config retriever for channel [%s]", channelID)
 		r = newCollectionConfigRetriever(
 			channelID,
 			rc.ledgerProvider.GetLedger(channelID),

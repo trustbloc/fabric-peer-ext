@@ -461,7 +461,7 @@ func (s *store) checkLastCommittedBlock(blockNum uint64) error {
 			return pvtdatastorage.NewErrOutOfRange("The store is empty")
 		}
 		if blockNum > lastCommittedBlock {
-			return pvtdatastorage.NewErrOutOfRange(fmt.Sprintf("Last committed block=%d, block requested=%d", s.lastCommittedBlock, blockNum))
+			return pvtdatastorage.NewErrOutOfRange(fmt.Sprintf("Last committed block=%d, block requested=%d", lastCommittedBlock, blockNum))
 		}
 	}
 	return nil

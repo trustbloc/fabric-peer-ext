@@ -17,8 +17,10 @@ import (
 	cb "github.com/hyperledger/fabric/protos/common"
 	pb "github.com/hyperledger/fabric/protos/peer"
 	"github.com/pkg/errors"
+	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/blockvisitor"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
 )
 
 var logger = flogging.MustGetLogger("ext_blockpublisher")
@@ -27,16 +29,40 @@ const upgradeEvent = "upgrade"
 
 // Provider maintains a cache of Block Publishers - one per channel
 type Provider struct {
-	cache gcache.Cache
+	cache          gcache.Cache
+	ledgerProvider collcommon.LedgerProvider
 }
 
 // NewProvider returns a new block publisher provider
 func NewProvider() *Provider {
-	return &Provider{
+	p := &Provider{
 		cache: gcache.New(0).LoaderFunc(func(channelID interface{}) (interface{}, error) {
 			return New(channelID.(string)), nil
 		}).Build(),
 	}
+	resource.Mgr.Register(p.Initialize)
+	return p
+}
+
+// Initialize is called by the resource manager to initialize the block publisher provider
+func (p *Provider) Initialize(ledgerProvider collcommon.LedgerProvider) *Provider {
+	logger.Infof("Initializing block publisher provider")
+	p.ledgerProvider = ledgerProvider
+	return p
+}
+
+// ChannelJoined is invoked when the peer joins a channel.
+// This function initializes the value of lastCommittedBlock for the channel.
+func (p *Provider) ChannelJoined(channelID string) {
+	bcInfo, err := p.ledgerProvider.GetLedger(channelID).GetBlockchainInfo()
+	if err != nil {
+		logger.Errorf("Error getting blockchain info for channel [%s]", channelID)
+		return
+	}
+
+	logger.Infof("Channel [%s] joined. Initializing block publisher with ledger height %d", channelID, bcInfo.Height)
+	publisher := p.ForChannel(channelID).(*Publisher)
+	publisher.SetLastCommittedBlockNum(bcInfo.Height - 1)
 }
 
 // ForChannel returns the block publisher for the given channel

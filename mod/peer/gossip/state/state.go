@@ -7,15 +7,9 @@ SPDX-License-Identifier: Apache-2.0
 package state
 
 import (
-	"strings"
-
 	pb "github.com/golang/protobuf/proto"
-	"github.com/hyperledger/fabric/core/common/ccprovider"
-	"github.com/hyperledger/fabric/core/ledger"
-	"github.com/hyperledger/fabric/core/ledger/cceventmgmt"
 	ledgerUtil "github.com/hyperledger/fabric/core/ledger/util"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
-	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
 	"github.com/hyperledger/fabric/extensions/roles"
 	common2 "github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/gossip/discovery"
@@ -23,17 +17,11 @@ import (
 	"github.com/hyperledger/fabric/gossip/util"
 	"github.com/hyperledger/fabric/protos/common"
 	proto "github.com/hyperledger/fabric/protos/gossip"
-	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	"github.com/hyperledger/fabric/protos/peer"
 	"github.com/pkg/errors"
 )
 
 var logger = util.GetLogger(util.StateLogger, "")
-
-const (
-	//collectionSeparator kvwrite collection key separator
-	collectionSeparator = "~"
-)
 
 //GossipStateProviderExtension extends GossipStateProvider features
 type GossipStateProviderExtension interface {
@@ -71,16 +59,6 @@ type GossipServiceMediator interface {
 
 	// Gossip sends a message to other peers to the network
 	Gossip(msg *proto.GossipMessage)
-}
-
-// ChannelJoined is called when a peer joins a channel
-func ChannelJoined(channelID string, ledger ledger.PeerLedger, publisher api.BlockPublisher) {
-	blockpublisher.ForChannel(channelID).AddWriteHandler(func(txMetadata api.TxMetadata, namespace string, kvWrite *kvrwset.KVWrite) error {
-		if namespace != "lscc" {
-			return nil
-		}
-		return handleStateUpdate(kvWrite, txMetadata.ChannelID)
-	})
 }
 
 //NewGossipStateProviderExtension returns new GossipStateProvider Extension implementation
@@ -271,41 +249,4 @@ func createGossipMsg(chainID string, payload *proto.Payload) *proto.GossipMessag
 		},
 	}
 	return gossipMsg
-}
-
-func handleStateUpdate(kvWrite *kvrwset.KVWrite, channelID string) error {
-	// There are LSCC entries for the chaincode and for the chaincode collections.
-	// We need to ignore changes to chaincode collections, and handle changes to chaincode
-	// We can detect collections based on the presence of a CollectionSeparator, which never exists in chaincode names
-	if isCollectionConfigKey(kvWrite.Key) {
-		return nil
-	}
-	// Ignore delete events
-	if kvWrite.IsDelete {
-		return nil
-	}
-
-	// Chaincode instantiate/upgrade is not logged on committing peer anywhere else.  This is a good place to log it.
-	logger.Debugf("Handling LSCC state update for chaincode [%s] on channel [%s]", kvWrite.Key, channelID)
-	chaincodeData := &ccprovider.ChaincodeData{}
-	if err := pb.Unmarshal(kvWrite.Value, chaincodeData); err != nil {
-		return errors.Errorf("Unmarshalling ChaincodeQueryResponse failed, error %s", err)
-	}
-
-	chaincodeDefs := []*cceventmgmt.ChaincodeDefinition{}
-	chaincodeDefs = append(chaincodeDefs, &cceventmgmt.ChaincodeDefinition{Name: chaincodeData.CCName(), Version: chaincodeData.CCVersion(), Hash: chaincodeData.Hash()})
-
-	err := cceventmgmt.GetMgr().HandleChaincodeDeploy(channelID, chaincodeDefs)
-	if err != nil {
-		return err
-	}
-
-	cceventmgmt.GetMgr().ChaincodeDeployDone(channelID)
-
-	return nil
-}
-
-// isCollectionConfigKey detects if a key is a collection key
-func isCollectionConfigKey(key string) bool {
-	return strings.Contains(key, collectionSeparator)
 }

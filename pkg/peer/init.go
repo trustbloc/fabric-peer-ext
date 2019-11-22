@@ -17,6 +17,7 @@ import (
 	tdatastore "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
 	cfgservice "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/service"
+	gossipstate "github.com/trustbloc/fabric-peer-ext/pkg/gossip/state"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
 )
 
@@ -34,6 +35,7 @@ func registerResources() {
 	resource.Register(extretriever.NewOffLedgerProvider)
 	resource.Register(client.NewProvider)
 	resource.Register(dcasclient.NewProvider)
+	resource.Register(gossipstate.NewUpdateHandler)
 	resource.Register(cfgservice.NewSvcMgr)
 }
 

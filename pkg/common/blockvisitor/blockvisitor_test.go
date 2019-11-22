@@ -360,6 +360,18 @@ func TestVisitor_NoStopOnError(t *testing.T) {
 	assert.EqualValues(t, 1101, p.LedgerHeight())
 }
 
+func TestVisitor_SetLastCommittedBlockNum(t *testing.T) {
+	v := New(channelID)
+	v.SetLastCommittedBlockNum(999)
+	require.Equal(t, uint64(1000), v.LedgerHeight())
+
+	v.SetLastCommittedBlockNum(1)
+	require.Equalf(t, uint64(1000), v.LedgerHeight(), "should not have been able to set the block number to be lower than the current number")
+
+	v.SetLastCommittedBlockNum(1000)
+	require.Equal(t, uint64(1001), v.LedgerHeight())
+}
+
 type ccInfo struct {
 	mutex  sync.RWMutex
 	ccName string
