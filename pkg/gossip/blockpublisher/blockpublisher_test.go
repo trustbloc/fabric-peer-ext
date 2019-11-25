@@ -18,6 +18,7 @@ import (
 	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	pb "github.com/hyperledger/fabric/protos/peer"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/blockvisitor"
@@ -46,11 +47,22 @@ const (
 )
 
 func TestProvider(t *testing.T) {
-	provider := NewProvider()
+	l := &mocks.Ledger{BlockchainInfo: &cb.BlockchainInfo{Height: 1000}}
+	l.BcInfoError = errors.New("injected error")
+	lp := &mocks.LedgerProvider{}
+	lp.GetLedgerReturns(l)
+
+	provider := NewProvider().Initialize(lp)
 	require.NotNil(t, provider)
+	provider.ChannelJoined(channel1)
+	require.NotPanicsf(t, func() { provider.ChannelJoined(channel1) }, "should not have panicked event though GetBlockchainInfo returned error")
+
+	l.BcInfoError = nil
+	require.NotPanics(t, func() { provider.ChannelJoined(channel1) })
 
 	p1 := provider.ForChannel(channel1)
 	require.NotNil(t, p1)
+	require.Equal(t, uint64(1000), p1.LedgerHeight())
 
 	p2 := provider.ForChannel(channel2)
 	require.NotNil(t, p2)

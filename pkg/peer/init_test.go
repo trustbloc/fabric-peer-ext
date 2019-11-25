@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+	statemocks "github.com/trustbloc/fabric-peer-ext/pkg/gossip/state/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
 )
@@ -22,12 +23,12 @@ func TestInitialize(t *testing.T) {
 	require.NotPanics(t, Initialize)
 
 	require.NoError(t, resource.Mgr.Initialize(
-		mocks.NewBlockPublisherProvider(),
 		&mocks.LedgerProvider{},
 		&mocks.GossipProvider{},
 		&mocks.IdentityDeserializerProvider{},
 		&mocks.IdentifierProvider{},
 		&mocks.IdentityProvider{},
+		&statemocks.CCEventMgrProvider{},
 	))
 }
 

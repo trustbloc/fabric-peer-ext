@@ -18,11 +18,13 @@ import (
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/hyperledger/fabric/integration/runner"
+	"github.com/hyperledger/fabric/protos/common"
 	"github.com/spf13/viper"
 	clientmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/client/mocks"
 	olretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/mocks"
 	storemocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/storeprovider/mocks"
 	tdretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/mocks"
+	statemocks "github.com/trustbloc/fabric-peer-ext/pkg/gossip/state/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
 )
@@ -74,14 +76,19 @@ func SetupResources() func() {
 	resource.Register(func() *tdretriever.TransientDataProvider { return &tdretriever.TransientDataProvider{} })
 	resource.Register(func() *olretriever.Provider { return &olretriever.Provider{} })
 
+	l := &mocks.Ledger{BlockchainInfo: &common.BlockchainInfo{Height: 1000}}
+	ledgerProvider := &mocks.LedgerProvider{}
+	ledgerProvider.GetLedgerReturns(l)
+
 	if err := resource.Mgr.Initialize(
 		mocks.NewBlockPublisherProvider(),
-		&mocks.LedgerProvider{},
+		ledgerProvider,
 		&mocks.GossipProvider{},
 		&clientmocks.PvtDataDistributor{},
 		&mocks.IdentityDeserializerProvider{},
 		&mocks.IdentifierProvider{},
 		&mocks.IdentityProvider{},
+		&statemocks.CCEventMgrProvider{},
 	); err != nil {
 		panic(err)
 	}

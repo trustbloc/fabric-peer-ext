@@ -94,6 +94,8 @@ func (s *cdbBlockStore) AddBlock(block *common.Block) error {
 
 //validateBlock validates block before adding to store
 func (s *cdbBlockStore) validateBlock(block *common.Block) error {
+	s.cpInfoCond.L.Lock()
+	defer s.cpInfoCond.L.Unlock()
 
 	if s.cpInfo.isChainEmpty {
 		//chain is empty, no need to validate, first block it is.
@@ -176,7 +178,6 @@ func (s *cdbBlockStore) CheckpointBlock(block *common.Block) error {
 // GetBlockchainInfo returns the current info about blockchain
 func (s *cdbBlockStore) GetBlockchainInfo() (*common.BlockchainInfo, error) {
 	cpInfo := s.cp.getCheckpointInfo()
-	s.cpInfo = cpInfo
 	bcInfo := &common.BlockchainInfo{
 		Height: 0,
 	}

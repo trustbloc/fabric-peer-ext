@@ -49,3 +49,13 @@ Feature:
     And we wait 2 seconds
     And client queries chaincode "e2e_cc" with args "getprivate,collection3,pvtKey" on a single peer in the "peerorg1" org on the "mychannel" channel
     Then response from "e2e_cc" to client equal value ""
+
+    # Test peer restart
+    Given container "peer0.org1.example.com" is stopped
+    And container "peer1.org1.example.com" is stopped
+    Then container "peer0.org1.example.com" is started
+    And container "peer1.org1.example.com" is started
+    When client invokes chaincode "e2e_cc" with args "put,k2,v2" on the "mychannel" channel
+    And we wait 2 seconds
+    And client queries chaincode "e2e_cc" with args "get,k2" on a single peer in the "peerorg1" org on the "mychannel" channel
+    Then response from "e2e_cc" to client equal value "v2"
