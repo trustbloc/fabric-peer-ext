@@ -11,7 +11,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/hyperledger/fabric/core/chaincode/shim"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-chaincode-go/shimtest"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	configmocks "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/mocks"
@@ -29,12 +30,7 @@ func TestConfigSCC_New(t *testing.T) {
 	require.NotNil(t, cc)
 
 	require.Equal(t, service.ConfigNS, cc.Name())
-	require.Equal(t, sccPath, cc.Path())
-	require.Nil(t, cc.InitArgs())
 	require.Equal(t, cc, cc.Chaincode())
-	require.True(t, cc.Enabled())
-	require.True(t, cc.InvokableCC2CC())
-	require.True(t, cc.InvokableExternal())
 }
 
 func TestConfigSCC_Init(t *testing.T) {
@@ -42,7 +38,7 @@ func TestConfigSCC_Init(t *testing.T) {
 	require.NotNil(t, cc)
 
 	t.Run("System channel", func(t *testing.T) {
-		stub := shim.NewMockStub("mock_stub", cc.Chaincode())
+		stub := shimtest.NewMockStub("mock_stub", cc.Chaincode())
 		r := stub.MockInit(tx1, nil)
 		require.NotNil(t, r)
 		require.Equal(t, shim.OK, int(r.Status))
@@ -53,7 +49,7 @@ func TestConfigSCC_Init(t *testing.T) {
 	t.Run("With channel", func(t *testing.T) {
 		const channelID = "testchannel"
 
-		stub := shim.NewMockStub("mock_stub", cc.Chaincode())
+		stub := shimtest.NewMockStub("mock_stub", cc.Chaincode())
 		stub.ChannelID = channelID
 		r := stub.MockInit(tx1, nil)
 		require.NotNil(t, r)
@@ -68,7 +64,7 @@ func TestConfigSCC_Invoke_Invalid(t *testing.T) {
 	require.NotNil(t, cc)
 
 	t.Run("No func arg", func(t *testing.T) {
-		r := shim.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, nil)
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, nil)
 		require.NotNil(t, r)
 		require.Equal(t, shim.ERROR, int(r.Status))
 		require.Nil(t, r.Payload)
@@ -76,7 +72,7 @@ func TestConfigSCC_Invoke_Invalid(t *testing.T) {
 	})
 
 	t.Run("Invalid func arg", func(t *testing.T) {
-		r := shim.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("invalid_func")})
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("invalid_func")})
 		require.NotNil(t, r)
 		require.Equal(t, shim.ERROR, int(r.Status))
 		require.Nil(t, r.Payload)
@@ -89,7 +85,7 @@ func TestConfigSCC_Invoke_Save(t *testing.T) {
 	require.NotNil(t, cc)
 
 	t.Run("Empty config", func(t *testing.T) {
-		r := shim.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("save")})
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("save")})
 		require.NotNil(t, r)
 		require.Equal(t, shim.ERROR, int(r.Status))
 		require.Nil(t, r.Payload)
@@ -104,7 +100,7 @@ func TestConfigSCC_Invoke_Save(t *testing.T) {
 			return configmocks.NewConfigMgr()
 		}
 
-		r := shim.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("save"), []byte(`{}`)})
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("save"), []byte(`{}`)})
 		require.NotNil(t, r)
 		require.Equal(t, shim.OK, int(r.Status))
 	})
@@ -117,7 +113,7 @@ func TestConfigSCC_Invoke_Save(t *testing.T) {
 			return configmocks.NewConfigMgr()
 		}
 
-		r := shim.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("save"), []byte("xxx")})
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("save"), []byte("xxx")})
 		require.NotNil(t, r)
 		require.Equal(t, shim.ERROR, int(r.Status))
 		require.Contains(t, r.Message, "Error unmarshalling config")
@@ -132,7 +128,7 @@ func TestConfigSCC_Invoke_Save(t *testing.T) {
 			return configmocks.NewConfigMgr().WithError(errExpected)
 		}
 
-		r := shim.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("save"), []byte(`{}`)})
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("save"), []byte(`{}`)})
 		require.NotNil(t, r)
 		require.Equal(t, shim.ERROR, int(r.Status))
 		require.Contains(t, r.Message, errExpected.Error())
@@ -144,7 +140,7 @@ func TestConfigSCC_Invoke_Get(t *testing.T) {
 	require.NotNil(t, cc)
 
 	t.Run("No criteria", func(t *testing.T) {
-		r := shim.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("get")})
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("get")})
 		require.NotNil(t, r)
 		require.Equal(t, shim.ERROR, int(r.Status))
 		require.Nil(t, r.Payload)
@@ -158,7 +154,7 @@ func TestConfigSCC_Invoke_Get(t *testing.T) {
 		getConfigMgr = func(ns string, sp api.StoreProvider) configMgr {
 			return configmocks.NewConfigMgr()
 		}
-		r := shim.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("get"), {}})
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("get"), {}})
 		require.NotNil(t, r)
 		require.Equal(t, shim.ERROR, int(r.Status))
 		require.Contains(t, r.Message, "error unmarshalling criteria")
@@ -180,7 +176,7 @@ func TestConfigSCC_Invoke_Get(t *testing.T) {
 		jsonKey, err := json.Marshal(criteria)
 		require.NoError(t, err)
 
-		r := shim.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("get"), jsonKey})
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("get"), jsonKey})
 		require.NotNil(t, r)
 		require.Equal(t, shim.OK, int(r.Status))
 		require.NotEmpty(t, r.Payload)
@@ -209,7 +205,7 @@ func TestConfigSCC_Invoke_Get(t *testing.T) {
 		marshalJSON = func(v interface{}) (bytes []byte, e error) {
 			return nil, errExpected
 		}
-		r := shim.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("get"), jsonKey})
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("get"), jsonKey})
 		require.NotNil(t, r)
 		require.Equal(t, shim.ERROR, int(r.Status))
 		require.Contains(t, r.Message, errExpected.Error())
@@ -227,7 +223,7 @@ func TestConfigSCC_Invoke_Get(t *testing.T) {
 		jsonKey, err := json.Marshal(&config.Key{MspID: org1MSP})
 		require.NoError(t, err)
 
-		r := shim.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("get"), jsonKey})
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("get"), jsonKey})
 		require.NotNil(t, r)
 		require.Equal(t, shim.ERROR, int(r.Status))
 		require.Contains(t, r.Message, errExpected.Error())
@@ -239,7 +235,7 @@ func TestConfigSCC_Invoke_Delete(t *testing.T) {
 	require.NotNil(t, cc)
 
 	t.Run("No criteria", func(t *testing.T) {
-		r := shim.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("delete")})
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("delete")})
 		require.NotNil(t, r)
 		require.Equal(t, shim.ERROR, int(r.Status))
 		require.Nil(t, r.Payload)
@@ -253,7 +249,7 @@ func TestConfigSCC_Invoke_Delete(t *testing.T) {
 		getConfigMgr = func(ns string, sp api.StoreProvider) configMgr {
 			return configmocks.NewConfigMgr()
 		}
-		r := shim.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("delete"), {}})
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("delete"), {}})
 		require.NotNil(t, r)
 		require.Equal(t, shim.ERROR, int(r.Status))
 		require.Contains(t, r.Message, "error unmarshalling criteria")
@@ -270,7 +266,7 @@ func TestConfigSCC_Invoke_Delete(t *testing.T) {
 		jsonKey, err := json.Marshal(&config.Key{MspID: org1MSP})
 		require.NoError(t, err)
 
-		r := shim.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("delete"), jsonKey})
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("delete"), jsonKey})
 		require.NotNil(t, r)
 		require.Equal(t, shim.OK, int(r.Status))
 		require.Empty(t, r.Payload)
@@ -288,7 +284,7 @@ func TestConfigSCC_Invoke_Delete(t *testing.T) {
 		jsonKey, err := json.Marshal(&config.Key{MspID: org1MSP})
 		require.NoError(t, err)
 
-		r := shim.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("delete"), jsonKey})
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("delete"), jsonKey})
 		require.NotNil(t, r)
 		require.Equal(t, shim.ERROR, int(r.Status))
 		require.Contains(t, r.Message, errExpected.Error())

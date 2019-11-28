@@ -19,9 +19,13 @@ import (
 // New returns a new transient data store provider
 func New(gossipProvider collcommon.GossipProvider, idProvider collcommon.IdentityDeserializerProvider) *StoreProvider {
 	logger.Infof("Creating new transient data store provider")
+	dbp, err := dbstore.NewDBProvider()
+	if err != nil {
+		panic(err)
+	}
 	return &StoreProvider{
 		stores:         make(map[string]*store),
-		dbProvider:     dbstore.NewDBProvider(),
+		dbProvider:     dbp,
 		gossipProvider: gossipProvider,
 		idProvider:     idProvider,
 	}

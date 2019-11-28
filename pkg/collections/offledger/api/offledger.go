@@ -9,9 +9,9 @@ package api
 import (
 	"context"
 
+	pb "github.com/hyperledger/fabric-protos-go/peer"
+	proto "github.com/hyperledger/fabric-protos-go/transientstore"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	cb "github.com/hyperledger/fabric/protos/common"
-	proto "github.com/hyperledger/fabric/protos/transientstore"
 )
 
 // Store manages the storage of private data collections.
@@ -20,7 +20,7 @@ type Store interface {
 	Persist(txid string, privateSimulationResultsWithConfig *proto.TxPvtReadWriteSetWithConfigInfo) error
 
 	// PutData stores the key/value.
-	PutData(config *cb.StaticCollectionConfig, key *storeapi.Key, value *storeapi.ExpiringValue) error
+	PutData(config *pb.StaticCollectionConfig, key *storeapi.Key, value *storeapi.ExpiringValue) error
 
 	// GetData gets the value for the given item
 	GetData(key *storeapi.Key) (*storeapi.ExpiringValue, error)

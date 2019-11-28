@@ -8,6 +8,10 @@ package dissemination
 
 import (
 	protobuf "github.com/golang/protobuf/proto"
+	protosgossip "github.com/hyperledger/fabric-protos-go/gossip"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/extensions/collections/api/dissemination"
 	gossipapi "github.com/hyperledger/fabric/gossip/api"
@@ -16,16 +20,12 @@ import (
 	"github.com/hyperledger/fabric/gossip/gossip"
 	"github.com/hyperledger/fabric/gossip/protoext"
 	"github.com/hyperledger/fabric/gossip/util"
-	cb "github.com/hyperledger/fabric/protos/common"
-	protosgossip "github.com/hyperledger/fabric/protos/gossip"
-	"github.com/hyperledger/fabric/protos/ledger/rwset"
-	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
 type gossipAdapter interface {
-	PeersOfChannel(common.ChainID) []gdiscovery.NetworkMember
+	PeersOfChannel(id common.ChannelID) []gdiscovery.NetworkMember
 	SelfMembershipInfo() gdiscovery.NetworkMember
 	IdentityInfo() gossipapi.PeerIdentitySet
 }
@@ -121,7 +121,7 @@ func computeDisseminationPlanForEndorser(channelID, endpoint, ns string, rwSet *
 	// Since we are pushing data to each endorser individually, MaxPeers and MinAck are both set to 1
 	sc := gossip.SendCriteria{
 		Timeout:    viper.GetDuration("peer.gossip.pvtData.pushAckTimeout"),
-		Channel:    common.ChainID(channelID),
+		Channel:    common.ChannelID(channelID),
 		MaxPeers:   1,
 		MinAck:     1,
 		IsEligible: routingFilter,
@@ -183,7 +183,7 @@ var marshalKVRWSet = func(rwSet *kvrwset.KVRWSet) ([]byte, error) {
 func createPrivateDataMessage(
 	channelID, txID, namespace string,
 	collRWSet *rwset.CollectionPvtReadWriteSet,
-	ccp *cb.CollectionConfigPackage, blkHt uint64) (*protoext.SignedGossipMessage, error) {
+	ccp *pb.CollectionConfigPackage, blkHt uint64) (*protoext.SignedGossipMessage, error) {
 	msg := &protosgossip.GossipMessage{
 		Channel: []byte(channelID),
 		Nonce:   util.RandomUInt64(),

@@ -24,11 +24,11 @@ type PvtDataProvider struct {
 }
 
 // NewProvider creates a new PvtDataStoreProvider that combines a cache provider and a backing storage provider
-func NewProvider(conf *ledger.PrivateData, ledgerconfig *ledger.Config) *PvtDataProvider {
+func NewProvider(conf *pvtdatastorage.PrivateDataConfig, ledgerconfig *ledger.Config) (*PvtDataProvider, error) {
 	// create couchdb pvt date store provider
 	storageProvider, err := cdbpvtdatastore.NewProvider(conf, ledgerconfig)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	// create cache pvt date store provider
 	cacheProvider := cachedpvtdatastore.NewProvider()
@@ -37,7 +37,7 @@ func NewProvider(conf *ledger.PrivateData, ledgerconfig *ledger.Config) *PvtData
 		storageProvider: storageProvider,
 		cacheProvider:   cacheProvider,
 	}
-	return &p
+	return &p, nil
 }
 
 // OpenStore creates a pvt data store instance for the given ledger ID
@@ -97,25 +97,14 @@ func (c *pvtDataStore) Init(btlPolicy pvtdatapolicy.BTLPolicy) {
 }
 
 // Prepare pvt data in cache and send pvt data to background prepare/commit go routine
-func (c *pvtDataStore) Prepare(blockNum uint64, pvtData []*ledger.TxPvtData, pvtMissingDataMap ledger.TxMissingPvtDataMap) error {
+func (c *pvtDataStore) Commit(blockNum uint64, pvtData []*ledger.TxPvtData, pvtMissingDataMap ledger.TxMissingPvtDataMap) error {
 	// Prepare data in cache
-	err := c.cachePvtDataStore.Prepare(blockNum, pvtData, pvtMissingDataMap)
+	err := c.cachePvtDataStore.Commit(blockNum, pvtData, pvtMissingDataMap)
 	if err != nil {
 		return err
 	}
 	// Prepare data in storage
-	return c.pvtDataDBStore.Prepare(blockNum, pvtData, pvtMissingDataMap)
-}
-
-// Commit pvt data in cache and call background pvtDataWriter go routine to commit data
-func (c *pvtDataStore) Commit() error {
-	// Commit data in cache
-	err := c.cachePvtDataStore.Commit()
-	if err != nil {
-		return err
-	}
-	// Commit data in storage
-	return c.pvtDataDBStore.Commit()
+	return c.pvtDataDBStore.Commit(blockNum, pvtData, pvtMissingDataMap)
 }
 
 //InitLastCommittedBlock initialize last committed block
@@ -143,11 +132,6 @@ func (c *pvtDataStore) GetPvtDataByBlockNum(blockNum uint64, filter ledger.PvtNs
 	return c.pvtDataDBStore.GetPvtDataByBlockNum(blockNum, filter)
 }
 
-//HasPendingBatch implements the function in the interface `Store`
-func (c *pvtDataStore) HasPendingBatch() (bool, error) {
-	return c.pvtDataDBStore.HasPendingBatch()
-}
-
 //LastCommittedBlockHeight implements the function in the interface `Store`
 func (c *pvtDataStore) LastCommittedBlockHeight() (uint64, error) {
 	return c.pvtDataDBStore.LastCommittedBlockHeight()
@@ -156,17 +140,6 @@ func (c *pvtDataStore) LastCommittedBlockHeight() (uint64, error) {
 //IsEmpty implements the function in the interface `Store`
 func (c *pvtDataStore) IsEmpty() (bool, error) {
 	return c.pvtDataDBStore.IsEmpty()
-}
-
-// Rollback pvt data in cache and call background pvtDataWriter go routine to rollback data
-func (c *pvtDataStore) Rollback() error {
-	// Rollback data in cache
-	err := c.cachePvtDataStore.Rollback()
-	if err != nil {
-		return err
-	}
-	// Rollback data in storage
-	return c.pvtDataDBStore.Rollback()
 }
 
 //Shutdown implements the function in the interface `Store`

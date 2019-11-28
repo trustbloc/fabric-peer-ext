@@ -9,9 +9,9 @@ package pvtdatahandler
 import (
 	"testing"
 
+	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	"github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/queryresult"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,7 +30,7 @@ const (
 
 func TestHandler_HandleGetPrivateData(t *testing.T) {
 	t.Run("Unhandled collection", func(t *testing.T) {
-		config := &common.StaticCollectionConfig{}
+		config := &pb.StaticCollectionConfig{}
 
 		h := New(channelID, mocks.NewDataProvider())
 		require.NotNil(t, h)
@@ -42,22 +42,22 @@ func TestHandler_HandleGetPrivateData(t *testing.T) {
 	})
 
 	t.Run("Transient Data", func(t *testing.T) {
-		testHandleGetPrivateData(t, &common.StaticCollectionConfig{
-			Type: common.CollectionType_COL_TRANSIENT,
+		testHandleGetPrivateData(t, &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_TRANSIENT,
 			Name: coll1,
 		})
 	})
 
 	t.Run("Off-ledger Data", func(t *testing.T) {
-		testHandleGetPrivateData(t, &common.StaticCollectionConfig{
-			Type: common.CollectionType_COL_OFFLEDGER,
+		testHandleGetPrivateData(t, &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_OFFLEDGER,
 			Name: coll1,
 		})
 	})
 
 	t.Run("DCAS Data", func(t *testing.T) {
-		testHandleGetPrivateData(t, &common.StaticCollectionConfig{
-			Type: common.CollectionType_COL_DCAS,
+		testHandleGetPrivateData(t, &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_DCAS,
 			Name: coll1,
 		})
 	})
@@ -65,7 +65,7 @@ func TestHandler_HandleGetPrivateData(t *testing.T) {
 
 func TestHandler_HandleGetPrivateDataMultipleKeys(t *testing.T) {
 	t.Run("Unhandled collection", func(t *testing.T) {
-		config := &common.StaticCollectionConfig{}
+		config := &pb.StaticCollectionConfig{}
 
 		dataProvider := mocks.NewDataProvider()
 		h := New(channelID, dataProvider)
@@ -78,22 +78,22 @@ func TestHandler_HandleGetPrivateDataMultipleKeys(t *testing.T) {
 	})
 
 	t.Run("Transient Data", func(t *testing.T) {
-		testHandleGetPrivateDataMultipleKeys(t, &common.StaticCollectionConfig{
-			Type: common.CollectionType_COL_TRANSIENT,
+		testHandleGetPrivateDataMultipleKeys(t, &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_TRANSIENT,
 			Name: coll1,
 		})
 	})
 
 	t.Run("Off-ledger Data", func(t *testing.T) {
-		testHandleGetPrivateDataMultipleKeys(t, &common.StaticCollectionConfig{
-			Type: common.CollectionType_COL_OFFLEDGER,
+		testHandleGetPrivateDataMultipleKeys(t, &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_OFFLEDGER,
 			Name: coll1,
 		})
 	})
 
 	t.Run("DCAS Data", func(t *testing.T) {
-		testHandleGetPrivateDataMultipleKeys(t, &common.StaticCollectionConfig{
-			Type: common.CollectionType_COL_DCAS,
+		testHandleGetPrivateDataMultipleKeys(t, &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_DCAS,
 			Name: coll1,
 		})
 	})
@@ -142,7 +142,7 @@ func TestHandler_HandleExecuteQueryOnPrivateData(t *testing.T) {
 	require.NotNil(t, h)
 
 	t.Run("Unhandled collection", func(t *testing.T) {
-		config := &common.StaticCollectionConfig{}
+		config := &pb.StaticCollectionConfig{}
 		value, handled, err := h.HandleExecuteQueryOnPrivateData(tx1, ns1, config, "some query")
 		assert.NoError(t, err)
 		assert.False(t, handled)
@@ -150,8 +150,8 @@ func TestHandler_HandleExecuteQueryOnPrivateData(t *testing.T) {
 	})
 
 	t.Run("Transient Data", func(t *testing.T) {
-		config := &common.StaticCollectionConfig{
-			Type: common.CollectionType_COL_TRANSIENT,
+		config := &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_TRANSIENT,
 			Name: coll1,
 		}
 
@@ -161,8 +161,8 @@ func TestHandler_HandleExecuteQueryOnPrivateData(t *testing.T) {
 	})
 
 	t.Run("Off-ledger Data", func(t *testing.T) {
-		config := &common.StaticCollectionConfig{
-			Type: common.CollectionType_COL_OFFLEDGER,
+		config := &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_OFFLEDGER,
 			Name: coll1,
 		}
 
@@ -195,8 +195,8 @@ func TestHandler_HandleExecuteQueryOnPrivateData(t *testing.T) {
 	})
 
 	t.Run("DCAS Data", func(t *testing.T) {
-		config := &common.StaticCollectionConfig{
-			Type: common.CollectionType_COL_DCAS,
+		config := &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_DCAS,
 			Name: coll2,
 		}
 
@@ -229,7 +229,7 @@ func TestHandler_HandleExecuteQueryOnPrivateData(t *testing.T) {
 	})
 }
 
-func testHandleGetPrivateData(t *testing.T, config *common.StaticCollectionConfig) {
+func testHandleGetPrivateData(t *testing.T, config *pb.StaticCollectionConfig) {
 	dataProvider := mocks.NewDataProvider()
 	h := New(channelID, dataProvider)
 	require.NotNil(t, h)
@@ -257,7 +257,7 @@ func testHandleGetPrivateData(t *testing.T, config *common.StaticCollectionConfi
 	assert.Nil(t, value)
 }
 
-func testHandleGetPrivateDataMultipleKeys(t *testing.T, config *common.StaticCollectionConfig) {
+func testHandleGetPrivateDataMultipleKeys(t *testing.T, config *pb.StaticCollectionConfig) {
 	dataProvider := mocks.NewDataProvider()
 	h := New(channelID, dataProvider)
 	require.NotNil(t, h)

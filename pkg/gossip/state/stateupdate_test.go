@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
-	pb "github.com/hyperledger/fabric/protos/peer"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/blockvisitor"
 	"github.com/trustbloc/fabric-peer-ext/pkg/gossip/blockpublisher"
@@ -23,7 +23,7 @@ import (
 )
 
 //go:generate counterfeiter -o ./mocks/ccevtmgrprovider.gen.go --fake-name CCEventMgrProvider . ccEventMgrProvider
-//go:generate counterfeiter -o ./mocks/ccevtmgr.gen.go --fake-name CCEventMgr github.com/trustbloc/fabric-peer-ext/mod/peer/chaincode/api.EventMgr
+//go:generate counterfeiter -o ./mocks/ccevtmgr.gen.go --fake-name CCEventMgr github.com/hyperledger/fabric/extensions/chaincode/api.EventMgr
 
 const (
 	channel1 = "channel1"

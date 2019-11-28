@@ -32,7 +32,6 @@ type store struct {
 	btlPolicy          pvtdatapolicy.BTLPolicy
 	cache              gcache.Cache
 	lastCommittedBlock uint64
-	pendingPvtData     *pendingPvtData
 	isEmpty            bool
 }
 
@@ -53,7 +52,6 @@ func NewProvider() pvtdatastorage.Provider {
 // OpenStore returns a handle to a store
 func (p *provider) OpenStore(ledgerid string) (pvtdatastorage.Store, error) {
 	s := &store{cache: gcache.New(config.GetPvtDataCacheSize()).ARC().Build(), ledgerid: ledgerid,
-		pendingPvtData:     &pendingPvtData{batchPending: false},
 		isEmpty:            true,
 		lastCommittedBlock: 0,
 	}
@@ -76,13 +74,9 @@ func (s *store) Init(btlPolicy pvtdatapolicy.BTLPolicy) {
 }
 
 // Prepare implements the function in the interface `Store`
-func (s *store) Prepare(blockNum uint64, pvtData []*ledger.TxPvtData, missingPvtData ledger.TxMissingPvtDataMap) error {
+func (s *store) Commit(blockNum uint64, pvtData []*ledger.TxPvtData, missingPvtData ledger.TxMissingPvtDataMap) error {
 	if !roles.IsCommitter() {
 		panic("calling Prepare on a peer that is not a committer")
-	}
-
-	if s.pendingPvtData.batchPending {
-		return pvtdatastorage.NewErrIllegalCall(`A pending batch exists as as result of last invoke to "Prepare" call. Invoke "Commit" or "Rollback" on the pending batch before invoking "Prepare" function`)
 	}
 
 	expectedBlockNum := s.nextBlockNum()
@@ -95,45 +89,26 @@ func (s *store) Prepare(blockNum uint64, pvtData []*ledger.TxPvtData, missingPvt
 		return err
 	}
 
-	s.pendingPvtData = &pendingPvtData{batchPending: true}
+	pendingPvtData := &pendingPvtData{batchPending: true}
 	if len(storeEntries.DataEntries) > 0 {
-		s.pendingPvtData.dataEntries = storeEntries.DataEntries
+		pendingPvtData.dataEntries = storeEntries.DataEntries
 	}
 	logger.Debugf("Saved %d private data write sets for block [%d]", len(pvtData), blockNum)
-	return nil
-}
-
-// Commit implements the function in the interface `Store`
-func (s *store) Commit() error {
-	if !roles.IsCommitter() {
-		panic("calling Commit on a peer that is not a committer")
-	}
 
 	committingBlockNum := s.nextBlockNum()
 	logger.Debugf("Committing private data for block [%d]", committingBlockNum)
 
-	if s.pendingPvtData.dataEntries != nil {
-		err := s.cache.Set(committingBlockNum, s.pendingPvtData.dataEntries)
+	if pendingPvtData.dataEntries != nil {
+		err := s.cache.Set(committingBlockNum, pendingPvtData.dataEntries)
 		if err != nil {
 			return errors.WithMessage(err, fmt.Sprintf("writing private data to cache failed [%d]", committingBlockNum))
 		}
 	}
 
-	s.pendingPvtData = &pendingPvtData{batchPending: false}
 	s.isEmpty = false
 	s.lastCommittedBlock = committingBlockNum
 
 	logger.Debugf("Committed private data for block [%d]", committingBlockNum)
-	return nil
-}
-
-// Rollback implements the function in the interface `Store`
-func (s *store) Rollback() error {
-	if !roles.IsCommitter() {
-		panic("calling Rollback on a peer that is not a committer")
-	}
-
-	s.pendingPvtData = &pendingPvtData{batchPending: false}
 	return nil
 }
 
@@ -196,11 +171,6 @@ func (s *store) LastCommittedBlockHeight() (uint64, error) {
 	return s.lastCommittedBlock + 1, nil
 }
 
-// HasPendingBatch implements the function in the interface `Store`
-func (s *store) HasPendingBatch() (bool, error) {
-	return s.pendingPvtData.batchPending, nil
-}
-
 // IsEmpty implements the function in the interface `Store`
 func (s *store) IsEmpty() (bool, error) {
 	return s.isEmpty, nil
@@ -208,7 +178,7 @@ func (s *store) IsEmpty() (bool, error) {
 
 // InitLastCommittedBlock implements the function in the interface `Store`
 func (s *store) InitLastCommittedBlock(blockNum uint64) error {
-	if !(s.isEmpty && !s.pendingPvtData.batchPending) {
+	if !s.isEmpty {
 		return pvtdatastorage.NewErrIllegalCall("The private data store is not empty. InitLastCommittedBlock() function call is not allowed")
 	}
 	s.isEmpty = false
@@ -254,7 +224,11 @@ func (s *store) getBlockPvtData(dataEntries []*common.DataEntry, filter ledger.P
 
 	for _, dataEntry := range dataEntries {
 		dataKeyBytes := common.EncodeDataKey(dataEntry.Key)
-		if common.V11Format(dataKeyBytes) {
+		ok, err := common.V11Format(dataKeyBytes)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
 			return v11RetrievePvtdata(dataEntries, filter)
 		}
 		expired, err := common.IsExpired(dataEntry.Key.NsCollBlk, s.btlPolicy, s.lastCommittedBlock)

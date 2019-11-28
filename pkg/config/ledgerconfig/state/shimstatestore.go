@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package state
 
 import (
-	"github.com/hyperledger/fabric/core/chaincode/shim"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/state/api"
 )
 

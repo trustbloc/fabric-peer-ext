@@ -14,6 +14,7 @@ import (
 
 	coreconfig "github.com/hyperledger/fabric/core/config"
 	"github.com/hyperledger/fabric/core/ledger"
+	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 	"github.com/hyperledger/fabric/extensions/testutil"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
@@ -24,11 +25,15 @@ func TestNewProvider(t *testing.T) {
 	defer cleanup()
 	_, _, destroy := testutil.SetupExtTestEnv()
 	defer destroy()
-	conf := &ledger.PrivateData{
-		StorePath:     filepath.Join(coreconfig.GetPath("peer.fileSystemPath"), "store"),
-		PurgeInterval: 1,
+	conf := &pvtdatastorage.PrivateDataConfig{
+		PrivateDataConfig: &ledger.PrivateDataConfig{
+			PurgeInterval: 1,
+		},
+		StorePath: filepath.Join(coreconfig.GetPath("peer.fileSystemPath"), "store"),
 	}
-	require.NotEmpty(t, NewProvider(conf, testutil.TestLedgerConf()))
+	p, err := NewProvider(conf, testutil.TestLedgerConf())
+	require.NoError(t, err)
+	require.NotEmpty(t, p)
 }
 
 func setupPath(t *testing.T) (cleanup func()) {

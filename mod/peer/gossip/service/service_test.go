@@ -13,7 +13,7 @@ import (
 
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 
-	"github.com/hyperledger/fabric/protos/gossip"
+	"github.com/hyperledger/fabric-protos-go/gossip"
 )
 
 func TestHandleGossipByCommitter(t *testing.T) {

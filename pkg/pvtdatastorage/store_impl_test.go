@@ -47,7 +47,6 @@ type mockStore struct {
 	lastCommittedBlockHeightErr                 error
 	initLastCommittedBlockErr                   error
 	commitErr                                   error
-	rollbackErr                                 error
 	getMissingPvtDataInfoForMostRecentBlocksErr error
 	processCollsEligibilityEnabledErr           error
 	commitPvtDataOfOldBlocksErr                 error
@@ -71,16 +70,8 @@ func (m mockStore) GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int) (ledge
 	return nil, m.getMissingPvtDataInfoForMostRecentBlocksErr
 }
 
-func (m mockStore) Prepare(blockNum uint64, pvtData []*ledger.TxPvtData, missingPvtData ledger.TxMissingPvtDataMap) error {
-	return nil
-}
-
-func (m mockStore) Commit() error {
+func (m mockStore) Commit(blockNum uint64, pvtData []*ledger.TxPvtData, missingPvtData ledger.TxMissingPvtDataMap) error {
 	return m.commitErr
-}
-
-func (m mockStore) Rollback() error {
-	return m.rollbackErr
 }
 
 func (m mockStore) ProcessCollsEligibilityEnabled(committingBlk uint64, nsCollMap map[string][]string) error {
@@ -98,37 +89,38 @@ func (m mockStore) GetLastUpdatedOldBlocksPvtData() (map[uint64][]*ledger.TxPvtD
 func (m mockStore) ResetLastUpdatedOldBlocksList() error {
 	return m.resetLastUpdatedOldBlocksListErr
 }
+
 func (m mockStore) IsEmpty() (bool, error) {
 	return m.isEmptyValue, m.isEmptyErr
 }
+
 func (m mockStore) LastCommittedBlockHeight() (uint64, error) {
 	return m.lastCommittedBlockHeightValue, m.lastCommittedBlockHeightErr
 }
-func (m mockStore) HasPendingBatch() (bool, error) {
-	return false, nil
-}
-func (m mockStore) Shutdown() {
 
+func (m mockStore) Shutdown() {
 }
 
 func TestOpenStore(t *testing.T) {
 	t.Run("test error from storageProvider OpenStore", func(t *testing.T) {
 		removeStorePath()
-		conf := testutil.TestLedgerConf().PrivateData
-		testStoreProvider := NewProvider(conf, testutil.TestLedgerConf())
+		conf := testutil.TestPrivateDataConf()
+		testStoreProvider, err := NewProvider(conf, testutil.TestLedgerConf())
+		require.NoError(t, err)
 		testStoreProvider.storageProvider = &mockProvider{openStoreErr: fmt.Errorf("openStore error")}
-		_, err := testStoreProvider.OpenStore("")
+		_, err = testStoreProvider.OpenStore("")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "openStore error")
 	})
 
 	t.Run("test error from cacheProvider OpenStore", func(t *testing.T) {
 		removeStorePath()
-		conf := testutil.TestLedgerConf().PrivateData
-		testStoreProvider := NewProvider(conf, testutil.TestLedgerConf())
+		conf := testutil.TestPrivateDataConf()
+		testStoreProvider, err := NewProvider(conf, testutil.TestLedgerConf())
+		require.NoError(t, err)
 		testStoreProvider.storageProvider = &mockProvider{}
 		testStoreProvider.cacheProvider = &mockProvider{openStoreErr: fmt.Errorf("openStore error")}
-		_, err := testStoreProvider.OpenStore("")
+		_, err = testStoreProvider.OpenStore("")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "openStore error")
 	})
@@ -164,22 +156,9 @@ func TestCommit(t *testing.T) {
 		store := env.TestStore
 		s := store.(*pvtDataStore)
 		s.cachePvtDataStore = &mockStore{commitErr: fmt.Errorf("commit error")}
-		err := s.Commit()
+		err := s.Commit(0, nil, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "commit error")
-
-	})
-}
-
-func TestRollback(t *testing.T) {
-	t.Run("test error from cachePvtDataStore rollback", func(t *testing.T) {
-		env := NewTestStoreEnv(t, "testerrorfromcachepvtdatastorerollback", nil, couchDBConfig)
-		store := env.TestStore
-		s := store.(*pvtDataStore)
-		s.cachePvtDataStore = &mockStore{rollbackErr: fmt.Errorf("rollback error")}
-		err := s.Rollback()
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "rollback error")
 
 	})
 }
@@ -266,7 +245,7 @@ func TestMain(m *testing.M) {
 	viper.Set("peer.fileSystemPath", "/tmp/fabric/core/ledger/pvtdatastore")
 
 	// Create CouchDB definition from config parameters
-	couchDBConfig = xtestutil.TestLedgerConf().StateDB.CouchDB
+	couchDBConfig = xtestutil.TestLedgerConf().StateDBConfig.CouchDB
 
 	code := m.Run()
 	destroy()
@@ -278,7 +257,6 @@ func TestEmptyStore(t *testing.T) {
 	req := require.New(t)
 	store := env.TestStore
 	testEmpty(true, req, store)
-	testPendingBatch(false, req, store)
 }
 
 func TestStoreBasicCommitAndRetrieval(t *testing.T) {
@@ -325,16 +303,10 @@ func TestStoreBasicCommitAndRetrieval(t *testing.T) {
 	blk2MissingData.Add(3, "ns-1", "coll-1", true)
 
 	// no pvt data with block 0
-	req.NoError(store.Prepare(0, nil, nil))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(0, nil, nil))
 
 	// pvt data with block 1 - commit
-	req.NoError(store.Prepare(1, testData, blk1MissingData))
-	req.NoError(store.Commit())
-
-	// pvt data with block 2 - rollback
-	req.NoError(store.Prepare(2, testData, nil))
-	req.NoError(store.Rollback())
+	req.NoError(store.Commit(1, testData, blk1MissingData))
 
 	// pvt data retrieval for block 0 should return nil
 	var nilFilter ledger.PvtNsCollFilter
@@ -371,8 +343,7 @@ func TestStoreBasicCommitAndRetrieval(t *testing.T) {
 	req.Nil(retrievedData)
 
 	// pvt data with block 2 - commit
-	req.NoError(store.Prepare(2, testData, blk2MissingData))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(2, testData, blk2MissingData))
 }
 
 func TestStoreState(t *testing.T) {
@@ -388,14 +359,11 @@ func TestStoreState(t *testing.T) {
 	testData := []*ledger.TxPvtData{
 		produceSamplePvtdata(t, 0, []string{"ns-1:coll-1", "ns-1:coll-2"}),
 	}
-	_, ok := store.Prepare(1, testData, nil).(*pvtdatastorage.ErrIllegalCall)
+	_, ok := store.Commit(1, testData, nil).(*pvtdatastorage.ErrIllegalCall)
 	req.True(ok)
 
-	req.Nil(store.Prepare(0, testData, nil))
-	req.NoError(store.Commit())
-
-	req.Nil(store.Prepare(1, testData, nil))
-	_, ok = store.Prepare(2, testData, nil).(*pvtdatastorage.ErrIllegalCall)
+	req.Nil(store.Commit(0, testData, nil))
+	_, ok = store.Commit(2, testData, nil).(*pvtdatastorage.ErrIllegalCall)
 	req.True(ok)
 }
 
@@ -407,12 +375,10 @@ func TestInitLastCommittedBlock(t *testing.T) {
 	req.NoError(store.InitLastCommittedBlock(existingLastBlockNum))
 
 	testEmpty(false, req, store)
-	testPendingBatch(false, req, store)
 	testLastCommittedBlockHeight(existingLastBlockNum+1, req, store)
 
 	env.CloseAndReopen()
 	testEmpty(false, req, store)
-	testPendingBatch(false, req, store)
 	testLastCommittedBlockHeight(existingLastBlockNum+1, req, store)
 
 	err := store.InitLastCommittedBlock(30)
@@ -430,12 +396,6 @@ func testEmpty(expectedEmpty bool, req *require.Assertions, store pvtdatastorage
 	isEmpty, err := store.IsEmpty()
 	req.NoError(err)
 	req.Equal(expectedEmpty, isEmpty)
-}
-
-func testPendingBatch(expectedPending bool, req *require.Assertions, store pvtdatastorage.Store) {
-	hasPendingBatch, err := store.HasPendingBatch()
-	req.NoError(err)
-	req.Equal(expectedPending, hasPendingBatch)
 }
 
 func produceSamplePvtdata(t *testing.T, txNum uint64, nsColls []string) *ledger.TxPvtData {

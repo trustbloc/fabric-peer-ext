@@ -4,7 +4,7 @@ package mocks
 import (
 	"sync"
 
-	"github.com/hyperledger/fabric/protos/transientstore"
+	"github.com/hyperledger/fabric-protos-go/transientstore"
 )
 
 type PvtDataDistributor struct {

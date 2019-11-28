@@ -10,10 +10,10 @@ import (
 	"bytes"
 	"errors"
 
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/ledger/util"
 	"github.com/hyperledger/fabric/core/ledger"
-	"github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset"
 )
 
 // TODO add pinning script to include copied code into this file, original file from fabric is found in fabric/core/transientstore/store_helper.go
@@ -70,16 +70,19 @@ func CreateCompositeKeyForPurgeIndexByHeight(blockHeight uint64, txid string, uu
 // SplitCompositeKeyOfPvtRWSet splits the compositeKey (<prwsetPrefix>~txid~uuid~blockHeight)
 // into uuid and blockHeight.
 // TODO add pinning script to expose this function
-func SplitCompositeKeyOfPvtRWSet(compositeKey []byte) (uuid string, blockHeight uint64) {
+func SplitCompositeKeyOfPvtRWSet(compositeKey []byte) (uuid string, blockHeight uint64, err error) {
 	return splitCompositeKeyWithoutPrefixForTxid(compositeKey[2:])
 }
 
 // SplitCompositeKeyOfPurgeIndexByHeight splits the compositeKey (<purgeIndexByHeightPrefix>~blockHeight~txid~uuid)
 // into txid, uuid and blockHeight.
 // TODO add pinning script to expose this function
-func SplitCompositeKeyOfPurgeIndexByHeight(compositeKey []byte) (txid string, uuid string, blockHeight uint64) {
+func SplitCompositeKeyOfPurgeIndexByHeight(compositeKey []byte) (txid string, uuid string, blockHeight uint64, err error) {
 	var n int
-	blockHeight, n = util.DecodeOrderPreservingVarUint64(compositeKey[2:])
+	blockHeight, n, err = util.DecodeOrderPreservingVarUint64(compositeKey[2:])
+	if err != nil {
+		return
+	}
 	splits := bytes.Split(compositeKey[n+3:], []byte{compositeKeySep})
 	txid = string(splits[0])
 	uuid = string(splits[1])
@@ -88,12 +91,12 @@ func SplitCompositeKeyOfPurgeIndexByHeight(compositeKey []byte) (txid string, uu
 
 // splitCompositeKeyWithoutPrefixForTxid splits the composite key txid~uuid~blockHeight into
 // uuid and blockHeight
-func splitCompositeKeyWithoutPrefixForTxid(compositeKey []byte) (uuid string, blockHeight uint64) {
+func splitCompositeKeyWithoutPrefixForTxid(compositeKey []byte) (uuid string, blockHeight uint64, err error) {
 	// skip txid as all functions which requires split of composite key already has it
 	firstSepIndex := bytes.IndexByte(compositeKey, compositeKeySep)
 	secondSepIndex := firstSepIndex + bytes.IndexByte(compositeKey[firstSepIndex+1:], compositeKeySep) + 1
 	uuid = string(compositeKey[firstSepIndex+1 : secondSepIndex])
-	blockHeight, _ = util.DecodeOrderPreservingVarUint64(compositeKey[secondSepIndex+1:])
+	blockHeight, _, err = util.DecodeOrderPreservingVarUint64(compositeKey[secondSepIndex+1:])
 	return
 }
 
@@ -135,18 +138,18 @@ func TrimPvtWSet(pvtWSet *rwset.TxPvtReadWriteSet, filter ledger.PvtNsCollFilter
 // TrimPvtCollectionConfigs returns a map of `CollectionConfigPackage` with configs retained only for config types 'staticCollectionConfig' supplied in the filter
 // A nil filter does not set Config to any collectionConfigPackage and returns a map with empty configs for each `configs` element
 // TODO add pinning script to expose this function and add below comment
-func TrimPvtCollectionConfigs(configs map[string]*common.CollectionConfigPackage,
-	filter ledger.PvtNsCollFilter) (map[string]*common.CollectionConfigPackage, error) {
+func TrimPvtCollectionConfigs(configs map[string]*pb.CollectionConfigPackage,
+	filter ledger.PvtNsCollFilter) (map[string]*pb.CollectionConfigPackage, error) {
 	if filter == nil {
 		return configs, nil
 	}
-	result := make(map[string]*common.CollectionConfigPackage)
+	result := make(map[string]*pb.CollectionConfigPackage)
 
 	for ns, pkg := range configs {
-		result[ns] = &common.CollectionConfigPackage{}
+		result[ns] = &pb.CollectionConfigPackage{}
 		for _, colConf := range pkg.GetConfig() {
 			switch cconf := colConf.Payload.(type) {
-			case *common.CollectionConfig_StaticCollectionConfig:
+			case *pb.CollectionConfig_StaticCollectionConfig:
 				if filter.Has(ns, cconf.StaticCollectionConfig.Name) {
 					result[ns].Config = append(result[ns].Config, colConf)
 				}

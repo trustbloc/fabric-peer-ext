@@ -35,7 +35,7 @@ type CDBBlockstoreProvider struct {
 // NewProvider creates a new CouchDB BlockStoreProvider
 func NewProvider(indexConfig *blkstorage.IndexConfig, ledgerconfig *ledger.Config) (blkstorage.BlockStoreProvider, error) {
 	logger.Debugf("constructing CouchDB block storage provider")
-	couchDBConfig := ledgerconfig.StateDB.CouchDB
+	couchDBConfig := ledgerconfig.StateDBConfig.CouchDB
 	couchInstance, err := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {
 		return nil, errors.WithMessage(err, "obtaining CouchDB instance failed")

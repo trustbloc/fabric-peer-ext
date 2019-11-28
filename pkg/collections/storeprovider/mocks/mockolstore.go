@@ -7,9 +7,9 @@ SPDX-License-Identifier: Apache-2.0
 package mocks
 
 import (
+	pb "github.com/hyperledger/fabric-protos-go/peer"
+	proto "github.com/hyperledger/fabric-protos-go/transientstore"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	cb "github.com/hyperledger/fabric/protos/common"
-	proto "github.com/hyperledger/fabric/protos/transientstore"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
 )
 
@@ -124,7 +124,7 @@ func (m *Store) Persist(txid string, privateSimulationResultsWithConfig *proto.T
 }
 
 // PutData stores the key/value
-func (m *Store) PutData(config *cb.StaticCollectionConfig, key *storeapi.Key, value *storeapi.ExpiringValue) error {
+func (m *Store) PutData(config *pb.StaticCollectionConfig, key *storeapi.Key, value *storeapi.ExpiringValue) error {
 	if m.err != nil {
 		return m.err
 	}

@@ -25,7 +25,7 @@ func TestMain(m *testing.M) {
 	//setup extension test environment
 	_, _, destroy := xtestutil.SetupExtTestEnv()
 
-	couchDBConfig := xtestutil.TestLedgerConf().StateDB.CouchDB
+	couchDBConfig := xtestutil.TestLedgerConf().StateDBConfig.CouchDB
 	var err error
 	cdbInstance, err = couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {

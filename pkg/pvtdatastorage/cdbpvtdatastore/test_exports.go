@@ -33,7 +33,7 @@ type StoreEnv struct {
 func NewTestStoreEnv(t *testing.T, ledgerid string, btlPolicy pvtdatapolicy.BTLPolicy, couchDBConfig *couchdb.Config) *StoreEnv {
 	removeStorePath()
 	req := require.New(t)
-	conf := testutil.TestLedgerConf().PrivateData
+	conf := testutil.TestPrivateDataConf()
 	testStoreProvider, err := NewProvider(conf, testutil.TestLedgerConf())
 	req.NoError(err)
 	testStore, err := testStoreProvider.OpenStore(ledgerid)
@@ -47,7 +47,7 @@ func NewTestStoreEnv(t *testing.T, ledgerid string, btlPolicy pvtdatapolicy.BTLP
 func (env *StoreEnv) CloseAndReopen() {
 	var err error
 	env.TestStoreProvider.Close()
-	conf := testutil.TestLedgerConf().PrivateData
+	conf := testutil.TestPrivateDataConf()
 	env.TestStoreProvider, err = NewProvider(conf, testutil.TestLedgerConf())
 	require.NoError(env.t, err)
 	env.TestStore, err = env.TestStoreProvider.OpenStore(env.ledgerid)
@@ -72,7 +72,7 @@ func (env *StoreEnv) Cleanup(ledgerid string) {
 }
 
 func removeStorePath() {
-	dbPath := testutil.TestLedgerConf().PrivateData.StorePath
+	dbPath := testutil.TestPrivateDataConf().StorePath
 	if err := os.RemoveAll(dbPath); err != nil {
 		panic(err.Error())
 	}

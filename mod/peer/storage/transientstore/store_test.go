@@ -13,5 +13,7 @@ import (
 )
 
 func TestNewStoreProvider(t *testing.T) {
-	require.Empty(t, NewStoreProvider())
+	p, err := NewStoreProvider("")
+	require.NoError(t, err)
+	require.Empty(t, p)
 }

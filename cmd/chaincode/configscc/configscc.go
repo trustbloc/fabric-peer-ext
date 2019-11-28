@@ -10,10 +10,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/hyperledger/fabric-chaincode-go/shim"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
-	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/core/scc"
-	pb "github.com/hyperledger/fabric/protos/peer"
 	"github.com/pkg/errors"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	ledgerconfig "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/mgr"
@@ -23,10 +23,6 @@ import (
 )
 
 var logger = flogging.MustGetLogger("configscc")
-
-const (
-	sccPath = "github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc"
-)
 
 type configMgr interface {
 	Query(key *config.Criteria) ([]*config.KeyValue, error)
@@ -48,15 +44,11 @@ func New() scc.SelfDescribingSysCC {
 }
 
 func (scc *configSCC) Name() string              { return service.ConfigNS }
-func (scc *configSCC) Path() string              { return sccPath }
-func (scc *configSCC) InitArgs() [][]byte        { return nil }
 func (scc *configSCC) Chaincode() shim.Chaincode { return scc }
-func (scc *configSCC) InvokableExternal() bool   { return true }
-func (scc *configSCC) InvokableCC2CC() bool      { return true }
-func (scc *configSCC) Enabled() bool             { return true }
 
 // Init initializes the config SCC
 func (scc *configSCC) Init(stub shim.ChaincodeStubInterface) pb.Response {
+	logger.Infof("Initializing config scc for channel [%s]", stub.GetChannelID())
 	return shim.Success(nil)
 }
 

@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/privdata"
-	"github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
@@ -120,7 +120,7 @@ func TestFilterPubSimulationResults_NoCollections(t *testing.T) {
 	assert.Equal(t, results, filteredResults)
 }
 
-func newMockQueryExecutor(ccp map[string]*common.CollectionConfigPackage) *mocks.QueryExecutor {
+func newMockQueryExecutor(ccp map[string]*pb.CollectionConfigPackage) *mocks.QueryExecutor {
 	qe := mocks.NewQueryExecutor()
 	for ns, cc := range ccp {
 		bytes, err := proto.Marshal(cc)

@@ -9,7 +9,7 @@ package coordinator
 import (
 	"testing"
 
-	"github.com/hyperledger/fabric/protos/transientstore"
+	"github.com/hyperledger/fabric-protos-go/transientstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
@@ -45,6 +45,6 @@ func TestCoordinator_StorePvtData(t *testing.T) {
 type mockTransientStore struct {
 }
 
-func (m *mockTransientStore) PersistWithConfig(txid string, blockHeight uint64, privateSimulationResultsWithConfig *transientstore.TxPvtReadWriteSetWithConfigInfo) error {
+func (m *mockTransientStore) Persist(txid string, blockHeight uint64, privateSimulationResultsWithConfig *transientstore.TxPvtReadWriteSetWithConfigInfo) error {
 	return nil
 }

@@ -8,11 +8,11 @@ package mocks
 
 import (
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
+	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-protos-go/transientstore"
 	"github.com/hyperledger/fabric/common/cauthdsl"
-	"github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset"
-	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
-	"github.com/hyperledger/fabric/protos/transientstore"
 )
 
 // ReadWriteSetBuilder is a utility that builds a TxReadWriteSet for unit testing
@@ -95,8 +95,8 @@ func (b *PvtReadWriteSetBuilder) BuildReadWriteSet() *rwset.TxPvtReadWriteSet {
 }
 
 // BuildCollectionConfigs builds the collection config package
-func (b *PvtReadWriteSetBuilder) BuildCollectionConfigs() map[string]*common.CollectionConfigPackage {
-	configs := make(map[string]*common.CollectionConfigPackage)
+func (b *PvtReadWriteSetBuilder) BuildCollectionConfigs() map[string]*peer.CollectionConfigPackage {
+	configs := make(map[string]*peer.CollectionConfigPackage)
 	for _, ns := range b.namespaces {
 		configs[ns.name] = ns.BuildCollectionConfig()
 	}
@@ -196,8 +196,8 @@ func (b *NamespaceBuilder) BuildCollectionHashedRWSets() []*rwset.CollectionHash
 }
 
 // BuildCollectionConfig builds the collection config package for the namespace
-func (b *NamespaceBuilder) BuildCollectionConfig() *common.CollectionConfigPackage {
-	cp := &common.CollectionConfigPackage{}
+func (b *NamespaceBuilder) BuildCollectionConfig() *peer.CollectionConfigPackage {
+	cp := &peer.CollectionConfigPackage{}
 	for _, coll := range b.collections {
 		config := coll.buildConfig()
 		cp.Config = append(cp.Config, config)
@@ -214,7 +214,7 @@ type CollectionBuilder struct {
 	requiredPeerCount int32
 	maximumPeerCount  int32
 	blocksToLive      uint64
-	collType          common.CollectionType
+	collType          peer.CollectionType
 	marshalErr        bool
 	ttl               string
 }
@@ -251,7 +251,7 @@ func (c *CollectionBuilder) TransientConfig(policy string, requiredPeerCount, ma
 	c.policy = policy
 	c.requiredPeerCount = requiredPeerCount
 	c.maximumPeerCount = maximumPeerCount
-	c.collType = common.CollectionType_COL_TRANSIENT
+	c.collType = peer.CollectionType_COL_TRANSIENT
 	c.ttl = ttl
 	return c
 }
@@ -270,7 +270,7 @@ func (c *CollectionBuilder) OffLedgerConfig(policy string, requiredPeerCount, ma
 	c.policy = policy
 	c.requiredPeerCount = requiredPeerCount
 	c.maximumPeerCount = maximumPeerCount
-	c.collType = common.CollectionType_COL_OFFLEDGER
+	c.collType = peer.CollectionType_COL_OFFLEDGER
 	c.ttl = ttl
 	return c
 }
@@ -280,7 +280,7 @@ func (c *CollectionBuilder) DCASConfig(policy string, requiredPeerCount, maximum
 	c.policy = policy
 	c.requiredPeerCount = requiredPeerCount
 	c.maximumPeerCount = maximumPeerCount
-	c.collType = common.CollectionType_COL_DCAS
+	c.collType = peer.CollectionType_COL_DCAS
 	c.ttl = ttl
 	return c
 }
@@ -319,19 +319,19 @@ func (c *CollectionBuilder) buildReadWriteSet() []byte {
 	return bytes
 }
 
-func (c *CollectionBuilder) buildConfig() *common.CollectionConfig {
+func (c *CollectionBuilder) buildConfig() *peer.CollectionConfig {
 	signaturePolicyEnvelope, err := cauthdsl.FromString(c.policy)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	return &common.CollectionConfig{
-		Payload: &common.CollectionConfig_StaticCollectionConfig{
-			StaticCollectionConfig: &common.StaticCollectionConfig{
+	return &peer.CollectionConfig{
+		Payload: &peer.CollectionConfig_StaticCollectionConfig{
+			StaticCollectionConfig: &peer.StaticCollectionConfig{
 				Type: c.collType,
 				Name: c.name,
-				MemberOrgsPolicy: &common.CollectionPolicyConfig{
-					Payload: &common.CollectionPolicyConfig_SignaturePolicy{
+				MemberOrgsPolicy: &peer.CollectionPolicyConfig{
+					Payload: &peer.CollectionPolicyConfig_SignaturePolicy{
 						SignaturePolicy: signaturePolicyEnvelope,
 					},
 				},

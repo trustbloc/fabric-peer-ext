@@ -8,6 +8,9 @@ package dissemination
 
 import (
 	protobuf "github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/extensions/collections/api/dissemination"
 	gossipapi "github.com/hyperledger/fabric/gossip/api"
@@ -15,16 +18,13 @@ import (
 	gdiscovery "github.com/hyperledger/fabric/gossip/discovery"
 	"github.com/hyperledger/fabric/gossip/gossip"
 	"github.com/hyperledger/fabric/gossip/protoext"
-	cb "github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset"
-	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 )
 
 type gossipAdapter interface {
-	PeersOfChannel(gcommon.ChainID) []gdiscovery.NetworkMember
+	PeersOfChannel(id gcommon.ChannelID) []gdiscovery.NetworkMember
 	SelfMembershipInfo() gdiscovery.NetworkMember
 	IdentityInfo() gossipapi.PeerIdentitySet
 }
@@ -33,7 +33,7 @@ type gossipAdapter interface {
 func ComputeDisseminationPlan(
 	channelID, ns string,
 	rwSet *rwset.CollectionPvtReadWriteSet,
-	collConfig *cb.StaticCollectionConfig,
+	collConfig *pb.StaticCollectionConfig,
 	colAP privdata.CollectionAccessPolicy,
 	pvtDataMsg *protoext.SignedGossipMessage,
 	gossipAdapter gossipAdapter) ([]*dissemination.Plan, bool, error) {
@@ -64,7 +64,7 @@ func ComputeDisseminationPlan(
 
 	sc := gossip.SendCriteria{
 		Timeout:    viper.GetDuration("peer.gossip.pvtData.pushAckTimeout"),
-		Channel:    gcommon.ChainID(channelID),
+		Channel:    gcommon.ChannelID(channelID),
 		MaxPeers:   len(peers),
 		MinAck:     colAP.RequiredPeerCount(),
 		IsEligible: routingFilter,
@@ -76,7 +76,7 @@ func ComputeDisseminationPlan(
 	}}, true, nil
 }
 
-func validateAll(collType cb.CollectionType, kvRWSet *kvrwset.KVRWSet) error {
+func validateAll(collType pb.CollectionType, kvRWSet *kvrwset.KVRWSet) error {
 	for _, ws := range kvRWSet.Writes {
 		if err := validate(collType, ws); err != nil {
 			return err
@@ -85,8 +85,8 @@ func validateAll(collType cb.CollectionType, kvRWSet *kvrwset.KVRWSet) error {
 	return nil
 }
 
-func validate(collType cb.CollectionType, ws *kvrwset.KVWrite) error {
-	if collType == cb.CollectionType_COL_DCAS && ws.Value != nil {
+func validate(collType pb.CollectionType, ws *kvrwset.KVWrite) error {
+	if collType == pb.CollectionType_COL_DCAS && ws.Value != nil {
 		expectedKey, _, err := dcas.GetCASKeyAndValueBase58(ws.Value)
 		if err != nil {
 			return err

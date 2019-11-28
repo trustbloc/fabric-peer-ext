@@ -10,12 +10,12 @@ import (
 	"context"
 	"sync"
 
+	gproto "github.com/hyperledger/fabric-protos-go/gossip"
 	"github.com/hyperledger/fabric/common/flogging"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/hyperledger/fabric/extensions/collections/api/support"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/gossip/comm"
-	gproto "github.com/hyperledger/fabric/protos/gossip"
 	"github.com/pkg/errors"
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	tdataapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"

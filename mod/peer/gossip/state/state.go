@@ -8,16 +8,17 @@ package state
 
 import (
 	pb "github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-protos-go/common"
+	proto "github.com/hyperledger/fabric-protos-go/gossip"
+	"github.com/hyperledger/fabric-protos-go/peer"
 	ledgerUtil "github.com/hyperledger/fabric/core/ledger/util"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
+	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
 	"github.com/hyperledger/fabric/extensions/roles"
 	common2 "github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/gossip/discovery"
 	"github.com/hyperledger/fabric/gossip/protoext"
 	"github.com/hyperledger/fabric/gossip/util"
-	"github.com/hyperledger/fabric/protos/common"
-	proto "github.com/hyperledger/fabric/protos/gossip"
-	"github.com/hyperledger/fabric/protos/peer"
 	"github.com/pkg/errors"
 )
 
@@ -51,11 +52,11 @@ type GossipServiceMediator interface {
 	// VerifyBlock returns nil if the block is properly signed, and the claimed seqNum is the
 	// sequence number that the block's header contains.
 	// else returns error
-	VerifyBlock(chainID common2.ChainID, seqNum uint64, signedBlock []byte) error
+	VerifyBlock(channelID common2.ChannelID, seqNum uint64, signedBlock *common.Block) error
 
 	// PeersOfChannel returns the NetworkMembers considered alive
 	// and also subscribed to the channel given
-	PeersOfChannel(common2.ChainID) []discovery.NetworkMember
+	PeersOfChannel(common2.ChannelID) []discovery.NetworkMember
 
 	// Gossip sends a message to other peers to the network
 	Gossip(msg *proto.GossipMessage)
@@ -123,7 +124,8 @@ func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Bloc
 				logger.Warning("Failed to update checkpoint info for cid[%s] block[%d]", s.chainID, block.Header.Number)
 				return err
 			}
-			return s.support.BlockEventer.PreCommit(block)
+			blockpublisher.ForChannel(s.chainID).Publish(block)
+			return nil
 		}
 		return nil
 	}
@@ -132,15 +134,16 @@ func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Bloc
 func (s *gossipStateProviderExtension) gossipBlock(block *common.Block) {
 	blockNum := block.Header.Number
 
+	if err := s.mediator.VerifyBlock(common2.ChannelID(s.chainID), blockNum, block); err != nil {
+		logger.Errorf("[%s] Error verifying block with sequnce number %d, due to %s", s.chainID, blockNum, err)
+	}
+
+	numberOfPeers := len(s.mediator.PeersOfChannel(common2.ChannelID(s.chainID)))
+
 	marshaledBlock, err := pb.Marshal(block)
 	if err != nil {
 		logger.Errorf("[%s] Error serializing block with sequence number %d, due to %s", s.chainID, blockNum, err)
 	}
-	if err := s.mediator.VerifyBlock(common2.ChainID(s.chainID), blockNum, marshaledBlock); err != nil {
-		logger.Errorf("[%s] Error verifying block with sequnce number %d, due to %s", s.chainID, blockNum, err)
-	}
-
-	numberOfPeers := len(s.mediator.PeersOfChannel(common2.ChainID(s.chainID)))
 
 	// Create payload with a block received
 	payload := &proto.Payload{

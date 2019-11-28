@@ -48,11 +48,24 @@ var (
 	value2 = []byte("v2")
 )
 
+func TestNewError(t *testing.T) {
+	errExpected := errors.New("injected error")
+	restoreDBCreator := SetLevelDBCreator(func(dbPath string) (provider *leveldbhelper.Provider, e error) {
+		return nil, errExpected
+	})
+	defer restoreDBCreator()
+
+	p, err := NewDBProvider()
+	require.EqualError(t, err, errExpected.Error())
+	require.Nil(t, p)
+}
+
 func TestDeleteExpiredKeysFromDB(t *testing.T) {
 	removeDBPath(t)
 	defer removeDBPath(t)
 
-	p := NewDBProvider()
+	p, err := NewDBProvider()
+	require.NoError(t, err)
 	db, err := p.OpenDBStore("testchannel")
 	require.NoError(t, err)
 	defer p.Close()
@@ -80,7 +93,8 @@ func TestDeleteExpiredKeysFromDB(t *testing.T) {
 
 func TestAddRetrieveKeysFromDB(t *testing.T) {
 	defer removeDBPath(t)
-	p := NewDBProvider()
+	p, err := NewDBProvider()
+	require.NoError(t, err)
 	db, err := p.OpenDBStore("testchannel")
 	require.NoError(t, err)
 	defer p.Close()
@@ -106,7 +120,8 @@ func TestDBStore_Error(t *testing.T) {
 			return nil, errExpected
 		}
 
-		p := NewDBProvider()
+		p, err := NewDBProvider()
+		require.NoError(t, err)
 		db, err := p.OpenDBStore("testchannel")
 		require.NoError(t, err)
 		defer p.Close()
@@ -125,7 +140,8 @@ func TestDBStore_Error(t *testing.T) {
 			return nil, errExpected
 		}
 
-		p := NewDBProvider()
+		p, err := NewDBProvider()
+		require.NoError(t, err)
 		db, err := p.OpenDBStore("testchannel")
 		require.NoError(t, err)
 		defer p.Close()

@@ -9,13 +9,14 @@ package idstore
 import (
 	"fmt"
 
-	"github.com/hyperledger/fabric/core/ledger"
-
+	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-protos-go/common"
 	"github.com/hyperledger/fabric/common/flogging"
+	"github.com/hyperledger/fabric/common/ledger/dataformat"
 	"github.com/hyperledger/fabric/common/metrics/disabled"
-	"github.com/hyperledger/fabric/core/ledger/kvledger/idstore"
+	"github.com/hyperledger/fabric/core/ledger"
+	"github.com/hyperledger/fabric/core/ledger/kvledger/msgs"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
-	"github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
@@ -31,7 +32,7 @@ type Store struct {
 }
 
 //OpenIDStore return id store
-func OpenIDStore(ledgerconfig *ledger.Config) (idstore.IDStore, error) {
+func OpenIDStore(ledgerconfig *ledger.Config) (*Store, error) {
 	couchInstance, err := createCouchInstance(ledgerconfig)
 	if err != nil {
 		return nil, errors.Wrapf(err, "create couchdb instance failed ")
@@ -55,7 +56,7 @@ func OpenIDStore(ledgerconfig *ledger.Config) (idstore.IDStore, error) {
 	return newStore(db, dbName)
 }
 
-func newStore(db couchDB, dbName string) (idstore.IDStore, error) {
+func newStore(db couchDB, dbName string) (*Store, error) {
 	dbExists, err := db.ExistsWithRetry()
 	if err != nil {
 		return nil, errors.WithMessagef(err, "check couchdb [%s] exist failed", dbName)
@@ -77,7 +78,7 @@ func newStore(db couchDB, dbName string) (idstore.IDStore, error) {
 	return &s, nil
 }
 
-func newCommitterStore(db couchDB) (idstore.IDStore, error) {
+func newCommitterStore(db couchDB) (*Store, error) {
 	err := createIndices(db)
 	if err != nil {
 		return nil, errors.Wrapf(err, "create couchdb index failed")
@@ -101,7 +102,7 @@ func createCouchInstance(ledgerconfig *ledger.Config) (*couchdb.CouchInstance, e
 	if ledgerconfig == nil {
 		return nil, errors.New("ledgerconfig is nil")
 	}
-	couchDBConfig := ledgerconfig.StateDB.CouchDB
+	couchDBConfig := ledgerconfig.StateDBConfig.CouchDB
 	couchInstance, err := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {
 		return nil, errors.WithMessage(err, "obtaining CouchDB instance failed")
@@ -214,7 +215,7 @@ func (s *Store) LedgerIDExists(ledgerID string) (bool, error) {
 }
 
 //GetLedgeIDValue get ledger id value
-func (s *Store) GetLedgeIDValue(ledgerID string) ([]byte, error) {
+func (s *Store) getLedgerIDValue(ledgerID string) ([]byte, error) {
 	doc, _, err := s.db.ReadDoc(ledgerIDToKey(ledgerID))
 	if err != nil {
 		return nil, err
@@ -227,8 +228,9 @@ func (s *Store) GetLedgeIDValue(ledgerID string) ([]byte, error) {
 	return nil, nil
 }
 
-//GetAllLedgerIds get all ledger ids
-func (s *Store) GetAllLedgerIds() ([]string, error) {
+// GetActiveLedgerIDs returns the active ledger IDs
+// TODO: Should only return ledger IDs that are active once ledger status is implemented
+func (s *Store) GetActiveLedgerIDs() ([]string, error) {
 	results, err := queryInventory(s.db, typeLedgerName)
 	if err != nil {
 		return nil, err
@@ -255,6 +257,54 @@ func (s *Store) GetAllLedgerIds() ([]string, error) {
 	}
 
 	return ledgers, nil
+}
+
+// UpdateLedgerStatus sets the status of the given ledger
+func (s *Store) UpdateLedgerStatus(ledgerID string, newStatus msgs.Status) error {
+	panic("not implemented")
+}
+
+// GetFormat returns the format of the database
+func (s *Store) GetFormat() ([]byte, error) {
+	// TODO: Should read format from meta data. For now return a hard-coded format.
+	return []byte(dataformat.Version20), nil
+}
+
+// UpgradeFormat upgrades the database format
+func (s *Store) UpgradeFormat() error {
+	panic("not implemented")
+}
+
+// LedgerIDActive tests whether a ledger ID exists and is active
+// TODO: Should return the correct status once ledger status is implemented
+func (s *Store) LedgerIDActive(ledgerID string) (active bool, exists bool, err error) {
+	// TODO: This is a temporary implementation. Need to implement ledger state (ACTIVE/INACTIVE)
+	ids, err := s.GetActiveLedgerIDs()
+	if err != nil {
+		return false, false, err
+	}
+	for _, id := range ids {
+		if ledgerID == id {
+			return true, true, nil
+		}
+	}
+	return false, false, nil
+}
+
+// GetGenesisBlock returns the genesis block for the given ledger ID
+func (s *Store) GetGenesisBlock(ledgerID string) (*common.Block, error) {
+	bytes, err := s.getLedgerIDValue(ledgerID)
+	if err != nil {
+		return nil, err
+	}
+
+	b := &common.Block{}
+	err = proto.Unmarshal(bytes, b)
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
 }
 
 //Close the store

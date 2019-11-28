@@ -9,7 +9,7 @@ package builder
 import (
 	"testing"
 
-	"github.com/hyperledger/fabric/core/chaincode/shim"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric/core/scc"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -43,15 +43,9 @@ func TestSCCBuilder_Build(t *testing.T) {
 
 	sccDesc := sccDescs[0]
 	require.Equal(t, ccName1, sccDesc.Name())
-	require.Equal(t, ccPath1, sccDesc.Path())
-	require.Equal(t, 2, len(sccDesc.InitArgs()))
-	require.Equal(t, arg1, string(sccDesc.InitArgs()[0]))
-	require.Equal(t, arg2, string(sccDesc.InitArgs()[1]))
 
 	sccDesc2 := sccDescs[1]
 	require.Equal(t, ccName1, sccDesc2.Name())
-	require.Empty(t, sccDesc2.Path())
-	require.Empty(t, sccDesc2.InitArgs())
 }
 
 func TestBuilder_BuildError(t *testing.T) {

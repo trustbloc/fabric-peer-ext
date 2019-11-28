@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
-	"github.com/hyperledger/fabric/protos/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider/store/api"
@@ -263,7 +263,7 @@ func TestStoreInvalidData(t *testing.T) {
 	})
 
 	t.Run("Invalid policy", func(t *testing.T) {
-		p, err := s.loadPolicy(ns1, &common.StaticCollectionConfig{})
+		p, err := s.loadPolicy(ns1, &pb.StaticCollectionConfig{})
 		require.Error(t, err)
 		require.Nil(t, p)
 		require.Contains(t, err.Error(), "error setting up collection policy")

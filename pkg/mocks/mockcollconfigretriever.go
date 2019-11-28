@@ -7,15 +7,15 @@ SPDX-License-Identifier: Apache-2.0
 package mocks
 
 import (
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/privdata"
-	"github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
 )
 
 // CollectionConfigRetriever is a mock collection config retriever
 type CollectionConfigRetriever struct {
 	policy  privdata.CollectionAccessPolicy
-	configs []*common.StaticCollectionConfig
+	configs []*pb.StaticCollectionConfig
 	err     error
 }
 
@@ -37,7 +37,7 @@ func (s *CollectionConfigRetriever) WithCollectionPolicy(collPolicy privdata.Col
 }
 
 // WithCollectionConfig sets the collection config for the given collection
-func (s *CollectionConfigRetriever) WithCollectionConfig(collConfig *common.StaticCollectionConfig) *CollectionConfigRetriever {
+func (s *CollectionConfigRetriever) WithCollectionConfig(collConfig *pb.StaticCollectionConfig) *CollectionConfigRetriever {
 	s.configs = append(s.configs, collConfig)
 	return s
 }
@@ -48,7 +48,7 @@ func (s *CollectionConfigRetriever) Policy(ns, coll string) (privdata.Collection
 }
 
 // Config returns the collection config for the given collection
-func (s *CollectionConfigRetriever) Config(ns, coll string) (*common.StaticCollectionConfig, error) {
+func (s *CollectionConfigRetriever) Config(ns, coll string) (*pb.StaticCollectionConfig, error) {
 	if s.err != nil {
 		return nil, s.err
 	}

@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package transientstore
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -16,15 +17,17 @@ import (
 
 	"github.com/bluele/gcache"
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-protos-go/transientstore"
 	"github.com/hyperledger/fabric/common/cauthdsl"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/util"
 	origts "github.com/hyperledger/fabric/core/transientstore"
-	"github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset"
-	"github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	cm "github.com/trustbloc/fabric-peer-ext/pkg/transientstore/common"
 )
 
@@ -56,7 +59,8 @@ func TestPurgeIndexKeyCodingEncoding(t *testing.T) {
 				t.Run(testCase, func(t *testing.T) {
 					t.Logf("Running test case [%s]", testCase)
 					purgeIndexKey := cm.CreateCompositeKeyForPurgeIndexByHeight(blkHt, txid, uuid)
-					txid1, uuid1, blkHt1 := cm.SplitCompositeKeyOfPurgeIndexByHeight(purgeIndexKey)
+					txid1, uuid1, blkHt1, err := cm.SplitCompositeKeyOfPurgeIndexByHeight(purgeIndexKey)
+					require.NoError(t, err)
 					assert.Equal(txid, txid1)
 					assert.Equal(uuid, uuid1)
 					assert.Equal(blkHt, blkHt1)
@@ -78,7 +82,8 @@ func TestRWSetKeyCodingEncoding(t *testing.T) {
 				t.Run(testCase, func(t *testing.T) {
 					t.Logf("Running test case [%s]", testCase)
 					rwsetKey := cm.CreateCompositeKeyForPvtRWSet(txid, uuid, blkHt)
-					uuid1, blkHt1 := cm.SplitCompositeKeyOfPvtRWSet(rwsetKey)
+					uuid1, blkHt1, err := cm.SplitCompositeKeyOfPvtRWSet(rwsetKey)
+					require.NoError(t, err)
 					assert.Equal(uuid, uuid1)
 					assert.Equal(blkHt, blkHt1)
 				})
@@ -95,20 +100,20 @@ func TestTransientStorePersistAndRetrieve(t *testing.T) {
 	assert.NoError(err)
 
 	txid := "txid-1"
-	samplePvtRWSetWithConfig := samplePvtDataWithConfigInfo(t)
+	samplePvtRWSetWithConfig := samplePvtData(t)
 
 	// Create private simulation results for txid-1
-	var endorsersResults []*origts.EndorserPvtSimulationResultsWithConfig
+	var endorsersResults []*origts.EndorserPvtSimulationResults
 
 	// Results produced by endorser 1
-	endorser0SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser0SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          10,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 	endorsersResults = append(endorsersResults, endorser0SimulationResults)
 
 	// Results produced by endorser 2
-	endorser1SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser1SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          10,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
@@ -116,7 +121,7 @@ func TestTransientStorePersistAndRetrieve(t *testing.T) {
 
 	// Persist simulation results into  store
 	for i := 0; i < len(endorsersResults); i++ {
-		err = testStore.PersistWithConfig(txid, endorsersResults[i].ReceivedAtBlockHeight,
+		err = testStore.Persist(txid, endorsersResults[i].ReceivedAtBlockHeight,
 			endorsersResults[i].PvtSimulationResultsWithConfig)
 		assert.NoError(err)
 	}
@@ -125,9 +130,9 @@ func TestTransientStorePersistAndRetrieve(t *testing.T) {
 	iter, err := testStore.GetTxPvtRWSetByTxid(txid, nil)
 	assert.NoError(err)
 
-	var actualEndorsersResults []*origts.EndorserPvtSimulationResultsWithConfig
+	var actualEndorsersResults []*origts.EndorserPvtSimulationResults
 	for {
-		result, err := iter.NextWithConfig()
+		result, err := iter.Next()
 		assert.NoError(err)
 		if result == nil {
 			break
@@ -157,24 +162,20 @@ func TestTransientStorePersistAndRetrieveBothOldAndNewProto(t *testing.T) {
 	assert.NoError(err)
 
 	// Create and persist private simulation results with new proto for txid-1
-	samplePvtRWSetWithConfig := samplePvtDataWithConfigInfo(t)
-	err = testStore.PersistWithConfig(txid, receivedAtBlockHeight, samplePvtRWSetWithConfig)
+	samplePvtRWSetWithConfig := samplePvtData(t)
+	err = testStore.Persist(txid, receivedAtBlockHeight, samplePvtRWSetWithConfig)
 	assert.NoError(err)
 
 	// Construct the expected results
-	var expectedEndorsersResults []*origts.EndorserPvtSimulationResultsWithConfig
+	var expectedEndorsersResults []*origts.EndorserPvtSimulationResults
 
-	pvtRWSetWithConfigInfo := &transientstore.TxPvtReadWriteSetWithConfigInfo{
-		PvtRwset: samplePvtRWSet,
-	}
-
-	endorser0SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser0SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          receivedAtBlockHeight,
-		PvtSimulationResultsWithConfig: pvtRWSetWithConfigInfo,
+		PvtSimulationResultsWithConfig: samplePvtRWSet,
 	}
 	expectedEndorsersResults = append(expectedEndorsersResults, endorser0SimulationResults)
 
-	endorser1SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser1SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          receivedAtBlockHeight,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
@@ -184,9 +185,9 @@ func TestTransientStorePersistAndRetrieveBothOldAndNewProto(t *testing.T) {
 	iter, err := testStore.GetTxPvtRWSetByTxid(txid, nil)
 	assert.NoError(err)
 
-	var actualEndorsersResults []*origts.EndorserPvtSimulationResultsWithConfig
+	var actualEndorsersResults []*origts.EndorserPvtSimulationResults
 	for {
-		result, err := iter.NextWithConfig()
+		result, err := iter.Next()
 		assert.NoError(err)
 		if result == nil {
 			break
@@ -208,20 +209,20 @@ func TestTransientStorePurgeByTxids(t *testing.T) {
 	assert.NoError(err)
 
 	var txids []string
-	var endorsersResults []*origts.EndorserPvtSimulationResultsWithConfig
+	var endorsersResults []*origts.EndorserPvtSimulationResults
 
-	samplePvtRWSetWithConfig := samplePvtDataWithConfigInfo(t)
+	samplePvtRWSetWithConfig := samplePvtData(t)
 
 	// Create two private write set entry for txid-1
 	txids = append(txids, "txid-1")
-	endorser0SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser0SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          10,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 	endorsersResults = append(endorsersResults, endorser0SimulationResults)
 
 	txids = append(txids, "txid-1")
-	endorser1SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser1SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          11,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
@@ -229,7 +230,7 @@ func TestTransientStorePurgeByTxids(t *testing.T) {
 
 	// Create one private write set entry for txid-2
 	txids = append(txids, "txid-2")
-	endorser2SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser2SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          11,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
@@ -237,28 +238,28 @@ func TestTransientStorePurgeByTxids(t *testing.T) {
 
 	// Create three private write set entry for txid-3
 	txids = append(txids, "txid-3")
-	endorser3SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser3SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          12,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 	endorsersResults = append(endorsersResults, endorser3SimulationResults)
 
 	txids = append(txids, "txid-3")
-	endorser4SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser4SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          12,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 	endorsersResults = append(endorsersResults, endorser4SimulationResults)
 
 	txids = append(txids, "txid-3")
-	endorser5SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser5SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          13,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 	endorsersResults = append(endorsersResults, endorser5SimulationResults)
 
 	for i := 0; i < len(txids); i++ {
-		err = testStore.PersistWithConfig(txids[i], endorsersResults[i].ReceivedAtBlockHeight,
+		err = testStore.Persist(txids[i], endorsersResults[i].ReceivedAtBlockHeight,
 			endorsersResults[i].PvtSimulationResultsWithConfig)
 		assert.NoError(err)
 	}
@@ -268,13 +269,13 @@ func TestTransientStorePurgeByTxids(t *testing.T) {
 	assert.NoError(err)
 
 	// Expected results for txid-2
-	var expectedEndorsersResults []*origts.EndorserPvtSimulationResultsWithConfig
+	var expectedEndorsersResults []*origts.EndorserPvtSimulationResults
 	expectedEndorsersResults = append(expectedEndorsersResults, endorser2SimulationResults)
 
 	// Check whether actual results and expected results are same
-	var actualEndorsersResults []*origts.EndorserPvtSimulationResultsWithConfig
+	var actualEndorsersResults []*origts.EndorserPvtSimulationResults
 	for true {
-		result, err := iter.NextWithConfig()
+		result, err := iter.Next()
 		assert.NoError(err)
 		if result == nil {
 			break
@@ -302,12 +303,12 @@ func TestTransientStorePurgeByTxids(t *testing.T) {
 	for _, txid := range toRemoveTxids {
 
 		// Check whether private write sets of txid-2 are removed
-		var expectedEndorsersResults *origts.EndorserPvtSimulationResultsWithConfig
+		var expectedEndorsersResults *origts.EndorserPvtSimulationResults
 		expectedEndorsersResults = nil
 		iter, err = testStore.GetTxPvtRWSetByTxid(txid, nil)
 		assert.NoError(err)
 		// Should return nil, nil
-		result, err := iter.NextWithConfig()
+		result, err := iter.Next()
 		assert.NoError(err)
 		assert.Equal(expectedEndorsersResults, result)
 	}
@@ -324,7 +325,7 @@ func TestTransientStorePurgeByTxids(t *testing.T) {
 	// Check whether actual results and expected results are same
 	actualEndorsersResults = nil
 	for true {
-		result, err := iter.NextWithConfig()
+		result, err := iter.Next()
 		assert.NoError(err)
 		if result == nil {
 			break
@@ -351,12 +352,12 @@ func TestTransientStorePurgeByTxids(t *testing.T) {
 	for _, txid := range toRemoveTxids {
 
 		// Check whether private write sets of txid-1 are removed
-		var expectedEndorsersResults *origts.EndorserPvtSimulationResultsWithConfig
+		var expectedEndorsersResults *origts.EndorserPvtSimulationResults
 		expectedEndorsersResults = nil
 		iter, err = testStore.GetTxPvtRWSetByTxid(txid, nil)
 		assert.NoError(err)
 		// Should return nil, nil
-		result, err := iter.NextWithConfig()
+		result, err := iter.Next()
 		assert.NoError(err)
 		assert.Equal(expectedEndorsersResults, result)
 	}
@@ -375,41 +376,41 @@ func TestTransientStorePurgeByHeight(t *testing.T) {
 	assert.NoError(err)
 
 	txid := "txid-1"
-	samplePvtRWSetWithConfig := samplePvtDataWithConfigInfo(t)
+	samplePvtRWSetWithConfig := samplePvtData(t)
 
 	// Create private simulation results for txid-1
-	var endorsersResults []*origts.EndorserPvtSimulationResultsWithConfig
+	var endorsersResults []*origts.EndorserPvtSimulationResults
 
 	// Results produced by endorser 1
-	endorser0SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser0SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          10,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 	endorsersResults = append(endorsersResults, endorser0SimulationResults)
 
 	// Results produced by endorser 2
-	endorser1SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser1SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          11,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 	endorsersResults = append(endorsersResults, endorser1SimulationResults)
 
 	// Results produced by endorser 3
-	endorser2SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser2SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          12,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 	endorsersResults = append(endorsersResults, endorser2SimulationResults)
 
 	// Results produced by endorser 3
-	endorser3SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser3SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          12,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 	endorsersResults = append(endorsersResults, endorser3SimulationResults)
 
 	// Results produced by endorser 4
-	endorser4SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser4SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          13,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
@@ -417,14 +418,14 @@ func TestTransientStorePurgeByHeight(t *testing.T) {
 
 	// Persist simulation results into  store
 	for i := 0; i < 5; i++ {
-		err = testStore.PersistWithConfig(txid, endorsersResults[i].ReceivedAtBlockHeight,
+		err = testStore.Persist(txid, endorsersResults[i].ReceivedAtBlockHeight,
 			endorsersResults[i].PvtSimulationResultsWithConfig)
 		assert.NoError(err)
 	}
 
 	// Retain results generate at block height greater than or equal to 12
 	minTransientBlkHtToRetain := uint64(12)
-	err = testStore.PurgeByHeight(minTransientBlkHtToRetain)
+	err = testStore.PurgeBelowHeight(minTransientBlkHtToRetain)
 	assert.NoError(err)
 
 	// Retrieve simulation results of txid-1 from  store
@@ -432,15 +433,15 @@ func TestTransientStorePurgeByHeight(t *testing.T) {
 	assert.NoError(err)
 
 	// Expected results for txid-1
-	var expectedEndorsersResults []*origts.EndorserPvtSimulationResultsWithConfig
+	var expectedEndorsersResults []*origts.EndorserPvtSimulationResults
 	expectedEndorsersResults = append(expectedEndorsersResults, endorser2SimulationResults) //endorsed at height 12
 	expectedEndorsersResults = append(expectedEndorsersResults, endorser3SimulationResults) //endorsed at height 12
 	expectedEndorsersResults = append(expectedEndorsersResults, endorser4SimulationResults) //endorsed at height 13
 
 	// Check whether actual results and expected results are same
-	var actualEndorsersResults []*origts.EndorserPvtSimulationResultsWithConfig
+	var actualEndorsersResults []*origts.EndorserPvtSimulationResults
 	for true {
-		result, err := iter.NextWithConfig()
+		result, err := iter.Next()
 		assert.NoError(err)
 		if result == nil {
 			break
@@ -468,7 +469,7 @@ func TestTransientStorePurgeByHeight(t *testing.T) {
 
 	// Retain results at block height greater than or equal to 15
 	minTransientBlkHtToRetain = uint64(15)
-	err = testStore.PurgeByHeight(minTransientBlkHtToRetain)
+	err = testStore.PurgeBelowHeight(minTransientBlkHtToRetain)
 	assert.NoError(err)
 
 	// There should be no entries in the  store
@@ -477,7 +478,7 @@ func TestTransientStorePurgeByHeight(t *testing.T) {
 
 	// Retain results at block height greater than or equal to 15
 	minTransientBlkHtToRetain = uint64(15)
-	err = testStore.PurgeByHeight(minTransientBlkHtToRetain)
+	err = testStore.PurgeBelowHeight(minTransientBlkHtToRetain)
 	// Should not return any error
 	assert.NoError(err)
 }
@@ -489,12 +490,12 @@ func TestTransientStoreRetrievalWithFilter(t *testing.T) {
 	store, err := testStoreProvider.OpenStore("TestStore")
 	assert.NoError(t, err)
 
-	samplePvtSimResWithConfig := samplePvtDataWithConfigInfo(t)
+	samplePvtSimResWithConfig := samplePvtData(t)
 
 	testTxid := "testTxid"
 	numEntries := 5
 	for i := 0; i < numEntries; i++ {
-		store.PersistWithConfig(testTxid, uint64(i), samplePvtSimResWithConfig)
+		store.Persist(testTxid, uint64(i), samplePvtSimResWithConfig)
 	}
 
 	filter := ledger.NewPvtNsCollFilter()
@@ -504,9 +505,9 @@ func TestTransientStoreRetrievalWithFilter(t *testing.T) {
 	itr, err := store.GetTxPvtRWSetByTxid(testTxid, filter)
 	assert.NoError(t, err)
 
-	var actualRes []*origts.EndorserPvtSimulationResultsWithConfig
+	var actualRes []*origts.EndorserPvtSimulationResults
 	for {
-		res, err := itr.NextWithConfig()
+		res, err := itr.Next()
 		if res == nil || err != nil {
 			assert.NoError(t, err)
 			break
@@ -529,9 +530,9 @@ func TestTransientStoreRetrievalWithFilter(t *testing.T) {
 		assert.NotNil(t, ns1ColConfig.Name, colName)
 	}
 
-	var expectedRes []*origts.EndorserPvtSimulationResultsWithConfig
+	var expectedRes []*origts.EndorserPvtSimulationResults
 	for i := 0; i < numEntries; i++ {
-		expectedRes = append(expectedRes, &origts.EndorserPvtSimulationResultsWithConfig{uint64(i), expectedSimulationRes})
+		expectedRes = append(expectedRes, &origts.EndorserPvtSimulationResults{uint64(i), expectedSimulationRes})
 	}
 
 	// Note that the ordering of actualRes and expectedRes is dependent on the uuid. Hence, we are sorting
@@ -546,7 +547,7 @@ func TestTransientStoreRetrievalWithFilter(t *testing.T) {
 
 }
 
-func sortResults(res []*origts.EndorserPvtSimulationResultsWithConfig) {
+func sortResults(res []*origts.EndorserPvtSimulationResults) {
 	// Results are sorted by ascending order of received at block height. When the block
 	// heights are same, we sort by comparing the hash of private write set.
 	var sortCondition = func(i, j int) bool {
@@ -561,7 +562,7 @@ func sortResults(res []*origts.EndorserPvtSimulationResultsWithConfig) {
 	sort.SliceStable(res, sortCondition)
 }
 
-func samplePvtData(t *testing.T) *rwset.TxPvtReadWriteSet {
+func samplePvtDatax(t *testing.T) *rwset.TxPvtReadWriteSet {
 	pvtWriteSet := &rwset.TxPvtReadWriteSet{DataModel: rwset.TxReadWriteSet_KV}
 	pvtWriteSet.NsPvtRwset = []*rwset.NsPvtReadWriteSet{
 		{
@@ -595,19 +596,19 @@ func samplePvtData(t *testing.T) *rwset.TxPvtReadWriteSet {
 	return pvtWriteSet
 }
 
-func samplePvtDataWithConfigInfo(t *testing.T) *transientstore.TxPvtReadWriteSetWithConfigInfo {
-	pvtWriteSet := samplePvtData(t)
+func samplePvtData(t *testing.T) *transientstore.TxPvtReadWriteSetWithConfigInfo {
+	pvtWriteSet := samplePvtDatax(t)
 	pvtRWSetWithConfigInfo := &transientstore.TxPvtReadWriteSetWithConfigInfo{
 		PvtRwset: pvtWriteSet,
-		CollectionConfigs: map[string]*common.CollectionConfigPackage{
+		CollectionConfigs: map[string]*pb.CollectionConfigPackage{
 			"ns-1": {
-				Config: []*common.CollectionConfig{
+				Config: []*pb.CollectionConfig{
 					sampleCollectionConfigPackage("coll-1"),
 					sampleCollectionConfigPackage("coll-2"),
 				},
 			},
 			"ns-2": {
-				Config: []*common.CollectionConfig{
+				Config: []*pb.CollectionConfig{
 					sampleCollectionConfigPackage("coll-1"),
 					sampleCollectionConfigPackage("coll-2"),
 				},
@@ -619,17 +620,17 @@ func samplePvtDataWithConfigInfo(t *testing.T) *transientstore.TxPvtReadWriteSet
 
 func createCollectionConfig(collectionName string, signaturePolicyEnvelope *common.SignaturePolicyEnvelope,
 	requiredPeerCount int32, maximumPeerCount int32,
-) *common.CollectionConfig {
-	signaturePolicy := &common.CollectionPolicyConfig_SignaturePolicy{
+) *pb.CollectionConfig {
+	signaturePolicy := &pb.CollectionPolicyConfig_SignaturePolicy{
 		SignaturePolicy: signaturePolicyEnvelope,
 	}
-	accessPolicy := &common.CollectionPolicyConfig{
+	accessPolicy := &pb.CollectionPolicyConfig{
 		Payload: signaturePolicy,
 	}
 
-	return &common.CollectionConfig{
-		Payload: &common.CollectionConfig_StaticCollectionConfig{
-			StaticCollectionConfig: &common.StaticCollectionConfig{
+	return &pb.CollectionConfig{
+		Payload: &pb.CollectionConfig_StaticCollectionConfig{
+			StaticCollectionConfig: &pb.StaticCollectionConfig{
 				Name:              collectionName,
 				MemberOrgsPolicy:  accessPolicy,
 				RequiredPeerCount: requiredPeerCount,
@@ -639,7 +640,7 @@ func createCollectionConfig(collectionName string, signaturePolicyEnvelope *comm
 	}
 }
 
-func sampleCollectionConfigPackage(colName string) *common.CollectionConfig {
+func sampleCollectionConfigPackage(colName string) *pb.CollectionConfig {
 	var signers = [][]byte{[]byte("signer0"), []byte("signer1")}
 	policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
 
@@ -729,6 +730,39 @@ func TestGetBlockHeightKeysFromTxidCache(t *testing.T) {
 	assert.NoError(t, e)
 	assert.Empty(t, v)
 	s.setTxidToBlockHeightCache("0", 1)
+}
+
+func TestPurgeTxRWSetCacheByBlockHeight(t *testing.T) {
+	txID := "tx1"
+
+	s := newStore()
+
+	keyBytes := cm.CreateCompositeKeyForPvtRWSet(txID, "uuid", 1000)
+	key := hex.EncodeToString(keyBytes)
+
+	t.Run("Invalid hex key", func(t *testing.T) {
+		s.cache.Set(txID, &pvtRWSetMap{
+			m: map[string]string{"key1": "val1"},
+		})
+		err := s.purgeTxRWSetCacheByBlockHeight([]string{txID}, 1000)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "encoding/hex: invalid byte")
+	})
+
+	t.Run("splitCompositeKeyOfPvtRWSet error", func(t *testing.T) {
+		errExpected := errors.New("split composite key error")
+		restore := splitCompositeKeyOfPvtRWSet
+		splitCompositeKeyOfPvtRWSet = func([]byte) (uuid string, blockHeight uint64, err error) {
+			return "", 0, errExpected
+		}
+		defer func() { splitCompositeKeyOfPvtRWSet = restore }()
+
+		s.cache.Set(txID, &pvtRWSetMap{
+			m: map[string]string{key: "val1"},
+		})
+		err := s.purgeTxRWSetCacheByBlockHeight([]string{txID}, 1000)
+		require.EqualError(t, err, errExpected.Error())
+	})
 }
 
 type mockBadCache struct {

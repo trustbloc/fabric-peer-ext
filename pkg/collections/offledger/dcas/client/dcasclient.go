@@ -7,8 +7,8 @@ package client
 
 import (
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
 	commonledger "github.com/hyperledger/fabric/common/ledger"
-	"github.com/hyperledger/fabric/protos/ledger/queryresult"
 	olclient "github.com/trustbloc/fabric-peer-ext/pkg/collections/client"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 )

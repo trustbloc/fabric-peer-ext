@@ -7,19 +7,16 @@ SPDX-License-Identifier: Apache-2.0
 package cachedpvtdatastore
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/bluele/gcache"
-
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
 	btltestutil "github.com/hyperledger/fabric/core/ledger/pvtdatapolicy/testutil"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
-	"github.com/hyperledger/fabric/protos/ledger/rwset"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/common"
 )
@@ -105,7 +102,6 @@ func TestEmptyStore(t *testing.T) {
 	req := require.New(t)
 	store := env.TestStore
 	testEmpty(true, req, store)
-	testPendingBatch(false, req, store)
 }
 
 func TestStoreBasicCommitAndRetrieval(t *testing.T) {
@@ -152,16 +148,10 @@ func TestStoreBasicCommitAndRetrieval(t *testing.T) {
 	blk2MissingData.Add(3, "ns-1", "coll-1", true)
 
 	// no pvt data with block 0
-	req.NoError(store.Prepare(0, nil, nil))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(0, nil, nil))
 
 	// pvt data with block 1 - commit
-	req.NoError(store.Prepare(1, testData, blk1MissingData))
-	req.NoError(store.Commit())
-
-	// pvt data with block 2 - rollback
-	req.NoError(store.Prepare(2, testData, nil))
-	req.NoError(store.Rollback())
+	req.NoError(store.Commit(1, testData, blk1MissingData))
 
 	// pvt data retrieval for block 0 should return nil
 	var nilFilter ledger.PvtNsCollFilter
@@ -198,8 +188,7 @@ func TestStoreBasicCommitAndRetrieval(t *testing.T) {
 	req.Nil(retrievedData)
 
 	// pvt data with block 2 - commit
-	req.NoError(store.Prepare(2, testData, blk2MissingData))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(2, testData, blk2MissingData))
 }
 
 func TestStoreState(t *testing.T) {
@@ -215,14 +204,10 @@ func TestStoreState(t *testing.T) {
 	testData := []*ledger.TxPvtData{
 		produceSamplePvtdata(t, 0, []string{"ns-1:coll-1", "ns-1:coll-2"}),
 	}
-	_, ok := store.Prepare(1, testData, nil).(*pvtdatastorage.ErrIllegalCall)
-	req.True(ok)
 
-	req.Nil(store.Prepare(0, testData, nil))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(0, testData, nil))
 
-	req.Nil(store.Prepare(1, testData, nil))
-	_, ok = store.Prepare(2, testData, nil).(*pvtdatastorage.ErrIllegalCall)
+	_, ok := store.Commit(2, testData, nil).(*pvtdatastorage.ErrIllegalCall)
 	req.True(ok)
 }
 
@@ -236,89 +221,15 @@ func TestInitLastCommittedBlock(t *testing.T) {
 	req.NoError(store.InitLastCommittedBlock(existingLastBlockNum))
 
 	testEmpty(false, req, store)
-	testPendingBatch(false, req, store)
 	testLastCommittedBlockHeight(existingLastBlockNum+1, req, store)
 
 	env.CloseAndReopen()
 	testEmpty(false, req, store)
-	testPendingBatch(false, req, store)
 	testLastCommittedBlockHeight(existingLastBlockNum+1, req, store)
 
 	err := store.InitLastCommittedBlock(30)
 	_, ok := err.(*pvtdatastorage.ErrIllegalCall)
 	req.True(ok)
-}
-
-func TestRollBack(t *testing.T) {
-	btlPolicy := btltestutil.SampleBTLPolicy(
-		map[[2]string]uint64{
-			{"ns-1", "coll-1"}: 0,
-			{"ns-1", "coll-2"}: 0,
-		},
-	)
-	env := NewTestStoreEnv(t, "testrollback", btlPolicy)
-	req := require.New(t)
-	store := env.TestStore
-	req.NoError(store.Prepare(0, nil, nil))
-	req.NoError(store.Commit())
-
-	pvtdata := []*ledger.TxPvtData{
-		produceSamplePvtdata(t, 0, []string{"ns-1:coll-1", "ns-1:coll-2"}),
-		produceSamplePvtdata(t, 5, []string{"ns-1:coll-1", "ns-1:coll-2"}),
-	}
-	missingData := make(ledger.TxMissingPvtDataMap)
-	missingData.Add(1, "ns-1", "coll-1", true)
-	missingData.Add(5, "ns-1", "coll-1", true)
-	missingData.Add(5, "ns-2", "coll-2", false)
-
-	for i := 1; i <= 9; i++ {
-		req.NoError(store.Prepare(uint64(i), pvtdata, missingData))
-		req.NoError(store.Commit())
-	}
-
-	datakeyTx0 := &common.DataKey{
-		NsCollBlk: common.NsCollBlk{Ns: "ns-1", Coll: "coll-1"},
-		TxNum:     0,
-	}
-	datakeyTx5 := &common.DataKey{
-		NsCollBlk: common.NsCollBlk{Ns: "ns-1", Coll: "coll-1"},
-		TxNum:     5,
-	}
-	eligibleMissingdatakey := &common.MissingDataKey{
-		NsCollBlk:  common.NsCollBlk{Ns: "ns-1", Coll: "coll-1"},
-		IsEligible: true,
-	}
-
-	// test store state before preparing for block 10
-	testPendingBatch(false, req, store)
-	testLastCommittedBlockHeight(10, req, store)
-
-	// prepare for block 10 and test store for presence of datakeys and eligibile missingdatakeys
-	req.NoError(store.Prepare(10, pvtdata, missingData))
-	testPendingBatch(true, req, store)
-	testLastCommittedBlockHeight(10, req, store)
-
-	datakeyTx0.BlkNum = 10
-	datakeyTx5.BlkNum = 10
-	req.True(testPendingDataKeyExists(t, store, datakeyTx0))
-	req.True(testPendingDataKeyExists(t, store, datakeyTx5))
-
-	// rollback last prepared block and test store for absence of datakeys and eligibile missingdatakeys
-	err := store.Rollback()
-	req.NoError(err)
-	testPendingBatch(false, req, store)
-	testLastCommittedBlockHeight(10, req, store)
-	req.False(testPendingDataKeyExists(t, store, datakeyTx0))
-	req.False(testPendingDataKeyExists(t, store, datakeyTx5))
-
-	// For previously committed blocks the datakeys and eligibile missingdatakeys should still be present
-	for i := 1; i <= 9; i++ {
-		datakeyTx0.BlkNum = uint64(i)
-		datakeyTx5.BlkNum = uint64(i)
-		eligibleMissingdatakey.BlkNum = uint64(i)
-		req.True(testDataKeyExists(t, store, datakeyTx0))
-		req.True(testDataKeyExists(t, store, datakeyTx5))
-	}
 }
 
 func testLastCommittedBlockHeight(expectedBlockHt uint64, req *require.Assertions, store pvtdatastorage.Store) {
@@ -327,47 +238,10 @@ func testLastCommittedBlockHeight(expectedBlockHt uint64, req *require.Assertion
 	req.Equal(expectedBlockHt, blkHt)
 }
 
-func testDataKeyExists(t *testing.T, s pvtdatastorage.Store, dataKey *common.DataKey) bool {
-
-	value, err := s.(*store).cache.Get(dataKey.BlkNum)
-	if err != nil {
-		if err != gcache.KeyNotFoundError {
-			panic(fmt.Sprintf("Get must never return an error other than KeyNotFoundError err:%s", err))
-		}
-		return false
-	}
-
-	dataEntries := value.([]*common.DataEntry)
-	for _, value := range dataEntries {
-		if bytes.Equal(common.EncodeDataKey(value.Key), common.EncodeDataKey(dataKey)) {
-			return true
-		}
-	}
-	return false
-}
-
-func testPendingDataKeyExists(t *testing.T, s pvtdatastorage.Store, dataKey *common.DataKey) bool {
-	if s.(*store).pendingPvtData.dataEntries == nil {
-		return false
-	}
-	for _, value := range s.(*store).pendingPvtData.dataEntries {
-		if bytes.Equal(common.EncodeDataKey(value.Key), common.EncodeDataKey(dataKey)) {
-			return true
-		}
-	}
-	return false
-}
-
 func testEmpty(expectedEmpty bool, req *require.Assertions, store pvtdatastorage.Store) {
 	isEmpty, err := store.IsEmpty()
 	req.NoError(err)
 	req.Equal(expectedEmpty, isEmpty)
-}
-
-func testPendingBatch(expectedPending bool, req *require.Assertions, store pvtdatastorage.Store) {
-	hasPendingBatch, err := store.HasPendingBatch()
-	req.NoError(err)
-	req.Equal(expectedPending, hasPendingBatch)
 }
 
 func produceSamplePvtdata(t *testing.T, txNum uint64, nsColls []string) *ledger.TxPvtData {

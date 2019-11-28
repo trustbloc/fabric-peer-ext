@@ -10,12 +10,27 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider/store/dbstore"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
+
+func TestNewError(t *testing.T) {
+	errExpected := errors.New("injected error")
+	restoreDBCreator := dbstore.SetLevelDBCreator(func(dbPath string) (provider *leveldbhelper.Provider, e error) {
+		return nil, errExpected
+	})
+	defer restoreDBCreator()
+
+	require.PanicsWithValue(t, errExpected, func() {
+		New(nil, nil)
+	})
+}
 
 func TestStoreProvider(t *testing.T) {
 	defer removeDBPath(t)
@@ -31,6 +46,7 @@ func TestStoreProvider(t *testing.T) {
 	s1, err := p.OpenStore(channel1)
 	require.NotNil(t, s1)
 	assert.NoError(t, err)
+
 	_, err = p.OpenStore(channel1)
 	assert.Error(t, err)
 	assert.Equal(t, s1, p.StoreForChannel(channel1))

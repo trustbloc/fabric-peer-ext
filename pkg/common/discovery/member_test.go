@@ -9,8 +9,8 @@ package discovery
 import (
 	"testing"
 
+	proto "github.com/hyperledger/fabric-protos-go/gossip"
 	"github.com/hyperledger/fabric/gossip/discovery"
-	proto "github.com/hyperledger/fabric/protos/gossip"
 	"github.com/stretchr/testify/assert"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )

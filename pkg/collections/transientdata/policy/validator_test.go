@@ -10,8 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hyperledger/fabric-protos-go/common"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/cauthdsl"
-	"github.com/hyperledger/fabric/protos/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -71,15 +72,15 @@ func TestValidateConfig(t *testing.T) {
 }
 
 func createTransientCollectionConfig(collectionName string, signaturePolicyEnvelope *common.SignaturePolicyEnvelope,
-	requiredPeerCount int32, maximumPeerCount int32, ttl string) *common.StaticCollectionConfig {
-	signaturePolicy := &common.CollectionPolicyConfig_SignaturePolicy{
+	requiredPeerCount int32, maximumPeerCount int32, ttl string) *pb.StaticCollectionConfig {
+	signaturePolicy := &pb.CollectionPolicyConfig_SignaturePolicy{
 		SignaturePolicy: signaturePolicyEnvelope,
 	}
 
-	return &common.StaticCollectionConfig{
+	return &pb.StaticCollectionConfig{
 		Name:              collectionName,
-		Type:              common.CollectionType_COL_TRANSIENT,
-		MemberOrgsPolicy:  &common.CollectionPolicyConfig{Payload: signaturePolicy},
+		Type:              pb.CollectionType_COL_TRANSIENT,
+		MemberOrgsPolicy:  &pb.CollectionPolicyConfig{Payload: signaturePolicy},
 		RequiredPeerCount: requiredPeerCount,
 		MaximumPeerCount:  maximumPeerCount,
 		TimeToLive:        ttl,

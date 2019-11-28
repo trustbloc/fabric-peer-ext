@@ -10,6 +10,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hyperledger/fabric/extensions/collections/storeprovider"
+	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 	statemocks "github.com/trustbloc/fabric-peer-ext/pkg/gossip/state/mocks"
@@ -19,6 +21,10 @@ import (
 
 func TestInitialize(t *testing.T) {
 	defer removeDBPath(t)
+
+	// Ensure that the provider instances are instantiated and registered as a resource
+	require.NotNil(t, blockpublisher.ProviderInstance)
+	require.NotNil(t, storeprovider.NewProviderFactory())
 
 	require.NotPanics(t, Initialize)
 

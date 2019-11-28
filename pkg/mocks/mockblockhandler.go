@@ -9,11 +9,11 @@ package mocks
 import (
 	"sync/atomic"
 
+	cb "github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
-	cb "github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
-	pb "github.com/hyperledger/fabric/protos/peer"
 )
 
 // MockBlockHandler is a mock block handler
@@ -99,7 +99,7 @@ func (m *MockBlockHandler) HandleConfigUpdate(blockNum uint64, configUpdate *cb.
 }
 
 // HandleLSCCWrite handles an LSCC write by incrementing the LSCC write counter
-func (m *MockBlockHandler) HandleLSCCWrite(txMetadata api.TxMetadata, chaincodeName string, ccData *ccprovider.ChaincodeData, ccp *cb.CollectionConfigPackage) error {
+func (m *MockBlockHandler) HandleLSCCWrite(txMetadata api.TxMetadata, chaincodeName string, ccData *ccprovider.ChaincodeData, ccp *pb.CollectionConfigPackage) error {
 	atomic.AddInt32(&m.numLSCCWrites, 1)
 	return m.err
 }

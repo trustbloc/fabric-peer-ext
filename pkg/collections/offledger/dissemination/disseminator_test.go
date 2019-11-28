@@ -11,9 +11,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
-	cb "github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -255,8 +255,8 @@ func TestComputeDisseminationPlan(t *testing.T) {
 			Write(key1, []byte("value1")).
 			Delete(key2).
 			Build()
-		colConfig := &cb.StaticCollectionConfig{
-			Type: cb.CollectionType_COL_OFFLEDGER,
+		colConfig := &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_OFFLEDGER,
 		}
 
 		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colConfig, colAP, nil, gossip)
@@ -269,8 +269,8 @@ func TestComputeDisseminationPlan(t *testing.T) {
 		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
 			Write(key1, []byte("value1")).
 			Build()
-		colConfig := &cb.StaticCollectionConfig{
-			Type: cb.CollectionType_COL_DCAS,
+		colConfig := &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_DCAS,
 		}
 
 		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colConfig, colAP, nil, gossip)
@@ -289,8 +289,8 @@ func TestComputeDisseminationPlan(t *testing.T) {
 			Write(key1, value1).
 			Delete(key2).
 			Build()
-		colConfig := &cb.StaticCollectionConfig{
-			Type: cb.CollectionType_COL_DCAS,
+		colConfig := &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_DCAS,
 		}
 
 		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colConfig, colAP, nil, gossip)
@@ -319,8 +319,8 @@ func TestComputeDisseminationPlan(t *testing.T) {
 		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
 			Write(key1, value1).
 			Build()
-		colConfig := &cb.StaticCollectionConfig{
-			Type: cb.CollectionType_COL_DCAS,
+		colConfig := &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_DCAS,
 		}
 
 		reset := dcas.SetJSONMarshaller(func(m map[string]interface{}) ([]byte, error) {
@@ -339,8 +339,8 @@ func TestComputeDisseminationPlan(t *testing.T) {
 		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
 			Write(key1, value1).
 			Build()
-		colConfig := &cb.StaticCollectionConfig{
-			Type: cb.CollectionType_COL_DCAS,
+		colConfig := &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_DCAS,
 		}
 
 		prevUnmarshaller := unmarshalKVRWSet

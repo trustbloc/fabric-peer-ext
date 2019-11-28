@@ -9,8 +9,8 @@ package storeprovider
 import (
 	"testing"
 
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	"github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -111,8 +111,8 @@ func TestStore_PutAndGetData(t *testing.T) {
 	})
 
 	t.Run("PutData", func(t *testing.T) {
-		collConfig := &common.StaticCollectionConfig{
-			Type: common.CollectionType_COL_DCAS,
+		collConfig := &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_DCAS,
 			Name: coll2,
 		}
 		err := s.PutData(collConfig, k3, v1)

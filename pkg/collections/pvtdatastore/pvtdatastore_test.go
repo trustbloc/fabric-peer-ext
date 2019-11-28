@@ -9,8 +9,8 @@ package pvtdatastore
 import (
 	"testing"
 
-	"github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/transientstore"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-protos-go/transientstore"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -128,21 +128,21 @@ func TestStore_StorePvtData_error(t *testing.T) {
 }
 
 func TestIsPvtData(t *testing.T) {
-	pvtColl := &common.CollectionConfig_StaticCollectionConfig{
-		StaticCollectionConfig: &common.StaticCollectionConfig{
+	pvtColl := &pb.CollectionConfig_StaticCollectionConfig{
+		StaticCollectionConfig: &pb.StaticCollectionConfig{
 			Name: coll1,
 		},
 	}
-	transientColl := &common.CollectionConfig_StaticCollectionConfig{
-		StaticCollectionConfig: &common.StaticCollectionConfig{
+	transientColl := &pb.CollectionConfig_StaticCollectionConfig{
+		StaticCollectionConfig: &pb.StaticCollectionConfig{
 			Name: coll2,
-			Type: common.CollectionType_COL_TRANSIENT,
+			Type: pb.CollectionType_COL_TRANSIENT,
 		},
 	}
 
-	collConfigs := make(map[string]*common.CollectionConfigPackage)
-	collConfigs[ns1] = &common.CollectionConfigPackage{
-		Config: []*common.CollectionConfig{
+	collConfigs := make(map[string]*pb.CollectionConfigPackage)
+	collConfigs[ns1] = &pb.CollectionConfigPackage{
+		Config: []*pb.CollectionConfig{
 			{Payload: pvtColl},
 			{Payload: transientColl},
 		},
@@ -173,7 +173,7 @@ type mockTransientStore struct {
 	persistedData *transientstore.TxPvtReadWriteSetWithConfigInfo
 }
 
-func (m *mockTransientStore) PersistWithConfig(txid string, blockHeight uint64, privateSimulationResultsWithConfig *transientstore.TxPvtReadWriteSetWithConfigInfo) error {
+func (m *mockTransientStore) Persist(txid string, blockHeight uint64, privateSimulationResultsWithConfig *transientstore.TxPvtReadWriteSetWithConfigInfo) error {
 	m.persistedData = privateSimulationResultsWithConfig
 	return nil
 }

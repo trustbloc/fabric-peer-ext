@@ -7,8 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package mocks
 
 import (
+	"github.com/hyperledger/fabric-protos-go/common"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
-	"github.com/hyperledger/fabric/protos/common"
 )
 
 // MockBlockPublisher is a mock block publisher

@@ -1,0 +1,727 @@
+Attaching to peer1.org1.example.com, peer1.org2.example.com, peer0.org2.example.com, peer0.org1.example.com, fixtures_builder_1, org1.couchdb.com, org2.couchdb.com, metrics.example.com, orderer.example.com
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:33.436 UTC [peer-ext-test] main -> INFO 001[0m Registering testscc...
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:33.437 UTC [nodeCmd] serve -> INFO 002[0m Starting peer:
+[32mpeer0.org2.example.com    |[0m  Version: latest
+[32mpeer0.org2.example.com    |[0m  Commit SHA: development build
+[32mpeer0.org2.example.com    |[0m  Go version: go1.12.5
+[32mpeer0.org2.example.com    |[0m  OS/Arch: linux/amd64
+[32mpeer0.org2.example.com    |[0m  Chaincode:
+[32mpeer0.org2.example.com    |[0m   Base Docker Namespace: hyperledger
+[32mpeer0.org2.example.com    |[0m   Base Docker Label: org.hyperledger.fabric
+[32mpeer0.org2.example.com    |[0m   Docker Namespace: hyperledger
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:33.437 UTC [peer] getLocalAddress -> INFO 003[0m Auto-detected peer address: 172.19.0.7:7051
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:33.438 UTC [peer] getLocalAddress -> INFO 004[0m Returning peer0.org2.example.com:7051
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:33.454 UTC [ledgermgmt] initialize -> INFO 005[0m Initializing ledger mgmt
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:34:33.457 UTC [couchdb] handleRequest -> WARN 006[0m Retrying couchdb request in 125ms. Attempt:1  Error:Get http://org2.couchdb.com:5984/: dial tcp 172.19.0.4:5984: connect: connection refused
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:34:33.586 UTC [couchdb] handleRequest -> WARN 007[0m Retrying couchdb request in 250ms. Attempt:2  Error:Get http://org2.couchdb.com:5984/: dial tcp 172.19.0.4:5984: connect: connection refused
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:34:33.839 UTC [couchdb] handleRequest -> WARN 008[0m Retrying couchdb request in 500ms. Attempt:3  Error:Get http://org2.couchdb.com:5984/: dial tcp 172.19.0.4:5984: connect: connection refused
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:34:34.341 UTC [couchdb] handleRequest -> WARN 009[0m Retrying couchdb request in 1s. Attempt:4  Error:Get http://org2.couchdb.com:5984/: dial tcp 172.19.0.4:5984: connect: connection refused
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:35.853 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 00a[0m Created state database _users
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:35.911 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 00b[0m Created state database _replicator
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:35.973 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 00c[0m Created state database fabric_system_$$inventory_
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.253 UTC [couchdb] CreateIndex -> INFO 00d[0m Created CouchDB index [by_type] in state database [fabric_system_$$inventory_] using design document [_design/indexMetadataInventory]
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.476 UTC [ledgermgmt] initialize -> INFO 00e[0m ledger mgmt initialized
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:33.440 UTC [peer-ext-test] main -> INFO 001[0m Registering testscc...
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:33.440 UTC [nodeCmd] serve -> INFO 002[0m Starting peer:
+[36mpeer1.org1.example.com    |[0m  Version: latest
+[36mpeer1.org1.example.com    |[0m  Commit SHA: development build
+[36mpeer1.org1.example.com    |[0m  Go version: go1.12.5
+[36mpeer1.org1.example.com    |[0m  OS/Arch: linux/amd64
+[36mpeer1.org1.example.com    |[0m  Chaincode:
+[36mpeer1.org1.example.com    |[0m   Base Docker Namespace: hyperledger
+[36mpeer1.org1.example.com    |[0m   Base Docker Label: org.hyperledger.fabric
+[36mpeer1.org1.example.com    |[0m   Docker Namespace: hyperledger
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:33.445 UTC [peer] getLocalAddress -> INFO 003[0m Auto-detected peer address: 172.19.0.8:7051
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:33.445 UTC [peer] getLocalAddress -> INFO 004[0m Returning peer1.org1.example.com:7051
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:33.468 UTC [ledgermgmt] initialize -> INFO 005[0m Initializing ledger mgmt
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:34:33.472 UTC [couchdb] handleRequest -> WARN 006[0m Retrying couchdb request in 125ms. Attempt:1  Error:Get http://org1.couchdb.com:5984/: dial tcp 172.19.0.6:5984: connect: connection refused
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:34:33.600 UTC [couchdb] handleRequest -> WARN 007[0m Retrying couchdb request in 250ms. Attempt:2  Error:Get http://org1.couchdb.com:5984/: dial tcp 172.19.0.6:5984: connect: connection refused
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:34:33.851 UTC [couchdb] handleRequest -> WARN 008[0m Retrying couchdb request in 500ms. Attempt:3  Error:Get http://org1.couchdb.com:5984/: dial tcp 172.19.0.6:5984: connect: connection refused
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.476 UTC [lifecycle] InitializeLocalChaincodes -> INFO 00f[0m Initialized lifecycle cache with 0 already installed chaincodes
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.495 UTC [nodeCmd] serve -> INFO 010[0m Starting peer with TLS enabled
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.502 UTC [nodeCmd] computeChaincodeEndpoint -> INFO 011[0m Entering computeChaincodeEndpoint with peerHostname: peer0.org2.example.com
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.503 UTC [nodeCmd] computeChaincodeEndpoint -> INFO 012[0m Exit with ccEndpoint: peer0.org2.example.com:7052
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:34:36.503 UTC [nodeCmd] createChaincodeServer -> WARN 013[0m peer.chaincodeListenAddress is not set, using peer0.org2.example.com:7052
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.529 UTC [ext_resource] Initialize -> INFO 014[0m Initializing resources
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.530 UTC [ext_blockpublisher] Initialize -> INFO 015[0m Initializing block publisher provider
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.530 UTC [ext_support] NewCollectionConfigRetrieverProvider -> INFO 016[0m Creating collection config retriever provider
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.530 UTC [transientdata] New -> INFO 017[0m Creating new transient data store provider
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.537 UTC [ext_store] NewOffLedgerProvider -> INFO 018[0m Creating off-ledger store provider with DCAS
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.537 UTC [ext_offledger] NewProvider -> INFO 019[0m Creating collection client provider.
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.537 UTC [ext_offledger] NewProvider -> INFO 01a[0m Creating DCAS client provider.
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:33.101 UTC [peer-ext-test] main -> INFO 001[0m Registering testscc...
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:33.101 UTC [nodeCmd] serve -> INFO 002[0m Starting peer:
+[33mpeer1.org2.example.com    |[0m  Version: latest
+[33mpeer1.org2.example.com    |[0m  Commit SHA: development build
+[33mpeer1.org2.example.com    |[0m  Go version: go1.12.5
+[33mpeer1.org2.example.com    |[0m  OS/Arch: linux/amd64
+[33mpeer1.org2.example.com    |[0m  Chaincode:
+[33mpeer1.org2.example.com    |[0m   Base Docker Namespace: hyperledger
+[33mpeer1.org2.example.com    |[0m   Base Docker Label: org.hyperledger.fabric
+[33mpeer1.org2.example.com    |[0m   Docker Namespace: hyperledger
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:33.101 UTC [peer] getLocalAddress -> INFO 003[0m Auto-detected peer address: 172.19.0.5:7051
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:33.102 UTC [peer] getLocalAddress -> INFO 004[0m Returning peer1.org2.example.com:7051
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:33.111 UTC [ledgermgmt] initialize -> INFO 005[0m Initializing ledger mgmt
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:34:33.114 UTC [couchdb] handleRequest -> WARN 006[0m Retrying couchdb request in 125ms. Attempt:1  Error:Get http://org2.couchdb.com:5984/: dial tcp 172.19.0.4:5984: connect: connection refused
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:34:34.354 UTC [couchdb] handleRequest -> WARN 009[0m Retrying couchdb request in 1s. Attempt:4  Error:Get http://org1.couchdb.com:5984/: dial tcp 172.19.0.6:5984: connect: connection refused
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:35.744 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 00a[0m [_users] Created state database
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:35.823 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 00b[0m Created state database _replicator
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.451 UTC [ledgermgmt] initialize -> INFO 00c[0m ledger mgmt initialized
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.451 UTC [lifecycle] InitializeLocalChaincodes -> INFO 00d[0m Initialized lifecycle cache with 0 already installed chaincodes
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.538 UTC [ledgerconfig] NewSvcMgr -> INFO 01b[0m Creating configuration service manager
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.538 UTC [ext_dispatcher] Initialize -> INFO 01c[0m Initializing gossip dispatcher provider
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.538 UTC [ext_store] Initialize -> INFO 01d[0m Initializing collection store provider
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.538 UTC [ext_endorser] Initialize -> INFO 01e[0m Initializing collection read/write-set filter
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.540 UTC [ext_retriever] Initialize -> INFO 01f[0m Initializing collection data retriever
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.544 UTC [sccapi] registerSysCC -> INFO 020[0m system chaincode lscc(github.com/hyperledger/fabric/core/scc/lscc) registered
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.544 UTC [sccapi] registerSysCC -> INFO 021[0m system chaincode cscc(github.com/hyperledger/fabric/core/scc/cscc) registered
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.544 UTC [sccapi] registerSysCC -> INFO 022[0m system chaincode qscc(github.com/hyperledger/fabric/core/scc/qscc) registered
+[34morg1.couchdb.com          |[0m [warning] 2019-11-24T14:34:34.847099Z nonode@nohost <0.275.0> -------- creating missing database: _nodes
+[34morg1.couchdb.com          |[0m [warning] 2019-11-24T14:34:34.903957Z nonode@nohost <0.289.0> -------- creating missing database: _dbs
+[34morg1.couchdb.com          |[0m [warning] 2019-11-24T14:34:34.904145Z nonode@nohost <0.288.0> -------- creating missing database: _dbs
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:34:35.008638Z nonode@nohost emulator -------- Error in process <0.327.0> with exit value:
+[34morg1.couchdb.com          |[0m {database_does_not_exist,[{mem3_shards,load_shards_from_db,"_users",[{file,"src/mem3_shards.erl"},{line,395}]},{mem3_shards,load_shards_from_disk,1,[{file,"src/mem3_shards.erl"},{line,370}]},{mem3_shards,load_shards_from_disk,2,[{file,"src/mem3_shards.erl"},{line,399}]},{mem3_shards,for_docid,3,[{file,"src/mem3_shards.erl"},{line,86}]},{fabric_doc_open,go,3,[{file,"src/fabric_doc_open.erl"},{line,38}]},{chttpd_auth_cache,ensure_auth_ddoc_exists,2,[{file,"src/chttpd_auth_cache.erl"},{line,187}]},{chttpd_auth_cache,listen_for_changes,1,[{file,"src/chttpd_auth_cache.erl"},{line,134}]}]}
+[34morg1.couchdb.com          |[0m 
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:34:35.487284Z nonode@nohost <0.310.0> 2c1543974b Request to create N=3 DB but only 1 node(s)
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:34:35.487674Z nonode@nohost <0.311.0> f56d14627a Request to create N=3 DB but only 1 node(s)
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:34:35.759342Z nonode@nohost <0.311.0> fbc5e22d84 Request to create N=3 DB but only 1 node(s)
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:34:35.760469Z nonode@nohost <0.310.0> 5cc9ed7c83 Request to create N=3 DB but only 1 node(s)
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:34:35.827835Z nonode@nohost <0.310.0> 92f4b7643c Request to create N=3 DB but only 1 node(s)
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:34:38.872134Z nonode@nohost <0.314.0> 2a1b66b9ab Request to create N=3 DB but only 1 node(s)
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:34:38.897021Z nonode@nohost <0.314.0> 7f0e77a295 Request to create N=3 DB but only 1 node(s)
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:34:38.947413Z nonode@nohost <0.315.0> aaef275f14 Request to create N=3 DB but only 1 node(s)
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:34:38.983950Z nonode@nohost <0.319.0> 64c85211f3 Request to create N=3 DB but only 1 node(s)
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:34:39.010373Z nonode@nohost <0.319.0> 17fabd0fb8 Request to create N=3 DB but only 1 node(s)
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:34:42.076902Z nonode@nohost <0.320.0> 99edbd6e8a Request to create N=3 DB but only 1 node(s)
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:34:42.083317Z nonode@nohost <0.319.0> 399de57c07 Request to create N=3 DB but only 1 node(s)
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:34:50.433355Z nonode@nohost <0.1227.0> c6ef5a496b Request to create N=3 DB but only 1 node(s)
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:35:01.267693Z nonode@nohost <0.319.0> 9573df30ae Request to create N=3 DB but only 1 node(s)
+[34morg1.couchdb.com          |[0m [error] 2019-11-24T14:35:01.305626Z nonode@nohost <0.319.0> 75da1b7133 Request to create N=3 DB but only 1 node(s)
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:34:33.246 UTC [couchdb] handleRequest -> WARN 007[0m Retrying couchdb request in 250ms. Attempt:2  Error:Get http://org2.couchdb.com:5984/: dial tcp 172.19.0.4:5984: connect: connection refused
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:34:33.499 UTC [couchdb] handleRequest -> WARN 008[0m Retrying couchdb request in 500ms. Attempt:3  Error:Get http://org2.couchdb.com:5984/: dial tcp 172.19.0.4:5984: connect: connection refused
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:34:34.001 UTC [couchdb] handleRequest -> WARN 009[0m Retrying couchdb request in 1s. Attempt:4  Error:Get http://org2.couchdb.com:5984/: dial tcp 172.19.0.4:5984: connect: connection refused
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:34:35.004 UTC [couchdb] handleRequest -> WARN 00a[0m Retrying couchdb request in 2s. Attempt:5  Error:Get http://org2.couchdb.com:5984/: dial tcp 172.19.0.4:5984: connect: connection refused
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.135 UTC [ledgermgmt] initialize -> INFO 00b[0m ledger mgmt initialized
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.135 UTC [lifecycle] InitializeLocalChaincodes -> INFO 00c[0m Initialized lifecycle cache with 0 already installed chaincodes
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.147 UTC [nodeCmd] serve -> INFO 00d[0m Starting peer with TLS enabled
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.544 UTC [sccapi] registerSysCC -> INFO 023[0m system chaincode _lifecycle(github.com/hyperledger/fabric/core/chaincode/lifecycle) registered
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.544 UTC [sccapi] registerSysCC -> INFO 024[0m system chaincode configscc(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) registered
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.545 UTC [sccapi] registerSysCC -> INFO 025[0m system chaincode testscc(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) registered
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.565 UTC [sccapi] deploySysCC -> INFO 026[0m system chaincode lscc/(github.com/hyperledger/fabric/core/scc/lscc) deployed
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.566 UTC [cscc] Init -> INFO 027[0m Init CSCC
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.566 UTC [sccapi] deploySysCC -> INFO 028[0m system chaincode cscc/(github.com/hyperledger/fabric/core/scc/cscc) deployed
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.567 UTC [qscc] Init -> INFO 029[0m Init QSCC
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.151 UTC [nodeCmd] computeChaincodeEndpoint -> INFO 00e[0m Entering computeChaincodeEndpoint with peerHostname: peer1.org2.example.com
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.151 UTC [nodeCmd] computeChaincodeEndpoint -> INFO 00f[0m Exit with ccEndpoint: peer1.org2.example.com:7052
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:34:37.151 UTC [nodeCmd] createChaincodeServer -> WARN 010[0m peer.chaincodeListenAddress is not set, using peer1.org2.example.com:7052
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.162 UTC [ext_resource] Initialize -> INFO 011[0m Initializing resources
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.163 UTC [ext_blockpublisher] Initialize -> INFO 012[0m Initializing block publisher provider
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.163 UTC [ext_support] NewCollectionConfigRetrieverProvider -> INFO 013[0m Creating collection config retriever provider
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.473 UTC [nodeCmd] serve -> INFO 00e[0m Starting peer with TLS enabled
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.481 UTC [nodeCmd] computeChaincodeEndpoint -> INFO 00f[0m Entering computeChaincodeEndpoint with peerHostname: peer1.org1.example.com
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.481 UTC [nodeCmd] computeChaincodeEndpoint -> INFO 010[0m Exit with ccEndpoint: peer1.org1.example.com:7052
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:34:36.481 UTC [nodeCmd] createChaincodeServer -> WARN 011[0m peer.chaincodeListenAddress is not set, using peer1.org1.example.com:7052
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.501 UTC [ext_resource] Initialize -> INFO 012[0m Initializing resources
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.501 UTC [ext_blockpublisher] Initialize -> INFO 013[0m Initializing block publisher provider
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.502 UTC [ext_support] NewCollectionConfigRetrieverProvider -> INFO 014[0m Creating collection config retriever provider
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.503 UTC [transientdata] New -> INFO 015[0m Creating new transient data store provider
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.163 UTC [transientdata] New -> INFO 014[0m Creating new transient data store provider
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.167 UTC [ext_store] NewOffLedgerProvider -> INFO 015[0m Creating off-ledger store provider with DCAS
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.167 UTC [ext_offledger] NewProvider -> INFO 016[0m Creating collection client provider.
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.167 UTC [ext_offledger] NewProvider -> INFO 017[0m Creating DCAS client provider.
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.168 UTC [ledgerconfig] NewSvcMgr -> INFO 018[0m Creating configuration service manager
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.168 UTC [ext_dispatcher] Initialize -> INFO 019[0m Initializing gossip dispatcher provider
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.168 UTC [ext_store] Initialize -> INFO 01a[0m Initializing collection store provider
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.168 UTC [ext_endorser] Initialize -> INFO 01b[0m Initializing collection read/write-set filter
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.168 UTC [ext_retriever] Initialize -> INFO 01c[0m Initializing collection data retriever
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.171 UTC [sccapi] registerSysCC -> INFO 01d[0m system chaincode lscc(github.com/hyperledger/fabric/core/scc/lscc) registered
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.510 UTC [ext_store] NewOffLedgerProvider -> INFO 016[0m Creating off-ledger store provider with DCAS
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.511 UTC [ext_offledger] NewProvider -> INFO 017[0m Creating collection client provider.
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.511 UTC [ext_offledger] NewProvider -> INFO 018[0m Creating DCAS client provider.
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.512 UTC [ledgerconfig] NewSvcMgr -> INFO 019[0m Creating configuration service manager
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.512 UTC [ext_dispatcher] Initialize -> INFO 01a[0m Initializing gossip dispatcher provider
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.512 UTC [ext_store] Initialize -> INFO 01b[0m Initializing collection store provider
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.512 UTC [ext_endorser] Initialize -> INFO 01c[0m Initializing collection read/write-set filter
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.513 UTC [ext_retriever] Initialize -> INFO 01d[0m Initializing collection data retriever
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.520 UTC [sccapi] registerSysCC -> INFO 01e[0m system chaincode lscc(github.com/hyperledger/fabric/core/scc/lscc) registered
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.520 UTC [sccapi] registerSysCC -> INFO 01f[0m system chaincode cscc(github.com/hyperledger/fabric/core/scc/cscc) registered
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.567 UTC [sccapi] deploySysCC -> INFO 02a[0m system chaincode qscc/(github.com/hyperledger/fabric/core/scc/qscc) deployed
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.567 UTC [sccapi] deploySysCC -> INFO 02b[0m system chaincode _lifecycle/(github.com/hyperledger/fabric/core/chaincode/lifecycle) deployed
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.568 UTC [sccapi] deploySysCC -> INFO 02c[0m system chaincode configscc/(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) deployed
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.568 UTC [sccapi] deploySysCC -> INFO 02d[0m system chaincode testscc/(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) deployed
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.568 UTC [nodeCmd] serve -> INFO 02e[0m Deployed system chaincodes
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:34:36.754 UTC [extension-channel] RegisterChannelInitializer -> WARN 02f[0m Plugin mappers and createChain handler cannot be replaced
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.754 UTC [discovery] NewService -> INFO 030[0m Created with config TLS: true, authCacheMaxSize: 1000, authCachePurgeRatio: 0.750000
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.754 UTC [nodeCmd] registerDiscoveryService -> INFO 031[0m Discovery service activated
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.754 UTC [nodeCmd] serve -> INFO 032[0m Starting peer with ID=[peer0.org2.example.com], network ID=[dev], address=[peer0.org2.example.com:7051]
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:36.754 UTC [nodeCmd] serve -> INFO 033[0m Started peer with ID=[peer0.org2.example.com], network ID=[dev], address=[peer0.org2.example.com:7051]
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.520 UTC [sccapi] registerSysCC -> INFO 020[0m system chaincode qscc(github.com/hyperledger/fabric/core/scc/qscc) registered
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.520 UTC [sccapi] registerSysCC -> INFO 021[0m system chaincode _lifecycle(github.com/hyperledger/fabric/core/chaincode/lifecycle) registered
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.520 UTC [sccapi] registerSysCC -> INFO 022[0m system chaincode configscc(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) registered
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.520 UTC [sccapi] registerSysCC -> INFO 023[0m system chaincode testscc(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) registered
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.537 UTC [sccapi] deploySysCC -> INFO 024[0m system chaincode lscc/(github.com/hyperledger/fabric/core/scc/lscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.538 UTC [cscc] Init -> INFO 025[0m Init CSCC
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.539 UTC [sccapi] deploySysCC -> INFO 026[0m system chaincode cscc/(github.com/hyperledger/fabric/core/scc/cscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.540 UTC [qscc] Init -> INFO 027[0m Init QSCC
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.540 UTC [sccapi] deploySysCC -> INFO 028[0m system chaincode qscc/(github.com/hyperledger/fabric/core/scc/qscc) deployed
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.171 UTC [sccapi] registerSysCC -> INFO 01e[0m system chaincode cscc(github.com/hyperledger/fabric/core/scc/cscc) registered
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.171 UTC [sccapi] registerSysCC -> INFO 01f[0m system chaincode qscc(github.com/hyperledger/fabric/core/scc/qscc) registered
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.171 UTC [sccapi] registerSysCC -> INFO 020[0m system chaincode _lifecycle(github.com/hyperledger/fabric/core/chaincode/lifecycle) registered
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.171 UTC [sccapi] registerSysCC -> INFO 021[0m system chaincode configscc(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) registered
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.171 UTC [sccapi] registerSysCC -> INFO 022[0m system chaincode testscc(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) registered
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.184 UTC [sccapi] deploySysCC -> INFO 023[0m system chaincode lscc/(github.com/hyperledger/fabric/core/scc/lscc) deployed
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.185 UTC [cscc] Init -> INFO 024[0m Init CSCC
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.185 UTC [sccapi] deploySysCC -> INFO 025[0m system chaincode cscc/(github.com/hyperledger/fabric/core/scc/cscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.541 UTC [sccapi] deploySysCC -> INFO 029[0m system chaincode _lifecycle/(github.com/hyperledger/fabric/core/chaincode/lifecycle) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.542 UTC [sccapi] deploySysCC -> INFO 02a[0m system chaincode configscc/(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.543 UTC [sccapi] deploySysCC -> INFO 02b[0m system chaincode testscc/(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.543 UTC [nodeCmd] serve -> INFO 02c[0m Deployed system chaincodes
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:34:36.715 UTC [extension-channel] RegisterChannelInitializer -> WARN 02d[0m Plugin mappers and createChain handler cannot be replaced
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.715 UTC [discovery] NewService -> INFO 02e[0m Created with config TLS: true, authCacheMaxSize: 1000, authCachePurgeRatio: 0.750000
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.716 UTC [nodeCmd] registerDiscoveryService -> INFO 02f[0m Discovery service activated
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.716 UTC [nodeCmd] serve -> INFO 030[0m Starting peer with ID=[peer1.org1.example.com], network ID=[dev], address=[peer1.org1.example.com:7051]
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.187 UTC [qscc] Init -> INFO 026[0m Init QSCC
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.187 UTC [sccapi] deploySysCC -> INFO 027[0m system chaincode qscc/(github.com/hyperledger/fabric/core/scc/qscc) deployed
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.187 UTC [sccapi] deploySysCC -> INFO 028[0m system chaincode _lifecycle/(github.com/hyperledger/fabric/core/chaincode/lifecycle) deployed
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.188 UTC [sccapi] deploySysCC -> INFO 029[0m system chaincode configscc/(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) deployed
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.188 UTC [sccapi] deploySysCC -> INFO 02a[0m system chaincode testscc/(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) deployed
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.188 UTC [nodeCmd] serve -> INFO 02b[0m Deployed system chaincodes
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:34:37.192 UTC [extension-channel] RegisterChannelInitializer -> WARN 02c[0m Plugin mappers and createChain handler cannot be replaced
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.192 UTC [discovery] NewService -> INFO 02d[0m Created with config TLS: true, authCacheMaxSize: 1000, authCachePurgeRatio: 0.750000
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.192 UTC [nodeCmd] registerDiscoveryService -> INFO 02e[0m Discovery service activated
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:36.716 UTC [nodeCmd] serve -> INFO 031[0m Started peer with ID=[peer1.org1.example.com], network ID=[dev], address=[peer1.org1.example.com:7051]
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:38.848 UTC [endorser] callChaincode -> INFO 032[0m [][f8239f0c] Entry chaincode: name:"cscc" 
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:38.852 UTC [extension-channel] func1 -> INFO 033[0m Loading channel [mychannel]
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:38.852 UTC [ledgermgmt] OpenLedger -> INFO 034[0m Opening ledger with id = mychannel
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:34:38.855 UTC [extension-channel] func1 -> WARN 035[0m Failed to load ledger mychannel(LedgerID does not exist)
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.230 UTC [extension-channel] func1 -> INFO 036[0m Loading channel [mychannel]
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.230 UTC [ledgermgmt] OpenLedger -> INFO 037[0m Opening ledger with id = mychannel
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.301 UTC [ledgermgmt] OpenLedger -> INFO 038[0m Opened ledger with id = mychannel
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:33.149 UTC [peer-ext-test] main -> INFO 001[0m Registering testscc...
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:33.149 UTC [nodeCmd] serve -> INFO 002[0m Starting peer:
+[35mpeer0.org1.example.com    |[0m  Version: latest
+[35mpeer0.org1.example.com    |[0m  Commit SHA: development build
+[35mpeer0.org1.example.com    |[0m  Go version: go1.12.5
+[35mpeer0.org1.example.com    |[0m  OS/Arch: linux/amd64
+[35mpeer0.org1.example.com    |[0m  Chaincode:
+[35mpeer0.org1.example.com    |[0m   Base Docker Namespace: hyperledger
+[35mpeer0.org1.example.com    |[0m   Base Docker Label: org.hyperledger.fabric
+[35mpeer0.org1.example.com    |[0m   Docker Namespace: hyperledger
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:33.150 UTC [peer] getLocalAddress -> INFO 003[0m Auto-detected peer address: 172.19.0.9:7051
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:33.150 UTC [peer] getLocalAddress -> INFO 004[0m Returning peer0.org1.example.com:7051
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:33.161 UTC [ledgermgmt] initialize -> INFO 005[0m Initializing ledger mgmt
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:34:33.164 UTC [couchdb] handleRequest -> WARN 006[0m Retrying couchdb request in 125ms. Attempt:1  Error:Get http://org1.couchdb.com:5984/: dial tcp 172.19.0.6:5984: connect: connection refused
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:34:33.299 UTC [couchdb] handleRequest -> WARN 007[0m Retrying couchdb request in 250ms. Attempt:2  Error:Get http://org1.couchdb.com:5984/: dial tcp 172.19.0.6:5984: connect: connection refused
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:34:39.326 UTC [gossip.comm] func1 -> WARN 039[0m peer0.org1.example.com:7051, PKIid:de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d isn't responsive: EOF
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:34:39.326 UTC [gossip.discovery] expireDeadMembers -> WARN 03a[0m Entering [de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d]
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:34:39.326 UTC [gossip.discovery] expireDeadMembers -> WARN 03b[0m Closing connection to Endpoint: peer0.org1.example.com:7051, InternalEndpoint: peer0.org1.example.com:7051, PKI-ID: de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d, Metadata: 
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:34:39.326 UTC [gossip.discovery] expireDeadMembers -> WARN 03c[0m Exiting
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.334 UTC [ext_dispatcher] ForChannel -> INFO 03d[0m Returning a new gossip dispatcher for channel [mychannel]
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.340 UTC [ext_resource] ChannelJoined -> INFO 03e[0m Notifying resources that channel [mychannel] was joined
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.341 UTC [sccapi] deploySysCC -> INFO 03f[0m system chaincode lscc/mychannel(github.com/hyperledger/fabric/core/scc/lscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.341 UTC [cscc] Init -> INFO 040[0m Init CSCC
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.192 UTC [nodeCmd] serve -> INFO 02f[0m Starting peer with ID=[peer1.org2.example.com], network ID=[dev], address=[peer1.org2.example.com:7051]
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:37.193 UTC [nodeCmd] serve -> INFO 030[0m Started peer with ID=[peer1.org2.example.com], network ID=[dev], address=[peer1.org2.example.com:7051]
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.367 UTC [endorser] callChaincode -> INFO 031[0m [][0c4aaab3] Entry chaincode: name:"cscc" 
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.371 UTC [extension-channel] func1 -> INFO 032[0m Loading channel [mychannel]
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.371 UTC [ledgermgmt] OpenLedger -> INFO 033[0m Opening ledger with id = mychannel
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:34:39.373 UTC [extension-channel] func1 -> WARN 034[0m Failed to load ledger mychannel(LedgerID does not exist)
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.748 UTC [extension-channel] func1 -> INFO 035[0m Loading channel [mychannel]
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.748 UTC [ledgermgmt] OpenLedger -> INFO 036[0m Opening ledger with id = mychannel
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.814 UTC [ledgermgmt] OpenLedger -> INFO 037[0m Opened ledger with id = mychannel
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.858 UTC [ext_dispatcher] ForChannel -> INFO 038[0m Returning a new gossip dispatcher for channel [mychannel]
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.349 UTC [endorser] callChaincode -> INFO 034[0m [][e6ac2e51] Entry chaincode: name:"cscc" 
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.350 UTC [endorser] callChaincode -> INFO 035[0m [][e6ac2e51] Exit chaincode: name:"cscc"  (0ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.361 UTC [endorser] callChaincode -> INFO 036[0m [][cb7a5fb8] Entry chaincode: name:"cscc" 
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.365 UTC [ledgermgmt] CreateLedger -> INFO 037[0m Creating ledger [mychannel] with genesis block
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.437 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 038[0m Created state database mychannel$$blocks_
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.471 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 039[0m Created state database mychannel$$transactions_
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.477 UTC [couchdb] CreateIndex -> INFO 03a[0m Created CouchDB index [by_hash] in state database [mychannel$$blocks_] using design document [_design/indexHash]
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.523 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 03b[0m Created state database mychannel$$pvtdata_
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:34:33.551 UTC [couchdb] handleRequest -> WARN 008[0m Retrying couchdb request in 500ms. Attempt:3  Error:Get http://org1.couchdb.com:5984/: dial tcp 172.19.0.6:5984: connect: connection refused
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:34:34.053 UTC [couchdb] handleRequest -> WARN 009[0m Retrying couchdb request in 1s. Attempt:4  Error:Get http://org1.couchdb.com:5984/: dial tcp 172.19.0.6:5984: connect: connection refused
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:35.745 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 00a[0m [_users] Created state database
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:35.812 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 00b[0m [_replicator] Created state database
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:35.872 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 00c[0m Created state database fabric_system_$$inventory_
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.117 UTC [couchdb] CreateIndex -> INFO 00d[0m Created CouchDB index [by_type] in state database [fabric_system_$$inventory_] using design document [_design/indexMetadataInventory]
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.367 UTC [ledgermgmt] initialize -> INFO 00e[0m ledger mgmt initialized
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.531 UTC [couchdb] CreateIndex -> INFO 03c[0m Created CouchDB index [by_expiring_block_numbers] in state database [mychannel$$pvtdata_] using design document [_design/indexExpiringBlockNumbers]
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.564 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 03d[0m Created state database mychannel_
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.592 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 03e[0m Created state database mychannel__lifecycle
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.667 UTC [kvledger] CommitWithPvtData -> INFO 03f[0m [mychannel] Committed block [0] with 1 transaction(s) in 60ms (state_validation=0ms block_commit=22ms state_commit=35ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.680 UTC [ledgermgmt] CreateLedger -> INFO 040[0m Created ledger [mychannel] with genesis block
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.698 UTC [ext_dispatcher] ForChannel -> INFO 041[0m Returning a new gossip dispatcher for channel [mychannel]
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.708 UTC [ext_resource] ChannelJoined -> INFO 042[0m Notifying resources that channel [mychannel] was joined
+[33;1mmetrics.example.com       |[0m level=info ts=2019-11-24T14:34:29.350Z caller=main.go:296 msg="no time or size retention was set so using the default time retention" duration=15d
+[33;1mmetrics.example.com       |[0m level=info ts=2019-11-24T14:34:29.350Z caller=main.go:332 msg="Starting Prometheus" version="(version=2.14.0, branch=HEAD, revision=edeb7a44cbf745f1d8be4ea6f215e79e651bfe19)"
+[33;1mmetrics.example.com       |[0m level=info ts=2019-11-24T14:34:29.350Z caller=main.go:333 build_context="(go=go1.13.4, user=root@df2327081015, date=20191111-14:27:12)"
+[33;1mmetrics.example.com       |[0m level=info ts=2019-11-24T14:34:29.350Z caller=main.go:334 host_details="(Linux 4.9.184-linuxkit #1 SMP Tue Jul 2 22:58:16 UTC 2019 x86_64 d99f7d4801fd (none))"
+[33;1mmetrics.example.com       |[0m level=info ts=2019-11-24T14:34:29.350Z caller=main.go:335 fd_limits="(soft=1048576, hard=1048576)"
+[33;1mmetrics.example.com       |[0m level=info ts=2019-11-24T14:34:29.350Z caller=main.go:336 vm_limits="(soft=unlimited, hard=unlimited)"
+[33;1mmetrics.example.com       |[0m level=info ts=2019-11-24T14:34:29.352Z caller=web.go:496 component=web msg="Start listening for connections" address=0.0.0.0:9090
+[33;1mmetrics.example.com       |[0m level=info ts=2019-11-24T14:34:29.352Z caller=main.go:657 msg="Starting TSDB ..."
+[33;1mmetrics.example.com       |[0m level=info ts=2019-11-24T14:34:29.355Z caller=head.go:535 component=tsdb msg="replaying WAL, this may take awhile"
+[33;1mmetrics.example.com       |[0m level=info ts=2019-11-24T14:34:29.356Z caller=head.go:583 component=tsdb msg="WAL segment loaded" segment=0 maxSegment=0
+[33;1mmetrics.example.com       |[0m level=info ts=2019-11-24T14:34:29.357Z caller=main.go:672 fs_type=EXT4_SUPER_MAGIC
+[33;1mmetrics.example.com       |[0m level=info ts=2019-11-24T14:34:29.357Z caller=main.go:673 msg="TSDB started"
+[33;1mmetrics.example.com       |[0m level=info ts=2019-11-24T14:34:29.357Z caller=main.go:743 msg="Loading configuration file" filename=/etc/prometheus/prometheus.yml
+[33;1mmetrics.example.com       |[0m level=info ts=2019-11-24T14:34:29.363Z caller=main.go:771 msg="Completed loading of configuration file" filename=/etc/prometheus/prometheus.yml
+[33;1mmetrics.example.com       |[0m level=info ts=2019-11-24T14:34:29.363Z caller=main.go:626 msg="Server is ready to receive web requests."
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.341 UTC [sccapi] deploySysCC -> INFO 041[0m system chaincode cscc/mychannel(github.com/hyperledger/fabric/core/scc/cscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.341 UTC [qscc] Init -> INFO 042[0m Init QSCC
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.341 UTC [sccapi] deploySysCC -> INFO 043[0m system chaincode qscc/mychannel(github.com/hyperledger/fabric/core/scc/qscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.341 UTC [sccapi] deploySysCC -> INFO 044[0m system chaincode _lifecycle/mychannel(github.com/hyperledger/fabric/core/chaincode/lifecycle) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.342 UTC [sccapi] deploySysCC -> INFO 045[0m system chaincode configscc/mychannel(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.342 UTC [testscc] Init -> INFO 046[0m Registering for config update events for local MSP [Org1MSP] and local peer [peer1.org1.example.com] and app [testscc]
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.342 UTC [sccapi] deploySysCC -> INFO 047[0m system chaincode testscc/mychannel(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.342 UTC [endorser] callChaincode -> INFO 048[0m [][f8239f0c] Exit chaincode: name:"cscc"  (494ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.368 UTC [lifecycle] InitializeLocalChaincodes -> INFO 00f[0m Initialized lifecycle cache with 0 already installed chaincodes
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.396 UTC [nodeCmd] serve -> INFO 010[0m Starting peer with TLS enabled
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.408 UTC [nodeCmd] computeChaincodeEndpoint -> INFO 011[0m Entering computeChaincodeEndpoint with peerHostname: peer0.org1.example.com
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.408 UTC [nodeCmd] computeChaincodeEndpoint -> INFO 012[0m Exit with ccEndpoint: peer0.org1.example.com:7052
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:34:36.408 UTC [nodeCmd] createChaincodeServer -> WARN 013[0m peer.chaincodeListenAddress is not set, using peer0.org1.example.com:7052
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.436 UTC [ext_resource] Initialize -> INFO 014[0m Initializing resources
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.436 UTC [ext_blockpublisher] Initialize -> INFO 015[0m Initializing block publisher provider
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.437 UTC [ext_support] NewCollectionConfigRetrieverProvider -> INFO 016[0m Creating collection config retriever provider
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.437 UTC [transientdata] New -> INFO 017[0m Creating new transient data store provider
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.449 UTC [ext_store] NewOffLedgerProvider -> INFO 018[0m Creating off-ledger store provider with DCAS
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.450 UTC [ext_offledger] NewProvider -> INFO 019[0m Creating collection client provider.
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.450 UTC [ext_offledger] NewProvider -> INFO 01a[0m Creating DCAS client provider.
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.450 UTC [ledgerconfig] NewSvcMgr -> INFO 01b[0m Creating configuration service manager
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.452 UTC [ext_dispatcher] Initialize -> INFO 01c[0m Initializing gossip dispatcher provider
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.452 UTC [ext_store] Initialize -> INFO 01d[0m Initializing collection store provider
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.453 UTC [ext_endorser] Initialize -> INFO 01e[0m Initializing collection read/write-set filter
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.454 UTC [ext_retriever] Initialize -> INFO 01f[0m Initializing collection data retriever
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.461 UTC [sccapi] registerSysCC -> INFO 020[0m system chaincode lscc(github.com/hyperledger/fabric/core/scc/lscc) registered
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.461 UTC [sccapi] registerSysCC -> INFO 021[0m system chaincode cscc(github.com/hyperledger/fabric/core/scc/cscc) registered
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.461 UTC [sccapi] registerSysCC -> INFO 022[0m system chaincode qscc(github.com/hyperledger/fabric/core/scc/qscc) registered
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.867 UTC [ext_resource] ChannelJoined -> INFO 039[0m Notifying resources that channel [mychannel] was joined
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.868 UTC [sccapi] deploySysCC -> INFO 03a[0m system chaincode lscc/mychannel(github.com/hyperledger/fabric/core/scc/lscc) deployed
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.868 UTC [cscc] Init -> INFO 03b[0m Init CSCC
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.868 UTC [sccapi] deploySysCC -> INFO 03c[0m system chaincode cscc/mychannel(github.com/hyperledger/fabric/core/scc/cscc) deployed
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.868 UTC [qscc] Init -> INFO 03d[0m Init QSCC
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.868 UTC [sccapi] deploySysCC -> INFO 03e[0m system chaincode qscc/mychannel(github.com/hyperledger/fabric/core/scc/qscc) deployed
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.868 UTC [sccapi] deploySysCC -> INFO 03f[0m system chaincode _lifecycle/mychannel(github.com/hyperledger/fabric/core/chaincode/lifecycle) deployed
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.869 UTC [sccapi] deploySysCC -> INFO 040[0m system chaincode configscc/mychannel(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) deployed
+[36;1morg2.couchdb.com          |[0m [warning] 2019-11-24T14:34:34.910344Z nonode@nohost <0.275.0> -------- creating missing database: _nodes
+[36;1morg2.couchdb.com          |[0m [warning] 2019-11-24T14:34:34.970896Z nonode@nohost <0.289.0> -------- creating missing database: _dbs
+[36;1morg2.couchdb.com          |[0m [warning] 2019-11-24T14:34:34.971047Z nonode@nohost <0.288.0> -------- creating missing database: _dbs
+[36;1morg2.couchdb.com          |[0m [error] 2019-11-24T14:34:35.092867Z nonode@nohost emulator -------- Error in process <0.327.0> with exit value:
+[36;1morg2.couchdb.com          |[0m {database_does_not_exist,[{mem3_shards,load_shards_from_db,"_users",[{file,"src/mem3_shards.erl"},{line,395}]},{mem3_shards,load_shards_from_disk,1,[{file,"src/mem3_shards.erl"},{line,370}]},{mem3_shards,load_shards_from_disk,2,[{file,"src/mem3_shards.erl"},{line,399}]},{mem3_shards,for_docid,3,[{file,"src/mem3_shards.erl"},{line,86}]},{fabric_doc_open,go,3,[{file,"src/fabric_doc_open.erl"},{line,38}]},{chttpd_auth_cache,ensure_auth_ddoc_exists,2,[{file,"src/chttpd_auth_cache.erl"},{line,187}]},{chttpd_auth_cache,listen_for_changes,1,[{file,"src/chttpd_auth_cache.erl"},{line,134}]}]}
+[36;1morg2.couchdb.com          |[0m 
+[36;1morg2.couchdb.com          |[0m [error] 2019-11-24T14:34:35.675543Z nonode@nohost <0.310.0> 8b31d37f31 Request to create N=3 DB but only 1 node(s)
+[36;1morg2.couchdb.com          |[0m [error] 2019-11-24T14:34:35.857743Z nonode@nohost <0.310.0> 2dbd36bbca Request to create N=3 DB but only 1 node(s)
+[36;1morg2.couchdb.com          |[0m [error] 2019-11-24T14:34:35.918743Z nonode@nohost <0.310.0> 6937f05e87 Request to create N=3 DB but only 1 node(s)
+[36;1morg2.couchdb.com          |[0m [error] 2019-11-24T14:34:39.405077Z nonode@nohost <0.312.0> 2e3605c242 Request to create N=3 DB but only 1 node(s)
+[36;1morg2.couchdb.com          |[0m [error] 2019-11-24T14:34:39.443305Z nonode@nohost <0.312.0> ae26379a3d Request to create N=3 DB but only 1 node(s)
+[36;1morg2.couchdb.com          |[0m [error] 2019-11-24T14:34:39.499990Z nonode@nohost <0.313.0> a647d27df7 Request to create N=3 DB but only 1 node(s)
+[36;1morg2.couchdb.com          |[0m [error] 2019-11-24T14:34:39.539476Z nonode@nohost <0.314.0> 46c3d298fc Request to create N=3 DB but only 1 node(s)
+[36;1morg2.couchdb.com          |[0m [error] 2019-11-24T14:34:39.568410Z nonode@nohost <0.314.0> e53e6859df Request to create N=3 DB but only 1 node(s)
+[36;1morg2.couchdb.com          |[0m [error] 2019-11-24T14:34:43.770473Z nonode@nohost <0.608.0> 1d27e9c4ed Request to create N=3 DB but only 1 node(s)
+[36;1morg2.couchdb.com          |[0m [error] 2019-11-24T14:34:50.434513Z nonode@nohost <0.1210.0> 3625c1a950 Request to create N=3 DB but only 1 node(s)
+[36;1morg2.couchdb.com          |[0m [error] 2019-11-24T14:35:01.263474Z nonode@nohost <0.3249.0> 67b72be338 Request to create N=3 DB but only 1 node(s)
+[36;1morg2.couchdb.com          |[0m [error] 2019-11-24T14:35:01.302632Z nonode@nohost <0.3249.0> 5d415c4d43 Request to create N=3 DB but only 1 node(s)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.461 UTC [sccapi] registerSysCC -> INFO 023[0m system chaincode _lifecycle(github.com/hyperledger/fabric/core/chaincode/lifecycle) registered
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.461 UTC [sccapi] registerSysCC -> INFO 024[0m system chaincode configscc(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) registered
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.461 UTC [sccapi] registerSysCC -> INFO 025[0m system chaincode testscc(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) registered
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.495 UTC [sccapi] deploySysCC -> INFO 026[0m system chaincode lscc/(github.com/hyperledger/fabric/core/scc/lscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.496 UTC [cscc] Init -> INFO 027[0m Init CSCC
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.496 UTC [sccapi] deploySysCC -> INFO 028[0m system chaincode cscc/(github.com/hyperledger/fabric/core/scc/cscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.496 UTC [qscc] Init -> INFO 029[0m Init QSCC
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.496 UTC [sccapi] deploySysCC -> INFO 02a[0m system chaincode qscc/(github.com/hyperledger/fabric/core/scc/qscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.497 UTC [sccapi] deploySysCC -> INFO 02b[0m system chaincode _lifecycle/(github.com/hyperledger/fabric/core/chaincode/lifecycle) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.500 UTC [sccapi] deploySysCC -> INFO 02c[0m system chaincode configscc/(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.501 UTC [sccapi] deploySysCC -> INFO 02d[0m system chaincode testscc/(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.501 UTC [nodeCmd] serve -> INFO 02e[0m Deployed system chaincodes
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:34:36.712 UTC [extension-channel] RegisterChannelInitializer -> WARN 02f[0m Plugin mappers and createChain handler cannot be replaced
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.713 UTC [discovery] NewService -> INFO 030[0m Created with config TLS: true, authCacheMaxSize: 1000, authCachePurgeRatio: 0.750000
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.713 UTC [nodeCmd] registerDiscoveryService -> INFO 031[0m Discovery service activated
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.713 UTC [nodeCmd] serve -> INFO 032[0m Starting peer with ID=[peer0.org1.example.com], network ID=[dev], address=[peer0.org1.example.com:7051]
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:36.713 UTC [nodeCmd] serve -> INFO 033[0m Started peer with ID=[peer0.org1.example.com], network ID=[dev], address=[peer0.org1.example.com:7051]
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:38.796 UTC [endorser] callChaincode -> INFO 034[0m [][4d99ee55] Entry chaincode: name:"cscc" 
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:38.797 UTC [endorser] callChaincode -> INFO 035[0m [][4d99ee55] Exit chaincode: name:"cscc"  (1ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:38.844 UTC [endorser] callChaincode -> INFO 036[0m [][4dcdef7d] Entry chaincode: name:"cscc" 
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.869 UTC [testscc] Init -> INFO 041[0m Registering for config update events for local MSP [Org2MSP] and local peer [peer1.org2.example.com] and app [testscc]
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.869 UTC [sccapi] deploySysCC -> INFO 042[0m system chaincode testscc/mychannel(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) deployed
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.870 UTC [endorser] callChaincode -> INFO 043[0m [][0c4aaab3] Exit chaincode: name:"cscc"  (502ms)
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:39.877 UTC [ext_blockpublisher] ChannelJoined -> INFO 044[0m Channel [mychannel] joined. Initializing block publisher with ledger height 3
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:34:42.843 UTC [gossip.gossip] func1 -> WARN 045[0m Deep probe of peer0.org1.example.com:7051 failed: context deadline exceeded
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:34:42.843 UTC [gossip.discovery] func1 -> WARN 046[0m Could not connect to Endpoint: peer0.org1.example.com:7051, InternalEndpoint: peer0.org1.example.com:7051, PKI-ID: <nil>, Metadata:  : context deadline exceeded
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:43.309 UTC [endorser] callChaincode -> INFO 047[0m [][84100eb7] Entry chaincode: name:"lscc" 
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:43.310 UTC [endorser] callChaincode -> INFO 048[0m [][84100eb7] Exit chaincode: name:"lscc"  (0ms)
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:43.524 UTC [endorser] callChaincode -> INFO 049[0m [][4f508690] Entry chaincode: name:"lscc" 
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:43.797 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 04a[0m Created state database mychannel_lscc
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:43.820 UTC [lscc] executeInstall -> INFO 04b[0m Installed Chaincode [e2e_cc] Version [v1] to peer
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.710 UTC [sccapi] deploySysCC -> INFO 043[0m system chaincode lscc/mychannel(github.com/hyperledger/fabric/core/scc/lscc) deployed
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.710 UTC [cscc] Init -> INFO 044[0m Init CSCC
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.710 UTC [sccapi] deploySysCC -> INFO 045[0m system chaincode cscc/mychannel(github.com/hyperledger/fabric/core/scc/cscc) deployed
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.710 UTC [qscc] Init -> INFO 046[0m Init QSCC
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.710 UTC [sccapi] deploySysCC -> INFO 047[0m system chaincode qscc/mychannel(github.com/hyperledger/fabric/core/scc/qscc) deployed
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.710 UTC [sccapi] deploySysCC -> INFO 048[0m system chaincode _lifecycle/mychannel(github.com/hyperledger/fabric/core/chaincode/lifecycle) deployed
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.710 UTC [sccapi] deploySysCC -> INFO 049[0m system chaincode configscc/mychannel(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) deployed
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.710 UTC [testscc] Init -> INFO 04a[0m Registering for config update events for local MSP [Org2MSP] and local peer [peer0.org2.example.com] and app [testscc]
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:43.820 UTC [endorser] callChaincode -> INFO 04c[0m [][4f508690] Exit chaincode: name:"lscc"  (295ms)
+[33mpeer1.org2.example.com    |[0m [31m2019-11-24 14:34:46.221 UTC [privacyenabledstate] HandleChaincodeDeploy -> ERRO 04d[0m Error processing index for chaincode [e2e_cc]: cannot create an index for an undefined collection=[accounts]
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:48.644 UTC [endorser] callChaincode -> INFO 04e[0m [mychannel][7815a063] Entry chaincode: name:"e2e_cc" 
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:49.822 UTC [endorser] callChaincode -> INFO 04f[0m [mychannel][7815a063] Exit chaincode: name:"e2e_cc"  (1178ms)
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:49.877 UTC [discovery.lifecycle] DeployedChaincodes -> INFO 050[0m Chaincode _lifecycle isn't instantiated
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:34:49.877 UTC [discovery.lifecycle] Metadata -> INFO 051[0m Chaincode _lifecycle isn't defined in channel mychannel
+[33mpeer1.org2.example.com    |[0m [31m2019-11-24 14:34:49.877 UTC [discovery] chaincodeQuery -> ERRO 052[0m Failed constructing descriptor for chaincode chaincodes:<name:"e2e_cc" > chaincodes:<name:"_lifecycle" > ,: No metadata was found for chaincode _lifecycle in channel mychannel
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:35:03.428 UTC [endorser] callChaincode -> INFO 053[0m [mychannel][50d6d633] Entry chaincode: name:"e2e_cc" 
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:35:03.465 UTC [endorser] callChaincode -> INFO 054[0m [mychannel][50d6d633] Exit chaincode: name:"e2e_cc"  (37ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.711 UTC [sccapi] deploySysCC -> INFO 04b[0m system chaincode testscc/mychannel(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) deployed
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.711 UTC [endorser] callChaincode -> INFO 04c[0m [][cb7a5fb8] Exit chaincode: name:"cscc"  (350ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.716 UTC [ext_blockpublisher] ChannelJoined -> INFO 04d[0m Channel [mychannel] joined. Initializing block publisher with ledger height 1
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.741 UTC [committer.txvalidator] Validate -> INFO 04e[0m [mychannel] Validated block [1] in 18ms
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.791 UTC [kvledger] CommitWithPvtData -> INFO 04f[0m [mychannel] Committed block [1] with 1 transaction(s) in 50ms (state_validation=0ms block_commit=27ms state_commit=20ms)
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:34:39.809 UTC [gossip.comm] func1 -> WARN 050[0m peer0.org1.example.com:7051, PKIid:de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d isn't responsive: EOF
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:35:03.475 UTC [ext_support] func1 -> INFO 055[0m Collection configs for chaincode [e2e_cc] are not cached. Loading...
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:35:09.168 UTC [gossip.comm] func1 -> WARN 056[0m peer1.org1.example.com:7051, PKIid:e095ca89e8038d8313b22cd6d38f7138e516201b8dc150bd026e9cfa10377001 isn't responsive: EOF
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:35:09.168 UTC [gossip.discovery] expireDeadMembers -> WARN 057[0m Entering [e095ca89e8038d8313b22cd6d38f7138e516201b8dc150bd026e9cfa10377001]
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:35:09.168 UTC [gossip.discovery] expireDeadMembers -> WARN 058[0m Closing connection to Endpoint: peer1.org1.example.com:7051, InternalEndpoint: , PKI-ID: e095ca89e8038d8313b22cd6d38f7138e516201b8dc150bd026e9cfa10377001, Metadata: 
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:35:09.168 UTC [gossip.discovery] expireDeadMembers -> WARN 059[0m Exiting
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:35:10.171 UTC [gossip.comm] sendToEndpoint -> WARN 05a[0m Failed obtaining connection for peer0.org1.example.com:7051, PKIid:de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d reason: context deadline exceeded
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:35:10.171 UTC [gossip.discovery] expireDeadMembers -> WARN 05b[0m Entering [de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d]
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:34:39.810 UTC [gossip.discovery] expireDeadMembers -> WARN 051[0m Entering [de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d]
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:34:39.810 UTC [gossip.discovery] expireDeadMembers -> WARN 052[0m Closing connection to Endpoint: peer0.org1.example.com:7051, InternalEndpoint: , PKI-ID: de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d, Metadata: 
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:34:39.810 UTC [gossip.discovery] expireDeadMembers -> WARN 053[0m Exiting
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.818 UTC [committer.txvalidator] Validate -> INFO 054[0m [mychannel] Validated block [2] in 25ms
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:39.883 UTC [kvledger] CommitWithPvtData -> INFO 055[0m [mychannel] Committed block [2] with 1 transaction(s) in 64ms (state_validation=0ms block_commit=38ms state_commit=23ms)
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:34:42.803 UTC [gossip.gossip] func1 -> WARN 056[0m Deep probe of peer0.org2.example.com:8051 failed: context deadline exceeded
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:34:42.803 UTC [gossip.discovery] func1 -> WARN 057[0m Could not connect to Endpoint: peer0.org2.example.com:8051, InternalEndpoint: peer0.org2.example.com:8051, PKI-ID: <nil>, Metadata:  : context deadline exceeded
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:43.306 UTC [endorser] callChaincode -> INFO 058[0m [][ae732c77] Entry chaincode: name:"lscc" 
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:43.307 UTC [endorser] callChaincode -> INFO 059[0m [][ae732c77] Exit chaincode: name:"lscc"  (0ms)
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:39.346 UTC [ext_blockpublisher] ChannelJoined -> INFO 049[0m Channel [mychannel] joined. Initializing block publisher with ledger height 2
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:41.612 UTC [endorser] callChaincode -> INFO 04a[0m [][13125e10] Entry chaincode: name:"lscc" 
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:41.612 UTC [endorser] callChaincode -> INFO 04b[0m [][13125e10] Exit chaincode: name:"lscc"  (0ms)
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:41.817 UTC [endorser] callChaincode -> INFO 04c[0m [][6f56e2e8] Entry chaincode: name:"lscc" 
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:42.109 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 04d[0m Created state database mychannel_lscc
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:42.130 UTC [lscc] executeInstall -> INFO 04e[0m Installed Chaincode [e2e_cc] Version [v1] to peer
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:42.130 UTC [endorser] callChaincode -> INFO 04f[0m [][6f56e2e8] Exit chaincode: name:"lscc"  (314ms)
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:46.171 UTC [endorser] callChaincode -> INFO 050[0m [mychannel][5aa7b426] Entry chaincode: name:"e2e_cc" 
+[36mpeer1.org1.example.com    |[0m [31m2019-11-24 14:34:46.212 UTC [privacyenabledstate] HandleChaincodeDeploy -> ERRO 051[0m Error processing index for chaincode [e2e_cc]: cannot create an index for an undefined collection=[accounts]
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:47.405 UTC [endorser] callChaincode -> INFO 052[0m [mychannel][5aa7b426] Exit chaincode: name:"e2e_cc"  (1234ms)
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:49.827 UTC [endorser] callChaincode -> INFO 053[0m [mychannel][ebb3d95b] Entry chaincode: name:"cscc" 
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:35:10.171 UTC [gossip.discovery] expireDeadMembers -> WARN 05c[0m Closing connection to Endpoint: peer0.org1.example.com:7051, InternalEndpoint: , PKI-ID: de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d, Metadata: 
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:35:10.171 UTC [gossip.discovery] expireDeadMembers -> WARN 05d[0m Exiting
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:35:10.824 UTC [gossip.gossip] func1 -> WARN 05e[0m Deep probe of peer0.org1.example.com:7051 failed: context deadline exceeded
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:35:10.824 UTC [gossip.discovery] func1 -> WARN 05f[0m Could not connect to Endpoint: peer0.org1.example.com:7051, InternalEndpoint: peer0.org1.example.com:7051, PKI-ID: <nil>, Metadata:  : context deadline exceeded
+[33mpeer1.org2.example.com    |[0m [33m2019-11-24 14:35:13.173 UTC [gossip.comm] sendToEndpoint -> WARN 060[0m Failed obtaining connection for peer0.org1.example.com:7051, PKIid:de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d reason: context deadline exceeded
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:35:15.123 UTC [endorser] callChaincode -> INFO 061[0m [mychannel][b9af8e5c] Entry chaincode: name:"e2e_cc" 
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:35:15.163 UTC [endorser] callChaincode -> INFO 062[0m [mychannel][b9af8e5c] Exit chaincode: name:"e2e_cc"  (40ms)
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:35:17.524 UTC [discovery.lifecycle] DeployedChaincodes -> INFO 063[0m Chaincode _lifecycle isn't instantiated
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:38.848 UTC [ledgermgmt] CreateLedger -> INFO 037[0m Creating ledger [mychannel] with genesis block
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:38.893 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 038[0m Created state database mychannel$$blocks_
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:38.915 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 039[0m Created state database mychannel$$transactions_
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:38.921 UTC [couchdb] CreateIndex -> INFO 03a[0m Created CouchDB index [by_hash] in state database [mychannel$$blocks_] using design document [_design/indexHash]
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:38.969 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 03b[0m Created state database mychannel$$pvtdata_
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:38.977 UTC [couchdb] CreateIndex -> INFO 03c[0m Created CouchDB index [by_expiring_block_numbers] in state database [mychannel$$pvtdata_] using design document [_design/indexExpiringBlockNumbers]
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.005 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 03d[0m Created state database mychannel_
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.032 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 03e[0m Created state database mychannel__lifecycle
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.124 UTC [kvledger] CommitWithPvtData -> INFO 03f[0m [mychannel] Committed block [0] with 1 transaction(s) in 75ms (state_validation=1ms block_commit=35ms state_commit=37ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.137 UTC [ledgermgmt] CreateLedger -> INFO 040[0m Created ledger [mychannel] with genesis block
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.154 UTC [ext_dispatcher] ForChannel -> INFO 041[0m Returning a new gossip dispatcher for channel [mychannel]
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.164 UTC [ext_resource] ChannelJoined -> INFO 042[0m Notifying resources that channel [mychannel] was joined
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.164 UTC [sccapi] deploySysCC -> INFO 043[0m system chaincode lscc/mychannel(github.com/hyperledger/fabric/core/scc/lscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.164 UTC [cscc] Init -> INFO 044[0m Init CSCC
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.164 UTC [sccapi] deploySysCC -> INFO 045[0m system chaincode cscc/mychannel(github.com/hyperledger/fabric/core/scc/cscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.165 UTC [qscc] Init -> INFO 046[0m Init QSCC
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.165 UTC [sccapi] deploySysCC -> INFO 047[0m system chaincode qscc/mychannel(github.com/hyperledger/fabric/core/scc/qscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.165 UTC [sccapi] deploySysCC -> INFO 048[0m system chaincode _lifecycle/mychannel(github.com/hyperledger/fabric/core/chaincode/lifecycle) deployed
+[33mpeer1.org2.example.com    |[0m [34m2019-11-24 14:35:17.524 UTC [discovery.lifecycle] Metadata -> INFO 064[0m Chaincode _lifecycle isn't defined in channel mychannel
+[33mpeer1.org2.example.com    |[0m [31m2019-11-24 14:35:17.524 UTC [discovery] chaincodeQuery -> ERRO 065[0m Failed constructing descriptor for chaincode chaincodes:<name:"e2e_cc" > chaincodes:<name:"_lifecycle" > ,: No metadata was found for chaincode _lifecycle in channel mychannel
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:43.569 UTC [endorser] callChaincode -> INFO 05a[0m [][4f508690] Entry chaincode: name:"lscc" 
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:43.827 UTC [lscc] executeInstall -> INFO 05b[0m Installed Chaincode [e2e_cc] Version [v1] to peer
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:43.827 UTC [endorser] callChaincode -> INFO 05c[0m [][4f508690] Exit chaincode: name:"lscc"  (258ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:45.752 UTC [committer.txvalidator] Validate -> INFO 05d[0m [mychannel] Validated block [3] in 6ms
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:45.755 UTC [cceventmgmt] HandleStateUpdates -> INFO 05e[0m Channel [mychannel]: Handling deploy or update of chaincode [e2e_cc]
+[32mpeer0.org2.example.com    |[0m [31m2019-11-24 14:34:45.919 UTC [privacyenabledstate] HandleChaincodeDeploy -> ERRO 05f[0m Error processing index for chaincode [e2e_cc]: cannot create an index for an undefined collection=[accounts]
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:46.004 UTC [kvledger] CommitWithPvtData -> INFO 060[0m [mychannel] Committed block [3] with 1 transaction(s) in 252ms (state_validation=180ms block_commit=42ms state_commit=27ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:46.026 UTC [endorser] callChaincode -> INFO 061[0m [mychannel][0e22f29a] Entry chaincode: name:"cscc" 
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:46.027 UTC [endorser] callChaincode -> INFO 062[0m [mychannel][0e22f29a] Exit chaincode: name:"cscc"  (1ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:47.449 UTC [endorser] callChaincode -> INFO 063[0m [mychannel][b05ab8ee] Entry chaincode: name:"e2e_cc" 
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:48.609 UTC [endorser] callChaincode -> INFO 064[0m [mychannel][b05ab8ee] Exit chaincode: name:"e2e_cc"  (1160ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:49.843 UTC [endorser] callChaincode -> INFO 065[0m [mychannel][e9991f39] Entry chaincode: name:"e2e_cc" 
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:49.871 UTC [endorser] callChaincode -> INFO 066[0m [mychannel][e9991f39] Exit chaincode: name:"e2e_cc"  (28ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:50.376 UTC [committer.txvalidator] Validate -> INFO 067[0m [mychannel] Validated block [4] in 3ms
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:50.503 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 068[0m Created state database mychannel_e2e_cc
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:50.524 UTC [kvledger] CommitWithPvtData -> INFO 069[0m [mychannel] Committed block [4] with 1 transaction(s) in 147ms (state_validation=5ms block_commit=44ms state_commit=95ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:52.537 UTC [endorser] callChaincode -> INFO 06a[0m [mychannel][38f55f59] Entry chaincode: name:"e2e_cc" 
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:52.564 UTC [endorser] callChaincode -> INFO 06b[0m [mychannel][38f55f59] Exit chaincode: name:"e2e_cc"  (27ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:52.577 UTC [discovery.lifecycle] DeployedChaincodes -> INFO 06c[0m Chaincode _lifecycle isn't instantiated
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:52.577 UTC [discovery.lifecycle] Metadata -> INFO 06d[0m Chaincode _lifecycle isn't defined in channel mychannel
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.165 UTC [sccapi] deploySysCC -> INFO 049[0m system chaincode configscc/mychannel(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.165 UTC [testscc] Init -> INFO 04a[0m Registering for config update events for local MSP [Org1MSP] and local peer [peer0.org1.example.com] and app [testscc]
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.165 UTC [sccapi] deploySysCC -> INFO 04b[0m system chaincode testscc/mychannel(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.165 UTC [endorser] callChaincode -> INFO 04c[0m [][4dcdef7d] Exit chaincode: name:"cscc"  (321ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.173 UTC [ext_blockpublisher] ChannelJoined -> INFO 04d[0m Channel [mychannel] joined. Initializing block publisher with ledger height 1
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.194 UTC [committer.txvalidator] Validate -> INFO 04e[0m [mychannel] Validated block [1] in 14ms
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.241 UTC [kvledger] CommitWithPvtData -> INFO 04f[0m [mychannel] Committed block [1] with 1 transaction(s) in 47ms (state_validation=0ms block_commit=25ms state_commit=19ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.391 UTC [committer.txvalidator] Validate -> INFO 050[0m [mychannel] Validated block [2] in 22ms
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:39.461 UTC [kvledger] CommitWithPvtData -> INFO 051[0m [mychannel] Committed block [2] with 1 transaction(s) in 70ms (state_validation=0ms block_commit=42ms state_commit=24ms)
+[35mpeer0.org1.example.com    |[0m [31m2019-11-24 14:34:39.845 UTC [core.comm] ServerHandshake -> ERRO 052[0m TLS handshake failed with error remote error: tls: bad certificate server=PeerServer remoteaddress=172.19.0.5:41074
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:49.828 UTC [endorser] callChaincode -> INFO 054[0m [mychannel][ebb3d95b] Exit chaincode: name:"cscc"  (1ms)
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:49.844 UTC [endorser] callChaincode -> INFO 055[0m [mychannel][e9991f39] Entry chaincode: name:"e2e_cc" 
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:49.871 UTC [endorser] callChaincode -> INFO 056[0m [mychannel][e9991f39] Exit chaincode: name:"e2e_cc"  (27ms)
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:52.494 UTC [endorser] callChaincode -> INFO 057[0m [mychannel][b8421c6c] Entry chaincode: name:"e2e_cc" 
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:52.527 UTC [endorser] callChaincode -> INFO 058[0m [mychannel][b8421c6c] Exit chaincode: name:"e2e_cc"  (33ms)
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:52.549 UTC [endorser] callChaincode -> INFO 059[0m [mychannel][38f55f59] Entry chaincode: name:"e2e_cc" 
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:52.573 UTC [endorser] callChaincode -> INFO 05a[0m [mychannel][38f55f59] Exit chaincode: name:"e2e_cc"  (24ms)
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:55.189 UTC [endorser] callChaincode -> INFO 05b[0m [mychannel][0a87feee] Entry chaincode: name:"e2e_cc" 
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:55.217 UTC [endorser] callChaincode -> INFO 05c[0m [mychannel][0a87feee] Exit chaincode: name:"e2e_cc"  (28ms)
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:55.228 UTC [endorser] callChaincode -> INFO 05d[0m [mychannel][615627cd] Entry chaincode: name:"e2e_cc" 
+[32mpeer0.org2.example.com    |[0m [31m2019-11-24 14:34:52.577 UTC [discovery] chaincodeQuery -> ERRO 06e[0m Failed constructing descriptor for chaincode chaincodes:<name:"e2e_cc" > chaincodes:<name:"_lifecycle" > ,: No metadata was found for chaincode _lifecycle in channel mychannel
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:53.096 UTC [committer.txvalidator] Validate -> INFO 06f[0m [mychannel] Validated block [5] in 3ms
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:53.173 UTC [kvledger] CommitWithPvtData -> INFO 070[0m [mychannel] Committed block [5] with 1 transaction(s) in 76ms (state_validation=7ms block_commit=49ms state_commit=18ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:55.227 UTC [endorser] callChaincode -> INFO 071[0m [mychannel][615627cd] Entry chaincode: name:"e2e_cc" 
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:55.258 UTC [endorser] callChaincode -> INFO 072[0m [mychannel][615627cd] Exit chaincode: name:"e2e_cc"  (31ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:55.782 UTC [committer.txvalidator] Validate -> INFO 073[0m [mychannel] Validated block [6] in 3ms
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:55.915 UTC [kvledger] CommitWithPvtData -> INFO 074[0m [mychannel] Committed block [6] with 1 transaction(s) in 132ms (state_validation=11ms block_commit=72ms state_commit=45ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:57.938 UTC [endorser] callChaincode -> INFO 075[0m [mychannel][edb46503] Entry chaincode: name:"e2e_cc" 
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:55.258 UTC [endorser] callChaincode -> INFO 05e[0m [mychannel][615627cd] Exit chaincode: name:"e2e_cc"  (30ms)
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:55.264 UTC [discovery.lifecycle] DeployedChaincodes -> INFO 05f[0m Chaincode _lifecycle isn't instantiated
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:55.264 UTC [discovery.lifecycle] Metadata -> INFO 060[0m Chaincode _lifecycle isn't defined in channel mychannel
+[36mpeer1.org1.example.com    |[0m [31m2019-11-24 14:34:55.264 UTC [discovery] chaincodeQuery -> ERRO 061[0m Failed constructing descriptor for chaincode chaincodes:<name:"e2e_cc" > chaincodes:<name:"_lifecycle" > ,: No metadata was found for chaincode _lifecycle in channel mychannel
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:57.907 UTC [endorser] callChaincode -> INFO 062[0m [mychannel][f01bc44d] Entry chaincode: name:"e2e_cc" 
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:57.926 UTC [endorser] callChaincode -> INFO 063[0m [mychannel][f01bc44d] Exit chaincode: name:"e2e_cc"  (19ms)
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:57.934 UTC [endorser] callChaincode -> INFO 064[0m [mychannel][edb46503] Entry chaincode: name:"e2e_cc" 
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:34:57.957 UTC [endorser] callChaincode -> INFO 065[0m [mychannel][edb46503] Exit chaincode: name:"e2e_cc"  (23ms)
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:00.617 UTC [endorser] callChaincode -> INFO 066[0m [mychannel][e87afb8f] Entry chaincode: name:"e2e_cc" 
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:00.654 UTC [endorser] callChaincode -> INFO 067[0m [mychannel][e87afb8f] Exit chaincode: name:"e2e_cc"  (37ms)
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:00.667 UTC [ext_support] func1 -> INFO 068[0m Collection configs for chaincode [e2e_cc] are not cached. Loading...
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:57.959 UTC [endorser] callChaincode -> INFO 076[0m [mychannel][edb46503] Exit chaincode: name:"e2e_cc"  (21ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:58.493 UTC [committer.txvalidator] Validate -> INFO 077[0m [mychannel] Validated block [7] in 5ms
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:34:58.578 UTC [kvledger] CommitWithPvtData -> INFO 078[0m [mychannel] Committed block [7] with 1 transaction(s) in 84ms (state_validation=8ms block_commit=51ms state_commit=22ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:35:00.620 UTC [endorser] callChaincode -> INFO 079[0m [mychannel][e87afb8f] Entry chaincode: name:"e2e_cc" 
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:35:00.651 UTC [endorser] callChaincode -> INFO 07a[0m [mychannel][e87afb8f] Exit chaincode: name:"e2e_cc"  (31ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:35:00.662 UTC [ext_support] func1 -> INFO 07b[0m Collection configs for chaincode [e2e_cc] are not cached. Loading...
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:35:01.189 UTC [committer.txvalidator] Validate -> INFO 07c[0m [mychannel] Validated block [8] in 3ms
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:35:01.294 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 07d[0m Created state database mychannel_e2e_cc$$pcollection3
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:35:01.333 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 07e[0m Created state database mychannel_e2e_cc$$hcollection3
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:00.671 UTC [discovery.lifecycle] DeployedChaincodes -> INFO 069[0m Chaincode _lifecycle isn't instantiated
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:00.671 UTC [discovery.lifecycle] Metadata -> INFO 06a[0m Chaincode _lifecycle isn't defined in channel mychannel
+[36mpeer1.org1.example.com    |[0m [31m2019-11-24 14:35:00.671 UTC [discovery] chaincodeQuery -> ERRO 06b[0m Failed constructing descriptor for chaincode chaincodes:<name:"e2e_cc" collection_names:"collection3" > chaincodes:<name:"_lifecycle" > ,: No metadata was found for chaincode _lifecycle in channel mychannel
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:03.478 UTC [discovery.lifecycle] DeployedChaincodes -> INFO 06c[0m Chaincode _lifecycle isn't instantiated
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:03.479 UTC [discovery.lifecycle] Metadata -> INFO 06d[0m Chaincode _lifecycle isn't defined in channel mychannel
+[36mpeer1.org1.example.com    |[0m [31m2019-11-24 14:35:03.479 UTC [discovery] chaincodeQuery -> ERRO 06e[0m Failed constructing descriptor for chaincode chaincodes:<name:"e2e_cc" collection_names:"collection3" > chaincodes:<name:"_lifecycle" > ,: No metadata was found for chaincode _lifecycle in channel mychannel
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:08.296 UTC [nodeCmd] handleSignals -> INFO 06f[0m Received signal: 15 (terminated)
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:08.296 UTC [ext_resource] Close -> INFO 070[0m Notifying resources that peer is shutting down
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.107 UTC [peer-ext-test] main -> INFO 001[0m Registering testscc...
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.107 UTC [nodeCmd] serve -> INFO 002[0m Starting peer:
+[36mpeer1.org1.example.com    |[0m  Version: latest
+[36mpeer1.org1.example.com    |[0m  Commit SHA: development build
+[36mpeer1.org1.example.com    |[0m  Go version: go1.12.5
+[36mpeer1.org1.example.com    |[0m  OS/Arch: linux/amd64
+[36mpeer1.org1.example.com    |[0m  Chaincode:
+[36mpeer1.org1.example.com    |[0m   Base Docker Namespace: hyperledger
+[36mpeer1.org1.example.com    |[0m   Base Docker Label: org.hyperledger.fabric
+[36mpeer1.org1.example.com    |[0m   Docker Namespace: hyperledger
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.107 UTC [peer] getLocalAddress -> INFO 003[0m Auto-detected peer address: 172.19.0.9:7051
+[35mpeer0.org1.example.com    |[0m [31m2019-11-24 14:34:40.848 UTC [core.comm] ServerHandshake -> ERRO 053[0m TLS handshake failed with error remote error: tls: bad certificate server=PeerServer remoteaddress=172.19.0.5:41086
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:41.610 UTC [endorser] callChaincode -> INFO 054[0m [][400845cd] Entry chaincode: name:"lscc" 
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:41.611 UTC [endorser] callChaincode -> INFO 055[0m [][400845cd] Exit chaincode: name:"lscc"  (0ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:41.852 UTC [endorser] callChaincode -> INFO 056[0m [][6f56e2e8] Entry chaincode: name:"lscc" 
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:42.109 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 057[0m [mychannel_lscc] Created state database
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:42.128 UTC [lscc] executeInstall -> INFO 058[0m Installed Chaincode [e2e_cc] Version [v1] to peer
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:42.129 UTC [endorser] callChaincode -> INFO 059[0m [][6f56e2e8] Exit chaincode: name:"lscc"  (277ms)
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:34:42.373 UTC [gossip.gossip] func1 -> WARN 05a[0m Deep probe of peer0.org2.example.com:8051 failed: context deadline exceeded
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:34:42.373 UTC [gossip.discovery] func1 -> WARN 05b[0m Could not connect to Endpoint: peer0.org2.example.com:8051, InternalEndpoint: peer0.org2.example.com:8051, PKI-ID: <nil>, Metadata:  : context deadline exceeded
+[35mpeer0.org1.example.com    |[0m [31m2019-11-24 14:34:42.561 UTC [core.comm] ServerHandshake -> ERRO 05c[0m TLS handshake failed with error remote error: tls: bad certificate server=PeerServer remoteaddress=172.19.0.5:41098
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:35:01.365 UTC [kvledger] CommitWithPvtData -> INFO 07f[0m [mychannel] Committed block [8] with 1 transaction(s) in 173ms (state_validation=5ms block_commit=59ms state_commit=106ms)
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:35:03.999 UTC [committer.txvalidator] Validate -> INFO 080[0m [mychannel] Validated block [9] in 6ms
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:35:04.105 UTC [kvledger] CommitWithPvtData -> INFO 081[0m [mychannel] Committed block [9] with 1 transaction(s) in 102ms (state_validation=3ms block_commit=57ms state_commit=40ms)
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:35:08.549 UTC [gossip.comm] func1 -> WARN 082[0m peer1.org1.example.com:7051, PKIid:e095ca89e8038d8313b22cd6d38f7138e516201b8dc150bd026e9cfa10377001 isn't responsive: EOF
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:35:08.549 UTC [gossip.discovery] expireDeadMembers -> WARN 083[0m Entering [e095ca89e8038d8313b22cd6d38f7138e516201b8dc150bd026e9cfa10377001]
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:35:08.549 UTC [gossip.discovery] expireDeadMembers -> WARN 084[0m Closing connection to Endpoint: peer1.org1.example.com:7051, InternalEndpoint: , PKI-ID: e095ca89e8038d8313b22cd6d38f7138e516201b8dc150bd026e9cfa10377001, Metadata: 
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:35:08.549 UTC [gossip.discovery] expireDeadMembers -> WARN 085[0m Exiting
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:35:10.181 UTC [gossip.comm] sendToEndpoint -> WARN 086[0m Failed obtaining connection for peer0.org1.example.com:7051, PKIid:de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d reason: context deadline exceeded
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:43.888 UTC [endorser] callChaincode -> INFO 05d[0m [mychannel][f5163f85] Entry chaincode: name:"cscc" 
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:43.889 UTC [endorser] callChaincode -> INFO 05e[0m [mychannel][f5163f85] Exit chaincode: name:"cscc"  (1ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:43.896 UTC [endorser] callChaincode -> INFO 05f[0m [mychannel][0f629b0d] Entry chaincode: name:"lscc" 
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:45.226 UTC [endorser] callChaincode -> INFO 060[0m [mychannel][0f629b0d] Exit chaincode: name:"lscc"  (1330ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:45.753 UTC [committer.txvalidator] Validate -> INFO 061[0m [mychannel] Validated block [3] in 8ms
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:45.755 UTC [cceventmgmt] HandleStateUpdates -> INFO 062[0m Channel [mychannel]: Handling deploy or update of chaincode [e2e_cc]
+[35mpeer0.org1.example.com    |[0m [31m2019-11-24 14:34:45.919 UTC [privacyenabledstate] HandleChaincodeDeploy -> ERRO 063[0m Error processing index for chaincode [e2e_cc]: cannot create an index for an undefined collection=[accounts]
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:46.003 UTC [kvledger] CommitWithPvtData -> INFO 064[0m [mychannel] Committed block [3] with 1 transaction(s) in 250ms (state_validation=179ms block_commit=47ms state_commit=21ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:46.090 UTC [endorser] callChaincode -> INFO 065[0m [mychannel][88c6e60c] Entry chaincode: name:"e2e_cc" 
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:46.109 UTC [endorser] callChaincode -> INFO 066[0m [mychannel][88c6e60c] Exit chaincode: name:"e2e_cc"  (18ms)
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:35:10.182 UTC [gossip.discovery] expireDeadMembers -> WARN 087[0m Entering [de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d]
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:35:10.182 UTC [gossip.discovery] expireDeadMembers -> WARN 088[0m Closing connection to Endpoint: peer0.org1.example.com:7051, InternalEndpoint: , PKI-ID: de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d, Metadata: 
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:35:10.182 UTC [gossip.discovery] expireDeadMembers -> WARN 089[0m Exiting
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:35:10.785 UTC [gossip.gossip] func1 -> WARN 08a[0m Deep probe of peer0.org2.example.com:8051 failed: context deadline exceeded
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:35:10.785 UTC [gossip.discovery] func1 -> WARN 08b[0m Could not connect to Endpoint: peer0.org2.example.com:8051, InternalEndpoint: peer0.org2.example.com:8051, PKI-ID: <nil>, Metadata:  : context deadline exceeded
+[32mpeer0.org2.example.com    |[0m [33m2019-11-24 14:35:13.182 UTC [gossip.comm] sendToEndpoint -> WARN 08c[0m Failed obtaining connection for peer0.org1.example.com:7051, PKIid:de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d reason: context deadline exceeded
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:35:18.044 UTC [committer.txvalidator] Validate -> INFO 08d[0m [mychannel] Validated block [10] in 5ms
+[32mpeer0.org2.example.com    |[0m [34m2019-11-24 14:35:18.127 UTC [kvledger] CommitWithPvtData -> INFO 08e[0m [mychannel] Committed block [10] with 1 transaction(s) in 80ms (state_validation=7ms block_commit=54ms state_commit=17ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:50.377 UTC [committer.txvalidator] Validate -> INFO 067[0m [mychannel] Validated block [4] in 4ms
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:50.458 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 068[0m Created state database mychannel_e2e_cc
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:50.476 UTC [kvledger] CommitWithPvtData -> INFO 069[0m [mychannel] Committed block [4] with 1 transaction(s) in 98ms (state_validation=7ms block_commit=45ms state_commit=45ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:53.098 UTC [committer.txvalidator] Validate -> INFO 06a[0m [mychannel] Validated block [5] in 5ms
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:53.177 UTC [kvledger] CommitWithPvtData -> INFO 06b[0m [mychannel] Committed block [5] with 1 transaction(s) in 78ms (state_validation=11ms block_commit=41ms state_commit=25ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:55.783 UTC [committer.txvalidator] Validate -> INFO 06c[0m [mychannel] Validated block [6] in 4ms
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:55.897 UTC [kvledger] CommitWithPvtData -> INFO 06d[0m [mychannel] Committed block [6] with 1 transaction(s) in 113ms (state_validation=9ms block_commit=77ms state_commit=24ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:57.963 UTC [discovery.lifecycle] DeployedChaincodes -> INFO 06e[0m Chaincode _lifecycle isn't instantiated
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:57.963 UTC [discovery.lifecycle] Metadata -> INFO 06f[0m Chaincode _lifecycle isn't defined in channel mychannel
+[35mpeer0.org1.example.com    |[0m [31m2019-11-24 14:34:57.963 UTC [discovery] chaincodeQuery -> ERRO 070[0m Failed constructing descriptor for chaincode chaincodes:<name:"e2e_cc" > chaincodes:<name:"_lifecycle" > ,: No metadata was found for chaincode _lifecycle in channel mychannel
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:58.491 UTC [committer.txvalidator] Validate -> INFO 071[0m [mychannel] Validated block [7] in 3ms
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:34:58.562 UTC [kvledger] CommitWithPvtData -> INFO 072[0m [mychannel] Committed block [7] with 1 transaction(s) in 70ms (state_validation=4ms block_commit=44ms state_commit=20ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:00.574 UTC [endorser] callChaincode -> INFO 073[0m [mychannel][08754990] Entry chaincode: name:"e2e_cc" 
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:00.607 UTC [endorser] callChaincode -> INFO 074[0m [mychannel][08754990] Exit chaincode: name:"e2e_cc"  (33ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:01.188 UTC [committer.txvalidator] Validate -> INFO 075[0m [mychannel] Validated block [8] in 2ms
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:01.301 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 076[0m Created state database mychannel_e2e_cc$$pcollection3
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:01.349 UTC [couchdb] CreateDatabaseIfNotExist -> INFO 077[0m Created state database mychannel_e2e_cc$$hcollection3
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:01.378 UTC [kvledger] CommitWithPvtData -> INFO 078[0m [mychannel] Committed block [8] with 1 transaction(s) in 183ms (state_validation=4ms block_commit=61ms state_commit=115ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:03.389 UTC [endorser] callChaincode -> INFO 079[0m [mychannel][35842af3] Entry chaincode: name:"e2e_cc" 
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:03.420 UTC [endorser] callChaincode -> INFO 07a[0m [mychannel][35842af3] Exit chaincode: name:"e2e_cc"  (31ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:03.420 UTC [ext_support] func1 -> INFO 07b[0m Collection configs for chaincode [e2e_cc] are not cached. Loading...
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:03.435 UTC [endorser] callChaincode -> INFO 07c[0m [mychannel][50d6d633] Entry chaincode: name:"e2e_cc" 
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:03.458 UTC [endorser] callChaincode -> INFO 07d[0m [mychannel][50d6d633] Exit chaincode: name:"e2e_cc"  (23ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:03.995 UTC [committer.txvalidator] Validate -> INFO 07e[0m [mychannel] Validated block [9] in 3ms
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.108 UTC [peer] getLocalAddress -> INFO 004[0m Returning peer1.org1.example.com:7051
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.137 UTC [ledgermgmt] initialize -> INFO 005[0m Initializing ledger mgmt
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.267 UTC [ledgermgmt] initialize -> INFO 006[0m ledger mgmt initialized
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.267 UTC [lifecycle] InitializeLocalChaincodes -> INFO 007[0m Initialized lifecycle cache with 0 already installed chaincodes
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.279 UTC [nodeCmd] serve -> INFO 008[0m Starting peer with TLS enabled
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.284 UTC [nodeCmd] computeChaincodeEndpoint -> INFO 009[0m Entering computeChaincodeEndpoint with peerHostname: peer1.org1.example.com
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.284 UTC [nodeCmd] computeChaincodeEndpoint -> INFO 00a[0m Exit with ccEndpoint: peer1.org1.example.com:7052
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:04.132 UTC [kvledger] CommitWithPvtData -> INFO 07f[0m [mychannel] Committed block [9] with 1 transaction(s) in 133ms (state_validation=9ms block_commit=85ms state_commit=37ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:06.143 UTC [endorser] callChaincode -> INFO 080[0m [mychannel][439af402] Entry chaincode: name:"e2e_cc" 
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:06.174 UTC [endorser] callChaincode -> INFO 081[0m [mychannel][439af402] Exit chaincode: name:"e2e_cc"  (31ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:06.829 UTC [nodeCmd] handleSignals -> INFO 082[0m Received signal: 15 (terminated)
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:35:06.829 UTC [deliveryClient] try -> WARN 083[0m Got error: rpc error: code = Canceled desc = context canceled , at 1 attempt. Retrying in 1s
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:35:06.829 UTC [blocksProvider] DeliverBlocks -> WARN 084[0m [mychannel] Receive error: client is closing
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:06.830 UTC [ext_resource] Close -> INFO 085[0m Notifying resources that peer is shutting down
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.177 UTC [peer-ext-test] main -> INFO 001[0m Registering testscc...
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.177 UTC [nodeCmd] serve -> INFO 002[0m Starting peer:
+[35mpeer0.org1.example.com    |[0m  Version: latest
+[35mpeer0.org1.example.com    |[0m  Commit SHA: development build
+[35mpeer0.org1.example.com    |[0m  Go version: go1.12.5
+[35mpeer0.org1.example.com    |[0m  OS/Arch: linux/amd64
+[35mpeer0.org1.example.com    |[0m  Chaincode:
+[35mpeer0.org1.example.com    |[0m   Base Docker Namespace: hyperledger
+[35mpeer0.org1.example.com    |[0m   Base Docker Label: org.hyperledger.fabric
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:35:15.284 UTC [nodeCmd] createChaincodeServer -> WARN 00b[0m peer.chaincodeListenAddress is not set, using peer1.org1.example.com:7052
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.295 UTC [ext_resource] Initialize -> INFO 00c[0m Initializing resources
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.296 UTC [ext_blockpublisher] Initialize -> INFO 00d[0m Initializing block publisher provider
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.296 UTC [ext_support] NewCollectionConfigRetrieverProvider -> INFO 00e[0m Creating collection config retriever provider
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.296 UTC [transientdata] New -> INFO 00f[0m Creating new transient data store provider
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.301 UTC [ext_store] NewOffLedgerProvider -> INFO 010[0m Creating off-ledger store provider with DCAS
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.301 UTC [ext_offledger] NewProvider -> INFO 011[0m Creating collection client provider.
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.301 UTC [ext_offledger] NewProvider -> INFO 012[0m Creating DCAS client provider.
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.301 UTC [ledgerconfig] NewSvcMgr -> INFO 013[0m Creating configuration service manager
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.301 UTC [ext_dispatcher] Initialize -> INFO 014[0m Initializing gossip dispatcher provider
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.301 UTC [ext_store] Initialize -> INFO 015[0m Initializing collection store provider
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.302 UTC [ext_endorser] Initialize -> INFO 016[0m Initializing collection read/write-set filter
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.302 UTC [ext_retriever] Initialize -> INFO 017[0m Initializing collection data retriever
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.305 UTC [sccapi] registerSysCC -> INFO 018[0m system chaincode lscc(github.com/hyperledger/fabric/core/scc/lscc) registered
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.305 UTC [sccapi] registerSysCC -> INFO 019[0m system chaincode cscc(github.com/hyperledger/fabric/core/scc/cscc) registered
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.305 UTC [sccapi] registerSysCC -> INFO 01a[0m system chaincode qscc(github.com/hyperledger/fabric/core/scc/qscc) registered
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.305 UTC [sccapi] registerSysCC -> INFO 01b[0m system chaincode _lifecycle(github.com/hyperledger/fabric/core/chaincode/lifecycle) registered
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.305 UTC [sccapi] registerSysCC -> INFO 01c[0m system chaincode configscc(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) registered
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.305 UTC [sccapi] registerSysCC -> INFO 01d[0m system chaincode testscc(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) registered
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.316 UTC [sccapi] deploySysCC -> INFO 01e[0m system chaincode lscc/(github.com/hyperledger/fabric/core/scc/lscc) deployed
+[35mpeer0.org1.example.com    |[0m   Docker Namespace: hyperledger
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.178 UTC [peer] getLocalAddress -> INFO 003[0m Auto-detected peer address: 172.19.0.8:7051
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.178 UTC [peer] getLocalAddress -> INFO 004[0m Returning peer0.org1.example.com:7051
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.215 UTC [ledgermgmt] initialize -> INFO 005[0m Initializing ledger mgmt
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.371 UTC [ledgermgmt] initialize -> INFO 006[0m ledger mgmt initialized
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.371 UTC [lifecycle] InitializeLocalChaincodes -> INFO 007[0m Initialized lifecycle cache with 0 already installed chaincodes
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.385 UTC [nodeCmd] serve -> INFO 008[0m Starting peer with TLS enabled
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.390 UTC [nodeCmd] computeChaincodeEndpoint -> INFO 009[0m Entering computeChaincodeEndpoint with peerHostname: peer0.org1.example.com
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.390 UTC [nodeCmd] computeChaincodeEndpoint -> INFO 00a[0m Exit with ccEndpoint: peer0.org1.example.com:7052
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:35:13.390 UTC [nodeCmd] createChaincodeServer -> WARN 00b[0m peer.chaincodeListenAddress is not set, using peer0.org1.example.com:7052
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.404 UTC [ext_resource] Initialize -> INFO 00c[0m Initializing resources
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.404 UTC [ext_blockpublisher] Initialize -> INFO 00d[0m Initializing block publisher provider
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.404 UTC [ext_support] NewCollectionConfigRetrieverProvider -> INFO 00e[0m Creating collection config retriever provider
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.404 UTC [transientdata] New -> INFO 00f[0m Creating new transient data store provider
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.411 UTC [ext_store] NewOffLedgerProvider -> INFO 010[0m Creating off-ledger store provider with DCAS
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.411 UTC [ext_offledger] NewProvider -> INFO 011[0m Creating collection client provider.
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.412 UTC [ext_offledger] NewProvider -> INFO 012[0m Creating DCAS client provider.
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.317 UTC [cscc] Init -> INFO 01f[0m Init CSCC
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.317 UTC [sccapi] deploySysCC -> INFO 020[0m system chaincode cscc/(github.com/hyperledger/fabric/core/scc/cscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.319 UTC [qscc] Init -> INFO 021[0m Init QSCC
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.319 UTC [sccapi] deploySysCC -> INFO 022[0m system chaincode qscc/(github.com/hyperledger/fabric/core/scc/qscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.320 UTC [sccapi] deploySysCC -> INFO 023[0m system chaincode _lifecycle/(github.com/hyperledger/fabric/core/chaincode/lifecycle) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.321 UTC [sccapi] deploySysCC -> INFO 024[0m system chaincode configscc/(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.322 UTC [sccapi] deploySysCC -> INFO 025[0m system chaincode testscc/(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.322 UTC [nodeCmd] serve -> INFO 026[0m Deployed system chaincodes
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.331 UTC [peer] Initialize -> INFO 027[0m Loading chain mychannel
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.331 UTC [ledgermgmt] OpenLedger -> INFO 028[0m Opening ledger with id = mychannel
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.378 UTC [ledgermgmt] OpenLedger -> INFO 029[0m Opened ledger with id = mychannel
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.412 UTC [ledgerconfig] NewSvcMgr -> INFO 013[0m Creating configuration service manager
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.412 UTC [ext_dispatcher] Initialize -> INFO 014[0m Initializing gossip dispatcher provider
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.412 UTC [ext_store] Initialize -> INFO 015[0m Initializing collection store provider
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.412 UTC [ext_endorser] Initialize -> INFO 016[0m Initializing collection read/write-set filter
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.413 UTC [ext_retriever] Initialize -> INFO 017[0m Initializing collection data retriever
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.418 UTC [sccapi] registerSysCC -> INFO 018[0m system chaincode lscc(github.com/hyperledger/fabric/core/scc/lscc) registered
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.418 UTC [sccapi] registerSysCC -> INFO 019[0m system chaincode cscc(github.com/hyperledger/fabric/core/scc/cscc) registered
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.418 UTC [sccapi] registerSysCC -> INFO 01a[0m system chaincode qscc(github.com/hyperledger/fabric/core/scc/qscc) registered
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.418 UTC [sccapi] registerSysCC -> INFO 01b[0m system chaincode _lifecycle(github.com/hyperledger/fabric/core/chaincode/lifecycle) registered
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.418 UTC [sccapi] registerSysCC -> INFO 01c[0m system chaincode configscc(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) registered
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.418 UTC [sccapi] registerSysCC -> INFO 01d[0m system chaincode testscc(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) registered
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.430 UTC [sccapi] deploySysCC -> INFO 01e[0m system chaincode lscc/(github.com/hyperledger/fabric/core/scc/lscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.430 UTC [cscc] Init -> INFO 01f[0m Init CSCC
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.430 UTC [sccapi] deploySysCC -> INFO 020[0m system chaincode cscc/(github.com/hyperledger/fabric/core/scc/cscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.431 UTC [qscc] Init -> INFO 021[0m Init QSCC
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.431 UTC [sccapi] deploySysCC -> INFO 022[0m system chaincode qscc/(github.com/hyperledger/fabric/core/scc/qscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.432 UTC [sccapi] deploySysCC -> INFO 023[0m system chaincode _lifecycle/(github.com/hyperledger/fabric/core/chaincode/lifecycle) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.432 UTC [sccapi] deploySysCC -> INFO 024[0m system chaincode configscc/(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.433 UTC [sccapi] deploySysCC -> INFO 025[0m system chaincode testscc/(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) deployed
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:35:15.407 UTC [gossip.comm] func1 -> WARN 02a[0m peer0.org1.example.com:7051, PKIid:de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d isn't responsive: EOF
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:35:15.407 UTC [gossip.discovery] expireDeadMembers -> WARN 02b[0m Entering [de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d]
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:35:15.408 UTC [gossip.discovery] expireDeadMembers -> WARN 02c[0m Closing connection to Endpoint: peer0.org1.example.com:7051, InternalEndpoint: peer0.org1.example.com:7051, PKI-ID: de02e73e70096d2fbcf584b7072431c8aa6891a9eedf87ec182335174ccbe86d, Metadata: 
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:35:15.408 UTC [gossip.discovery] expireDeadMembers -> WARN 02d[0m Exiting
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.415 UTC [ext_dispatcher] ForChannel -> INFO 02e[0m Returning a new gossip dispatcher for channel [mychannel]
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.421 UTC [ext_resource] ChannelJoined -> INFO 02f[0m Notifying resources that channel [mychannel] was joined
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.421 UTC [sccapi] deploySysCC -> INFO 030[0m system chaincode lscc/mychannel(github.com/hyperledger/fabric/core/scc/lscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.421 UTC [cscc] Init -> INFO 031[0m Init CSCC
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.433 UTC [nodeCmd] serve -> INFO 026[0m Deployed system chaincodes
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.443 UTC [peer] Initialize -> INFO 027[0m Loading chain mychannel
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.443 UTC [ledgermgmt] OpenLedger -> INFO 028[0m Opening ledger with id = mychannel
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.469 UTC [couchdb] CreateIndex -> INFO 029[0m Updated CouchDB index [by_hash] in state database [mychannel$$blocks_] using design document [_design/indexHash]
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.540 UTC [ledgermgmt] OpenLedger -> INFO 02a[0m Opened ledger with id = mychannel
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.583 UTC [ext_dispatcher] ForChannel -> INFO 02b[0m Returning a new gossip dispatcher for channel [mychannel]
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.590 UTC [ext_resource] ChannelJoined -> INFO 02c[0m Notifying resources that channel [mychannel] was joined
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.590 UTC [sccapi] deploySysCC -> INFO 02d[0m system chaincode lscc/mychannel(github.com/hyperledger/fabric/core/scc/lscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.590 UTC [cscc] Init -> INFO 02e[0m Init CSCC
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.591 UTC [sccapi] deploySysCC -> INFO 02f[0m system chaincode cscc/mychannel(github.com/hyperledger/fabric/core/scc/cscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.591 UTC [qscc] Init -> INFO 030[0m Init QSCC
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.591 UTC [sccapi] deploySysCC -> INFO 031[0m system chaincode qscc/mychannel(github.com/hyperledger/fabric/core/scc/qscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.421 UTC [sccapi] deploySysCC -> INFO 032[0m system chaincode cscc/mychannel(github.com/hyperledger/fabric/core/scc/cscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.422 UTC [qscc] Init -> INFO 033[0m Init QSCC
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.422 UTC [sccapi] deploySysCC -> INFO 034[0m system chaincode qscc/mychannel(github.com/hyperledger/fabric/core/scc/qscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.422 UTC [sccapi] deploySysCC -> INFO 035[0m system chaincode _lifecycle/mychannel(github.com/hyperledger/fabric/core/chaincode/lifecycle) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.422 UTC [sccapi] deploySysCC -> INFO 036[0m system chaincode configscc/mychannel(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.422 UTC [testscc] Init -> INFO 037[0m Registering for config update events for local MSP [Org1MSP] and local peer [peer1.org1.example.com] and app [testscc]
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.422 UTC [sccapi] deploySysCC -> INFO 038[0m system chaincode testscc/mychannel(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) deployed
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.430 UTC [ext_blockpublisher] ChannelJoined -> INFO 039[0m Channel [mychannel] joined. Initializing block publisher with ledger height 10
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:35:15.432 UTC [extension-channel] RegisterChannelInitializer -> WARN 03a[0m Plugin mappers and createChain handler cannot be replaced
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.433 UTC [discovery] NewService -> INFO 03b[0m Created with config TLS: true, authCacheMaxSize: 1000, authCachePurgeRatio: 0.750000
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.433 UTC [nodeCmd] registerDiscoveryService -> INFO 03c[0m Discovery service activated
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.433 UTC [nodeCmd] serve -> INFO 03d[0m Starting peer with ID=[peer1.org1.example.com], network ID=[dev], address=[peer1.org1.example.com:7051]
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:15.433 UTC [nodeCmd] serve -> INFO 03e[0m Started peer with ID=[peer1.org1.example.com], network ID=[dev], address=[peer1.org1.example.com:7051]
+[36mpeer1.org1.example.com    |[0m [31m2019-11-24 14:35:17.335 UTC [discovery] chaincodeQuery -> ERRO 03f[0m Failed constructing descriptor for chaincode chaincodes:<name:"e2e_cc" > ,: cannot satisfy any principal combination
+[36mpeer1.org1.example.com    |[0m [31m2019-11-24 14:35:17.840 UTC [discovery] chaincodeQuery -> ERRO 040[0m Failed constructing descriptor for chaincode chaincodes:<name:"e2e_cc" > ,: cannot satisfy any principal combination
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:35:18.400 UTC [gossip.gossip] func1 -> WARN 041[0m Deep probe of peer0.org2.example.com:8051 failed: context deadline exceeded
+[36mpeer1.org1.example.com    |[0m [33m2019-11-24 14:35:18.400 UTC [gossip.discovery] func1 -> WARN 042[0m Could not connect to Endpoint: peer0.org2.example.com:8051, InternalEndpoint: peer0.org2.example.com:8051, PKI-ID: <nil>, Metadata:  : context deadline exceeded
+[36mpeer1.org1.example.com    |[0m [31m2019-11-24 14:35:18.723 UTC [discovery] chaincodeQuery -> ERRO 043[0m Failed constructing descriptor for chaincode chaincodes:<name:"e2e_cc" > ,: cannot satisfy any principal combination
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:20.159 UTC [endorser] callChaincode -> INFO 044[0m [mychannel][3e9f78e3] Entry chaincode: name:"e2e_cc" 
+[36mpeer1.org1.example.com    |[0m [34m2019-11-24 14:35:21.214 UTC [endorser] callChaincode -> INFO 045[0m [mychannel][3e9f78e3] Exit chaincode: name:"e2e_cc"  (1055ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.591 UTC [sccapi] deploySysCC -> INFO 032[0m system chaincode _lifecycle/mychannel(github.com/hyperledger/fabric/core/chaincode/lifecycle) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.591 UTC [sccapi] deploySysCC -> INFO 033[0m system chaincode configscc/mychannel(github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.591 UTC [testscc] Init -> INFO 034[0m Registering for config update events for local MSP [Org1MSP] and local peer [peer0.org1.example.com] and app [testscc]
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.591 UTC [sccapi] deploySysCC -> INFO 035[0m system chaincode testscc/mychannel(github.com/trustbloc/fabric-peer-ext/cmd/chaincodes/testscc) deployed
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.602 UTC [ext_blockpublisher] ChannelJoined -> INFO 036[0m Channel [mychannel] joined. Initializing block publisher with ledger height 10
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:35:13.605 UTC [extension-channel] RegisterChannelInitializer -> WARN 037[0m Plugin mappers and createChain handler cannot be replaced
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.606 UTC [discovery] NewService -> INFO 038[0m Created with config TLS: true, authCacheMaxSize: 1000, authCachePurgeRatio: 0.750000
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.606 UTC [nodeCmd] registerDiscoveryService -> INFO 039[0m Discovery service activated
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.606 UTC [nodeCmd] serve -> INFO 03a[0m Starting peer with ID=[peer0.org1.example.com], network ID=[dev], address=[peer0.org1.example.com:7051]
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:13.606 UTC [nodeCmd] serve -> INFO 03b[0m Started peer with ID=[peer0.org1.example.com], network ID=[dev], address=[peer0.org1.example.com:7051]
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:35:14.186 UTC [gossip.gossip] validateMsg -> WARN 03c[0m StateInfo message GossipMessage: Channel: , nonce: 0, tag: CHAN_OR_ORG state_info_message: Timestamp:inc_num:1574606079686442365 seq_num:1574606104108549705 PKI-id:5ef114e3da9fb4482862c9612b550a91d0ac9edbbc455b2275baf2794434860b channel MAC:27fb6232974918f6244f4df0c02ca309eae5f59d638c7c09f04bd0a53bcee685 properties:ledger_height:10 chaincodes:<name:"e2e_cc" version:"v1" > roles:"committer" , Envelope: 124 bytes, Signature: 71 bytes is found invalid: PKIID wasn't found
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:35:14.186 UTC [gossip.gossip] handleMessage -> WARN 03d[0m Message GossipMessage: Channel: , nonce: 0, tag: CHAN_OR_ORG state_info_message: Timestamp:inc_num:1574606079686442365 seq_num:1574606104108549705 PKI-id:5ef114e3da9fb4482862c9612b550a91d0ac9edbbc455b2275baf2794434860b channel MAC:27fb6232974918f6244f4df0c02ca309eae5f59d638c7c09f04bd0a53bcee685 properties:ledger_height:10 chaincodes:<name:"e2e_cc" version:"v1" > roles:"committer" , Envelope: 124 bytes, Signature: 71 bytes isn't valid
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:16.322 UTC [endorser] callChaincode -> INFO 03e[0m [mychannel][b9af8e5c] Entry chaincode: name:"e2e_cc" 
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:35:16.569 UTC [gossip.gossip] func1 -> WARN 03f[0m Deep probe of peer0.org2.example.com:8051 failed: context deadline exceeded
+[35mpeer0.org1.example.com    |[0m [33m2019-11-24 14:35:16.569 UTC [gossip.discovery] func1 -> WARN 040[0m Could not connect to Endpoint: peer0.org2.example.com:8051, InternalEndpoint: peer0.org2.example.com:8051, PKI-ID: <nil>, Metadata:  : context deadline exceeded
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:17.518 UTC [endorser] callChaincode -> INFO 041[0m [mychannel][b9af8e5c] Exit chaincode: name:"e2e_cc"  (1196ms)
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:18.043 UTC [committer.txvalidator] Validate -> INFO 042[0m [mychannel] Validated block [10] in 4ms
+[35mpeer0.org1.example.com    |[0m [34m2019-11-24 14:35:18.137 UTC [kvledger] CommitWithPvtData -> INFO 043[0m [mychannel] Committed block [10] with 1 transaction(s) in 93ms (state_validation=11ms block_commit=51ms state_commit=28ms)

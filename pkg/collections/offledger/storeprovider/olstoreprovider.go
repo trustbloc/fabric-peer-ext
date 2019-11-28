@@ -9,8 +9,8 @@ package storeprovider
 import (
 	"sync"
 
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	"github.com/hyperledger/fabric/protos/common"
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
@@ -25,7 +25,7 @@ type CollOption func(c *collTypeConfig)
 
 // WithCollectionType adds a collection type to the set of collection types supported by the off-ledger store
 // along with any options
-func WithCollectionType(collType common.CollectionType, opts ...CollOption) Option {
+func WithCollectionType(collType pb.CollectionType, opts ...CollOption) Option {
 	return func(p *StoreProvider) {
 		c := &collTypeConfig{}
 		p.collConfigs[collType] = c
@@ -63,11 +63,11 @@ func New(identifierProvider collcommon.IdentifierProvider, identityDeserializerP
 		dbProvider:                   getDBProvider(),
 		identifierProvider:           identifierProvider,
 		identityDeserializerProvider: identityDeserializerProvider,
-		collConfigs:                  make(map[common.CollectionType]*collTypeConfig),
+		collConfigs:                  make(map[pb.CollectionType]*collTypeConfig),
 	}
 
 	// OFF_LEDGER collection type supported by default
-	opts = append(opts, WithCollectionType(common.CollectionType_COL_OFFLEDGER))
+	opts = append(opts, WithCollectionType(pb.CollectionType_COL_OFFLEDGER))
 
 	// Apply options
 	for _, opt := range opts {
@@ -83,7 +83,7 @@ type StoreProvider struct {
 	dbProvider                   api.DBProvider
 	identifierProvider           collcommon.IdentifierProvider
 	identityDeserializerProvider collcommon.IdentityDeserializerProvider
-	collConfigs                  map[common.CollectionType]*collTypeConfig
+	collConfigs                  map[pb.CollectionType]*collTypeConfig
 }
 
 // StoreForChannel returns the store for the given channel

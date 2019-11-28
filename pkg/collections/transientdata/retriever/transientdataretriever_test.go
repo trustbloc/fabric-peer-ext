@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
+	gproto "github.com/hyperledger/fabric-protos-go/gossip"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
-	gproto "github.com/hyperledger/fabric/protos/gossip"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

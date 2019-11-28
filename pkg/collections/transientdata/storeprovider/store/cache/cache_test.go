@@ -64,7 +64,8 @@ var (
 func TestCleanupExpiredTransientDataFromDB(t *testing.T) {
 	defer removeDBPath(t)
 
-	p := dbstore.NewDBProvider()
+	p, err := dbstore.NewDBProvider()
+	require.NoError(t, err)
 	require.NotNil(t, p)
 	defer p.Close()
 
@@ -112,7 +113,8 @@ func TestCleanupExpiredTransientDataFromDB(t *testing.T) {
 func TestRetrieveTransientDataFromDB(t *testing.T) {
 	t.Run("getAfterPurgeFromCache", func(t *testing.T) {
 		defer removeDBPath(t)
-		p := dbstore.NewDBProvider()
+		p, err := dbstore.NewDBProvider()
+		require.NoError(t, err)
 		require.NotNil(t, p)
 		defer p.Close()
 
@@ -145,7 +147,8 @@ func TestRetrieveTransientDataFromDB(t *testing.T) {
 
 	t.Run("getAfterPurgeFromCacheForNotExpiredData", func(t *testing.T) {
 		defer removeDBPath(t)
-		p := dbstore.NewDBProvider()
+		p, err := dbstore.NewDBProvider()
+		require.NoError(t, err)
 		require.NotNil(t, p)
 		defer p.Close()
 
@@ -174,7 +177,8 @@ func TestRetrieveTransientDataFromDB(t *testing.T) {
 
 	t.Run("getAfterPurgeFromCacheForExpiredData", func(t *testing.T) {
 		defer removeDBPath(t)
-		p := dbstore.NewDBProvider()
+		p, err := dbstore.NewDBProvider()
+		require.NoError(t, err)
 		require.NotNil(t, p)
 		defer p.Close()
 
@@ -211,7 +215,8 @@ func TestRetrieveTransientDataFromDB(t *testing.T) {
 
 func TestTransientDataCache(t *testing.T) {
 	defer removeDBPath(t)
-	p := dbstore.NewDBProvider()
+	p, err := dbstore.NewDBProvider()
+	require.NoError(t, err)
 	require.NotNil(t, p)
 	defer p.Close()
 
@@ -260,7 +265,8 @@ func TestTransientDataCache(t *testing.T) {
 
 func TestTransientDataCacheConcurrency(t *testing.T) {
 	defer removeDBPath(t)
-	p := dbstore.NewDBProvider()
+	p, err := dbstore.NewDBProvider()
+	require.NoError(t, err)
 	require.NotNil(t, p)
 	defer p.Close()
 

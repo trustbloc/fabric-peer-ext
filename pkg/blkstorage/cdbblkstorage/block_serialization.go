@@ -7,14 +7,14 @@ SPDX-License-Identifier: Apache-2.0
 package cdbblkstorage
 
 import (
-	"github.com/pkg/errors"
-
-	"github.com/hyperledger/fabric/protos/common"
+	"github.com/hyperledger/fabric-protos-go/common"
 	"github.com/hyperledger/fabric/protoutil"
+	"github.com/pkg/errors"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/util"
 )
 
 func extractTxIDFromEnvelope(txEnvelope *common.Envelope) (string, error) {
-	payload, err := protoutil.GetPayload(txEnvelope)
+	payload, err := util.ExtractPayload(txEnvelope)
 	if err != nil {
 		return "", nil
 	}

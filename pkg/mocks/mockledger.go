@@ -7,10 +7,10 @@ SPDX-License-Identifier: Apache-2.0
 package mocks
 
 import (
+	"github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/ledger"
 	ledger2 "github.com/hyperledger/fabric/core/ledger"
-	"github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/peer"
 )
 
 // Ledger is a struct which is used to retrieve data using query
@@ -96,8 +96,13 @@ func (m *Ledger) CommitWithPvtData(blockAndPvtdata *ledger2.BlockAndPvtData) err
 	panic("not implemented")
 }
 
+// CommitLegacy commits the block and the corresponding pvt data in an atomic operation following the v14 validation/commit path
+func (m *Ledger) CommitLegacy(blockAndPvtdata *ledger2.BlockAndPvtData, commitOpts *ledger2.CommitOptions) error {
+	panic("not implemented")
+}
+
 // CommitPvtDataOfOldBlocks commits the private data of old blocks
-func (m *Ledger) CommitPvtDataOfOldBlocks(blockPvtData []*ledger2.BlockPvtData) ([]*ledger2.PvtdataHashMismatch, error) {
+func (m *Ledger) CommitPvtDataOfOldBlocks(reconciledPvtdata []*ledger2.ReconciledPvtdata) ([]*ledger2.PvtdataHashMismatch, error) {
 	panic("not implemented")
 }
 
@@ -108,5 +113,14 @@ func (m *Ledger) GetMissingPvtDataTracker() (ledger2.MissingPvtDataTracker, erro
 
 //CheckpointBlock updates checkpoint info to given block
 func (m *Ledger) CheckpointBlock(block *common.Block) error {
+	panic("not implemented")
+}
+
+// DoesPvtDataInfoExist returns true when
+// (1) the ledger has pvtdata associated with the given block number (or)
+// (2) a few or all pvtdata associated with the given block number is missing but the
+//     missing info is recorded in the ledger (or)
+// (3) the block is committed and does not contain any pvtData.
+func (m *Ledger) DoesPvtDataInfoExist(blockNum uint64) (bool, error) {
 	panic("not implemented")
 }

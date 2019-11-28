@@ -9,14 +9,14 @@ package pvtdatahandler
 import (
 	"testing"
 
-	"github.com/hyperledger/fabric/protos/common"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHandler_HandleGetPrivateData(t *testing.T) {
 	h := New("testchannel", nil)
 
-	config := &common.StaticCollectionConfig{
+	config := &pb.StaticCollectionConfig{
 		Name: "coll1",
 	}
 
@@ -29,7 +29,7 @@ func TestHandler_HandleGetPrivateData(t *testing.T) {
 func TestHandler_HandleGetPrivateDataMultipleKeys(t *testing.T) {
 	h := New("testchannel", nil)
 
-	config := &common.StaticCollectionConfig{
+	config := &pb.StaticCollectionConfig{
 		Name: "coll1",
 	}
 

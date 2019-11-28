@@ -17,7 +17,7 @@ import (
 	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
 
 	"github.com/golang/protobuf/proto"
-	pb "github.com/hyperledger/fabric/protos/peer"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 

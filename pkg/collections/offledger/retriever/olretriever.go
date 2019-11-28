@@ -10,13 +10,13 @@ import (
 	"context"
 	"sync"
 
+	gproto "github.com/hyperledger/fabric-protos-go/gossip"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/hyperledger/fabric/extensions/collections/api/support"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/gossip/comm"
-	cb "github.com/hyperledger/fabric/protos/common"
-	gproto "github.com/hyperledger/fabric/protos/gossip"
 	"github.com/pkg/errors"
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
@@ -46,22 +46,22 @@ type Decorator interface {
 // Provider is a collection data data provider.
 type Provider struct {
 	*collcommon.Providers
-	validators map[cb.CollectionType]Validator
-	decorators map[cb.CollectionType]Decorator
+	validators map[pb.CollectionType]Validator
+	decorators map[pb.CollectionType]Decorator
 }
 
 // Option is a provider option
 type Option func(p *Provider)
 
 // WithValidator sets the key/value validator
-func WithValidator(collType cb.CollectionType, validator Validator) Option {
+func WithValidator(collType pb.CollectionType, validator Validator) Option {
 	return func(p *Provider) {
 		p.validators[collType] = validator
 	}
 }
 
 // WithDecorator sets the decorator
-func WithDecorator(collType cb.CollectionType, decorator Decorator) Option {
+func WithDecorator(collType pb.CollectionType, decorator Decorator) Option {
 	return func(p *Provider) {
 		p.decorators[collType] = decorator
 	}
@@ -71,8 +71,8 @@ func WithDecorator(collType cb.CollectionType, decorator Decorator) Option {
 func NewProvider(providers *collcommon.Providers, opts ...Option) olapi.Provider {
 	p := &Provider{
 		Providers:  providers,
-		validators: make(map[cb.CollectionType]Validator),
-		decorators: make(map[cb.CollectionType]Decorator),
+		validators: make(map[pb.CollectionType]Validator),
+		decorators: make(map[pb.CollectionType]Decorator),
 	}
 
 	// Apply options
@@ -129,8 +129,8 @@ type retriever struct {
 	resolvers          map[collKey]resolver
 	lock               sync.RWMutex
 	reqMgr             requestmgr.RequestMgr
-	validators         map[cb.CollectionType]Validator
-	decorators         map[cb.CollectionType]Decorator
+	validators         map[pb.CollectionType]Validator
+	decorators         map[pb.CollectionType]Decorator
 }
 
 // GetData gets the values for the data item

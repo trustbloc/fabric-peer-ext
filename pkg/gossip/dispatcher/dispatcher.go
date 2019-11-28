@@ -9,13 +9,13 @@ package dispatcher
 import (
 	"time"
 
+	gproto "github.com/hyperledger/fabric-protos-go/gossip"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/extensions/collections/api/store"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	ledgerconfig "github.com/hyperledger/fabric/extensions/roles"
 	"github.com/hyperledger/fabric/gossip/protoext"
-	cb "github.com/hyperledger/fabric/protos/common"
-	gproto "github.com/hyperledger/fabric/protos/gossip"
 	"github.com/pkg/errors"
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common"
@@ -201,12 +201,12 @@ func (s *Dispatcher) getDataForKey(key *storeapi.Key) (*storeapi.ExpiringValue, 
 	}
 
 	switch config.Type {
-	case cb.CollectionType_COL_TRANSIENT:
+	case pb.CollectionType_COL_TRANSIENT:
 		logger.Debugf("[%s] Getting transient data for key [%s]", s.channelID, key)
 		return s.dataStore.GetTransientData(key)
-	case cb.CollectionType_COL_DCAS:
+	case pb.CollectionType_COL_DCAS:
 		fallthrough
-	case cb.CollectionType_COL_OFFLEDGER:
+	case pb.CollectionType_COL_OFFLEDGER:
 		logger.Debugf("[%s] Getting off-ledger data for key [%s]", s.channelID, key)
 		return s.dataStore.GetData(key)
 	default:

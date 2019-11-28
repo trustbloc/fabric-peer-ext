@@ -7,8 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package mocks
 
 import (
+	proto "github.com/hyperledger/fabric-protos-go/transientstore"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	proto "github.com/hyperledger/fabric/protos/transientstore"
 	tdapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
 )
 

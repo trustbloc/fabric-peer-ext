@@ -11,9 +11,9 @@ import (
 
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
-	"github.com/hyperledger/fabric/protos/ledger/rwset"
 	"github.com/willf/bitset"
 )
 

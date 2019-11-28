@@ -59,7 +59,7 @@ func TestTransientStore(t *testing.T) {
 		require.Error(t, err, "Persist() call of transient store should throw an error with nil privateSimulationResults")
 	})
 
-	err = ts.Persist(txID1, 500, b.BuildReadWriteSet())
+	err = ts.Persist(txID1, 500, b.Build())
 	require.NoError(t, err, "Persist() call of transient store should not throw an error")
 	require.True(t, ts.cache.Has(txID1), "Transient store cache should have txId: %s following Persist(\"%s\", %d, &rwset.TxPvtReadWriteSet{}) cache content: %+v", txID1, txID1, 500, ts.cache.GetALL())
 	require.True(t, ts.blockHeightCache.Len() == 1, "Transient store blockHeightCache should have 1 item following Persist() call")
@@ -73,9 +73,9 @@ func TestTransientStore(t *testing.T) {
 		res, err := scanner.Next()
 		require.NoError(t, err, "scanner.Next() call should not return error")
 		require.NotNil(t, res, "scanner.Next() call should not return a nil EndorserPvtSimulationResults")
-		resWithConfig, err := scanner.NextWithConfig()
-		require.NoError(t, err, "scanner.NextWithConfig() call should return error for txid \"%s\"", txID1)
-		require.Nil(t, resWithConfig, "scanner.NextWithConfig() call should return a nil EndorserPvtSimulationResults for txid \"%s\" as it does not contain config in the results", txID1)
+		resWithConfig, err := scanner.Next()
+		require.NoError(t, err, "scanner.Next() call should return error for txid \"%s\"", txID1)
+		require.Nil(t, resWithConfig, "scanner.Next() call should return a nil EndorserPvtSimulationResults for txid \"%s\" as it does not contain config in the results", txID1)
 		scanner.Close()
 	})
 
@@ -108,24 +108,24 @@ func TestTransientStore(t *testing.T) {
 		StaticConfig("OR('Org1MSP.member')", 1, 2, 100).
 		Write(key1, value3One)
 
-	err = ts.PersistWithConfig(txID2, 501, nil)
-	require.Error(t, err, "PersistWithConfig() call of transient store with nil config should throw an error")
+	err = ts.Persist(txID2, 501, nil)
+	require.Error(t, err, "Persist() call of transient store with nil config should throw an error")
 
 	txPvtReadWriteSetWithConfigInfo := b.Build()
-	err = ts.PersistWithConfig(txID2, 501, txPvtReadWriteSetWithConfigInfo)
-	require.NoError(t, err, "PersistWithConfig() call of transient store should not throw an error")
-	require.True(t, ts.cache.Has(txID2), "Transient store cache should have txId: %s following PersistWithConfig(\"%s\", %d, &pb.TxPvtReadWriteSetWithConfigInfo{}) cache content: %+v", txID2, txID2, 501, ts.cache.GetALL())
-	require.True(t, ts.blockHeightCache.Has(uint64(501)), "Transient store blockHeightCache should have blockHeight: %d following PersistWithConfig(\"%s\", %d, &pb.TxPvtReadWriteSetWithConfigInfo{}) cache content: %+v", 501, txID2, 501, ts.blockHeightCache.GetALL())
+	err = ts.Persist(txID2, 501, txPvtReadWriteSetWithConfigInfo)
+	require.NoError(t, err, "Persist() call of transient store should not throw an error")
+	require.True(t, ts.cache.Has(txID2), "Transient store cache should have txId: %s following Persist(\"%s\", %d, &pb.TxPvtReadWriteSetWithConfigInfo{}) cache content: %+v", txID2, txID2, 501, ts.cache.GetALL())
+	require.True(t, ts.blockHeightCache.Has(uint64(501)), "Transient store blockHeightCache should have blockHeight: %d following Persist(\"%s\", %d, &pb.TxPvtReadWriteSetWithConfigInfo{}) cache content: %+v", 501, txID2, 501, ts.blockHeightCache.GetALL())
 
-	err = ts.PersistWithConfig(txID3, 502, txPvtReadWriteSetWithConfigInfo)
-	require.NoError(t, err, "PersistWithConfig() call of transient store should not throw an error")
-	require.True(t, ts.cache.Has(txID3), "Transient store cache should have txId: %s following PersistWithConfig(\"%s\", %d, &pb.TxPvtReadWriteSetWithConfigInfo{}) cache content: %+v", txID3, txID3, 502, ts.cache.GetALL())
-	require.True(t, ts.blockHeightCache.Has(uint64(502)), "Transient store blockHeightCache should have blockHeight: %d following PersistWithConfig(\"%s\", %d, &pb.TxPvtReadWriteSetWithConfigInfo{}) cache content: %+v", 502, txID3, 502, ts.blockHeightCache.GetALL())
+	err = ts.Persist(txID3, 502, txPvtReadWriteSetWithConfigInfo)
+	require.NoError(t, err, "Persist() call of transient store should not throw an error")
+	require.True(t, ts.cache.Has(txID3), "Transient store cache should have txId: %s following Persist(\"%s\", %d, &pb.TxPvtReadWriteSetWithConfigInfo{}) cache content: %+v", txID3, txID3, 502, ts.cache.GetALL())
+	require.True(t, ts.blockHeightCache.Has(uint64(502)), "Transient store blockHeightCache should have blockHeight: %d following Persist(\"%s\", %d, &pb.TxPvtReadWriteSetWithConfigInfo{}) cache content: %+v", 502, txID3, 502, ts.blockHeightCache.GetALL())
 
-	err = ts.PersistWithConfig(txID4, 503, txPvtReadWriteSetWithConfigInfo)
-	require.NoError(t, err, "PersistWithConfig() call of transient store should not throw an error")
-	require.True(t, ts.cache.Has(txID4), "Transient store cache should have txId: %s following PersistWithConfig(\"%s\", %d, &pb.TxPvtReadWriteSetWithConfigInfo{}) cache content: %+v", txID4, txID4, 503, ts.cache.GetALL())
-	require.True(t, ts.blockHeightCache.Has(uint64(503)), "Transient store blockHeightCache should have blockHeight: %d following PersistWithConfig(\"%s\", %d, &pb.TxPvtReadWriteSetWithConfigInfo{}) cache content: %+v", 503, txID4, 503, ts.blockHeightCache.GetALL())
+	err = ts.Persist(txID4, 503, txPvtReadWriteSetWithConfigInfo)
+	require.NoError(t, err, "Persist() call of transient store should not throw an error")
+	require.True(t, ts.cache.Has(txID4), "Transient store cache should have txId: %s following Persist(\"%s\", %d, &pb.TxPvtReadWriteSetWithConfigInfo{}) cache content: %+v", txID4, txID4, 503, ts.cache.GetALL())
+	require.True(t, ts.blockHeightCache.Has(uint64(503)), "Transient store blockHeightCache should have blockHeight: %d following Persist(\"%s\", %d, &pb.TxPvtReadWriteSetWithConfigInfo{}) cache content: %+v", 503, txID4, 503, ts.blockHeightCache.GetALL())
 
 	t.Run("Test GetTxPvtRWSetByTxid with TxPvtReadWriteSetWithConfigInfo", func(t *testing.T) {
 		filter := make(ledger.PvtNsCollFilter)
@@ -133,9 +133,9 @@ func TestTransientStore(t *testing.T) {
 		scanner, err := ts.GetTxPvtRWSetByTxid(txID2, filter)
 		require.NoError(t, err, "GetTxPvtRWSetByTxid() call should not return error")
 		require.NotNil(t, scanner, "GetTxPvtRWSetByTxid() call should not return a nil scanner")
-		resWithConfig, err := scanner.NextWithConfig()
-		require.NoError(t, err, "scanner.NextWithConfig() call should return error for txid \"%s\"", txID2)
-		require.NotNil(t, resWithConfig, "scanner.NextWithConfig() call should return a nil EndorserPvtSimulationResults for txid \"%s\" as it does contain config in the results", txID2)
+		resWithConfig, err := scanner.Next()
+		require.NoError(t, err, "scanner.Next() call should return error for txid \"%s\"", txID2)
+		require.NotNil(t, resWithConfig, "scanner.Next() call should return a nil EndorserPvtSimulationResults for txid \"%s\" as it does contain config in the results", txID2)
 	})
 
 	t.Run("Test GetMinTransientBlkHt, PurgeByTxids and PurgeByHeight", func(t *testing.T) {
@@ -151,7 +151,7 @@ func TestTransientStore(t *testing.T) {
 		require.Empty(t, pvtRWSetData.m, "After purging 2 transactions, fetching pvt data should return empty set")
 		require.Empty(t, blkHgt.m, "After purging 2 transactions, fetching block should return empty block height")
 
-		err = ts.PurgeByHeight(minBlkHgt + 1) // purge minBlkHgt by setting 1 above the current minimum height
+		err = ts.PurgeBelowHeight(minBlkHgt + 1) // purge minBlkHgt by setting 1 above the current minimum height
 		require.NoError(t, err, "PurgeByHeight() call of tansient store should not throw an error when purging transactions by height %d", minBlkHgt)
 		minBlkHgt, err = ts.GetMinTransientBlkHt()
 		// minBlkHgt should now be 501 as 500 was purged
@@ -174,42 +174,42 @@ func TestPersistTransientStoreParallel(t *testing.T) {
 	require.NotNil(t, tStore.blockHeightCache, "Transient store's cache should not be nil")
 	require.NotNil(t, tStore.txidCache, "Transient store's cache should not be nil")
 
-	samplePvtRWSetWithConfig := samplePvtDataWithConfigInfo(t)
+	samplePvtRWSetWithConfig := samplePvtData(t)
 	// Create two private write set entry for txid-1
-	endorser0SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser0SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          10,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 
-	endorser1SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser1SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          11,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 
 	// Create one private write set entry for txid-2
-	endorser2SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser2SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          11,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 
 	// Create three private write set entry for txid-3
-	endorser3SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser3SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          12,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 
-	endorser4SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser4SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          12,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 
-	endorser5SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser5SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          13,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 
 	tcCreate := []struct {
-		pvtrwSet    *origts.EndorserPvtSimulationResultsWithConfig
+		pvtrwSet    *origts.EndorserPvtSimulationResults
 		txid        string
 		blockHeight uint64
 	}{
@@ -251,9 +251,9 @@ func TestPersistTransientStoreParallel(t *testing.T) {
 		tt := tt
 		t.Run(fmt.Sprintf("Testing parallel Create pvt transient data for txid: %s and block height: %d", tt.txid, tt.blockHeight), func(st *testing.T) {
 			st.Parallel()
-			err := tStore.PersistWithConfig(tt.txid, tt.pvtrwSet.ReceivedAtBlockHeight,
+			err := tStore.Persist(tt.txid, tt.pvtrwSet.ReceivedAtBlockHeight,
 				tt.pvtrwSet.PvtSimulationResultsWithConfig)
-			require.NoError(st, err, "PersistWithConfig should not fail")
+			require.NoError(st, err, "Persist should not fail")
 
 		})
 	}
@@ -271,42 +271,42 @@ func TestIterateTransientStoreParallel(t *testing.T) {
 	require.NotNil(t, tStore.blockHeightCache, "Transient store's cache should not be nil")
 	require.NotNil(t, tStore.txidCache, "Transient store's cache should not be nil")
 
-	samplePvtRWSetWithConfig := samplePvtDataWithConfigInfo(t)
+	samplePvtRWSetWithConfig := samplePvtData(t)
 	// Create two private write set entry for txid-1
-	endorser0SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser0SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          10,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 
-	endorser1SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser1SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          11,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 
 	// Create one private write set entry for txid-2
-	endorser2SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser2SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          11,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 
 	// Create three private write set entry for txid-3
-	endorser3SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser3SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          12,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 
-	endorser4SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser4SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          12,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 
-	endorser5SimulationResults := &origts.EndorserPvtSimulationResultsWithConfig{
+	endorser5SimulationResults := &origts.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          13,
 		PvtSimulationResultsWithConfig: samplePvtRWSetWithConfig,
 	}
 	// create sample data in transientstore (not in t.Run)
 	createSlice := []struct {
-		pvtrwSet    *origts.EndorserPvtSimulationResultsWithConfig
+		pvtrwSet    *origts.EndorserPvtSimulationResults
 		txid        string
 		blockHeight uint64
 	}{
@@ -347,9 +347,9 @@ func TestIterateTransientStoreParallel(t *testing.T) {
 	// notice there is no t.Run() call here as we want sample data to be stored prior to test the iterators later in the test
 	for _, tt := range createSlice {
 		tt := tt
-		err := tStore.PersistWithConfig(tt.txid, tt.pvtrwSet.ReceivedAtBlockHeight,
+		err := tStore.Persist(tt.txid, tt.pvtrwSet.ReceivedAtBlockHeight,
 			tt.pvtrwSet.PvtSimulationResultsWithConfig)
-		require.NoError(t, err, "PersistWithConfig should not fail")
+		require.NoError(t, err, "Persist should not fail")
 
 	}
 
@@ -365,7 +365,7 @@ func TestIterateTransientStoreParallel(t *testing.T) {
 	for _, tt := range tcGet {
 		tt := tt
 		// prepare expectedEndorsersResults
-		var expectedEndorsersResults []*origts.EndorserPvtSimulationResultsWithConfig
+		var expectedEndorsersResults []*origts.EndorserPvtSimulationResults
 		switch tt.txid {
 		case "txid-1":
 			expectedEndorsersResults = append(expectedEndorsersResults, endorser0SimulationResults, endorser1SimulationResults)
@@ -383,10 +383,10 @@ func TestIterateTransientStoreParallel(t *testing.T) {
 			require.NoError(st, err, "GetTxPvtRWSetByTxid should not fail")
 
 			// Check whether actual results and expected results are same
-			var actualEndorsersResults []*origts.EndorserPvtSimulationResultsWithConfig
+			var actualEndorsersResults []*origts.EndorserPvtSimulationResults
 			for true {
-				result, err := iter.NextWithConfig()
-				require.NoError(st, err, "NextWithConfig should not fail")
+				result, err := iter.Next()
+				require.NoError(st, err, "Next should not fail")
 				if result == nil {
 					break
 				}

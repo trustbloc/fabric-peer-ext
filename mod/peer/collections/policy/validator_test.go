@@ -10,8 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hyperledger/fabric-protos-go/common"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/cauthdsl"
-	"github.com/hyperledger/fabric/protos/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -147,7 +148,7 @@ func TestValidateNewCollectionConfigAgainstOld(t *testing.T) {
 		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
 		oldCollConfig := createTransientCollectionConfig(coll1, policyEnvelope, 1, 2, "10m")
 		newCollConfig := createTransientCollectionConfig(coll1, policyEnvelope, 2, 3, "20m")
-		err := v.ValidateNewCollectionConfigsAgainstOld([]*common.CollectionConfig{newCollConfig}, []*common.CollectionConfig{oldCollConfig})
+		err := v.ValidateNewCollectionConfigsAgainstOld([]*pb.CollectionConfig{newCollConfig}, []*pb.CollectionConfig{oldCollConfig})
 		assert.NoError(t, err)
 	})
 
@@ -155,7 +156,7 @@ func TestValidateNewCollectionConfigAgainstOld(t *testing.T) {
 		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
 		oldCollConfig := createStaticCollectionConfig(coll1, policyEnvelope, 1, 2, 1000)
 		newCollConfig := createTransientCollectionConfig(coll1, policyEnvelope, 1, 2, "10m")
-		err := v.ValidateNewCollectionConfigsAgainstOld([]*common.CollectionConfig{newCollConfig}, []*common.CollectionConfig{oldCollConfig})
+		err := v.ValidateNewCollectionConfigsAgainstOld([]*pb.CollectionConfig{newCollConfig}, []*pb.CollectionConfig{oldCollConfig})
 		assert.EqualError(t, err, "collection-name: mycollection -- attempt to change collection type from [COL_PRIVATE] to [COL_TRANSIENT]")
 	})
 
@@ -163,23 +164,23 @@ func TestValidateNewCollectionConfigAgainstOld(t *testing.T) {
 		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
 		oldCollConfig := createStaticCollectionConfig(coll1, policyEnvelope, 1, 2, 1000)
 		newCollConfig := createOffLedgerCollectionConfig(coll1, policyEnvelope, 1, 2, "10m")
-		err := v.ValidateNewCollectionConfigsAgainstOld([]*common.CollectionConfig{newCollConfig}, []*common.CollectionConfig{oldCollConfig})
+		err := v.ValidateNewCollectionConfigsAgainstOld([]*pb.CollectionConfig{newCollConfig}, []*pb.CollectionConfig{oldCollConfig})
 		assert.EqualError(t, err, "collection-name: mycollection -- attempt to change collection type from [COL_PRIVATE] to [COL_OFFLEDGER]")
 	})
 }
 
 func createTransientCollectionConfig(collectionName string, signaturePolicyEnvelope *common.SignaturePolicyEnvelope,
-	requiredPeerCount int32, maximumPeerCount int32, ttl string) *common.CollectionConfig {
-	signaturePolicy := &common.CollectionPolicyConfig_SignaturePolicy{
+	requiredPeerCount int32, maximumPeerCount int32, ttl string) *pb.CollectionConfig {
+	signaturePolicy := &pb.CollectionPolicyConfig_SignaturePolicy{
 		SignaturePolicy: signaturePolicyEnvelope,
 	}
 
-	return &common.CollectionConfig{
-		Payload: &common.CollectionConfig_StaticCollectionConfig{
-			StaticCollectionConfig: &common.StaticCollectionConfig{
+	return &pb.CollectionConfig{
+		Payload: &pb.CollectionConfig_StaticCollectionConfig{
+			StaticCollectionConfig: &pb.StaticCollectionConfig{
 				Name:              collectionName,
-				Type:              common.CollectionType_COL_TRANSIENT,
-				MemberOrgsPolicy:  &common.CollectionPolicyConfig{Payload: signaturePolicy},
+				Type:              pb.CollectionType_COL_TRANSIENT,
+				MemberOrgsPolicy:  &pb.CollectionPolicyConfig{Payload: signaturePolicy},
 				RequiredPeerCount: requiredPeerCount,
 				MaximumPeerCount:  maximumPeerCount,
 				TimeToLive:        ttl,
@@ -189,23 +190,23 @@ func createTransientCollectionConfig(collectionName string, signaturePolicyEnvel
 }
 
 func createPrivateCollectionConfig(collectionName string, signaturePolicyEnvelope *common.SignaturePolicyEnvelope,
-	requiredPeerCount int32, maximumPeerCount int32, blockToLive uint64) *common.CollectionConfig {
+	requiredPeerCount int32, maximumPeerCount int32, blockToLive uint64) *pb.CollectionConfig {
 	config := createStaticCollectionConfig(collectionName, signaturePolicyEnvelope, requiredPeerCount, maximumPeerCount, blockToLive)
-	config.GetStaticCollectionConfig().Type = common.CollectionType_COL_PRIVATE
+	config.GetStaticCollectionConfig().Type = pb.CollectionType_COL_PRIVATE
 	return config
 }
 
 func createStaticCollectionConfig(collectionName string, signaturePolicyEnvelope *common.SignaturePolicyEnvelope,
-	requiredPeerCount int32, maximumPeerCount int32, blockToLive uint64) *common.CollectionConfig {
-	signaturePolicy := &common.CollectionPolicyConfig_SignaturePolicy{
+	requiredPeerCount int32, maximumPeerCount int32, blockToLive uint64) *pb.CollectionConfig {
+	signaturePolicy := &pb.CollectionPolicyConfig_SignaturePolicy{
 		SignaturePolicy: signaturePolicyEnvelope,
 	}
 
-	return &common.CollectionConfig{
-		Payload: &common.CollectionConfig_StaticCollectionConfig{
-			StaticCollectionConfig: &common.StaticCollectionConfig{
+	return &pb.CollectionConfig{
+		Payload: &pb.CollectionConfig_StaticCollectionConfig{
+			StaticCollectionConfig: &pb.StaticCollectionConfig{
 				Name:              collectionName,
-				MemberOrgsPolicy:  &common.CollectionPolicyConfig{Payload: signaturePolicy},
+				MemberOrgsPolicy:  &pb.CollectionPolicyConfig{Payload: signaturePolicy},
 				RequiredPeerCount: requiredPeerCount,
 				MaximumPeerCount:  maximumPeerCount,
 				BlockToLive:       blockToLive,
@@ -215,17 +216,17 @@ func createStaticCollectionConfig(collectionName string, signaturePolicyEnvelope
 }
 
 func createOffLedgerCollectionConfig(collectionName string, signaturePolicyEnvelope *common.SignaturePolicyEnvelope,
-	requiredPeerCount int32, maximumPeerCount int32, ttl string) *common.CollectionConfig {
-	signaturePolicy := &common.CollectionPolicyConfig_SignaturePolicy{
+	requiredPeerCount int32, maximumPeerCount int32, ttl string) *pb.CollectionConfig {
+	signaturePolicy := &pb.CollectionPolicyConfig_SignaturePolicy{
 		SignaturePolicy: signaturePolicyEnvelope,
 	}
 
-	return &common.CollectionConfig{
-		Payload: &common.CollectionConfig_StaticCollectionConfig{
-			StaticCollectionConfig: &common.StaticCollectionConfig{
+	return &pb.CollectionConfig{
+		Payload: &pb.CollectionConfig_StaticCollectionConfig{
+			StaticCollectionConfig: &pb.StaticCollectionConfig{
 				Name:              collectionName,
-				Type:              common.CollectionType_COL_OFFLEDGER,
-				MemberOrgsPolicy:  &common.CollectionPolicyConfig{Payload: signaturePolicy},
+				Type:              pb.CollectionType_COL_OFFLEDGER,
+				MemberOrgsPolicy:  &pb.CollectionPolicyConfig{Payload: signaturePolicy},
 				RequiredPeerCount: requiredPeerCount,
 				MaximumPeerCount:  maximumPeerCount,
 				TimeToLive:        ttl,
@@ -235,17 +236,17 @@ func createOffLedgerCollectionConfig(collectionName string, signaturePolicyEnvel
 }
 
 func createDCASCollectionConfig(collectionName string, signaturePolicyEnvelope *common.SignaturePolicyEnvelope,
-	requiredPeerCount int32, maximumPeerCount int32, ttl string) *common.CollectionConfig {
-	signaturePolicy := &common.CollectionPolicyConfig_SignaturePolicy{
+	requiredPeerCount int32, maximumPeerCount int32, ttl string) *pb.CollectionConfig {
+	signaturePolicy := &pb.CollectionPolicyConfig_SignaturePolicy{
 		SignaturePolicy: signaturePolicyEnvelope,
 	}
 
-	return &common.CollectionConfig{
-		Payload: &common.CollectionConfig_StaticCollectionConfig{
-			StaticCollectionConfig: &common.StaticCollectionConfig{
+	return &pb.CollectionConfig{
+		Payload: &pb.CollectionConfig_StaticCollectionConfig{
+			StaticCollectionConfig: &pb.StaticCollectionConfig{
 				Name:              collectionName,
-				Type:              common.CollectionType_COL_DCAS,
-				MemberOrgsPolicy:  &common.CollectionPolicyConfig{Payload: signaturePolicy},
+				Type:              pb.CollectionType_COL_DCAS,
+				MemberOrgsPolicy:  &pb.CollectionPolicyConfig{Payload: signaturePolicy},
 				RequiredPeerCount: requiredPeerCount,
 				MaximumPeerCount:  maximumPeerCount,
 				TimeToLive:        ttl,

@@ -11,10 +11,10 @@ import (
 	"math"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/version"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 	"github.com/hyperledger/fabric/core/ledger/util"
-	"github.com/hyperledger/fabric/protos/ledger/rwset"
 	"github.com/pkg/errors"
 	"github.com/willf/bitset"
 )
@@ -50,9 +50,12 @@ func EncodeExpiryKey(expiryKey *ExpiryKey) []byte {
 	return append(expiryKeyPrefix, version.NewHeight(expiryKey.ExpiringBlk, expiryKey.CommittingBlk).ToBytes()...)
 }
 
-func DecodeExpiryKey(expiryKeyBytes []byte) *ExpiryKey {
-	height, _ := version.NewHeightFromBytes(expiryKeyBytes[1:])
-	return &ExpiryKey{ExpiringBlk: height.BlockNum, CommittingBlk: height.TxNum}
+func DecodeExpiryKey(expiryKeyBytes []byte) (*ExpiryKey, error) {
+	height, _, err := version.NewHeightFromBytes(expiryKeyBytes[1:])
+	if err != nil {
+		return nil, err
+	}
+	return &ExpiryKey{ExpiringBlk: height.BlockNum, CommittingBlk: height.TxNum}, nil
 }
 
 func EncodeExpiryValue(expiryData *ExpiryData) ([]byte, error) {
@@ -65,15 +68,19 @@ func DecodeExpiryValue(expiryValueBytes []byte) (*ExpiryData, error) {
 	return expiryData, err
 }
 
-func DecodeDatakey(datakeyBytes []byte) *DataKey {
-	v, n := version.NewHeightFromBytes(datakeyBytes[1:])
+func DecodeDatakey(datakeyBytes []byte) (*DataKey, error) {
+	v, n, err := version.NewHeightFromBytes(datakeyBytes[1:])
+	if err != nil {
+		return nil, err
+	}
+
 	blkNum := v.BlockNum
 	tranNum := v.TxNum
 	remainingBytes := datakeyBytes[n+1:]
 	nilByteIndex := bytes.IndexByte(remainingBytes, nilByte)
 	ns := string(remainingBytes[:nilByteIndex])
 	coll := string(remainingBytes[nilByteIndex+1:])
-	return &DataKey{NsCollBlk: NsCollBlk{Ns: ns, Coll: coll, BlkNum: blkNum}, TxNum: tranNum}
+	return &DataKey{NsCollBlk: NsCollBlk{Ns: ns, Coll: coll, BlkNum: blkNum}, TxNum: tranNum}, nil
 }
 
 func DecodeDataValue(datavalueBytes []byte) (*rwset.CollectionPvtReadWriteSet, error) {

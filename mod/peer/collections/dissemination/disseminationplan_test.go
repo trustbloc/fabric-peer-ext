@@ -9,11 +9,11 @@ package dissemination
 import (
 	"testing"
 
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/extensions/collections/api/dissemination"
 	"github.com/hyperledger/fabric/gossip/protoext"
-	"github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -35,7 +35,7 @@ func TestDisseminationPlan(t *testing.T) {
 	computeOffLedgerDisseminationPlan = func(
 		channelID, ns string,
 		rwSet *rwset.CollectionPvtReadWriteSet,
-		colCP *common.StaticCollectionConfig,
+		colCP *pb.StaticCollectionConfig,
 		colAP privdata.CollectionAccessPolicy,
 		pvtDataMsg *protoext.SignedGossipMessage,
 		gossipAdapter gossipAdapter) ([]*dissemination.Plan, bool, error) {
@@ -43,16 +43,16 @@ func TestDisseminationPlan(t *testing.T) {
 	}
 
 	t.Run("Empty config", func(t *testing.T) {
-		colConfig1 := &common.CollectionConfig{}
+		colConfig1 := &pb.CollectionConfig{}
 		_, _, err := ComputeDisseminationPlan(
 			channelID, ns, nil, colConfig1, nil, nil, nil)
 		assert.EqualError(t, err, "static collection config not defined")
 	})
 
 	t.Run("Unknown config", func(t *testing.T) {
-		colConfig2 := &common.CollectionConfig{
-			Payload: &common.CollectionConfig_StaticCollectionConfig{
-				StaticCollectionConfig: &common.StaticCollectionConfig{},
+		colConfig2 := &pb.CollectionConfig{
+			Payload: &pb.CollectionConfig_StaticCollectionConfig{
+				StaticCollectionConfig: &pb.StaticCollectionConfig{},
 			},
 		}
 		_, _, err := ComputeDisseminationPlan(
@@ -61,10 +61,10 @@ func TestDisseminationPlan(t *testing.T) {
 	})
 
 	t.Run("Transient Data config", func(t *testing.T) {
-		transientConfig := &common.CollectionConfig{
-			Payload: &common.CollectionConfig_StaticCollectionConfig{
-				StaticCollectionConfig: &common.StaticCollectionConfig{
-					Type: common.CollectionType_COL_TRANSIENT,
+		transientConfig := &pb.CollectionConfig{
+			Payload: &pb.CollectionConfig_StaticCollectionConfig{
+				StaticCollectionConfig: &pb.StaticCollectionConfig{
+					Type: pb.CollectionType_COL_TRANSIENT,
 				},
 			},
 		}
@@ -74,10 +74,10 @@ func TestDisseminationPlan(t *testing.T) {
 	})
 
 	t.Run("Off-Ledger config", func(t *testing.T) {
-		olConfig := &common.CollectionConfig{
-			Payload: &common.CollectionConfig_StaticCollectionConfig{
-				StaticCollectionConfig: &common.StaticCollectionConfig{
-					Type: common.CollectionType_COL_OFFLEDGER,
+		olConfig := &pb.CollectionConfig{
+			Payload: &pb.CollectionConfig_StaticCollectionConfig{
+				StaticCollectionConfig: &pb.StaticCollectionConfig{
+					Type: pb.CollectionType_COL_OFFLEDGER,
 				},
 			},
 		}
@@ -87,10 +87,10 @@ func TestDisseminationPlan(t *testing.T) {
 	})
 
 	t.Run("DCAS config", func(t *testing.T) {
-		dcasConfig := &common.CollectionConfig{
-			Payload: &common.CollectionConfig_StaticCollectionConfig{
-				StaticCollectionConfig: &common.StaticCollectionConfig{
-					Type: common.CollectionType_COL_DCAS,
+		dcasConfig := &pb.CollectionConfig{
+			Payload: &pb.CollectionConfig_StaticCollectionConfig{
+				StaticCollectionConfig: &pb.StaticCollectionConfig{
+					Type: pb.CollectionType_COL_DCAS,
 				},
 			},
 		}

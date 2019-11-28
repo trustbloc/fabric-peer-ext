@@ -9,7 +9,7 @@ package policy
 import (
 	"fmt"
 
-	"github.com/hyperledger/fabric/protos/common"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/pkg/errors"
 	olpolicy "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/policy"
 	tdatapolicy "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/policy"
@@ -25,18 +25,18 @@ func NewValidator() *Validator {
 }
 
 // Validate validates various collection config types
-func (v *Validator) Validate(collConfig *common.CollectionConfig) error {
+func (v *Validator) Validate(collConfig *pb.CollectionConfig) error {
 	config := collConfig.GetStaticCollectionConfig()
 	if config == nil {
 		return errors.New("unknown collection configuration type")
 	}
 
 	switch config.Type {
-	case common.CollectionType_COL_TRANSIENT:
+	case pb.CollectionType_COL_TRANSIENT:
 		return tdatapolicy.ValidateConfig(config)
-	case common.CollectionType_COL_DCAS:
+	case pb.CollectionType_COL_DCAS:
 		fallthrough
-	case common.CollectionType_COL_OFFLEDGER:
+	case pb.CollectionType_COL_OFFLEDGER:
 		return olpolicy.ValidateConfig(config)
 	default:
 		// Nothing to do
@@ -45,9 +45,9 @@ func (v *Validator) Validate(collConfig *common.CollectionConfig) error {
 }
 
 // ValidateNewCollectionConfigsAgainstOld validates updated collection configs
-func (v *Validator) ValidateNewCollectionConfigsAgainstOld(newCollectionConfigs []*common.CollectionConfig, oldCollectionConfigs []*common.CollectionConfig,
+func (v *Validator) ValidateNewCollectionConfigsAgainstOld(newCollectionConfigs []*pb.CollectionConfig, oldCollectionConfigs []*pb.CollectionConfig,
 ) error {
-	newCollectionsMap := make(map[string]*common.StaticCollectionConfig, len(newCollectionConfigs))
+	newCollectionsMap := make(map[string]*pb.StaticCollectionConfig, len(newCollectionConfigs))
 	for _, newCollectionConfig := range newCollectionConfigs {
 		newCollection := newCollectionConfig.GetStaticCollectionConfig()
 		newCollectionsMap[newCollection.GetName()] = newCollection
@@ -73,17 +73,17 @@ func (v *Validator) ValidateNewCollectionConfigsAgainstOld(newCollectionConfigs 
 	return nil
 }
 
-func getCollType(config *common.StaticCollectionConfig) common.CollectionType {
+func getCollType(config *pb.StaticCollectionConfig) pb.CollectionType {
 	switch config.Type {
-	case common.CollectionType_COL_TRANSIENT:
-		return common.CollectionType_COL_TRANSIENT
-	case common.CollectionType_COL_OFFLEDGER:
-		return common.CollectionType_COL_OFFLEDGER
-	case common.CollectionType_COL_DCAS:
-		return common.CollectionType_COL_DCAS
-	case common.CollectionType_COL_PRIVATE:
+	case pb.CollectionType_COL_TRANSIENT:
+		return pb.CollectionType_COL_TRANSIENT
+	case pb.CollectionType_COL_OFFLEDGER:
+		return pb.CollectionType_COL_OFFLEDGER
+	case pb.CollectionType_COL_DCAS:
+		return pb.CollectionType_COL_DCAS
+	case pb.CollectionType_COL_PRIVATE:
 		fallthrough
 	default:
-		return common.CollectionType_COL_PRIVATE
+		return pb.CollectionType_COL_PRIVATE
 	}
 }

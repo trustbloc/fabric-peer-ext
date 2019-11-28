@@ -9,7 +9,7 @@ package dispatcher
 import (
 	"testing"
 
-	gproto "github.com/hyperledger/fabric/protos/gossip"
+	gproto "github.com/hyperledger/fabric-protos-go/gossip"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"

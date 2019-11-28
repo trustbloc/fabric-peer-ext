@@ -12,13 +12,14 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/hyperledger/fabric-protos-go/common"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/metrics/disabled"
 	coreconfig "github.com/hyperledger/fabric/core/config"
 	"github.com/hyperledger/fabric/core/ledger"
+	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/hyperledger/fabric/integration/runner"
-	"github.com/hyperledger/fabric/protos/common"
 	"github.com/spf13/viper"
 	clientmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/client/mocks"
 	olretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/mocks"
@@ -99,7 +100,7 @@ func SetupResources() func() {
 }
 
 func cleanupCouchDB(name string) {
-	couchDBConfig := TestLedgerConf().StateDB.CouchDB
+	couchDBConfig := TestLedgerConf().StateDBConfig.CouchDB
 	couchInstance, _ := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 
 	blkdb := couchdb.CouchDatabase{CouchInstance: couchInstance, DBName: fmt.Sprintf("%s$$blocks_", name)}
@@ -152,39 +153,22 @@ func TestLedgerConf() *ledger.Config {
 	if viper.IsSet("ledger.state.couchDBConfig.maxBatchUpdateSize") {
 		maxBatchUpdateSize = viper.GetInt("ledger.state.couchDBConfig.maxBatchUpdateSize")
 	}
-	collElgProcMaxDbBatchSize := 5000
-	if viper.IsSet("ledger.pvtdataStore.collElgProcMaxDbBatchSize") {
-		collElgProcMaxDbBatchSize = viper.GetInt("ledger.pvtdataStore.collElgProcMaxDbBatchSize")
-	}
-	collElgProcDbBatchesInterval := 1000
-	if viper.IsSet("ledger.pvtdataStore.collElgProcDbBatchesInterval") {
-		collElgProcDbBatchesInterval = viper.GetInt("ledger.pvtdataStore.collElgProcDbBatchesInterval")
-	}
-	purgeInterval := 100
-	if viper.IsSet("ledger.pvtdataStore.purgeInterval") {
-		purgeInterval = viper.GetInt("ledger.pvtdataStore.purgeInterval")
-	}
 
 	rootFSPath := filepath.Join(coreconfig.GetPath("peer.fileSystemPath"), "ledgersData")
 	conf := &ledger.Config{
 		RootFSPath: rootFSPath,
-		StateDB: &ledger.StateDB{
+		StateDBConfig: &ledger.StateDBConfig{
 			StateDatabase: viper.GetString("ledger.state.stateDatabase"),
-			LevelDBPath:   filepath.Join(rootFSPath, "stateLeveldb"),
-			CouchDB:       &couchdb.Config{},
+			//LevelDBPath:   filepath.Join(rootFSPath, "stateLeveldb"),
+			CouchDB: &couchdb.Config{},
 		},
-		PrivateData: &ledger.PrivateData{
-			StorePath:       filepath.Join(rootFSPath, "pvtdataStore"),
-			MaxBatchSize:    collElgProcMaxDbBatchSize,
-			BatchesInterval: collElgProcDbBatchesInterval,
-			PurgeInterval:   purgeInterval,
-		},
-		HistoryDB: &ledger.HistoryDB{
+		PrivateDataConfig: &ledger.PrivateDataConfig{},
+		HistoryDBConfig: &ledger.HistoryDBConfig{
 			Enabled: viper.GetBool("ledger.history.enableHistoryDatabase"),
 		},
 	}
 
-	conf.StateDB.CouchDB = &couchdb.Config{
+	conf.StateDBConfig.CouchDB = &couchdb.Config{
 		Address:                 viper.GetString("ledger.state.couchDBConfig.couchDBAddress"),
 		Username:                viper.GetString("ledger.state.couchDBConfig.username"),
 		Password:                viper.GetString("ledger.state.couchDBConfig.password"),
@@ -199,4 +183,30 @@ func TestLedgerConf() *ledger.Config {
 	}
 
 	return conf
+}
+
+// TestPrivateDataConf returns mock private data config for unit tests
+func TestPrivateDataConf() *pvtdatastorage.PrivateDataConfig {
+	rootFSPath := filepath.Join(coreconfig.GetPath("peer.fileSystemPath"), "ledgersData")
+	collElgProcMaxDbBatchSize := 5000
+	if viper.IsSet("ledger.pvtdataStore.collElgProcMaxDbBatchSize") {
+		collElgProcMaxDbBatchSize = viper.GetInt("ledger.pvtdataStore.collElgProcMaxDbBatchSize")
+	}
+	collElgProcDbBatchesInterval := 1000
+	if viper.IsSet("ledger.pvtdataStore.collElgProcDbBatchesInterval") {
+		collElgProcDbBatchesInterval = viper.GetInt("ledger.pvtdataStore.collElgProcDbBatchesInterval")
+	}
+	purgeInterval := 100
+	if viper.IsSet("ledger.pvtdataStore.purgeInterval") {
+		purgeInterval = viper.GetInt("ledger.pvtdataStore.purgeInterval")
+	}
+
+	return &pvtdatastorage.PrivateDataConfig{
+		PrivateDataConfig: &ledger.PrivateDataConfig{
+			MaxBatchSize:    collElgProcMaxDbBatchSize,
+			BatchesInterval: collElgProcDbBatchesInterval,
+			PurgeInterval:   purgeInterval,
+		},
+		StorePath: filepath.Join(rootFSPath, "pvtdatastorage"),
+	}
 }

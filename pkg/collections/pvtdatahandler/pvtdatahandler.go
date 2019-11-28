@@ -10,11 +10,11 @@ import (
 	"context"
 	"errors"
 
+	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	commonledger "github.com/hyperledger/fabric/common/ledger"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	"github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/queryresult"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 )
 
@@ -40,18 +40,18 @@ func New(channelID string, collDataProvider storeapi.Provider) *Handler {
 }
 
 // HandleGetPrivateData if the collection is one of the custom Kevlar collections then the private data is returned
-func (h *Handler) HandleGetPrivateData(txID, ns string, config *common.StaticCollectionConfig, key string) ([]byte, bool, error) {
+func (h *Handler) HandleGetPrivateData(txID, ns string, config *pb.StaticCollectionConfig, key string) ([]byte, bool, error) {
 	switch config.Type {
-	case common.CollectionType_COL_TRANSIENT:
+	case pb.CollectionType_COL_TRANSIENT:
 		logger.Debugf("Collection [%s:%s] is of type TransientData. Returning transient data for key [%s]", ns, config.Name, key)
 		value, err := h.getTransientData(txID, ns, config.Name, key)
 		if err != nil {
 			return nil, true, err
 		}
 		return value, true, nil
-	case common.CollectionType_COL_DCAS:
+	case pb.CollectionType_COL_DCAS:
 		fallthrough
-	case common.CollectionType_COL_OFFLEDGER:
+	case pb.CollectionType_COL_OFFLEDGER:
 		logger.Debugf("Collection [%s:%s] is an off-ledger store. Returning data for key [%s]", ns, config.Name, key)
 		value, err := h.getData(txID, ns, config.Name, key)
 		if err != nil {
@@ -64,18 +64,18 @@ func (h *Handler) HandleGetPrivateData(txID, ns string, config *common.StaticCol
 }
 
 // HandleGetPrivateDataMultipleKeys if the collection is one of the custom Kevlar collections then the private data is returned
-func (h *Handler) HandleGetPrivateDataMultipleKeys(txID, ns string, config *common.StaticCollectionConfig, keys []string) ([][]byte, bool, error) {
+func (h *Handler) HandleGetPrivateDataMultipleKeys(txID, ns string, config *pb.StaticCollectionConfig, keys []string) ([][]byte, bool, error) {
 	switch config.Type {
-	case common.CollectionType_COL_TRANSIENT:
+	case pb.CollectionType_COL_TRANSIENT:
 		logger.Debugf("Collection [%s:%s] is of type TransientData. Returning transient data for keys [%s]", ns, config.Name, keys)
 		values, err := h.getTransientDataMultipleKeys(txID, ns, config.Name, keys)
 		if err != nil {
 			return nil, true, err
 		}
 		return values, true, nil
-	case common.CollectionType_COL_DCAS:
+	case pb.CollectionType_COL_DCAS:
 		fallthrough
-	case common.CollectionType_COL_OFFLEDGER:
+	case pb.CollectionType_COL_OFFLEDGER:
 		logger.Debugf("Collection [%s:%s] is of an off-ledger store. Returning data for keys [%s]", ns, config.Name, keys)
 		values, err := h.getDataMultipleKeys(txID, ns, config.Name, keys)
 		if err != nil {
@@ -88,14 +88,14 @@ func (h *Handler) HandleGetPrivateDataMultipleKeys(txID, ns string, config *comm
 }
 
 // HandleExecuteQueryOnPrivateData executes the given query on the collection if the collection is one of the extended collections
-func (h *Handler) HandleExecuteQueryOnPrivateData(txID, ns string, config *common.StaticCollectionConfig, query string) (commonledger.ResultsIterator, bool, error) {
+func (h *Handler) HandleExecuteQueryOnPrivateData(txID, ns string, config *pb.StaticCollectionConfig, query string) (commonledger.ResultsIterator, bool, error) {
 	switch config.Type {
-	case common.CollectionType_COL_TRANSIENT:
+	case pb.CollectionType_COL_TRANSIENT:
 		logger.Debugf("Collection [%s:%s] is a TransientData store. Rich queries are not supported for transient data", ns, config.Name)
 		return nil, true, errors.New("rich queries not supported on transient data")
-	case common.CollectionType_COL_DCAS:
+	case pb.CollectionType_COL_DCAS:
 		fallthrough
-	case common.CollectionType_COL_OFFLEDGER:
+	case pb.CollectionType_COL_OFFLEDGER:
 		logger.Debugf("Collection [%s:%s] is an off-ledger store. Returning results for query [%s]", ns, config.Name, query)
 		values, err := h.executeQuery(txID, ns, config.Name, query)
 		return values, true, err

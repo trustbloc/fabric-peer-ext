@@ -8,15 +8,15 @@ package idstore
 
 import (
 	"github.com/hyperledger/fabric/core/ledger"
-	"github.com/hyperledger/fabric/core/ledger/kvledger/idstore"
+	storeapi "github.com/hyperledger/fabric/extensions/storage/api"
 	s "github.com/trustbloc/fabric-peer-ext/pkg/idstore"
 )
 
 // OpenIDStore open idstore
-func OpenIDStore(path string, ledgerconfig *ledger.Config) idstore.IDStore {
+func OpenIDStore(path string, ledgerconfig *ledger.Config) (storeapi.IDStore, error) {
 	store, err := s.OpenIDStore(ledgerconfig)
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
-	return store
+	return store, nil
 }

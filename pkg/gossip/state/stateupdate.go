@@ -7,11 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package state
 
 import (
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
 	ccapi "github.com/hyperledger/fabric/extensions/chaincode/api"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
-	"github.com/hyperledger/fabric/protos/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
@@ -48,7 +48,7 @@ func (h *UpdateHandler) ChannelJoined(channelID string) {
 
 	logger.Debugf("[%s] Adding LSCC write handler", channelID)
 	h.bpProvider.ForChannel(channelID).AddLSCCWriteHandler(
-		func(txMetadata api.TxMetadata, chaincodeName string, ccData *ccprovider.ChaincodeData, _ *common.CollectionConfigPackage) error {
+		func(txMetadata api.TxMetadata, chaincodeName string, ccData *ccprovider.ChaincodeData, _ *pb.CollectionConfigPackage) error {
 			logger.Debugf("[%s] Got LSCC write event for [%s].", channelID, chaincodeName)
 			return h.handleStateUpdate(txMetadata.ChannelID, chaincodeName, ccData)
 		},
@@ -60,7 +60,7 @@ func (h *UpdateHandler) handleStateUpdate(channelID string, chaincodeName string
 	logger.Debugf("[%s] Handling LSCC state update for chaincode [%s]", channelID, chaincodeName)
 
 	chaincodeDefs := []*ccapi.Definition{
-		{Name: ccData.CCName(), Version: ccData.CCVersion(), Hash: ccData.Hash()},
+		{Name: ccData.Name, Version: ccData.Version, Hash: ccData.Id},
 	}
 
 	mgr := h.mgrProvider.GetMgr()
