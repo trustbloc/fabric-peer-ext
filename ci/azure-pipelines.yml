@@ -24,6 +24,16 @@ jobs:
     - script: bash <(curl https://codecov.io/bash)
       displayName: Upload coverage to Codecov 
 
+  - job: FabricUnitTest
+    pool:
+      vmImage: ubuntu-16.04
+    timeoutInMinutes: 90
+    steps:
+    - template: azp-dependencies.yml
+    - checkout: self
+    - script: make fabric-unit-test
+      displayName: Run fabric unit tests
+
   - job: BDDTest
     pool:
       vmImage: ubuntu-16.04
