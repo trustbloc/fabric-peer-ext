@@ -9,30 +9,43 @@ variables:
 
 jobs:
   - job: UnitTest
+    condition: in(variables['test-type'],'','unit-test') # Run if test-type is not set or if test-type is 'unit-test'
     pool:
       vmImage: ubuntu-16.04
     timeoutInMinutes: 30
     steps:
-    - template: azp-dependencies.yml
-    - checkout: self
-    - script: |
-        # TODO: remove when fabric-mod supports sampleconfig outside GOPATH
-        mkdir -p ${GOPATH}/src/github.com/trustbloc/fabric-peer-ext/pkg/testutil
-        cp -R pkg/testutil/sampleconfig ${GOPATH}/src/github.com/trustbloc/fabric-peer-ext/pkg/testutil
-        make unit-test
-      displayName: Run checks and unit test
-    - script: bash <(curl https://codecov.io/bash)
-      displayName: Upload coverage to Codecov 
+      - template: azp-dependencies.yml
+      - checkout: self
+      - script: |
+          # TODO: remove when fabric-mod supports sampleconfig outside GOPATH
+          mkdir -p ${GOPATH}/src/github.com/trustbloc/fabric-peer-ext/pkg/testutil
+          cp -R pkg/testutil/sampleconfig ${GOPATH}/src/github.com/trustbloc/fabric-peer-ext/pkg/testutil
+          make unit-test
+        displayName: Run checks and unit test
+      - script: bash <(curl https://codecov.io/bash)
+        displayName: Upload coverage to Codecov
 
   - job: BDDTest
+    condition: in(variables['test-type'],'','bdd-test') # Run if test-type is not set or if test-type is 'bdd-test'
     pool:
       vmImage: ubuntu-16.04
     timeoutInMinutes: 60
     steps:
-    - template: azp-dependencies.yml
-    - checkout: self
-    - script: make bddtests
-      displayName: Run BDD tests
-    - publish: test/bddtests/docker-compose.log
-      artifact: docker-compose.log
-      condition: always()
+      - template: azp-dependencies.yml
+      - checkout: self
+      - script: make bddtests
+        displayName: Run BDD tests
+      - publish: test/bddtests/docker-compose.log
+        artifact: docker-compose.log
+        condition: always()
+
+  - job: FabricUnitTest
+    condition: eq(variables['test-type'],'fabric-unit-test') # Run only if test-type is 'fabric-unit-test'
+    pool:
+      vmImage: ubuntu-16.04
+    timeoutInMinutes: 120
+    steps:
+      - template: azp-dependencies.yml
+      - checkout: self
+      - script: make fabric-unit-test
+        displayName: Run Fabric unit tests
