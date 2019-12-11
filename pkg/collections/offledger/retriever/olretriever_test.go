@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
+	gproto "github.com/hyperledger/fabric-protos-go/gossip"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
-	cb "github.com/hyperledger/fabric/protos/common"
-	gproto "github.com/hyperledger/fabric/protos/gossip"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -86,12 +86,12 @@ func TestRetriever(t *testing.T) {
 			MaxPeerCount: 2,
 			Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
 		}).
-		WithCollectionConfig(&cb.StaticCollectionConfig{
-			Type: cb.CollectionType_COL_OFFLEDGER,
+		WithCollectionConfig(&pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_OFFLEDGER,
 			Name: coll1,
 		}).
-		WithCollectionConfig(&cb.StaticCollectionConfig{
-			Type: cb.CollectionType_COL_DCAS,
+		WithCollectionConfig(&pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_DCAS,
 			Name: coll2,
 		}),
 	)
@@ -132,8 +132,8 @@ func TestRetriever(t *testing.T) {
 		IdentifierProvider:     identifierProvider,
 	}
 	p := NewProvider(providers,
-		WithValidator(cb.CollectionType_COL_DCAS, dcas.Validator),
-		WithDecorator(cb.CollectionType_COL_DCAS, dcas.Decorator),
+		WithValidator(pb.CollectionType_COL_DCAS, dcas.Validator),
+		WithDecorator(pb.CollectionType_COL_DCAS, dcas.Decorator),
 	)
 
 	retriever := p.RetrieverForChannel(channelID)
@@ -354,12 +354,12 @@ func TestRetriever_Query(t *testing.T) {
 			MaxPeerCount: 2,
 			Orgs:         []string{org1MSPID, org2MSPID},
 		}).
-		WithCollectionConfig(&cb.StaticCollectionConfig{
-			Type: cb.CollectionType_COL_OFFLEDGER,
+		WithCollectionConfig(&pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_OFFLEDGER,
 			Name: coll1,
 		}).
-		WithCollectionConfig(&cb.StaticCollectionConfig{
-			Type: cb.CollectionType_COL_DCAS,
+		WithCollectionConfig(&pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_DCAS,
 			Name: coll2,
 		})
 	ccProvider.ForChannelReturns(ccRetriever)
@@ -387,8 +387,8 @@ func TestRetriever_Query(t *testing.T) {
 		IdentifierProvider:     identifierProvider,
 	}
 	p := NewProvider(providers,
-		WithValidator(cb.CollectionType_COL_DCAS, dcas.Validator),
-		WithDecorator(cb.CollectionType_COL_DCAS, dcas.Decorator),
+		WithValidator(pb.CollectionType_COL_DCAS, dcas.Validator),
+		WithDecorator(pb.CollectionType_COL_DCAS, dcas.Decorator),
 	)
 
 	retriever := p.RetrieverForChannel(channelID)
@@ -491,8 +491,8 @@ func TestRetriever_AccessDenied(t *testing.T) {
 			MaxPeerCount: 2,
 			Orgs:         []string{org1MSPID, org2MSPID},
 		}).
-		WithCollectionConfig(&cb.StaticCollectionConfig{
-			Type: cb.CollectionType_COL_OFFLEDGER,
+		WithCollectionConfig(&pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_OFFLEDGER,
 			Name: coll1,
 		})
 	ccProvider.ForChannelReturns(ccRetriever)

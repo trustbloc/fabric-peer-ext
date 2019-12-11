@@ -14,11 +14,11 @@ import (
 
 	"github.com/bluele/gcache"
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
+	pb "github.com/hyperledger/fabric-protos-go/transientstore"
 	"github.com/hyperledger/fabric/common/util"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/transientstore"
-	"github.com/hyperledger/fabric/protos/ledger/rwset"
-	pb "github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/pkg/errors"
 	"github.com/trustbloc/fabric-peer-ext/pkg/transientstore/common"
 )
@@ -52,29 +52,9 @@ func newStore() *store {
 	return s
 }
 
-// Persist stores the private write set of a transaction in the transient store
-// based on txid and the block height the private data was received at
-func (s *store) Persist(txid string, blockHeight uint64, privateSimulationResults *rwset.TxPvtReadWriteSet) error {
-	logger.Debugf("Persisting private data to transient store for txid [%s] at block height [%d]", txid, blockHeight)
-
-	uuid := util.GenerateUUID()
-	compositeKeyPvtRWSet := common.CreateCompositeKeyForPvtRWSet(txid, uuid, blockHeight)
-	privateSimulationResultsBytes, err := proto.Marshal(privateSimulationResults)
-	if err != nil {
-		return err
-	}
-
-	s.setTxPvtWRSetToCache(txid, compositeKeyPvtRWSet, privateSimulationResultsBytes)
-
-	s.setTxidToBlockHeightCache(txid, blockHeight)
-
-	s.updateTxidCache(txid, blockHeight)
-	return nil
-}
-
-// PersistWithConfig stores the private write set of a transaction along with the collection config
+// Persist stores the private write set of a transaction along with the collection config
 // in the transient store based on txid and the block height the private data was received at
-func (s *store) PersistWithConfig(txid string, blockHeight uint64, privateSimulationResultsWithConfig *pb.TxPvtReadWriteSetWithConfigInfo) error {
+func (s *store) Persist(txid string, blockHeight uint64, privateSimulationResultsWithConfig *pb.TxPvtReadWriteSetWithConfigInfo) error {
 	if privateSimulationResultsWithConfig != nil {
 		logger.Debugf("Persisting private data to transient store for txid [%s] at block height [%d] with [%d] config(s)", txid, blockHeight, len(privateSimulationResultsWithConfig.CollectionConfigs))
 	} else {
@@ -233,7 +213,12 @@ func (s *store) purgeTxRWSetCacheByBlockHeight(txids []string, maxBlockNumToReta
 			if err != nil {
 				return err
 			}
-			_, blkHeight := common.SplitCompositeKeyOfPvtRWSet(hexKey)
+
+			_, blkHeight, err := splitCompositeKeyOfPvtRWSet(hexKey)
+			if err != nil {
+				return err
+			}
+
 			if blkHeight < maxBlockNumToRetain {
 				txMap.delete(txK)
 			}
@@ -307,9 +292,9 @@ func (s *store) getBlockHeightKeysFromTxidCache(txids []string) ([]uint64, error
 	return blkHeightKeys, nil
 }
 
-// PurgeByHeight will remove all ReadWriteSets with block height below maxBlockNumToRetain
-func (s *store) PurgeByHeight(maxBlockNumToRetain uint64) error {
-	logger.Debugf("Calling PurgeByHeight on transient store for maxBlockNumToRetain [%d]", maxBlockNumToRetain)
+// PurgeBelowHeight will remove all ReadWriteSets with block height below maxBlockNumToRetain
+func (s *store) PurgeBelowHeight(maxBlockNumToRetain uint64) error {
+	logger.Debugf("Calling PurgeBelowHeight on transient store for maxBlockNumToRetain [%d]", maxBlockNumToRetain)
 	txIDs := make([]string, 0)
 	blkHgts := make([]uint64, 0)
 	for key, value := range s.blockHeightCache.GetALL() {
@@ -366,9 +351,8 @@ type RwsetScanner struct {
 	next    int
 }
 
-// Next moves the iterator to the next key/value pair.
+// Next moves the iterator to the next key/value pair with configs.
 // It returns whether the iterator is exhausted.
-// TODO: Once the related gossip changes are made as per FAB-5096, remove this function
 func (scanner *RwsetScanner) Next() (*transientstore.EndorserPvtSimulationResults, error) {
 	kv, ok := scanner.nextKV()
 	if !ok {
@@ -379,42 +363,11 @@ func (scanner *RwsetScanner) Next() (*transientstore.EndorserPvtSimulationResult
 	if err != nil {
 		return nil, err
 	}
-	_, blockHeight := common.SplitCompositeKeyOfPvtRWSet(keyBytes)
-	logger.Debugf("scanner next blockHeight %d", blockHeight)
-	txPvtRWSet := &rwset.TxPvtReadWriteSet{}
-	valueBytes, err := base64.StdEncoding.DecodeString(kv.value)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error from DecodeString for transientDataField")
-	}
-
-	if err := proto.Unmarshal(valueBytes, txPvtRWSet); err != nil {
-		return nil, err
-	}
-	filteredTxPvtRWSet := common.TrimPvtWSet(txPvtRWSet, scanner.filter)
-	logger.Debugf("scanner next filteredTxPvtRWSet %v", filteredTxPvtRWSet)
-
-	return &transientstore.EndorserPvtSimulationResults{
-		ReceivedAtBlockHeight: blockHeight,
-		PvtSimulationResults:  filteredTxPvtRWSet,
-	}, nil
-
-}
-
-// NextWithConfig moves the iterator to the next key/value pair with configs.
-// It returns whether the iterator is exhausted.
-// TODO: Once the related gossip changes are made as per FAB-5096, rename this function to Next
-func (scanner *RwsetScanner) NextWithConfig() (*transientstore.EndorserPvtSimulationResultsWithConfig, error) {
-	kv, ok := scanner.nextKV()
-	if !ok {
-		return nil, nil
-	}
-
-	keyBytes, err := hex.DecodeString(kv.key)
+	_, blockHeight, err := splitCompositeKeyOfPvtRWSet(keyBytes)
 	if err != nil {
 		return nil, err
 	}
-	_, blockHeight := common.SplitCompositeKeyOfPvtRWSet(keyBytes)
-	logger.Debugf("scanner NextWithConfig blockHeight %d", blockHeight)
+	logger.Debugf("scanner Next blockHeight %d", blockHeight)
 
 	valueBytes, err := base64.StdEncoding.DecodeString(kv.value)
 	if err != nil {
@@ -431,15 +384,15 @@ func (scanner *RwsetScanner) NextWithConfig() (*transientstore.EndorserPvtSimula
 			return nil, er
 		}
 
-		logger.Debugf("scanner NextWithConfig txPvtRWSetWithConfig %v", txPvtRWSetWithConfig)
+		logger.Debugf("scanner Next txPvtRWSetWithConfig %v", txPvtRWSetWithConfig)
 
 		filteredTxPvtRWSet = common.TrimPvtWSet(txPvtRWSetWithConfig.GetPvtRwset(), scanner.filter)
-		logger.Debugf("scanner NextWithConfig filteredTxPvtRWSet %v", filteredTxPvtRWSet)
+		logger.Debugf("scanner Next filteredTxPvtRWSet %v", filteredTxPvtRWSet)
 		configs, err := common.TrimPvtCollectionConfigs(txPvtRWSetWithConfig.CollectionConfigs, scanner.filter)
 		if err != nil {
 			return nil, err
 		}
-		logger.Debugf("scanner NextWithConfig configs %v", configs)
+		logger.Debugf("scanner Next configs %v", configs)
 		txPvtRWSetWithConfig.CollectionConfigs = configs
 	} else {
 		// old proto, i.e., TxPvtReadWriteSet
@@ -451,7 +404,7 @@ func (scanner *RwsetScanner) NextWithConfig() (*transientstore.EndorserPvtSimula
 
 	txPvtRWSetWithConfig.PvtRwset = filteredTxPvtRWSet
 
-	return &transientstore.EndorserPvtSimulationResultsWithConfig{
+	return &transientstore.EndorserPvtSimulationResults{
 		ReceivedAtBlockHeight:          blockHeight,
 		PvtSimulationResultsWithConfig: txPvtRWSetWithConfig,
 	}, nil
@@ -468,4 +421,9 @@ func (scanner *RwsetScanner) nextKV() (keyValue, bool) {
 
 // Close releases resource held by the iterator
 func (scanner *RwsetScanner) Close() {
+}
+
+// splitCompositeKeyOfPvtRWSet may be overridden by unit tests
+var splitCompositeKeyOfPvtRWSet = func(compositeKey []byte) (uuid string, blockHeight uint64, err error) {
+	return common.SplitCompositeKeyOfPvtRWSet(compositeKey)
 }

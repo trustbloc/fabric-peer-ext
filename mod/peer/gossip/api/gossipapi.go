@@ -7,6 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package api
 
 import (
+	cb "github.com/hyperledger/fabric-protos-go/common"
+	proto "github.com/hyperledger/fabric-protos-go/gossip"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-protos-go/transientstore"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/gossip/api"
@@ -15,11 +20,6 @@ import (
 	"github.com/hyperledger/fabric/gossip/discovery"
 	"github.com/hyperledger/fabric/gossip/gossip"
 	"github.com/hyperledger/fabric/gossip/protoext"
-	cb "github.com/hyperledger/fabric/protos/common"
-	proto "github.com/hyperledger/fabric/protos/gossip"
-	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
-	pb "github.com/hyperledger/fabric/protos/peer"
-	"github.com/hyperledger/fabric/protos/transientstore"
 )
 
 // ConfigUpdateHandler handles a config update
@@ -38,7 +38,7 @@ type ChaincodeEventHandler func(txMetadata TxMetadata, event *pb.ChaincodeEvent)
 type ChaincodeUpgradeHandler func(txMetadata TxMetadata, chaincodeName string) error
 
 // LSCCWriteHandler handles chaincode instantiation/upgrade events
-type LSCCWriteHandler func(txMetadata TxMetadata, chaincodeName string, ccData *ccprovider.ChaincodeData, ccp *cb.CollectionConfigPackage) error
+type LSCCWriteHandler func(txMetadata TxMetadata, chaincodeName string, ccData *ccprovider.ChaincodeData, ccp *pb.CollectionConfigPackage) error
 
 // BlockHandler allows clients to add handlers for various block events
 type BlockHandler interface {
@@ -80,12 +80,6 @@ type TxMetadata struct {
 	TxID      string
 }
 
-//BlockEventer performs pre commit operation for a block
-type BlockEventer interface {
-	//PreCommit performs pre commit operation for given block
-	PreCommit(block *cb.Block) error
-}
-
 //LedgerHeightProvider provides current ledger height
 type LedgerHeightProvider interface {
 	//LedgerHeight  returns current in-memory ledger height
@@ -97,7 +91,6 @@ type LedgerHeightProvider interface {
 type Support struct {
 	Ledger               ledger.PeerLedger
 	LedgerHeightProvider LedgerHeightProvider
-	BlockEventer         BlockEventer
 }
 
 // GossipService encapsulates gossip and state capabilities into single interface
@@ -106,7 +99,7 @@ type GossipService interface {
 	SelfMembershipInfo() discovery.NetworkMember
 
 	// SelfChannelInfo returns the peer's latest StateInfo message of a given channel
-	SelfChannelInfo(common.ChainID) *protoext.SignedGossipMessage
+	SelfChannelInfo(id common.ChannelID) *protoext.SignedGossipMessage
 
 	// Send sends a message to remote peers
 	Send(msg *proto.GossipMessage, peers ...*comm.RemotePeer)
@@ -119,7 +112,7 @@ type GossipService interface {
 
 	// PeersOfChannel returns the NetworkMembers considered alive
 	// and also subscribed to the channel given
-	PeersOfChannel(common.ChainID) []discovery.NetworkMember
+	PeersOfChannel(common.ChannelID) []discovery.NetworkMember
 
 	// Gossip sends a message to other peers to the network
 	Gossip(msg *proto.GossipMessage)

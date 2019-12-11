@@ -44,27 +44,12 @@ func TestMain(m *testing.M) {
 
 	viper.Set("peer.fileSystemPath", "/tmp/fabric/core/ledger/pvtdatastorage")
 	// Create CouchDB definition from config parameters
-	couchDBConfig = xtestutil.TestLedgerConf().StateDB.CouchDB
+	couchDBConfig = xtestutil.TestLedgerConf().StateDBConfig.CouchDB
 
 	code := m.Run()
 	//stop couchdb
 	destroy()
 	os.Exit(code)
-}
-
-func TestHasPendingCommit(t *testing.T) {
-	t.Run("test error Unmarshal", func(t *testing.T) {
-		ledgerId := "ledger"
-		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
-		defer env.Cleanup(ledgerId)
-		s := env.TestStore.(*store)
-		s.missingKeysIndexDB = mockDBHandler{getFunc: func(key []byte) (bytes []byte, e error) {
-			return []byte("wrongData"), nil
-		}}
-		_, err := s.hasPendingCommit()
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Unmarshal failed pendingPvtData")
-	})
 }
 
 func TestGetExpiryDataOfExpiryKey(t *testing.T) {
@@ -252,46 +237,6 @@ func TestCheckLastCommittedBlock(t *testing.T) {
 
 }
 
-func TestRollback(t *testing.T) {
-	t.Run("test error from calling rollback on a peer that is not a committer", func(t *testing.T) {
-		ledgerId := "ledger"
-		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
-		defer env.Cleanup(ledgerId)
-		s := env.TestStore.(*store)
-		rolesValue := make(map[roles.Role]struct{})
-		rolesValue[roles.EndorserRole] = struct{}{}
-		roles.SetRoles(rolesValue)
-		defer func() { roles.SetRoles(nil) }()
-		require.Panics(t, func() {
-			s.Rollback()
-		})
-	})
-
-	t.Run("test error from no pending batch to rollback", func(t *testing.T) {
-		ledgerId := "ledger"
-		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
-		defer env.Cleanup(ledgerId)
-		s := env.TestStore.(*store)
-		s.pendingPvtData = &pendingPvtData{BatchPending: false}
-		err := s.Rollback()
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "No pending batch to rollback")
-	})
-
-	t.Run("test error from delete", func(t *testing.T) {
-		ledgerId := "ledger"
-		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
-		defer env.Cleanup(ledgerId)
-		s := env.TestStore.(*store)
-		s.pendingPvtData = &pendingPvtData{BatchPending: true}
-		s.missingKeysIndexDB = mockDBHandler{deleteErr: fmt.Errorf("delete error")}
-		err := s.Rollback()
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "delete PendingCommitKey failed")
-
-	})
-}
-
 func TestCommit(t *testing.T) {
 	t.Run("test error from calling commit on a peer that is not a committer", func(t *testing.T) {
 		ledgerId := "ledger"
@@ -303,19 +248,8 @@ func TestCommit(t *testing.T) {
 		roles.SetRoles(rolesValue)
 		defer func() { roles.SetRoles(nil) }()
 		require.Panics(t, func() {
-			s.Commit()
+			s.Commit(0, nil, nil)
 		})
-	})
-
-	t.Run("test error from no pending batch to commit", func(t *testing.T) {
-		ledgerId := "ledger"
-		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
-		defer env.Cleanup(ledgerId)
-		s := env.TestStore.(*store)
-		s.pendingPvtData = &pendingPvtData{BatchPending: false}
-		err := s.Commit()
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "No pending batch to commit")
 	})
 
 	t.Run("test error from prepareLastCommittedBlockDoc", func(t *testing.T) {
@@ -323,9 +257,8 @@ func TestCommit(t *testing.T) {
 		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
 		defer env.Cleanup(ledgerId)
 		s := env.TestStore.(*store)
-		s.pendingPvtData = &pendingPvtData{BatchPending: true}
 		s.db = mockCouchDB{readDocErr: fmt.Errorf("readDoc error")}
-		err := s.Commit()
+		err := s.Commit(0, nil, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "prepareLastCommittedBlockDoc failed")
 
@@ -336,9 +269,8 @@ func TestCommit(t *testing.T) {
 		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
 		defer env.Cleanup(ledgerId)
 		s := env.TestStore.(*store)
-		s.pendingPvtData = &pendingPvtData{BatchPending: true}
 		s.db = mockCouchDB{batchUpdateDocumentsErr: fmt.Errorf("batchUpdateDocuments error")}
-		err := s.Commit()
+		err := s.Commit(0, nil, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "writing private data to CouchDB failed")
 
@@ -349,10 +281,9 @@ func TestCommit(t *testing.T) {
 		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
 		defer env.Cleanup(ledgerId)
 		s := env.TestStore.(*store)
-		s.pendingPvtData = &pendingPvtData{BatchPending: true}
 		s.db = mockCouchDB{}
 		s.missingKeysIndexDB = mockDBHandler{writeBatchErr: fmt.Errorf("writeBatch error")}
-		err := s.Commit()
+		err := s.Commit(0, nil, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "WriteBatch failed")
 
@@ -435,7 +366,7 @@ func TestNewProviderWithDBDef(t *testing.T) {
 func TestOpenStore(t *testing.T) {
 	t.Run("test error from createCouchDatabase", func(t *testing.T) {
 		removeStorePath()
-		conf := testutil.TestLedgerConf().PrivateData
+		conf := testutil.TestPrivateDataConf()
 		testStoreProvider, err := NewProvider(conf, testutil.TestLedgerConf())
 		require.NoError(t, err)
 		_, err = testStoreProvider.OpenStore("_")
@@ -451,7 +382,7 @@ func TestOpenStore(t *testing.T) {
 		rolesValue[roles.EndorserRole] = struct{}{}
 		roles.SetRoles(rolesValue)
 		defer func() { roles.SetRoles(nil) }()
-		conf := testutil.TestLedgerConf().PrivateData
+		conf := testutil.TestPrivateDataConf()
 		testStoreProvider, err := NewProvider(conf, testutil.TestLedgerConf())
 		require.NoError(t, err)
 		_, err = testStoreProvider.OpenStore("_")
@@ -471,22 +402,6 @@ func TestInitState(t *testing.T) {
 		err := s.initState()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "lookupLastBlock failed")
-	})
-
-	t.Run("test error from hasPendingCommit", func(t *testing.T) {
-		ledgerId := "ledger"
-		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
-		defer env.Cleanup(ledgerId)
-		s := env.TestStore.(*store)
-		jsonBinary, err := json.Marshal(lastCommittedBlockResponse{Data: "1"})
-		require.NoError(t, err)
-		s.db = mockCouchDB{readDocValue: &couchdb.CouchDoc{JSONValue: jsonBinary}}
-		s.missingKeysIndexDB = mockDBHandler{getFunc: func(key []byte) (bytes []byte, e error) {
-			return nil, fmt.Errorf("get error")
-		}}
-		err = s.initState()
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "hasPendingCommit failed")
 	})
 
 	t.Run("test error from GetLastUpdatedOldBlocksList", func(t *testing.T) {
@@ -537,6 +452,12 @@ func TestInitState(t *testing.T) {
 }
 
 func TestStorePurge(t *testing.T) {
+	//restoreDecodeKey := decodeExpiryKey
+	//decodeExpiryKey = func(expiryKeyBytes []byte) (key *common.ExpiryKey, err error) {
+	//	return nil, fmt.Errorf("decode error")
+	//}
+	//defer func() { decodeExpiryKey = restoreDecodeKey }()
+
 	ledgerid := "teststorepurge"
 	viper.Set("ledger.pvtdataStore.purgeInterval", 2)
 	btlPolicy := btltestutil.SampleBTLPolicy(
@@ -555,8 +476,7 @@ func TestStorePurge(t *testing.T) {
 	s := env.TestStore
 
 	// no pvt data with block 0
-	req.NoError(s.Prepare(0, nil, nil))
-	req.NoError(s.Commit())
+	req.NoError(s.Commit(0, nil, nil))
 
 	// construct missing data for block 1
 	blk1MissingData := make(ledger.TxMissingPvtDataMap)
@@ -572,12 +492,10 @@ func TestStorePurge(t *testing.T) {
 		produceSamplePvtdata(t, 2, []string{"ns-1:coll-1", "ns-1:coll-2", "ns-2:coll-1", "ns-2:coll-2"}),
 		produceSamplePvtdata(t, 4, []string{"ns-1:coll-1", "ns-1:coll-2", "ns-2:coll-1", "ns-2:coll-2"}),
 	}
-	req.NoError(s.Prepare(1, testDataForBlk1, blk1MissingData))
-	req.NoError(s.Commit())
+	req.NoError(s.Commit(1, testDataForBlk1, blk1MissingData))
 
 	// write pvt data for block 2
-	req.NoError(s.Prepare(2, nil, nil))
-	req.NoError(s.Commit())
+	req.NoError(s.Commit(2, nil, nil))
 	// data for ns-1:coll-1 and ns-2:coll-2 should exist in store
 	ns1Coll1 := &common.DataKey{NsCollBlk: common.NsCollBlk{Ns: "ns-1", Coll: "coll-1", BlkNum: 1}, TxNum: 2}
 	ns2Coll2 := &common.DataKey{NsCollBlk: common.NsCollBlk{Ns: "ns-2", Coll: "coll-2", BlkNum: 1}, TxNum: 2}
@@ -601,8 +519,7 @@ func TestStorePurge(t *testing.T) {
 	req.True(testMissingDataKeyExists(t, s, ns3Coll2inelgMD))
 
 	// write pvt data for block 3
-	req.NoError(s.Prepare(3, nil, nil))
-	req.NoError(s.Commit())
+	req.NoError(s.Commit(3, nil, nil))
 	// data for ns-1:coll-1 and ns-2:coll-2 should exist in store (because purger should not be launched at block 3)
 	testWaitForPurgerRoutineToFinish(s)
 	req.True(testDataKeyExists(t, s, ns1Coll1))
@@ -615,8 +532,7 @@ func TestStorePurge(t *testing.T) {
 	req.True(testMissingDataKeyExists(t, s, ns3Coll2inelgMD))
 
 	// write pvt data for block 4
-	req.NoError(s.Prepare(4, nil, nil))
-	req.NoError(s.Commit())
+	req.NoError(s.Commit(4, nil, nil))
 	// data for ns-1:coll-1 should not exist in store (because purger should be launched at block 4)
 	// but ns-2:coll-2 should exist because it expires at block 5
 	testWaitForPurgerRoutineToFinish(s)
@@ -630,16 +546,14 @@ func TestStorePurge(t *testing.T) {
 	req.True(testMissingDataKeyExists(t, s, ns3Coll2inelgMD))
 
 	// write pvt data for block 5
-	req.NoError(s.Prepare(5, nil, nil))
-	req.NoError(s.Commit())
+	req.NoError(s.Commit(5, nil, nil))
 	// ns-2:coll-2 should exist because though the data expires at block 5 but purger is launched every second block
 	testWaitForPurgerRoutineToFinish(s)
 	req.False(testDataKeyExists(t, s, ns1Coll1))
 	req.True(testDataKeyExists(t, s, ns2Coll2))
 
 	// write pvt data for block 6
-	req.NoError(s.Prepare(6, nil, nil))
-	req.NoError(s.Commit())
+	req.NoError(s.Commit(6, nil, nil))
 	// ns-2:coll-2 should not exists now (because purger should be launched at block 6)
 	testWaitForPurgerRoutineToFinish(s)
 	req.False(testDataKeyExists(t, s, ns1Coll1))
@@ -662,7 +576,6 @@ func TestEmptyStore(t *testing.T) {
 	req := require.New(t)
 	store := env.TestStore
 	testEmpty(true, req, store)
-	testPendingBatch(false, req, store)
 }
 
 func TestEndorserRole(t *testing.T) {
@@ -686,12 +599,10 @@ func TestEndorserRole(t *testing.T) {
 		produceSamplePvtdata(t, 4, []string{"ns-1:coll-1", "ns-1:coll-2", "ns-2:coll-1", "ns-2:coll-2"}),
 	}
 	// no pvt data with block 0
-	req.NoError(committerStore.Prepare(0, nil, nil))
-	req.NoError(committerStore.Commit())
+	req.NoError(committerStore.Commit(0, nil, nil))
 
 	// pvt data with block 1 - commit
-	req.NoError(committerStore.Prepare(1, testData, nil))
-	req.NoError(committerStore.Commit())
+	req.NoError(committerStore.Commit(1, testData, nil))
 
 	// create endorser store
 	rolesValue := make(map[roles.Role]struct{})
@@ -760,16 +671,10 @@ func TestStoreBasicCommitAndRetrieval(t *testing.T) {
 	blk2MissingData.Add(3, "ns-1", "coll-1", true)
 
 	// no pvt data with block 0
-	req.NoError(store.Prepare(0, nil, nil))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(0, nil, nil))
 
 	// pvt data with block 1 - commit
-	req.NoError(store.Prepare(1, testData, blk1MissingData))
-	req.NoError(store.Commit())
-
-	// pvt data with block 2 - rollback
-	req.NoError(store.Prepare(2, testData, nil))
-	req.NoError(store.Rollback())
+	req.NoError(store.Commit(1, testData, blk1MissingData))
 
 	// pvt data retrieval for block 0 should return nil
 	var nilFilter ledger.PvtNsCollFilter
@@ -806,8 +711,7 @@ func TestStoreBasicCommitAndRetrieval(t *testing.T) {
 	req.Nil(retrievedData)
 
 	// pvt data with block 2 - commit
-	req.NoError(store.Prepare(2, testData, blk2MissingData))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(2, testData, blk2MissingData))
 
 	// retrieve the stored missing entries using GetMissingPvtDataInfoForMostRecentBlocks
 	// Only the code path of eligible entries would be covered in this unit-test. For
@@ -927,16 +831,13 @@ func TestCommitPvtDataOfOldBlocks(t *testing.T) {
 	blk2MissingData.Add(3, "ns-1", "coll-1", true)
 
 	// COMMIT BLOCK 0 WITH NO DATA
-	req.NoError(store.Prepare(0, nil, nil))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(0, nil, nil))
 
 	// COMMIT BLOCK 1 WITH PVTDATA AND MISSINGDATA
-	req.NoError(store.Prepare(1, testData, blk1MissingData))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(1, testData, blk1MissingData))
 
 	// COMMIT BLOCK 2 WITH PVTDATA AND MISSINGDATA
-	req.NoError(store.Prepare(2, nil, blk2MissingData))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(2, nil, blk2MissingData))
 
 	// CHECK MISSINGDATA ENTRIES ARE CORRECTLY STORED
 	expectedMissingPvtDataInfo := make(ledger.MissingPvtDataInfo)
@@ -1045,8 +946,7 @@ func TestCommitPvtDataOfOldBlocks(t *testing.T) {
 	req.Nil(blksPvtData)
 
 	// COMMIT BLOCK 3 WITH NO PVTDATA
-	req.NoError(store.Prepare(3, nil, nil))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(3, nil, nil))
 
 	// IN BLOCK 1, NS-1:COLL-2 AND NS-2:COLL-2 SHOULD HAVE EXPIRED BUT NOT PURGED
 	// HENCE, THE FOLLOWING COMMIT SHOULD CREATE ENTRIES IN THE STORE
@@ -1077,8 +977,7 @@ func TestCommitPvtDataOfOldBlocks(t *testing.T) {
 	req.NoError(err)
 
 	// COMMIT BLOCK 4 WITH NO PVTDATA
-	req.NoError(store.Prepare(4, nil, nil))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(4, nil, nil))
 
 	testWaitForPurgerRoutineToFinish(store)
 
@@ -1139,24 +1038,21 @@ func TestExpiryDataNotIncluded(t *testing.T) {
 	blk2MissingData.Add(1, "ns-1", "coll-2", true)
 
 	// no pvt data with block 0
-	req.NoError(store.Prepare(0, nil, nil))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(0, nil, nil))
 
 	// write pvt data for block 1
 	testDataForBlk1 := []*ledger.TxPvtData{
 		produceSamplePvtdata(t, 2, []string{"ns-1:coll-1", "ns-1:coll-2", "ns-2:coll-1", "ns-2:coll-2"}),
 		produceSamplePvtdata(t, 4, []string{"ns-1:coll-1", "ns-1:coll-2", "ns-2:coll-1", "ns-2:coll-2"}),
 	}
-	req.NoError(store.Prepare(1, testDataForBlk1, blk1MissingData))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(1, testDataForBlk1, blk1MissingData))
 
 	// write pvt data for block 2
 	testDataForBlk2 := []*ledger.TxPvtData{
 		produceSamplePvtdata(t, 3, []string{"ns-1:coll-1", "ns-1:coll-2", "ns-2:coll-1", "ns-2:coll-2"}),
 		produceSamplePvtdata(t, 5, []string{"ns-1:coll-1", "ns-1:coll-2", "ns-2:coll-1", "ns-2:coll-2"}),
 	}
-	req.NoError(store.Prepare(2, testDataForBlk2, blk2MissingData))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(2, testDataForBlk2, blk2MissingData))
 
 	retrievedData, _ := store.GetPvtDataByBlockNum(1, nil)
 	// block 1 data should still be not expired
@@ -1180,8 +1076,7 @@ func TestExpiryDataNotIncluded(t *testing.T) {
 	req.Equal(expectedMissingPvtDataInfo, missingPvtDataInfo)
 
 	// Commit block 3 with no pvtdata
-	req.NoError(store.Prepare(3, nil, nil))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(3, nil, nil))
 
 	// After committing block 3, the data for "ns-1:coll1" of block 1 should have expired and should not be returned by the store
 	expectedPvtdataFromBlock1 := []*ledger.TxPvtData{
@@ -1204,8 +1099,7 @@ func TestExpiryDataNotIncluded(t *testing.T) {
 	req.Equal(expectedMissingPvtDataInfo, missingPvtDataInfo)
 
 	// Commit block 4 with no pvtdata
-	req.NoError(store.Prepare(4, nil, nil))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(4, nil, nil))
 
 	// After committing block 4, the data for "ns-2:coll2" of block 1 should also have expired and should not be returned by the store
 	expectedPvtdataFromBlock1 = []*ledger.TxPvtData{
@@ -1268,20 +1162,16 @@ func TestLookupLastBlock(t *testing.T) {
 	}
 	checkLastCommittedBlock(t, s, uint64(0))
 
-	req.Nil(s.Prepare(0, nil, nil))
-	req.NoError(s.Commit())
+	req.Nil(s.Commit(0, nil, nil))
 	checkLastCommittedBlock(t, s, uint64(0))
 
-	req.Nil(s.Prepare(1, testData, nil))
-	req.NoError(s.Commit())
+	req.Nil(s.Commit(1, testData, nil))
 	checkLastCommittedBlock(t, s, uint64(1))
 
-	req.Nil(s.Prepare(2, nil, nil))
-	req.NoError(s.Commit())
+	req.Nil(s.Commit(2, nil, nil))
 	checkLastCommittedBlock(t, s, uint64(2))
 
-	req.Nil(s.Prepare(3, testData, nil))
-	req.NoError(s.Commit())
+	req.Nil(s.Commit(3, testData, nil))
 	checkLastCommittedBlock(t, s, uint64(3))
 
 	// Delete block num 2
@@ -1310,14 +1200,11 @@ func TestStoreState(t *testing.T) {
 	testData := []*ledger.TxPvtData{
 		produceSamplePvtdata(t, 0, []string{"ns-1:coll-1", "ns-1:coll-2"}),
 	}
-	_, ok := store.Prepare(1, testData, nil).(*pvtdatastorage.ErrIllegalCall)
+	_, ok := store.Commit(1, testData, nil).(*pvtdatastorage.ErrIllegalCall)
 	req.True(ok)
 
-	req.Nil(store.Prepare(0, testData, nil))
-	req.NoError(store.Commit())
-
-	req.Nil(store.Prepare(1, testData, nil))
-	_, ok = store.Prepare(2, testData, nil).(*pvtdatastorage.ErrIllegalCall)
+	req.Nil(store.Commit(0, testData, nil))
+	_, ok = store.Commit(2, testData, nil).(*pvtdatastorage.ErrIllegalCall)
 	req.True(ok)
 }
 
@@ -1354,12 +1241,10 @@ func TestInitLastCommittedBlock(t *testing.T) {
 	req.NoError(store.InitLastCommittedBlock(existingLastBlockNum))
 
 	testEmpty(false, req, store)
-	testPendingBatch(false, req, store)
 	testLastCommittedBlockHeight(existingLastBlockNum+1, req, store)
 
 	env.CloseAndReopen()
 	testEmpty(false, req, store)
-	testPendingBatch(false, req, store)
 	testLastCommittedBlockHeight(existingLastBlockNum+1, req, store)
 
 	err := store.InitLastCommittedBlock(30)
@@ -1369,8 +1254,8 @@ func TestInitLastCommittedBlock(t *testing.T) {
 
 func TestCollElgEnabled(t *testing.T) {
 	testCollElgEnabled(t)
-	defaultValBatchSize := xtestutil.TestLedgerConf().PrivateData.MaxBatchSize
-	defaultValInterval := xtestutil.TestLedgerConf().PrivateData.BatchesInterval
+	defaultValBatchSize := xtestutil.TestLedgerConf().PrivateDataConfig.MaxBatchSize
+	defaultValInterval := xtestutil.TestLedgerConf().PrivateDataConfig.BatchesInterval
 	defer func() {
 		viper.Set("ledger.pvtdataStore.collElgProcMaxDbBatchSize", defaultValBatchSize)
 		viper.Set("ledger.pvtdataStore.collElgProcMaxDbBatchSize", defaultValInterval)
@@ -1378,6 +1263,82 @@ func TestCollElgEnabled(t *testing.T) {
 	viper.Set("ledger.pvtdataStore.collElgProcMaxDbBatchSize", 1)
 	viper.Set("ledger.pvtdataStore.collElgProcDbBatchesInterval", 1)
 	testCollElgEnabled(t)
+}
+
+func TestRetrieveBlockPvtDataEntries(t *testing.T) {
+	ledgerId := "ledger"
+	env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+	defer env.Cleanup(ledgerId)
+	s := env.TestStore.(*store)
+
+	dataKeyBytes := common.EncodeDataKey(&common.DataKey{})
+	key := hex.EncodeToString(dataKeyBytes)
+
+	t.Run("invalid hex key", func(t *testing.T) {
+		r := &blockPvtDataResponse{
+			Data: map[string][]byte{"key1": []byte("value1")},
+		}
+		e, err := s.retrieveBlockPvtDataEntries(r)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "encoding/hex: invalid byte")
+		require.Nil(t, e)
+	})
+
+	t.Run("invalid expiry key", func(t *testing.T) {
+		r := &blockPvtDataResponse{
+			Data: map[string][]byte{hex.EncodeToString([]byte("invalid expiry key")): []byte("value1")},
+		}
+		e, err := s.retrieveBlockPvtDataEntries(r)
+		require.Error(t, err)
+		require.Nil(t, e)
+	})
+
+	t.Run("invalid expiry value", func(t *testing.T) {
+		r := &blockPvtDataResponse{
+			Data: map[string][]byte{key: []byte("value1")},
+		}
+		e, err := s.retrieveBlockPvtDataEntries(r)
+		require.Error(t, err)
+		require.Nil(t, e)
+	})
+}
+
+func TestRetrieveBlockPvtExpiryEntries(t *testing.T) {
+	ledgerId := "ledger"
+	env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
+	defer env.Cleanup(ledgerId)
+	s := env.TestStore.(*store)
+
+	expiryKeyBytes := common.EncodeExpiryKey(&common.ExpiryKey{})
+	key := hex.EncodeToString(expiryKeyBytes)
+
+	t.Run("invalid hex key", func(t *testing.T) {
+		r := &blockPvtDataResponse{
+			Expiry: map[string][]byte{"key1": []byte("value1")},
+		}
+		e, err := s.retrieveBlockPvtExpiryEntries(r)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "encoding/hex: invalid byte")
+		require.Nil(t, e)
+	})
+
+	t.Run("invalid expiry key", func(t *testing.T) {
+		r := &blockPvtDataResponse{
+			Expiry: map[string][]byte{hex.EncodeToString([]byte("invalid expiry key")): []byte("value1")},
+		}
+		e, err := s.retrieveBlockPvtExpiryEntries(r)
+		require.Error(t, err)
+		require.Nil(t, e)
+	})
+
+	t.Run("invalid expiry value", func(t *testing.T) {
+		r := &blockPvtDataResponse{
+			Expiry: map[string][]byte{key: []byte("value1")},
+		}
+		e, err := s.retrieveBlockPvtExpiryEntries(r)
+		require.Error(t, err)
+		require.Nil(t, e)
+	})
 }
 
 func testCollElgEnabled(t *testing.T) {
@@ -1398,8 +1359,7 @@ func testCollElgEnabled(t *testing.T) {
 	// Initial state: eligible for {ns-1:coll-1 and ns-2:coll-1 }
 
 	// no pvt data with block 0
-	req.NoError(store.Prepare(0, nil, nil))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(0, nil, nil))
 
 	// construct and commit block 1
 	blk1MissingData := make(ledger.TxMissingPvtDataMap)
@@ -1410,8 +1370,7 @@ func testCollElgEnabled(t *testing.T) {
 	testDataForBlk1 := []*ledger.TxPvtData{
 		produceSamplePvtdata(t, 2, []string{"ns-1:coll-1"}),
 	}
-	req.NoError(store.Prepare(1, testDataForBlk1, blk1MissingData))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(1, testDataForBlk1, blk1MissingData))
 
 	// construct and commit block 2
 	blk2MissingData := make(ledger.TxMissingPvtDataMap)
@@ -1421,8 +1380,7 @@ func testCollElgEnabled(t *testing.T) {
 	testDataForBlk2 := []*ledger.TxPvtData{
 		produceSamplePvtdata(t, 3, []string{"ns-1:coll-1"}),
 	}
-	req.NoError(store.Prepare(2, testDataForBlk2, blk2MissingData))
-	req.NoError(store.Commit())
+	req.NoError(store.Commit(2, testDataForBlk2, blk2MissingData))
 
 	// Retrieve and verify missing data reported
 	// Expected missing data should be only blk1-tx1 (because, the other missing data is marked as ineliigible)
@@ -1468,83 +1426,6 @@ func testCollElgEnabled(t *testing.T) {
 	req.Equal(expectedMissingPvtDataInfo, missingPvtDataInfo)
 }
 
-func TestRollBack(t *testing.T) {
-	btlPolicy := btltestutil.SampleBTLPolicy(
-		map[[2]string]uint64{
-			{"ns-1", "coll-1"}: 0,
-			{"ns-1", "coll-2"}: 0,
-		},
-	)
-	env := NewTestStoreEnv(t, "testrollback", btlPolicy, couchDBConfig)
-	defer env.Cleanup("testrollback")
-	req := require.New(t)
-	store := env.TestStore
-	req.NoError(store.Prepare(0, nil, nil))
-	req.NoError(store.Commit())
-
-	pvtdata := []*ledger.TxPvtData{
-		produceSamplePvtdata(t, 0, []string{"ns-1:coll-1", "ns-1:coll-2"}),
-		produceSamplePvtdata(t, 5, []string{"ns-1:coll-1", "ns-1:coll-2"}),
-	}
-	missingData := make(ledger.TxMissingPvtDataMap)
-	missingData.Add(1, "ns-1", "coll-1", true)
-	missingData.Add(5, "ns-1", "coll-1", true)
-	missingData.Add(5, "ns-2", "coll-2", false)
-
-	for i := 1; i <= 9; i++ {
-		req.NoError(store.Prepare(uint64(i), pvtdata, missingData))
-		req.NoError(store.Commit())
-	}
-
-	datakeyTx0 := &common.DataKey{
-		NsCollBlk: common.NsCollBlk{Ns: "ns-1", Coll: "coll-1"},
-		TxNum:     0,
-	}
-	datakeyTx5 := &common.DataKey{
-		NsCollBlk: common.NsCollBlk{Ns: "ns-1", Coll: "coll-1"},
-		TxNum:     5,
-	}
-	eligibleMissingdatakey := &common.MissingDataKey{
-		NsCollBlk:  common.NsCollBlk{Ns: "ns-1", Coll: "coll-1"},
-		IsEligible: true,
-	}
-
-	// test store state before preparing for block 10
-	testPendingBatch(false, req, store)
-	testLastCommittedBlockHeight(10, req, store)
-
-	// prepare for block 10 and test store for presence of datakeys and eligibile missingdatakeys
-	req.NoError(store.Prepare(10, pvtdata, missingData))
-	testPendingBatch(true, req, store)
-	testLastCommittedBlockHeight(10, req, store)
-
-	datakeyTx0.BlkNum = 10
-	datakeyTx5.BlkNum = 10
-	eligibleMissingdatakey.BlkNum = 10
-	req.True(testPendingDataKeyExists(t, store, datakeyTx0))
-	req.True(testPendingDataKeyExists(t, store, datakeyTx5))
-	req.True(testPendingMissingDataKeyExists(t, store, eligibleMissingdatakey))
-
-	// rollback last prepared block and test store for absence of datakeys and eligibile missingdatakeys
-	err := store.Rollback()
-	req.NoError(err)
-	testPendingBatch(false, req, store)
-	testLastCommittedBlockHeight(10, req, store)
-	req.False(testPendingDataKeyExists(t, store, datakeyTx0))
-	req.False(testPendingDataKeyExists(t, store, datakeyTx5))
-	req.False(testPendingMissingDataKeyExists(t, store, eligibleMissingdatakey))
-
-	// For previously committed blocks the datakeys and eligibile missingdatakeys should still be present
-	for i := 1; i <= 9; i++ {
-		datakeyTx0.BlkNum = uint64(i)
-		datakeyTx5.BlkNum = uint64(i)
-		eligibleMissingdatakey.BlkNum = uint64(i)
-		req.True(testDataKeyExists(t, store, datakeyTx0))
-		req.True(testDataKeyExists(t, store, datakeyTx5))
-		req.True(testMissingDataKeyExists(t, store, eligibleMissingdatakey))
-	}
-}
-
 func testMissingDataKeyExists(t *testing.T, s pvtdatastorage.Store, missingDataKey *common.MissingDataKey) bool {
 	dataKeyBytes := common.EncodeMissingDataKey(missingDataKey)
 	val, err := s.(*store).missingKeysIndexDB.Get(dataKeyBytes)
@@ -1566,34 +1447,10 @@ func testDataKeyExists(t *testing.T, s pvtdatastorage.Store, dataKey *common.Dat
 	return exists
 }
 
-func testPendingDataKeyExists(t *testing.T, s pvtdatastorage.Store, dataKey *common.DataKey) bool {
-	var blockPvtData blockPvtDataResponse
-	if s.(*store).pendingPvtData.PvtDataDoc == nil {
-		return false
-	}
-	err := json.Unmarshal(s.(*store).pendingPvtData.PvtDataDoc.JSONValue, &blockPvtData)
-	require.NoError(t, err)
-	dataKeyBytes := common.EncodeDataKey(dataKey)
-	_, exists := blockPvtData.Data[hex.EncodeToString(dataKeyBytes)]
-	return exists
-}
-
-func testPendingMissingDataKeyExists(t *testing.T, s pvtdatastorage.Store, missingDataKey *common.MissingDataKey) bool {
-	keyBytes := common.EncodeMissingDataKey(missingDataKey)
-	_, exists := s.(*store).pendingPvtData.MissingDataEntries[string(keyBytes)]
-	return exists
-}
-
 func testEmpty(expectedEmpty bool, req *require.Assertions, store pvtdatastorage.Store) {
 	isEmpty, err := store.IsEmpty()
 	req.NoError(err)
 	req.Equal(expectedEmpty, isEmpty)
-}
-
-func testPendingBatch(expectedPending bool, req *require.Assertions, store pvtdatastorage.Store) {
-	hasPendingBatch, err := store.HasPendingBatch()
-	req.NoError(err)
-	req.Equal(expectedPending, hasPendingBatch)
 }
 
 func produceSamplePvtdata(t *testing.T, txNum uint64, nsColls []string) *ledger.TxPvtData {

@@ -9,6 +9,7 @@ package bddtests
 import (
 	"github.com/DATA-DOG/godog"
 	"github.com/hyperledger/fabric-protos-go/common"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/logging"
 	"github.com/pkg/errors"
 	"github.com/trustbloc/fabric-peer-test-common/bddtests"
@@ -31,7 +32,7 @@ func NewTransientDataSteps(context *bddtests.BDDContext) *TransientDataSteps {
 // DefineTransientCollectionConfig defines a new transient data collection configuration
 func (d *TransientDataSteps) DefineTransientCollectionConfig(id, name, policy string, requiredPeerCount, maxPeerCount int32, timeToLive string) {
 	d.BDDContext.DefineCollectionConfig(id,
-		func(channelID string) (*common.CollectionConfig, error) {
+		func(channelID string) (*pb.CollectionConfig, error) {
 			sigPolicy, err := d.newChaincodePolicy(policy, channelID)
 			if err != nil {
 				return nil, errors.Wrapf(err, "error creating collection policy for collection [%s]", name)
@@ -58,17 +59,17 @@ func (d *TransientDataSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^transient collection config "([^"]*)" is defined for collection "([^"]*)" as policy="([^"]*)", requiredPeerCount=(\d+), maxPeerCount=(\d+), and timeToLive=([^"]*)$`, d.defineTransientCollectionConfig)
 }
 
-func newTransientCollectionConfig(collName string, requiredPeerCount, maxPeerCount int32, timeToLive string, policy *common.SignaturePolicyEnvelope) *common.CollectionConfig {
-	return &common.CollectionConfig{
-		Payload: &common.CollectionConfig_StaticCollectionConfig{
-			StaticCollectionConfig: &common.StaticCollectionConfig{
+func newTransientCollectionConfig(collName string, requiredPeerCount, maxPeerCount int32, timeToLive string, policy *common.SignaturePolicyEnvelope) *pb.CollectionConfig {
+	return &pb.CollectionConfig{
+		Payload: &pb.CollectionConfig_StaticCollectionConfig{
+			StaticCollectionConfig: &pb.StaticCollectionConfig{
 				Name:              collName,
-				Type:              common.CollectionType_COL_TRANSIENT,
+				Type:              pb.CollectionType_COL_TRANSIENT,
 				RequiredPeerCount: requiredPeerCount,
 				MaximumPeerCount:  maxPeerCount,
 				TimeToLive:        timeToLive,
-				MemberOrgsPolicy: &common.CollectionPolicyConfig{
-					Payload: &common.CollectionPolicyConfig_SignaturePolicy{
+				MemberOrgsPolicy: &pb.CollectionPolicyConfig{
+					Payload: &pb.CollectionPolicyConfig_SignaturePolicy{
 						SignaturePolicy: policy,
 					},
 				},

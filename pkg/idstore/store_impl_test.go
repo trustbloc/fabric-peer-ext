@@ -13,10 +13,12 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric/common/ledger/dataformat"
 	"github.com/hyperledger/fabric/core/ledger"
+	"github.com/hyperledger/fabric/core/ledger/kvledger/msgs"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/hyperledger/fabric/extensions/testutil"
-	"github.com/hyperledger/fabric/protos/common"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 	xtestutil "github.com/trustbloc/fabric-peer-ext/pkg/testutil"
@@ -29,7 +31,7 @@ func TestMain(m *testing.M) {
 	_, _, destroy := xtestutil.SetupExtTestEnv()
 
 	// Create CouchDB definition from config parameters
-	couchDBConfig = xtestutil.TestLedgerConf().StateDB.CouchDB
+	couchDBConfig = xtestutil.TestLedgerConf().StateDBConfig.CouchDB
 
 	code := m.Run()
 	destroy()
@@ -81,7 +83,7 @@ func TestNewCommitterStore(t *testing.T) {
 
 func TestCreateCouchInstance(t *testing.T) {
 	t.Run("test error from CreateCouchInstance", func(t *testing.T) {
-		_, err := createCouchInstance(&ledger.Config{StateDB: &ledger.StateDB{CouchDB: &couchdb.Config{}}})
+		_, err := createCouchInstance(&ledger.Config{StateDBConfig: &ledger.StateDBConfig{CouchDB: &couchdb.Config{}}})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "obtaining CouchDB instance failed")
 
@@ -119,10 +121,8 @@ func TestUnderConstructionFlag(t *testing.T) {
 	t.Run("test error from SetUnderConstructionFlag SaveDoc", func(t *testing.T) {
 		ledgerID := "testunderconstructiongflag"
 		env := NewTestStoreEnv(t, ledgerID, couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
-		s.db = mockCouchDB{saveDocErr: fmt.Errorf("SaveDoc error")}
-		err := store.SetUnderConstructionFlag(ledgerID)
+		env.TestStore.db = mockCouchDB{saveDocErr: fmt.Errorf("SaveDoc error")}
+		err := env.TestStore.SetUnderConstructionFlag(ledgerID)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "update of metadata in CouchDB failed")
 
@@ -131,10 +131,8 @@ func TestUnderConstructionFlag(t *testing.T) {
 	t.Run("test error from UnsetUnderConstructionFlag SaveDoc", func(t *testing.T) {
 		ledgerID := "testunderconstructiongflag"
 		env := NewTestStoreEnv(t, ledgerID, couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
-		s.db = mockCouchDB{saveDocErr: fmt.Errorf("SaveDoc error")}
-		err := store.UnsetUnderConstructionFlag()
+		env.TestStore.db = mockCouchDB{saveDocErr: fmt.Errorf("SaveDoc error")}
+		err := env.TestStore.UnsetUnderConstructionFlag()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "update of metadata in CouchDB failed")
 
@@ -143,10 +141,8 @@ func TestUnderConstructionFlag(t *testing.T) {
 	t.Run("test error from SetUnderConstructionFlag SaveDoc", func(t *testing.T) {
 		ledgerID := "testunderconstructiongflag"
 		env := NewTestStoreEnv(t, ledgerID, couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
-		s.db = mockCouchDB{saveDocErr: fmt.Errorf("SaveDoc error")}
-		err := store.SetUnderConstructionFlag(ledgerID)
+		env.TestStore.db = mockCouchDB{saveDocErr: fmt.Errorf("SaveDoc error")}
+		err := env.TestStore.SetUnderConstructionFlag(ledgerID)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "update of metadata in CouchDB failed")
 
@@ -155,10 +151,8 @@ func TestUnderConstructionFlag(t *testing.T) {
 	t.Run("test error from GetUnderConstructionFlag ReadDoc", func(t *testing.T) {
 		ledgerID := "testunderconstructiongflag"
 		env := NewTestStoreEnv(t, ledgerID, couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
-		s.db = mockCouchDB{readDocErr: fmt.Errorf("SaveDoc error")}
-		_, err := store.GetUnderConstructionFlag()
+		env.TestStore.db = mockCouchDB{readDocErr: fmt.Errorf("SaveDoc error")}
+		_, err := env.TestStore.GetUnderConstructionFlag()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "retrieval of metadata from CouchDB inventory failed")
 
@@ -167,10 +161,8 @@ func TestUnderConstructionFlag(t *testing.T) {
 	t.Run("test doc is empty", func(t *testing.T) {
 		ledgerID := "testunderconstructiongflag"
 		env := NewTestStoreEnv(t, ledgerID, couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
-		s.db = mockCouchDB{}
-		value, err := store.GetUnderConstructionFlag()
+		env.TestStore.db = mockCouchDB{}
+		value, err := env.TestStore.GetUnderConstructionFlag()
 		require.NoError(t, err)
 		require.Empty(t, value)
 	})
@@ -178,10 +170,8 @@ func TestUnderConstructionFlag(t *testing.T) {
 	t.Run("test metadata is invalid", func(t *testing.T) {
 		ledgerID := "testunderconstructiongflag"
 		env := NewTestStoreEnv(t, ledgerID, couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
-		s.db = mockCouchDB{readDocValue: &couchdb.CouchDoc{}}
-		_, err := store.GetUnderConstructionFlag()
+		env.TestStore.db = mockCouchDB{readDocValue: &couchdb.CouchDoc{}}
+		_, err := env.TestStore.GetUnderConstructionFlag()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "metadata in CouchDB inventory is invalid")
 
@@ -190,12 +180,10 @@ func TestUnderConstructionFlag(t *testing.T) {
 	t.Run("test metadata under construction key is invalid", func(t *testing.T) {
 		ledgerID := "testunderconstructiongflag"
 		env := NewTestStoreEnv(t, ledgerID, couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
 		v, err := json.Marshal(make(map[string]interface{}))
 		require.NoError(t, err)
-		s.db = mockCouchDB{readDocValue: &couchdb.CouchDoc{JSONValue: v}}
-		_, err = store.GetUnderConstructionFlag()
+		env.TestStore.db = mockCouchDB{readDocValue: &couchdb.CouchDoc{JSONValue: v}}
+		_, err = env.TestStore.GetUnderConstructionFlag()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "metadata under construction key in CouchDB inventory is invalid")
 
@@ -228,10 +216,8 @@ func TestLedgerID(t *testing.T) {
 
 	t.Run("test error from CreateLedgerID LedgerIDExists", func(t *testing.T) {
 		env := NewTestStoreEnv(t, "", couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
-		s.db = mockCouchDB{readDocErr: fmt.Errorf("ReadDoc error")}
-		err := s.CreateLedgerID("", nil)
+		env.TestStore.db = mockCouchDB{readDocErr: fmt.Errorf("ReadDoc error")}
+		err := env.TestStore.CreateLedgerID("", nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "ReadDoc error")
 
@@ -239,12 +225,10 @@ func TestLedgerID(t *testing.T) {
 
 	t.Run("test error from CreateLedgerID BatchUpdateDocuments", func(t *testing.T) {
 		env := NewTestStoreEnv(t, "", couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
-		s.db = mockCouchDB{batchUpdateDocumentsErr: fmt.Errorf("BatchUpdateDocuments error")}
+		env.TestStore.db = mockCouchDB{batchUpdateDocumentsErr: fmt.Errorf("BatchUpdateDocuments error")}
 		block := &common.Block{}
 		block.Data = &common.BlockData{Data: [][]byte{[]byte("testblock")}}
-		err := s.CreateLedgerID("", block)
+		err := env.TestStore.CreateLedgerID("", block)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "creation of ledger failed ")
 
@@ -252,12 +236,10 @@ func TestLedgerID(t *testing.T) {
 
 	t.Run("test error from CreateLedgerID BatchUpdateDocuments", func(t *testing.T) {
 		env := NewTestStoreEnv(t, "", couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
-		s.db = mockCouchDB{batchUpdateDocumentsErr: fmt.Errorf("BatchUpdateDocuments error")}
+		env.TestStore.db = mockCouchDB{batchUpdateDocumentsErr: fmt.Errorf("BatchUpdateDocuments error")}
 		block := &common.Block{}
 		block.Data = &common.BlockData{Data: [][]byte{[]byte("testblock")}}
-		err := s.CreateLedgerID("", block)
+		err := env.TestStore.CreateLedgerID("", block)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "creation of ledger failed ")
 
@@ -265,21 +247,17 @@ func TestLedgerID(t *testing.T) {
 
 	t.Run("test error from GetLedgeIDValue ReadDoc", func(t *testing.T) {
 		env := NewTestStoreEnv(t, "", couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
-		s.db = mockCouchDB{readDocErr: fmt.Errorf("ReadDoc error")}
-		_, err := s.GetLedgeIDValue("")
+		env.TestStore.db = mockCouchDB{readDocErr: fmt.Errorf("ReadDoc error")}
+		_, err := env.TestStore.getLedgerIDValue("")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "ReadDoc error")
 
 	})
 
-	t.Run("test GetLedgeIDValue ReadDoc return empty doc", func(t *testing.T) {
+	t.Run("test GetLedgerIDValue ReadDoc return empty doc", func(t *testing.T) {
 		env := NewTestStoreEnv(t, "", couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
-		s.db = mockCouchDB{readDocValue: &couchdb.CouchDoc{}}
-		v, err := s.GetLedgeIDValue("")
+		env.TestStore.db = mockCouchDB{readDocValue: &couchdb.CouchDoc{}}
+		v, err := env.TestStore.getLedgerIDValue("")
 		require.NoError(t, err)
 		require.Empty(t, v)
 
@@ -287,48 +265,57 @@ func TestLedgerID(t *testing.T) {
 
 	t.Run("test error from GetAllLedgerIds queryInventory", func(t *testing.T) {
 		env := NewTestStoreEnv(t, "", couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
-		s.db = mockCouchDB{queryDocumentsErr: fmt.Errorf("QueryDocuments error")}
-		_, err := s.GetAllLedgerIds()
+		env.TestStore.db = mockCouchDB{queryDocumentsErr: fmt.Errorf("QueryDocuments error")}
+		_, err := env.TestStore.GetActiveLedgerIDs()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "QueryDocuments error")
 	})
 
 	t.Run("test error from GetAllLedgerIds couchValueToJSON", func(t *testing.T) {
 		env := NewTestStoreEnv(t, "", couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
-		s.db = mockCouchDB{queryDocumentsValue: []*couchdb.QueryResult{{Value: []byte("wrongData")}}}
-		_, err := s.GetAllLedgerIds()
+		env.TestStore.db = mockCouchDB{queryDocumentsValue: []*couchdb.QueryResult{{Value: []byte("wrongData")}}}
+		_, err := env.TestStore.GetActiveLedgerIDs()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "couchValueToJSON failed")
 	})
 
 	t.Run("test empty doc from GetAllLedgerIds queryInventory", func(t *testing.T) {
 		env := NewTestStoreEnv(t, "", couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
 		v, err := json.Marshal(make(map[string]interface{}))
 		require.NoError(t, err)
-		s.db = mockCouchDB{queryDocumentsValue: []*couchdb.QueryResult{{Value: v}}}
-		_, err = s.GetAllLedgerIds()
+		env.TestStore.db = mockCouchDB{queryDocumentsValue: []*couchdb.QueryResult{{Value: v}}}
+		_, err = env.TestStore.GetActiveLedgerIDs()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "ledger inventory document is invalid")
 	})
 
 	t.Run("test wrong doc from GetAllLedgerIds queryInventory", func(t *testing.T) {
 		env := NewTestStoreEnv(t, "", couchDBConfig)
-		store := env.TestStore
-		s := store.(*Store)
 		m := make(map[string]interface{})
 		m[inventoryNameLedgerIDField] = 1
 		v, err := json.Marshal(m)
 		require.NoError(t, err)
-		s.db = mockCouchDB{queryDocumentsValue: []*couchdb.QueryResult{{Value: v}}}
-		_, err = s.GetAllLedgerIds()
+		env.TestStore.db = mockCouchDB{queryDocumentsValue: []*couchdb.QueryResult{{Value: v}}}
+		_, err = env.TestStore.GetActiveLedgerIDs()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "ledger inventory document value is invalid")
+	})
+
+	t.Run("test error from LedgerIDActive", func(t *testing.T) {
+		env := NewTestStoreEnv(t, "", couchDBConfig)
+		env.TestStore.db = mockCouchDB{queryDocumentsErr: fmt.Errorf("QueryDocuments error")}
+		_, _, err := env.TestStore.LedgerIDActive("")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "QueryDocuments error")
+	})
+
+	t.Run("test error from GetGenesisBlock", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected error")
+		env := NewTestStoreEnv(t, "", couchDBConfig)
+		env.TestStore.db = mockCouchDB{readDocErr: errExpected}
+		_, err := env.TestStore.GetGenesisBlock("")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
 	})
 
 	t.Run("test success", func(t *testing.T) {
@@ -349,14 +336,14 @@ func TestLedgerID(t *testing.T) {
 		req.Error(store.CreateLedgerID(ledgerID, block))
 
 		// get ledger ids
-		ledgerIDs, err := store.GetAllLedgerIds()
+		ledgerIDs, err := store.GetActiveLedgerIDs()
 		req.NoError(err)
 		req.Equal(2, len(ledgerIDs))
 		req.Contains(ledgerIDs, ledgerID)
 		req.Contains(ledgerIDs, ledgerID1)
 
 		// get ledger id value
-		ledgerIdValue, err := store.GetLedgeIDValue(ledgerID)
+		ledgerIdValue, err := store.getLedgerIDValue(ledgerID)
 		req.NoError(err)
 		gb := &common.Block{}
 		req.NoError(proto.Unmarshal(ledgerIdValue, gb))
@@ -366,9 +353,34 @@ func TestLedgerID(t *testing.T) {
 		exist, err := store.LedgerIDExists(ledgerID)
 		req.NoError(err)
 		req.Equal(exist, true)
+
+		active, exist, err := store.LedgerIDActive(ledgerID)
+		req.NoError(err)
+		req.True(active)
+		req.True(exist)
+
+		b, err := store.GetGenesisBlock(ledgerID)
+		req.NoError(err)
+		req.Equal(block.Metadata, b.Metadata)
+		req.Equal(block.Header, b.Header)
+		req.Equal(block.Data.Data, b.Data.Data)
+
+		f, err := store.GetFormat()
+		req.NoError(err)
+		req.Equal([]byte(dataformat.Version20), f)
 	})
 
+	t.Run("panic on unimplemented functions", func(t *testing.T) {
+		ledgerID := "testledgerid"
+		env := NewTestStoreEnv(t, ledgerID, couchDBConfig)
+		req := require.New(t)
+		store := env.TestStore
+
+		req.PanicsWithValue("not implemented", func() { store.UpgradeFormat() })
+		req.PanicsWithValue("not implemented", func() { store.UpdateLedgerStatus("", msgs.Status_ACTIVE) })
+	})
 }
+
 func TestClose(t *testing.T) {
 	ledgerID := "testclose"
 	env := NewTestStoreEnv(t, ledgerID, couchDBConfig)

@@ -17,11 +17,11 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
+	"github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/ledger/blkstorage"
 	"github.com/hyperledger/fabric/common/ledger/testutil"
 	"github.com/hyperledger/fabric/core/ledger/util"
-	"github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/peer"
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/stretchr/testify/assert"
 	xtestutil "github.com/trustbloc/fabric-peer-ext/pkg/testutil"
@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 	//setup extension test environment
 	_, _, destroy := xtestutil.SetupExtTestEnv()
 
-	couchDBConfig := xtestutil.TestLedgerConf().StateDB.CouchDB
+	couchDBConfig := xtestutil.TestLedgerConf().StateDBConfig.CouchDB
 	var err error
 	cdbInstance, err = couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {

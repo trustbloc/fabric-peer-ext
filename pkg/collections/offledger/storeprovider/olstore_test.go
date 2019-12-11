@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,9 +56,9 @@ var (
 	value3_1 = []byte("value3_1")
 	value4_1 = []byte("value4_1")
 
-	typeConfig = map[cb.CollectionType]*collTypeConfig{
-		cb.CollectionType_COL_OFFLEDGER: {},
-		cb.CollectionType_COL_DCAS:      {decorator: dcas.Decorator},
+	typeConfig = map[pb.CollectionType]*collTypeConfig{
+		pb.CollectionType_COL_OFFLEDGER: {},
+		pb.CollectionType_COL_DCAS:      {decorator: dcas.Decorator},
 	}
 )
 
@@ -335,8 +335,8 @@ func TestStore_PutData(t *testing.T) {
 
 	defer s.Close()
 
-	collConfig := &cb.StaticCollectionConfig{
-		Type: cb.CollectionType_COL_OFFLEDGER,
+	collConfig := &pb.StaticCollectionConfig{
+		Type: pb.CollectionType_COL_OFFLEDGER,
 		Name: coll1,
 	}
 
@@ -396,8 +396,8 @@ func TestStore_PutData(t *testing.T) {
 	})
 
 	t.Run("Invalid CAS key -> fail", func(t *testing.T) {
-		dcasCollConfig := &cb.StaticCollectionConfig{
-			Type: cb.CollectionType_COL_DCAS,
+		dcasCollConfig := &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_DCAS,
 			Name: coll1,
 		}
 		err := s.PutData(
@@ -487,8 +487,8 @@ func TestStore_DBError(t *testing.T) {
 		expectedErr := fmt.Errorf("error getting DB")
 		dbProvider.WithError(expectedErr)
 
-		collConfig := &cb.StaticCollectionConfig{
-			Type: cb.CollectionType_COL_OFFLEDGER,
+		collConfig := &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_OFFLEDGER,
 			Name: coll1,
 		}
 
@@ -814,8 +814,8 @@ func TestStore_DBError_NoCache(t *testing.T) {
 		expectedErr := fmt.Errorf("error getting DB")
 		dbProvider.WithError(expectedErr)
 
-		collConfig := &cb.StaticCollectionConfig{
-			Type: cb.CollectionType_COL_OFFLEDGER,
+		collConfig := &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_OFFLEDGER,
 			Name: coll1,
 		}
 

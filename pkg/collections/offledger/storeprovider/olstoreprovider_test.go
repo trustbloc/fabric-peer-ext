@@ -11,10 +11,10 @@ import (
 	"reflect"
 	"testing"
 
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/hyperledger/fabric/extensions/testutil"
-	"github.com/hyperledger/fabric/protos/common"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,11 +49,11 @@ func TestStoreProvider_WithDecorator(t *testing.T) {
 	f := New(
 		&mocks.IdentifierProvider{}, &mocks.IdentityDeserializerProvider{},
 		WithCollectionType(
-			common.CollectionType_COL_DCAS,
+			pb.CollectionType_COL_DCAS,
 			WithDecorator(&mockDecorator{}),
 		))
 	require.NotNil(t, f)
-	config, ok := f.collConfigs[common.CollectionType_COL_DCAS]
+	config, ok := f.collConfigs[pb.CollectionType_COL_DCAS]
 	assert.True(t, ok)
 	assert.NotNil(t, config)
 }

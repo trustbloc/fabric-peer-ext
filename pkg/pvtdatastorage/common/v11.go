@@ -8,9 +8,9 @@ package common
 
 import (
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/version"
-	"github.com/hyperledger/fabric/protos/ledger/rwset"
 )
 
 // todo add pinning script to include copied code into this file, original file from fabric is found in fabric/core/ledger/pvtdatastorage/v11.go
@@ -18,15 +18,21 @@ import (
 
 type blkTranNumKey []byte
 
-func V11Format(datakeyBytes []byte) bool {
-	_, n := version.NewHeightFromBytes(datakeyBytes[1:])
+func V11Format(datakeyBytes []byte) (bool, error) {
+	_, n, err := version.NewHeightFromBytes(datakeyBytes[1:])
+	if err != nil {
+		return false, err
+	}
 	remainingBytes := datakeyBytes[n+1:]
-	return len(remainingBytes) == 0
+	return len(remainingBytes) == 0, nil
 }
 
-func v11DecodePK(key blkTranNumKey) (blockNum uint64, tranNum uint64) {
-	height, _ := version.NewHeightFromBytes(key[1:])
-	return height.BlockNum, height.TxNum
+func v11DecodePK(key blkTranNumKey) (blockNum uint64, tranNum uint64, err error) {
+	height, _, err := version.NewHeightFromBytes(key[1:])
+	if err != nil {
+		return 0, 0, err
+	}
+	return height.BlockNum, height.TxNum, nil
 }
 
 func v11DecodePvtRwSet(encodedBytes []byte) (*rwset.TxPvtReadWriteSet, error) {
@@ -35,9 +41,11 @@ func v11DecodePvtRwSet(encodedBytes []byte) (*rwset.TxPvtReadWriteSet, error) {
 }
 
 func V11DecodeKV(k, v []byte, filter ledger.PvtNsCollFilter) (*ledger.TxPvtData, error) {
-	_, tNum := v11DecodePK(k)
+	_, tNum, err := v11DecodePK(k)
+	if err != nil {
+		return nil, err
+	}
 	var pvtWSet *rwset.TxPvtReadWriteSet
-	var err error
 	if pvtWSet, err = v11DecodePvtRwSet(v); err != nil {
 		return nil, err
 	}

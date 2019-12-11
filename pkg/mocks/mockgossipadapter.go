@@ -7,14 +7,14 @@ SPDX-License-Identifier: Apache-2.0
 package mocks
 
 import (
+	gossipproto "github.com/hyperledger/fabric-protos-go/gossip"
+	"github.com/hyperledger/fabric-protos-go/transientstore"
 	gossipapi "github.com/hyperledger/fabric/gossip/api"
 	"github.com/hyperledger/fabric/gossip/comm"
 	"github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/gossip/discovery"
 	"github.com/hyperledger/fabric/gossip/gossip"
 	"github.com/hyperledger/fabric/gossip/protoext"
-	gossipproto "github.com/hyperledger/fabric/protos/gossip"
-	"github.com/hyperledger/fabric/protos/transientstore"
 )
 
 // MessageHandler defines a function that handles a gossip message.
@@ -66,7 +66,7 @@ func (m *MockGossipAdapter) MessageHandler(handler MessageHandler) *MockGossipAd
 }
 
 // PeersOfChannel returns the members
-func (m *MockGossipAdapter) PeersOfChannel(common.ChainID) []discovery.NetworkMember {
+func (m *MockGossipAdapter) PeersOfChannel(common.ChannelID) []discovery.NetworkMember {
 	return m.members
 }
 
@@ -88,7 +88,7 @@ func (m *MockGossipAdapter) Send(msg *gossipproto.GossipMessage, peers ...*comm.
 }
 
 // SelfChannelInfo returns the peer's latest StateInfo message of a given channel
-func (m *MockGossipAdapter) SelfChannelInfo(common.ChainID) *protoext.SignedGossipMessage {
+func (m *MockGossipAdapter) SelfChannelInfo(common.ChannelID) *protoext.SignedGossipMessage {
 	panic("not implemented")
 }
 

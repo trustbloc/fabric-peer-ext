@@ -9,9 +9,9 @@ package storeprovider
 import (
 	"sync"
 
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	cb "github.com/hyperledger/fabric/protos/common"
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
@@ -92,7 +92,7 @@ func NewOffLedgerProvider(identifierProvider collcommon.IdentifierProvider, idDP
 	return olstoreprovider.New(
 		identifierProvider, idDProvider,
 		olstoreprovider.WithCollectionType(
-			cb.CollectionType_COL_DCAS,
+			pb.CollectionType_COL_DCAS,
 			olstoreprovider.WithDecorator(dcas.Decorator),
 		),
 	)

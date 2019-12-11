@@ -10,6 +10,9 @@ import (
 	"encoding/hex"
 	"sync"
 
+	cb "github.com/hyperledger/fabric-protos-go/common"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-protos-go/transientstore"
 	"github.com/hyperledger/fabric/bccsp"
 	"github.com/hyperledger/fabric/bccsp/factory"
 	"github.com/hyperledger/fabric/common/crypto"
@@ -17,8 +20,6 @@ import (
 	commonledger "github.com/hyperledger/fabric/common/ledger"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/extensions/collections/api/support"
-	cb "github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/pkg/errors"
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 )
@@ -129,7 +130,7 @@ func (d *Client) PutMultipleValues(ns, coll string, kvs []*KeyValue) error {
 	pvtData := &transientstore.TxPvtReadWriteSetWithConfigInfo{
 		EndorsedAt: bcInfo.Height,
 		PvtRwset:   results.PvtSimulationResults,
-		CollectionConfigs: map[string]*cb.CollectionConfigPackage{
+		CollectionConfigs: map[string]*pb.CollectionConfigPackage{
 			ns: configPkg,
 		},
 	}
@@ -191,16 +192,16 @@ func (d *Client) Query(ns, coll, query string) (commonledger.ResultsIterator, er
 	return qe.ExecuteQueryOnPrivateData(ns, coll, query)
 }
 
-func (d *Client) getCollectionConfigPackage(ns, coll string) (*cb.CollectionConfigPackage, error) {
+func (d *Client) getCollectionConfigPackage(ns, coll string) (*pb.CollectionConfigPackage, error) {
 	collConfig, err := d.ConfigRetriever.Config(ns, coll)
 	if err != nil {
 		return nil, err
 	}
 
-	return &cb.CollectionConfigPackage{
-		Config: []*cb.CollectionConfig{
+	return &pb.CollectionConfigPackage{
+		Config: []*pb.CollectionConfig{
 			{
-				Payload: &cb.CollectionConfig_StaticCollectionConfig{
+				Payload: &pb.CollectionConfig_StaticCollectionConfig{
 					StaticCollectionConfig: collConfig,
 				},
 			},

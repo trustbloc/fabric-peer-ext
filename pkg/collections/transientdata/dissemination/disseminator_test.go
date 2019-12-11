@@ -10,10 +10,10 @@ import (
 	"os"
 	"testing"
 
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/extensions/collections/api/dissemination"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	gdiscovery "github.com/hyperledger/fabric/gossip/discovery"
-	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -290,7 +290,7 @@ func TestComputeDisseminationPlan(t *testing.T) {
 			Delete(key2) // Deletes should be ignored
 
 		rwSet := coll1Builder.Build()
-		pvtDataMsg, err := createPrivateDataMessage(channelID, tx1, ns1, rwSet, &cb.CollectionConfigPackage{}, 1000)
+		pvtDataMsg, err := createPrivateDataMessage(channelID, tx1, ns1, rwSet, &pb.CollectionConfigPackage{}, 1000)
 		require.NoError(t, err)
 
 		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colAP, pvtDataMsg, gossip)
@@ -325,7 +325,7 @@ func TestComputeDisseminationPlan(t *testing.T) {
 			Write(key1, []byte("value1"))
 
 		rwSet := coll1Builder.Build()
-		pvtDataMsg, err := createPrivateDataMessage(channelID, tx1, ns1, rwSet, &cb.CollectionConfigPackage{}, 1000)
+		pvtDataMsg, err := createPrivateDataMessage(channelID, tx1, ns1, rwSet, &pb.CollectionConfigPackage{}, 1000)
 		require.NoError(t, err)
 
 		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colAP, pvtDataMsg, gossip)
@@ -364,7 +364,7 @@ func TestComputeDisseminationPlan(t *testing.T) {
 			Write(key6, []byte("value6"))
 
 		rwSet := coll1Builder.Build()
-		pvtDataMsg, err := createPrivateDataMessage(channelID, tx1, ns1, rwSet, &cb.CollectionConfigPackage{}, 1000)
+		pvtDataMsg, err := createPrivateDataMessage(channelID, tx1, ns1, rwSet, &pb.CollectionConfigPackage{}, 1000)
 		require.NoError(t, err)
 
 		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colAP, pvtDataMsg, gossip)
@@ -403,7 +403,7 @@ func TestComputeDisseminationPlan(t *testing.T) {
 		coll1Builder.Write(key1, []byte("value1"))
 
 		rwSet := coll1Builder.Build()
-		pvtDataMsg, err := createPrivateDataMessage(channelID, tx1, ns1, rwSet, &cb.CollectionConfigPackage{}, 1000)
+		pvtDataMsg, err := createPrivateDataMessage(channelID, tx1, ns1, rwSet, &pb.CollectionConfigPackage{}, 1000)
 		require.NoError(t, err)
 
 		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colAP, pvtDataMsg, gossip)

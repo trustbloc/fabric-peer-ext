@@ -7,16 +7,16 @@ SPDX-License-Identifier: Apache-2.0
 package mocks
 
 import (
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
-	cb "github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
 )
 
 // MockSupport is a holder of policy, config and error
 type MockSupport struct {
 	CollPolicy  privdata.CollectionAccessPolicy
-	CollConfigs []*cb.StaticCollectionConfig
+	CollConfigs []*pb.StaticCollectionConfig
 	Err         error
 	Publisher   *MockBlockPublisher
 }
@@ -35,7 +35,7 @@ func (s *MockSupport) CollectionPolicy(collPolicy privdata.CollectionAccessPolic
 }
 
 // CollectionConfig sets the collection config for the given collection
-func (s *MockSupport) CollectionConfig(collConfig *cb.StaticCollectionConfig) *MockSupport {
+func (s *MockSupport) CollectionConfig(collConfig *pb.StaticCollectionConfig) *MockSupport {
 	s.CollConfigs = append(s.CollConfigs, collConfig)
 	return s
 }
@@ -46,7 +46,7 @@ func (s *MockSupport) Policy(channelID, ns, coll string) (privdata.CollectionAcc
 }
 
 // Config returns the collection config for the given collection
-func (s *MockSupport) Config(channelID, ns, coll string) (*cb.StaticCollectionConfig, error) {
+func (s *MockSupport) Config(channelID, ns, coll string) (*pb.StaticCollectionConfig, error) {
 	for _, config := range s.CollConfigs {
 		if config.Name == coll {
 			return config, nil

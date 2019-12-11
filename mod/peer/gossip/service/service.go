@@ -7,9 +7,9 @@ SPDX-License-Identifier: Apache-2.0
 package service
 
 import (
+	"github.com/hyperledger/fabric-protos-go/gossip"
 	"github.com/hyperledger/fabric/extensions/roles"
 	"github.com/hyperledger/fabric/gossip/util"
-	"github.com/hyperledger/fabric/protos/gossip"
 )
 
 var logger = util.GetLogger(util.ServiceLogger, "")

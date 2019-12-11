@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/hyperledger/fabric/core/ledger"
+	"github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 )
 
 type LedgerProvider struct {
@@ -94,3 +95,5 @@ func (fake *LedgerProvider) recordInvocation(key string, args []interface{}) {
 	}
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
+
+var _ common.LedgerProvider = new(LedgerProvider)

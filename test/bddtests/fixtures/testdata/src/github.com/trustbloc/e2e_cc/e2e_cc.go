@@ -14,12 +14,10 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/hyperledger/fabric/core/chaincode/shim"
-	"github.com/hyperledger/fabric/protos/ledger/queryresult"
-	pb "github.com/hyperledger/fabric/protos/peer"
+	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 )
-
-var logger = shim.NewLogger("examplecc")
 
 type invokeFunc func(stub shim.ChaincodeStubInterface, args []string) pb.Response
 type funcMap map[string]invokeFunc
@@ -57,7 +55,7 @@ func (cc *ExampleCC) Init(stub shim.ChaincodeStubInterface) pb.Response {
 
 // Invoke invoke the chaincode with a given function
 func (cc *ExampleCC) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
-	logger.Debug("########### example_cc Invoke ###########")
+	fmt.Print("########### example_cc Invoke ###########\n")
 	function, args := stub.GetFunctionAndParameters()
 	if function == "" {
 		return shim.Error("Expecting function")
@@ -171,7 +169,7 @@ func (cc *ExampleCC) queryPrivate(stub shim.ChaincodeStubInterface, args []strin
 	}
 	defer func() {
 		if err := it.Close(); err != nil {
-			logger.Errorf("Error closing keys iterator: %s", err)
+			fmt.Printf("Error closing keys iterator: %s\n", err)
 		}
 	}()
 
@@ -181,7 +179,7 @@ func (cc *ExampleCC) queryPrivate(stub shim.ChaincodeStubInterface, args []strin
 		if err != nil {
 			return shim.Error(fmt.Sprintf("query operation on private data failed. Error accessing state: %s", err))
 		}
-		logger.Infof("Adding result: Key [%s], Value: [%s]", result.Key, result.Value)
+		fmt.Printf("Adding result: Key [%s], Value: [%s]\n", result.Key, result.Value)
 		results = append(results, result)
 	}
 
@@ -627,6 +625,6 @@ func main() {
 	cc.initRegistry()
 	err := shim.Start(cc)
 	if err != nil {
-		logger.Errorf("Error starting example chaincode: %s", err)
+		fmt.Printf("Error starting example chaincode: %s\n", err)
 	}
 }

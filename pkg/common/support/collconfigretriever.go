@@ -13,6 +13,7 @@ import (
 
 	"github.com/bluele/gcache"
 	"github.com/golang/protobuf/proto"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/core/common/privdata"
@@ -21,7 +22,6 @@ import (
 	"github.com/hyperledger/fabric/extensions/endorser/api"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/msp"
-	"github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 )
@@ -119,9 +119,9 @@ func newCollectionConfigRetriever(channelID string, ledger peerLedger, blockPubl
 		}).Build()
 
 	// Add a handler to cache the collection config and policy when the chaincode is instantiated/upgraded
-	blockPublisher.AddLSCCWriteHandler(func(txnMetadata gossipapi.TxMetadata, ccID string, ccData *ccprovider.ChaincodeData, ccp *common.CollectionConfigPackage) error {
+	blockPublisher.AddLSCCWriteHandler(func(txnMetadata gossipapi.TxMetadata, ccID string, ccData *ccprovider.ChaincodeData, ccp *pb.CollectionConfigPackage) error {
 		if ccp != nil {
-			logger.Infof("Updating collection configs for chaincode [%s].", ccID)
+			logger.Infof("Updating collection configs for chaincode [%s:%s].", ccID, ccData.Version)
 			configs, err := r.getConfigAndPolicy(ccID, ccp)
 			if err != nil {
 				return errors.WithMessagef(err, "error getting collection configs for chaincode [%s]", ccID)
@@ -137,7 +137,7 @@ func newCollectionConfigRetriever(channelID string, ledger peerLedger, blockPubl
 }
 
 type cacheItem struct {
-	config *common.StaticCollectionConfig
+	config *pb.StaticCollectionConfig
 	policy privdata.CollectionAccessPolicy
 }
 
@@ -152,7 +152,7 @@ func (c cacheItems) get(coll string) (*cacheItem, error) {
 	return nil, errors.Errorf("configuration not found for collection [%s]", coll)
 }
 
-func (c cacheItems) config(coll string) (*common.StaticCollectionConfig, error) {
+func (c cacheItems) config(coll string) (*pb.StaticCollectionConfig, error) {
 	item, err := c.get(coll)
 	if err != nil {
 		return nil, err
@@ -169,7 +169,7 @@ func (c cacheItems) policy(coll string) (privdata.CollectionAccessPolicy, error)
 }
 
 // Config returns the configuration for the given collection
-func (s *CollectionConfigRetriever) Config(ns, coll string) (*common.StaticCollectionConfig, error) {
+func (s *CollectionConfigRetriever) Config(ns, coll string) (*pb.StaticCollectionConfig, error) {
 	logger.Debugf("[%s] Retrieving collection configuration for chaincode [%s]", s.channelID, ns)
 	item, err := s.cache.Get(ns)
 	if err != nil {
@@ -208,7 +208,7 @@ func (s *CollectionConfigRetriever) loadConfigAndPolicy(ns string) (cacheItems, 
 	return s.cacheItemsFromConfigs(ns, configs)
 }
 
-func (s *CollectionConfigRetriever) getConfigAndPolicy(ns string, ccp *common.CollectionConfigPackage) (cacheItems, error) {
+func (s *CollectionConfigRetriever) getConfigAndPolicy(ns string, ccp *pb.CollectionConfigPackage) (cacheItems, error) {
 	configs, err := s.configsFromCCP(ns, ccp)
 	if err != nil {
 		return nil, err
@@ -216,7 +216,7 @@ func (s *CollectionConfigRetriever) getConfigAndPolicy(ns string, ccp *common.Co
 	return s.cacheItemsFromConfigs(ns, configs)
 }
 
-func (s *CollectionConfigRetriever) loadConfigs(ns string) ([]*common.StaticCollectionConfig, error) {
+func (s *CollectionConfigRetriever) loadConfigs(ns string) ([]*pb.StaticCollectionConfig, error) {
 	logger.Debugf("[%s] Loading collection configs for chaincode [%s]", s.channelID, ns)
 
 	cpBytes, err := s.getCCPBytes(ns)
@@ -227,7 +227,7 @@ func (s *CollectionConfigRetriever) loadConfigs(ns string) ([]*common.StaticColl
 		return nil, errors.Errorf("no collection config for chaincode [%s]", ns)
 	}
 
-	ccp := &common.CollectionConfigPackage{}
+	ccp := &pb.CollectionConfigPackage{}
 	err = proto.Unmarshal(cpBytes, ccp)
 	if err != nil {
 		return nil, errors.Wrapf(err, "invalid collection configuration for [%s]", ns)
@@ -235,7 +235,7 @@ func (s *CollectionConfigRetriever) loadConfigs(ns string) ([]*common.StaticColl
 	return s.configsFromCCP(ns, ccp)
 }
 
-func (s *CollectionConfigRetriever) cacheItemsFromConfigs(ns string, configs []*common.StaticCollectionConfig) (cacheItems, error) {
+func (s *CollectionConfigRetriever) cacheItemsFromConfigs(ns string, configs []*pb.StaticCollectionConfig) (cacheItems, error) {
 	var items []*cacheItem
 	for _, config := range configs {
 		policy, err := s.loadPolicy(ns, config)
@@ -250,8 +250,8 @@ func (s *CollectionConfigRetriever) cacheItemsFromConfigs(ns string, configs []*
 	return items, nil
 }
 
-func (s *CollectionConfigRetriever) configsFromCCP(ns string, ccp *common.CollectionConfigPackage) ([]*common.StaticCollectionConfig, error) {
-	var configs []*common.StaticCollectionConfig
+func (s *CollectionConfigRetriever) configsFromCCP(ns string, ccp *pb.CollectionConfigPackage) ([]*pb.StaticCollectionConfig, error) {
+	var configs []*pb.StaticCollectionConfig
 	for _, collConfig := range ccp.Config {
 		config := collConfig.GetStaticCollectionConfig()
 		logger.Debugf("[%s] Checking collection config for [%s:%+v]", s.channelID, ns, config)
@@ -264,7 +264,7 @@ func (s *CollectionConfigRetriever) configsFromCCP(ns string, ccp *common.Collec
 	return configs, nil
 }
 
-func (s *CollectionConfigRetriever) loadPolicy(ns string, config *common.StaticCollectionConfig) (privdata.CollectionAccessPolicy, error) {
+func (s *CollectionConfigRetriever) loadPolicy(ns string, config *pb.StaticCollectionConfig) (privdata.CollectionAccessPolicy, error) {
 	logger.Debugf("[%s] Loading collection policy for [%s:%s]", s.channelID, ns, config.Name)
 
 	colAP := &privdata.SimpleCollection{}

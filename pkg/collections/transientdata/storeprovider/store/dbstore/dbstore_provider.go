@@ -22,11 +22,14 @@ type LevelDBProvider struct {
 }
 
 // NewDBProvider constructs new db provider
-func NewDBProvider() *LevelDBProvider {
+func NewDBProvider() (*LevelDBProvider, error) {
 	dbPath := config.GetTransientDataLevelDBPath()
 	logger.Debugf("constructing DBProvider dbPath=%s", dbPath)
-	return &LevelDBProvider{leveldbhelper.NewProvider(&leveldbhelper.Conf{DBPath: dbPath})}
-
+	p, err := newLevelDBProvider(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	return &LevelDBProvider{leveldbProvider: p}, nil
 }
 
 // OpenDBStore opens the db store
@@ -38,4 +41,8 @@ func (p *LevelDBProvider) OpenDBStore(dbName string) (*DBStore, error) {
 // Close cleans up the Provider
 func (p *LevelDBProvider) Close() {
 	p.leveldbProvider.Close()
+}
+
+var newLevelDBProvider = func(dbPath string) (*leveldbhelper.Provider, error) {
+	return leveldbhelper.NewProvider(&leveldbhelper.Conf{DBPath: dbPath})
 }

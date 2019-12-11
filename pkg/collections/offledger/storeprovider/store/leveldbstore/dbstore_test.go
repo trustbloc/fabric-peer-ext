@@ -35,7 +35,8 @@ func TestDeleteExpiredKeysFromDB(t *testing.T) {
 	removeDBPath(t)
 	defer removeDBPath(t)
 
-	provider := NewDBProvider()
+	provider, err := NewDBProvider()
+	require.NoError(t, err)
 	defer provider.Close()
 
 	db, err := provider.GetDB(ns1, "", coll1)
@@ -67,7 +68,8 @@ func TestDeleteExpiredKeysFromDB(t *testing.T) {
 func TestGetKeysFromDB(t *testing.T) {
 	defer removeDBPath(t)
 
-	provider := NewDBProvider()
+	provider, err := NewDBProvider()
+	require.NoError(t, err)
 	defer provider.Close()
 
 	db1, err := provider.GetDB(ns1, "", coll1)
@@ -129,7 +131,8 @@ func TestGetKeysFromDB(t *testing.T) {
 func TestStore_Query(t *testing.T) {
 	defer removeDBPath(t)
 
-	provider := NewDBProvider()
+	provider, err := NewDBProvider()
+	require.NoError(t, err)
 	defer provider.Close()
 
 	db, err := provider.GetDB(ns1, "", coll1)

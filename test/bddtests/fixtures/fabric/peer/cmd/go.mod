@@ -10,12 +10,14 @@ require (
 	github.com/trustbloc/fabric-peer-ext v0.0.0
 )
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.1-0.20191122210718-4f3ec3a01186
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.1-0.20191210140617-384d402d27ae
 
 replace github.com/hyperledger/fabric/extensions => ../../../../../../mod/peer
 
 replace github.com/trustbloc/fabric-peer-ext => ../../../../../..
 
 replace github.com/spf13/viper => github.com/spf13/viper v0.0.0-20150908122457-1967d93db724
+
+replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.1.1-0.20191126151100-5a61374c2e1b
 
 go 1.13

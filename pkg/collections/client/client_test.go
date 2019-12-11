@@ -8,9 +8,10 @@ package client
 import (
 	"testing"
 
+	cb "github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/ledger"
-	cb "github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/queryresult"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,7 +39,7 @@ func TestClient_Put(t *testing.T) {
 	}
 
 	distributor := &clientmocks.PvtDataDistributor{}
-	configRetriever := mocks.NewCollectionConfigRetriever().WithCollectionConfig(&cb.StaticCollectionConfig{Name: coll1})
+	configRetriever := mocks.NewCollectionConfigRetriever().WithCollectionConfig(&pb.StaticCollectionConfig{Name: coll1})
 
 	// Mock out all of the dependencies
 	signingIdentity := &mocks.SigningIdentity{}

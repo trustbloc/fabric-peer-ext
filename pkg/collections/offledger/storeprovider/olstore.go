@@ -9,15 +9,14 @@ package storeprovider
 import (
 	"time"
 
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
+	proto "github.com/hyperledger/fabric-protos-go/transientstore"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/hyperledger/fabric/msp"
-	"github.com/hyperledger/fabric/protos/common"
-	cb "github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
-	pb "github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/pkg/errors"
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
@@ -33,10 +32,10 @@ type store struct {
 	identifierProvider   collcommon.IdentifierProvider
 	identityDeserializer msp.IdentityDeserializer
 	cache                *cache.Cache
-	collConfigs          map[common.CollectionType]*collTypeConfig
+	collConfigs          map[pb.CollectionType]*collTypeConfig
 }
 
-func newStore(channelID string, dbProvider api.DBProvider, identifierProvider collcommon.IdentifierProvider, identityDeserializer msp.IdentityDeserializer, collConfigs map[common.CollectionType]*collTypeConfig) *store {
+func newStore(channelID string, dbProvider api.DBProvider, identifierProvider collcommon.IdentifierProvider, identityDeserializer msp.IdentityDeserializer, collConfigs map[pb.CollectionType]*collTypeConfig) *store {
 	logger.Debugf("constructing collection data store")
 
 	store := &store{
@@ -60,7 +59,7 @@ func (s *store) Close() {
 }
 
 // Persist persists all data within the private data simulation results
-func (s *store) Persist(txID string, privateSimulationResultsWithConfig *pb.TxPvtReadWriteSetWithConfigInfo) error {
+func (s *store) Persist(txID string, privateSimulationResultsWithConfig *proto.TxPvtReadWriteSetWithConfigInfo) error {
 	rwSet, err := rwsetutil.TxPvtRwSetFromProtoMsg(privateSimulationResultsWithConfig.PvtRwset)
 	if err != nil {
 		return errors.WithMessage(err, "error getting pvt RW set from bytes")
@@ -78,7 +77,7 @@ func (s *store) Persist(txID string, privateSimulationResultsWithConfig *pb.TxPv
 }
 
 // PutData returns the  data for the given key
-func (s *store) PutData(config *cb.StaticCollectionConfig, key *storeapi.Key, value *storeapi.ExpiringValue) error {
+func (s *store) PutData(config *pb.StaticCollectionConfig, key *storeapi.Key, value *storeapi.ExpiringValue) error {
 	if value.Value == nil {
 		return errors.Errorf("attempt to put nil value for key [%s]", key)
 	}
@@ -162,7 +161,7 @@ func (s *store) Query(key *storeapi.QueryKey) (storeapi.ResultsIterator, error) 
 	return newResultsIterator(queryResults), nil
 }
 
-func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*common.CollectionConfigPackage, collRWSet *rwsetutil.CollPvtRwSet) error {
+func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*pb.CollectionConfigPackage, collRWSet *rwsetutil.CollPvtRwSet) error {
 	config, exists := s.getCollectionConfig(collConfigPkgs, ns, collRWSet.CollectionName)
 	if !exists {
 		logger.Debugf("[%s]  config for collection [%s:%s] not found in config packages", s.channelID, ns, collRWSet.CollectionName)
@@ -298,7 +297,7 @@ func (s *store) getDataMultipleKeys(txID, ns, coll string, keys ...string) (stor
 	return ret, nil
 }
 
-func (s *store) createBatch(txID, ns string, config *cb.StaticCollectionConfig, collRWSet *rwsetutil.CollPvtRwSet, expiryTime time.Time) ([]*api.KeyValue, error) {
+func (s *store) createBatch(txID, ns string, config *pb.StaticCollectionConfig, collRWSet *rwsetutil.CollPvtRwSet, expiryTime time.Time) ([]*api.KeyValue, error) {
 	var batch []*api.KeyValue
 	for _, w := range collRWSet.KvRwSet.Writes {
 		kv, err := s.newKeyValue(txID, ns, config, expiryTime, w)
@@ -310,7 +309,7 @@ func (s *store) createBatch(txID, ns string, config *cb.StaticCollectionConfig, 
 	return batch, nil
 }
 
-func (s *store) newKeyValue(txID, ns string, config *cb.StaticCollectionConfig, expiryTime time.Time, w *kvrwset.KVWrite) (*api.KeyValue, error) {
+func (s *store) newKeyValue(txID, ns string, config *pb.StaticCollectionConfig, expiryTime time.Time, w *kvrwset.KVWrite) (*api.KeyValue, error) {
 	key := storeapi.NewKey(txID, ns, config.Name, w.Key)
 	if w.IsDelete {
 		dKey, err := s.beforeLoad(config, key)
@@ -332,7 +331,7 @@ func (s *store) newKeyValue(txID, ns string, config *cb.StaticCollectionConfig, 
 	return api.NewKeyValue(dKey.Key, value.Value, txID, value.Expiry), nil
 }
 
-func (s *store) isAuthorized(ns string, config *common.StaticCollectionConfig) (bool, error) {
+func (s *store) isAuthorized(ns string, config *pb.StaticCollectionConfig) (bool, error) {
 	policy, err := s.loadPolicy(ns, config)
 	if err != nil {
 		logger.Errorf("[%s] Error loading policy for collection [%s:%s]: %s", s.channelID, ns, config.Name, err)
@@ -353,7 +352,7 @@ func (s *store) isAuthorized(ns string, config *common.StaticCollectionConfig) (
 }
 
 // TODO: Consider caching policies to avoid marshalling every time
-func (s *store) loadPolicy(ns string, config *common.StaticCollectionConfig) (privdata.CollectionAccessPolicy, error) {
+func (s *store) loadPolicy(ns string, config *pb.StaticCollectionConfig) (privdata.CollectionAccessPolicy, error) {
 	logger.Debugf("[%s] Loading collection policy for [%s:%s]", s.channelID, ns, config.Name)
 
 	colAP := &privdata.SimpleCollection{}
@@ -365,7 +364,7 @@ func (s *store) loadPolicy(ns string, config *common.StaticCollectionConfig) (pr
 	return colAP, nil
 }
 
-func (s *store) getExpirationTime(config *common.StaticCollectionConfig) (time.Time, error) {
+func (s *store) getExpirationTime(config *pb.StaticCollectionConfig) (time.Time, error) {
 	var expiryTime time.Time
 	if config.TimeToLive == "" {
 		return expiryTime, nil
@@ -378,7 +377,7 @@ func (s *store) getExpirationTime(config *common.StaticCollectionConfig) (time.T
 	return time.Now().Add(ttl), nil
 }
 
-func (s *store) getCollectionConfig(collConfigPkgs map[string]*common.CollectionConfigPackage, namespace, collName string) (*common.StaticCollectionConfig, bool) {
+func (s *store) getCollectionConfig(collConfigPkgs map[string]*pb.CollectionConfigPackage, namespace, collName string) (*pb.StaticCollectionConfig, bool) {
 	collConfigPkg, ok := collConfigPkgs[namespace]
 	if !ok {
 		return nil, false
@@ -394,7 +393,7 @@ func (s *store) getCollectionConfig(collConfigPkgs map[string]*common.Collection
 	return nil, false
 }
 
-func (s *store) beforeSave(config *cb.StaticCollectionConfig, key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key, *storeapi.ExpiringValue, error) {
+func (s *store) beforeSave(config *pb.StaticCollectionConfig, key *storeapi.Key, value *storeapi.ExpiringValue) (*storeapi.Key, *storeapi.ExpiringValue, error) {
 	cfg, ok := s.collConfigs[config.Type]
 	if !ok || cfg.decorator == nil {
 		return key, value, nil
@@ -402,7 +401,7 @@ func (s *store) beforeSave(config *cb.StaticCollectionConfig, key *storeapi.Key,
 	return cfg.decorator.BeforeSave(key, value)
 }
 
-func (s *store) beforeLoad(config *cb.StaticCollectionConfig, key *storeapi.Key) (*storeapi.Key, error) {
+func (s *store) beforeLoad(config *pb.StaticCollectionConfig, key *storeapi.Key) (*storeapi.Key, error) {
 	cfg, ok := s.collConfigs[config.Type]
 	if !ok || cfg.decorator == nil {
 		return key, nil
@@ -410,7 +409,7 @@ func (s *store) beforeLoad(config *cb.StaticCollectionConfig, key *storeapi.Key)
 	return cfg.decorator.BeforeLoad(key)
 }
 
-func (s *store) collTypeSupported(collType cb.CollectionType) bool {
+func (s *store) collTypeSupported(collType pb.CollectionType) bool {
 	_, ok := s.collConfigs[collType]
 	return ok
 }

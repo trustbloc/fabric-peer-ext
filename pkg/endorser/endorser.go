@@ -7,9 +7,9 @@ SPDX-License-Identifier: Apache-2.0
 package endorser
 
 import (
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
-	"github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset"
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 )
 
@@ -92,8 +92,8 @@ func (f *CollRWSetFilter) isOffLedger(channelID, ns, coll string) (bool, error) 
 	return isCollOffLedger(staticConfig), nil
 }
 
-func isCollOffLedger(collConfig *common.StaticCollectionConfig) bool {
-	return collConfig.Type == common.CollectionType_COL_TRANSIENT ||
-		collConfig.Type == common.CollectionType_COL_OFFLEDGER ||
-		collConfig.Type == common.CollectionType_COL_DCAS
+func isCollOffLedger(collConfig *pb.StaticCollectionConfig) bool {
+	return collConfig.Type == pb.CollectionType_COL_TRANSIENT ||
+		collConfig.Type == pb.CollectionType_COL_OFFLEDGER ||
+		collConfig.Type == pb.CollectionType_COL_DCAS
 }

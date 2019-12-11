@@ -7,9 +7,9 @@ SPDX-License-Identifier: Apache-2.0
 package storeprovider
 
 import (
+	pb "github.com/hyperledger/fabric-protos-go/peer"
+	proto "github.com/hyperledger/fabric-protos-go/transientstore"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	cb "github.com/hyperledger/fabric/protos/common"
-	pb "github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/pkg/errors"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
 	tdapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
@@ -34,7 +34,7 @@ func newDelegatingStore(channelID string, targets targetStores) *store {
 }
 
 // Persist persists all transient data within the private data simulation results
-func (d *store) Persist(txID string, privateSimulationResultsWithConfig *pb.TxPvtReadWriteSetWithConfigInfo) error {
+func (d *store) Persist(txID string, privateSimulationResultsWithConfig *proto.TxPvtReadWriteSetWithConfigInfo) error {
 	if err := d.transientDataStore.Persist(txID, privateSimulationResultsWithConfig); err != nil {
 		return errors.WithMessage(err, "error persisting transient data")
 	}
@@ -65,7 +65,7 @@ func (d *store) GetData(key *storeapi.Key) (*storeapi.ExpiringValue, error) {
 }
 
 // PutData stores the key/value.
-func (d *store) PutData(config *cb.StaticCollectionConfig, key *storeapi.Key, value *storeapi.ExpiringValue) error {
+func (d *store) PutData(config *pb.StaticCollectionConfig, key *storeapi.Key, value *storeapi.ExpiringValue) error {
 	return d.offLedgerStore.PutData(config, key, value)
 }
 

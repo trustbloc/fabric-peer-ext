@@ -9,6 +9,9 @@ package storeprovider
 import (
 	"time"
 
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
+	proto "github.com/hyperledger/fabric-protos-go/transientstore"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
@@ -17,9 +20,6 @@ import (
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	gdiscovery "github.com/hyperledger/fabric/gossip/discovery"
 	"github.com/hyperledger/fabric/msp"
-	"github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
-	pb "github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/pkg/errors"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/dissemination"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider/store/api"
@@ -30,7 +30,7 @@ import (
 var logger = flogging.MustGetLogger("transientdata")
 
 type gossipAdapter interface {
-	PeersOfChannel(gcommon.ChainID) []gdiscovery.NetworkMember
+	PeersOfChannel(id gcommon.ChannelID) []gdiscovery.NetworkMember
 	SelfMembershipInfo() gdiscovery.NetworkMember
 	IdentityInfo() gapi.PeerIdentitySet
 }
@@ -59,7 +59,7 @@ func newStore(channelID string, cacheSize int, transientDB db, gossip gossipAdap
 }
 
 // Persist persists all transient data within the private data simulation results
-func (s *store) Persist(txID string, privateSimulationResultsWithConfig *pb.TxPvtReadWriteSetWithConfigInfo) error {
+func (s *store) Persist(txID string, privateSimulationResultsWithConfig *proto.TxPvtReadWriteSetWithConfigInfo) error {
 	rwSet, err := rwsetutil.TxPvtRwSetFromProtoMsg(privateSimulationResultsWithConfig.PvtRwset)
 	if err != nil {
 		return errors.WithMessage(err, "error getting pvt RW set from bytes")
@@ -95,7 +95,7 @@ func (s *store) Close() {
 	}
 }
 
-func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*common.CollectionConfigPackage, collRWSet *rwsetutil.CollPvtRwSet) error {
+func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*pb.CollectionConfigPackage, collRWSet *rwsetutil.CollPvtRwSet) error {
 	config, exists := getCollectionConfig(collConfigPkgs, ns, collRWSet.CollectionName)
 	if !exists {
 		logger.Debugf("[%s] Config for collection [%s:%s] not found in config packages", s.channelID, ns, collRWSet.CollectionName)
@@ -182,7 +182,7 @@ func (s *store) getTransientDataMultipleKeys(mkey *storeapi.MultiKey) storeapi.E
 	return values
 }
 
-func (s *store) loadPolicy(ns string, config *common.StaticCollectionConfig) (privdata.CollectionAccessPolicy, error) {
+func (s *store) loadPolicy(ns string, config *pb.StaticCollectionConfig) (privdata.CollectionAccessPolicy, error) {
 	logger.Debugf("[%s] Loading collection policy for [%s:%s]", s.channelID, ns, config.Name)
 
 	colAP := &privdata.SimpleCollection{}
@@ -194,7 +194,7 @@ func (s *store) loadPolicy(ns string, config *common.StaticCollectionConfig) (pr
 	return colAP, nil
 }
 
-func getCollectionConfig(collConfigPkgs map[string]*common.CollectionConfigPackage, namespace, collName string) (*common.StaticCollectionConfig, bool) {
+func getCollectionConfig(collConfigPkgs map[string]*pb.CollectionConfigPackage, namespace, collName string) (*pb.StaticCollectionConfig, bool) {
 	collConfigPkg, ok := collConfigPkgs[namespace]
 	if !ok {
 		return nil, false
@@ -202,7 +202,7 @@ func getCollectionConfig(collConfigPkgs map[string]*common.CollectionConfigPacka
 
 	for _, collConfig := range collConfigPkg.Config {
 		transientConfig := collConfig.GetStaticCollectionConfig()
-		if transientConfig != nil && transientConfig.Type == common.CollectionType_COL_TRANSIENT && transientConfig.Name == collName {
+		if transientConfig != nil && transientConfig.Type == pb.CollectionType_COL_TRANSIENT && transientConfig.Name == collName {
 			return transientConfig, true
 		}
 	}

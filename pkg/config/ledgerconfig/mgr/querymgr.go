@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/hyperledger/fabric/protos/ledger/queryresult"
+	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
 	"github.com/pkg/errors"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/compositekey"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"

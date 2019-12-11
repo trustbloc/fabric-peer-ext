@@ -10,9 +10,10 @@ import (
 	"testing"
 
 	"github.com/btcsuite/btcutil/base58"
+	cb "github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/ledger"
-	cb "github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/queryresult"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	olclient "github.com/trustbloc/fabric-peer-ext/pkg/collections/client"
@@ -39,7 +40,7 @@ func TestDCASClient_Put(t *testing.T) {
 	}
 
 	distributor := &clientmocks.PvtDataDistributor{}
-	configRetriever := mocks.NewCollectionConfigRetriever().WithCollectionConfig(&cb.StaticCollectionConfig{Name: coll1})
+	configRetriever := mocks.NewCollectionConfigRetriever().WithCollectionConfig(&pb.StaticCollectionConfig{Name: coll1})
 
 	// Mock out all of the dependencies
 	signingIdentity := &mocks.SigningIdentity{}

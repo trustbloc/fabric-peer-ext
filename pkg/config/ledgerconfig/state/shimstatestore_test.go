@@ -9,7 +9,7 @@ package state
 import (
 	"testing"
 
-	"github.com/hyperledger/fabric/core/chaincode/shim"
+	"github.com/hyperledger/fabric-chaincode-go/shimtest"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +21,7 @@ const (
 )
 
 func TestShimStore_GetPutDel(t *testing.T) {
-	stub := shim.NewMockStub(ns1, nil)
+	stub := shimtest.NewMockStub(ns1, nil)
 	stub.MockTransactionStart("tx1")
 	sp := NewShimStoreProvider(stub)
 
@@ -57,7 +57,7 @@ func TestShimStore_GetStateByPartialCompositeKey(t *testing.T) {
 		prefix2 = "prefix2"
 	)
 
-	stub := shim.NewMockStub(ns1, nil)
+	stub := shimtest.NewMockStub(ns1, nil)
 	stub.MockTransactionStart("tx1")
 	sp := NewShimStoreProvider(stub)
 

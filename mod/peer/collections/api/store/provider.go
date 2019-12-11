@@ -10,8 +10,8 @@ import (
 	"context"
 	"time"
 
-	cb "github.com/hyperledger/fabric/protos/common"
-	proto "github.com/hyperledger/fabric/protos/transientstore"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
+	proto "github.com/hyperledger/fabric-protos-go/transientstore"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common"
 )
 
@@ -62,7 +62,7 @@ type Store interface {
 	Query(key *QueryKey) (ResultsIterator, error)
 
 	// PutData stores the key/value.
-	PutData(config *cb.StaticCollectionConfig, key *Key, value *ExpiringValue) error
+	PutData(config *pb.StaticCollectionConfig, key *Key, value *ExpiringValue) error
 
 	// Close closes the store
 	Close()

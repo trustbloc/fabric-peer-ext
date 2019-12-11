@@ -7,10 +7,10 @@ SPDX-License-Identifier: Apache-2.0
 package mocks
 
 import (
+	gproto "github.com/hyperledger/fabric-protos-go/gossip"
 	"github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/hyperledger/fabric/gossip/discovery"
 	"github.com/hyperledger/fabric/gossip/protoext"
-	gproto "github.com/hyperledger/fabric/protos/gossip"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common"
 )
 
@@ -40,6 +40,11 @@ func NewCollDataReqMsg(channelID string, reqID uint64, keys ...*store.Key) *prot
 		})
 	}
 
+	return NewCollDataReqMsgWithDigests(channelID, reqID, digests...)
+}
+
+// NewCollDataReqMsgWithDigests returns a mock collection data request message
+func NewCollDataReqMsgWithDigests(channelID string, reqID uint64, digests ...*gproto.CollDataDigest) *protoext.SignedGossipMessage {
 	msg, _ := protoext.NoopSign(&gproto.GossipMessage{
 		Tag:     gproto.GossipMessage_CHAN_ONLY,
 		Channel: []byte(channelID),

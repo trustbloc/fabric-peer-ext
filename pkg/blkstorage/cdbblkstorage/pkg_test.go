@@ -9,6 +9,7 @@ package cdbblkstorage
 import (
 	"testing"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/util"
 	"github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 
 	"github.com/hyperledger/fabric/protoutil"
@@ -28,8 +29,8 @@ func newTestEnv(t testing.TB) *testEnv {
 		blkstorage.IndexableAttrBlockNum,
 		blkstorage.IndexableAttrTxID,
 		blkstorage.IndexableAttrBlockNumTranNum,
-		blkstorage.IndexableAttrBlockTxID,
-		blkstorage.IndexableAttrTxValidationCode,
+		//blkstorage.IndexableAttrBlockTxID,
+		//blkstorage.IndexableAttrTxValidationCode,
 	}
 	env, err := newTestEnvSelectiveIndexing(t, attrsToIndex)
 	assert.NoError(t, err)
@@ -54,7 +55,7 @@ func extractTxID(txEnvelopBytes []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	txPayload, err := protoutil.GetPayload(txEnvelope)
+	txPayload, err := util.ExtractPayload(txEnvelope)
 	if err != nil {
 		return "", nil
 	}

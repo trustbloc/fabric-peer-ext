@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	cb "github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
-	cb "github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
-	pb "github.com/hyperledger/fabric/protos/peer"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -217,10 +217,10 @@ type ccInfo struct {
 	mutex  sync.RWMutex
 	ccName string
 	ccData *ccprovider.ChaincodeData
-	ccp    *cb.CollectionConfigPackage
+	ccp    *pb.CollectionConfigPackage
 }
 
-func (info *ccInfo) set(ccName string, ccData *ccprovider.ChaincodeData, ccp *cb.CollectionConfigPackage) {
+func (info *ccInfo) set(ccName string, ccData *ccprovider.ChaincodeData, ccp *pb.CollectionConfigPackage) {
 	info.mutex.Lock()
 	defer info.mutex.Unlock()
 
@@ -241,7 +241,7 @@ func (info *ccInfo) getCCData() *ccprovider.ChaincodeData {
 	return info.ccData
 }
 
-func (info *ccInfo) getCCP() *cb.CollectionConfigPackage {
+func (info *ccInfo) getCCP() *pb.CollectionConfigPackage {
 	info.mutex.RLock()
 	defer info.mutex.RUnlock()
 	return info.ccp
@@ -254,7 +254,7 @@ func TestPublisher_LSCCWriteEvent(t *testing.T) {
 
 	var info ccInfo
 
-	p.AddLSCCWriteHandler(func(txMetadata api.TxMetadata, chaincodeName string, ccData *ccprovider.ChaincodeData, ccp *cb.CollectionConfigPackage) error {
+	p.AddLSCCWriteHandler(func(txMetadata api.TxMetadata, chaincodeName string, ccData *ccprovider.ChaincodeData, ccp *pb.CollectionConfigPackage) error {
 		info.set(chaincodeName, ccData, ccp)
 		return nil
 	})
@@ -267,21 +267,21 @@ func TestPublisher_LSCCWriteEvent(t *testing.T) {
 	ccDataBytes, err := proto.Marshal(ccData)
 	require.NoError(t, err)
 
-	ccp := &cb.CollectionConfigPackage{
-		Config: []*cb.CollectionConfig{
+	ccp := &pb.CollectionConfigPackage{
+		Config: []*pb.CollectionConfig{
 			{
-				Payload: &cb.CollectionConfig_StaticCollectionConfig{
-					StaticCollectionConfig: &cb.StaticCollectionConfig{
+				Payload: &pb.CollectionConfig_StaticCollectionConfig{
+					StaticCollectionConfig: &pb.StaticCollectionConfig{
 						Name: coll1,
-						Type: cb.CollectionType_COL_TRANSIENT,
+						Type: pb.CollectionType_COL_TRANSIENT,
 					},
 				},
 			},
 			{
-				Payload: &cb.CollectionConfig_StaticCollectionConfig{
-					StaticCollectionConfig: &cb.StaticCollectionConfig{
+				Payload: &pb.CollectionConfig_StaticCollectionConfig{
+					StaticCollectionConfig: &pb.StaticCollectionConfig{
 						Name: coll2,
-						Type: cb.CollectionType_COL_OFFLEDGER,
+						Type: pb.CollectionType_COL_OFFLEDGER,
 					},
 				},
 			},
@@ -309,12 +309,12 @@ func TestPublisher_LSCCWriteEvent(t *testing.T) {
 	config1 := info.getCCP().Config[0].GetStaticCollectionConfig()
 	require.NotNil(t, config1)
 	require.Equal(t, coll1, config1.Name)
-	require.Equal(t, cb.CollectionType_COL_TRANSIENT, config1.Type)
+	require.Equal(t, pb.CollectionType_COL_TRANSIENT, config1.Type)
 
 	config2 := info.getCCP().Config[1].GetStaticCollectionConfig()
 	require.NotNil(t, config2)
 	require.Equal(t, coll2, config2.Name)
-	require.Equal(t, cb.CollectionType_COL_OFFLEDGER, config2.Type)
+	require.Equal(t, pb.CollectionType_COL_OFFLEDGER, config2.Type)
 }
 
 func TestPublisher_Error(t *testing.T) {

@@ -4,8 +4,8 @@ package mocks
 import (
 	"sync"
 
+	mspfabric_protos "github.com/hyperledger/fabric-protos-go/msp"
 	"github.com/hyperledger/fabric/msp"
-	mspfabric_protos "github.com/hyperledger/fabric/protos/msp"
 )
 
 type IdentityDeserializer struct {

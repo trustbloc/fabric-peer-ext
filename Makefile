@@ -25,7 +25,7 @@ ARCH=$(shell go env GOARCH)
 # Tool commands (overridable)
 DOCKER_CMD ?= docker
 GO_CMD     ?= go
-ALPINE_VER ?= 3.9
+ALPINE_VER ?= 3.10
 GO_TAGS    ?=
 GOPROXY    ?= "https://proxy.golang.org"
 
@@ -56,7 +56,8 @@ license: version
 
 all: clean checks unit-test fabric-unit-test bddtests
 
-unit-test: checks docker-thirdparty
+unit-test: docker-thirdparty
+# unit-test: checks docker-thirdparty
 	@scripts/unit.sh
 
 fabric-unit-test: export FABRIC_COMMAND=unit-test
@@ -80,7 +81,7 @@ bddtests-fabric-peer-docker:
 	--build-arg GO_TAGS=$(GO_TAGS) \
 	--build-arg GOPROXY=$(GOPROXY) .
 
-build-fabric-images: export FABRIC_COMMAND=peer-docker orderer-docker ccenv
+build-fabric-images: export FABRIC_COMMAND=peer-docker orderer-docker ccenv-docker
 build-fabric-images:
 	@scripts/build_fabric.sh
 	@docker tag hyperledger/fabric-peer:latest     trustbloc/fabric-peer:latest
@@ -109,6 +110,7 @@ version:
 	@scripts/check_version.sh
 
 docker-thirdparty:
+# 	docker pull couchdb:2.3
 	docker pull couchdb:2.2.0
 
 build-cc:

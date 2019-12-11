@@ -20,6 +20,7 @@ import (
 //go:generate counterfeiter -o ../../mocks/signingidentity.gen.go --fake-name SigningIdentity github.com/hyperledger/fabric/msp.SigningIdentity
 //go:generate counterfeiter -o ../../mocks/identityprovider.gen.go --fake-name IdentityProvider . IdentityProvider
 //go:generate counterfeiter -o ../../mocks/ledgerprovider.gen.go --fake-name LedgerProvider . LedgerProvider
+//go:generate counterfeiter -o ../../mocks/ledger.gen.go --fake-name Ledger github.com/hyperledger/fabric/core/ledger.PeerLedger
 //go:generate counterfeiter -o ../../mocks/identifierprovider.gen.go --fake-name IdentifierProvider . IdentifierProvider
 //go:generate counterfeiter -o ../../mocks/storeprovider.gen.go --fake-name StoreProvider . StoreProvider
 //go:generate counterfeiter -o ../../mocks/collconfigprovider.gen.go --fake-name CollectionConfigProvider . CollectionConfigProvider

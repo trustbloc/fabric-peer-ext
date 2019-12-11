@@ -11,10 +11,10 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
-	"github.com/hyperledger/fabric/protos/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
@@ -70,7 +70,7 @@ func TestConfigRetriever(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, coll2, config.Name)
 		assert.Equal(t, int32(3), config.RequiredPeerCount)
-		assert.Equal(t, common.CollectionType_COL_TRANSIENT, config.Type)
+		assert.Equal(t, pb.CollectionType_COL_TRANSIENT, config.Type)
 		assert.Equal(t, "1m", config.TimeToLive)
 
 		config2, err := r.Config(ns1, coll2)
@@ -99,7 +99,7 @@ func TestConfigRetriever(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, coll2, config.Name)
 		assert.Equal(t, int32(4), config.RequiredPeerCount)
-		assert.Equal(t, common.CollectionType_COL_TRANSIENT, config.Type)
+		assert.Equal(t, pb.CollectionType_COL_TRANSIENT, config.Type)
 		assert.Equal(t, "10m", config.TimeToLive)
 
 		policy, err := r.Policy(ns1, coll2)

@@ -12,10 +12,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/hyperledger/fabric-chaincode-go/shim"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
-	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"github.com/hyperledger/fabric/core/scc"
-	pb "github.com/hyperledger/fabric/protos/peer"
 	"github.com/spf13/viper"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	configsvc "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/service"

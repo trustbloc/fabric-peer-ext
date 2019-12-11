@@ -64,8 +64,8 @@ func (c *CollElgProc) WaitForDone() {
 }
 
 func (c *CollElgProc) LaunchCollElgProc() {
-	maxBatchSize := c.ledgerconfig.PrivateData.MaxBatchSize
-	batchesInterval := c.ledgerconfig.PrivateData.BatchesInterval
+	maxBatchSize := c.ledgerconfig.PrivateDataConfig.MaxBatchSize
+	batchesInterval := c.ledgerconfig.PrivateDataConfig.BatchesInterval
 	go func() {
 		c.processCollElgEvents(maxBatchSize, batchesInterval) // process collection eligibility events when store is opened - in case there is an unprocessed events from previous run
 		for {

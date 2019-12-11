@@ -9,13 +9,13 @@ package policy
 import (
 	"time"
 
-	"github.com/hyperledger/fabric/protos/common"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/pkg/errors"
 )
 
 // ValidateConfig validates the Off-Ledger Collection configuration
-func ValidateConfig(config *common.StaticCollectionConfig) error {
-	if config.Type != common.CollectionType_COL_OFFLEDGER && config.Type != common.CollectionType_COL_DCAS {
+func ValidateConfig(config *pb.StaticCollectionConfig) error {
+	if config.Type != pb.CollectionType_COL_OFFLEDGER && config.Type != pb.CollectionType_COL_DCAS {
 		return errors.Errorf("unsupported off-ledger collection type: %s", config.Type)
 	}
 

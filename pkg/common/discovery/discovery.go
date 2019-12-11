@@ -9,11 +9,11 @@ package discovery
 import (
 	"sync"
 
+	proto "github.com/hyperledger/fabric-protos-go/gossip"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/gossip/api"
 	"github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/gossip/discovery"
-	proto "github.com/hyperledger/fabric/protos/gossip"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
@@ -38,7 +38,7 @@ func New(channelID string, gossip gossipAdapter) *Discovery {
 type filter func(m *Member) bool
 
 type gossipAdapter interface {
-	PeersOfChannel(common.ChainID) []discovery.NetworkMember
+	PeersOfChannel(id common.ChannelID) []discovery.NetworkMember
 	SelfMembershipInfo() discovery.NetworkMember
 	IdentityInfo() api.PeerIdentitySet
 }
@@ -62,7 +62,7 @@ func (r *Discovery) GetMembers(accept filter) []*Member {
 	mapByID := identityInfo.ByID()
 
 	var peers []*Member
-	for _, m := range r.gossip.PeersOfChannel(common.ChainID(r.channelID)) {
+	for _, m := range r.gossip.PeersOfChannel(common.ChannelID(r.channelID)) {
 		identity, ok := mapByID[string(m.PKIid)]
 		if !ok {
 			logger.Warningf("[%s] Not adding peer [%s] as a validator since unable to determine MSP ID from PKIID for [%s]", r.channelID, m.Endpoint)

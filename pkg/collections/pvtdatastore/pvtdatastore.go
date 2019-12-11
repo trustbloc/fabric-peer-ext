@@ -7,21 +7,21 @@ SPDX-License-Identifier: Apache-2.0
 package pvtdatastore
 
 import (
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-protos-go/transientstore"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	"github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset"
-	"github.com/hyperledger/fabric/protos/transientstore"
 	"github.com/pkg/errors"
 )
 
 var logger = flogging.MustGetLogger("ext_pvtdatastore")
 
 type transientStore interface {
-	// PersistWithConfig stores the private write set of a transaction along with the collection config
+	// Persist stores the private write set of a transaction along with the collection config
 	// in the transient store based on txid and the block height the private data was received at
-	PersistWithConfig(txid string, blockHeight uint64, privateSimulationResultsWithConfig *transientstore.TxPvtReadWriteSetWithConfigInfo) error
+	Persist(txid string, blockHeight uint64, privateSimulationResultsWithConfig *transientstore.TxPvtReadWriteSetWithConfigInfo) error
 }
 
 // Store persists private data from collection R/W sets
@@ -64,7 +64,7 @@ func (c *Store) StorePvtData(txID string, privData *transientstore.TxPvtReadWrit
 
 	logger.Debugf("[%s:%d:%s] Persisting private data to transient store", c.channelID, blkHeight, txID)
 
-	return c.transientStore.PersistWithConfig(
+	return c.transientStore.Persist(
 		txID, blkHeight,
 		&transientstore.TxPvtReadWriteSetWithConfigInfo{
 			PvtRwset:          pvtRWSet,
@@ -173,7 +173,7 @@ func (f *pvtRWSetFilter) isPvtData(ns, coll string) (bool, error) {
 		return false, errors.Errorf("could not find collection configs for namespace [%s]", ns)
 	}
 
-	var config *common.StaticCollectionConfig
+	var config *pb.StaticCollectionConfig
 	for _, c := range pkg.Config {
 		staticConfig := c.GetStaticCollectionConfig()
 		if staticConfig.Name == coll {
@@ -186,5 +186,5 @@ func (f *pvtRWSetFilter) isPvtData(ns, coll string) (bool, error) {
 		return false, errors.Errorf("could not find collection config for collection [%s:%s]", ns, coll)
 	}
 
-	return config.Type == common.CollectionType_COL_UNKNOWN || config.Type == common.CollectionType_COL_PRIVATE, nil
+	return config.Type == pb.CollectionType_COL_UNKNOWN || config.Type == pb.CollectionType_COL_PRIVATE, nil
 }

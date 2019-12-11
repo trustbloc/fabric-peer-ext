@@ -10,11 +10,11 @@ import (
 	"context"
 	"sync"
 
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
-	cb "github.com/hyperledger/fabric/protos/common"
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
@@ -109,7 +109,7 @@ func (r *retriever) Query(ctxt context.Context, key *storeapi.QueryKey) (storeap
 
 // Support defines the supporting functions required by the transient data provider
 type Support interface {
-	Config(channelID, ns, coll string) (*cb.StaticCollectionConfig, error)
+	Config(channelID, ns, coll string) (*pb.StaticCollectionConfig, error)
 	Policy(channel, ns, collection string) (privdata.CollectionAccessPolicy, error)
 	BlockPublisher(channelID string) gossipapi.BlockPublisher
 }
@@ -117,7 +117,7 @@ type Support interface {
 // NewOffLedgerProvider returns a new off-ledger retriever provider that supports DCAS
 func NewOffLedgerProvider(providers *collcommon.Providers) olapi.Provider {
 	return olretriever.NewProvider(providers,
-		olretriever.WithValidator(cb.CollectionType_COL_DCAS, dcas.Validator),
-		olretriever.WithDecorator(cb.CollectionType_COL_DCAS, dcas.Decorator),
+		olretriever.WithValidator(pb.CollectionType_COL_DCAS, dcas.Validator),
+		olretriever.WithDecorator(pb.CollectionType_COL_DCAS, dcas.Decorator),
 	)
 }

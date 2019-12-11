@@ -11,15 +11,16 @@ import (
 	"sync/atomic"
 
 	"github.com/golang/protobuf/proto"
+	cb "github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
 	ledgerutil "github.com/hyperledger/fabric/core/ledger/util"
-	cb "github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset/kvrwset"
-	pb "github.com/hyperledger/fabric/protos/peer"
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/pkg/errors"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/util"
 )
 
 const (
@@ -56,7 +57,7 @@ type LSCCWrite struct {
 	TxNum    uint64
 	CCID     string
 	CCData   *ccprovider.ChaincodeData
-	CCP      *cb.CollectionConfigPackage
+	CCP      *pb.CollectionConfigPackage
 }
 
 // CCEvent contains all information related to a chaincode Event on the block
@@ -473,14 +474,14 @@ func (p *configUpdateEvent) visit() error {
 	})
 }
 
-func getCCInfo(writes []*kvrwset.KVWrite) (string, *ccprovider.ChaincodeData, *cb.CollectionConfigPackage, error) {
+func getCCInfo(writes []*kvrwset.KVWrite) (string, *ccprovider.ChaincodeData, *pb.CollectionConfigPackage, error) {
 	var ccID string
-	var ccp *cb.CollectionConfigPackage
+	var ccp *pb.CollectionConfigPackage
 	var ccData *ccprovider.ChaincodeData
 
 	for _, kvWrite := range writes {
 		if isCollectionConfigKey(kvWrite.Key) {
-			ccp = &cb.CollectionConfigPackage{}
+			ccp = &pb.CollectionConfigPackage{}
 			if err := unmarshal(kvWrite.Value, ccp); err != nil {
 				return "", nil, nil, errors.WithMessagef(err, "error unmarshaling collection configuration")
 			}
@@ -519,7 +520,7 @@ var extractEnvelope = func(block *cb.Block, index int) (*cb.Envelope, error) {
 }
 
 var extractPayload = func(envelope *cb.Envelope) (*cb.Payload, error) {
-	return protoutil.ExtractPayload(envelope)
+	return util.ExtractPayload(envelope)
 }
 
 var unmarshalChannelHeader = func(bytes []byte) (*cb.ChannelHeader, error) {
@@ -527,9 +528,9 @@ var unmarshalChannelHeader = func(bytes []byte) (*cb.ChannelHeader, error) {
 }
 
 var getTransaction = func(txBytes []byte) (*pb.Transaction, error) {
-	return protoutil.GetTransaction(txBytes)
+	return util.GetTransaction(txBytes)
 }
 
 var getChaincodeActionPayload = func(capBytes []byte) (*pb.ChaincodeActionPayload, error) {
-	return protoutil.GetChaincodeActionPayload(capBytes)
+	return util.GetChaincodeActionPayload(capBytes)
 }

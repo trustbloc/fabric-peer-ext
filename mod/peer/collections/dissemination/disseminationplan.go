@@ -7,21 +7,21 @@ SPDX-License-Identifier: Apache-2.0
 package dissemination
 
 import (
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/extensions/collections/api/dissemination"
 	gossipapi "github.com/hyperledger/fabric/gossip/api"
 	"github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/gossip/discovery"
 	"github.com/hyperledger/fabric/gossip/protoext"
-	cb "github.com/hyperledger/fabric/protos/common"
-	"github.com/hyperledger/fabric/protos/ledger/rwset"
 	"github.com/pkg/errors"
 	oldissemination "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dissemination"
 	tdissemination "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/dissemination"
 )
 
 type gossipAdapter interface {
-	PeersOfChannel(common.ChainID) []discovery.NetworkMember
+	PeersOfChannel(id common.ChannelID) []discovery.NetworkMember
 	SelfMembershipInfo() discovery.NetworkMember
 	IdentityInfo() gossipapi.PeerIdentitySet
 }
@@ -38,7 +38,7 @@ var computeTransientDataDisseminationPlan = func(
 var computeOffLedgerDisseminationPlan = func(
 	channelID, ns string,
 	rwSet *rwset.CollectionPvtReadWriteSet,
-	collConfig *cb.StaticCollectionConfig,
+	collConfig *pb.StaticCollectionConfig,
 	colAP privdata.CollectionAccessPolicy,
 	pvtDataMsg *protoext.SignedGossipMessage,
 	gossipAdapter gossipAdapter) ([]*dissemination.Plan, bool, error) {
@@ -49,7 +49,7 @@ var computeOffLedgerDisseminationPlan = func(
 func ComputeDisseminationPlan(
 	channelID, ns string,
 	rwSet *rwset.CollectionPvtReadWriteSet,
-	colCP *cb.CollectionConfig,
+	colCP *pb.CollectionConfig,
 	colAP privdata.CollectionAccessPolicy,
 	pvtDataMsg *protoext.SignedGossipMessage,
 	gossipAdapter gossipAdapter) ([]*dissemination.Plan, bool, error) {
@@ -60,11 +60,11 @@ func ComputeDisseminationPlan(
 	}
 
 	switch collConfig.Type {
-	case cb.CollectionType_COL_TRANSIENT:
+	case pb.CollectionType_COL_TRANSIENT:
 		return computeTransientDataDisseminationPlan(channelID, ns, rwSet, colAP, pvtDataMsg, gossipAdapter)
-	case cb.CollectionType_COL_DCAS:
+	case pb.CollectionType_COL_DCAS:
 		fallthrough
-	case cb.CollectionType_COL_OFFLEDGER:
+	case pb.CollectionType_COL_OFFLEDGER:
 		return computeOffLedgerDisseminationPlan(channelID, ns, rwSet, collConfig, colAP, pvtDataMsg, gossipAdapter)
 	default:
 		return nil, false, errors.Errorf("unsupported collection type: [%s]", collConfig.Type)

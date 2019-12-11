@@ -9,12 +9,12 @@ package policy
 import (
 	"time"
 
-	"github.com/hyperledger/fabric/protos/common"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/pkg/errors"
 )
 
 // ValidateConfig validates the Transient Data Collection configuration
-func ValidateConfig(config *common.StaticCollectionConfig) error {
+func ValidateConfig(config *pb.StaticCollectionConfig) error {
 	if config.RequiredPeerCount <= 0 {
 		return errors.Errorf("collection-name: %s -- required peer count must be greater than 0", config.Name)
 	}

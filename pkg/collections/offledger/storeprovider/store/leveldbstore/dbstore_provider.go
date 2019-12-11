@@ -25,22 +25,27 @@ type LevelDBProvider struct {
 }
 
 // NewDBProvider constructs new db provider
-func NewDBProvider() *LevelDBProvider {
+func NewDBProvider() (*LevelDBProvider, error) {
 	dbPath := config.GetOLCollLevelDBPath()
 	logger.Debugf("constructing DBProvider dbPath=%s", dbPath)
+	ldbProvider, err := leveldbhelper.NewProvider(
+		&leveldbhelper.Conf{
+			DBPath: dbPath,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	p := &LevelDBProvider{
-		stores: make(map[string]*store),
-		done:   make(chan struct{}),
-		leveldbProvider: leveldbhelper.NewProvider(
-			&leveldbhelper.Conf{
-				DBPath: dbPath,
-			},
-		),
+		stores:          make(map[string]*store),
+		done:            make(chan struct{}),
+		leveldbProvider: ldbProvider,
 	}
 
 	p.periodicPurge()
 
-	return p
+	return p, nil
 }
 
 // GetDB opens the db store

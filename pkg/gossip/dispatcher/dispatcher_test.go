@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	gproto "github.com/hyperledger/fabric-protos-go/gossip"
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/extensions/collections/api/store"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
-	gproto "github.com/hyperledger/fabric/protos/gossip"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/requestmgr"
@@ -241,6 +241,53 @@ func TestDispatchDataRequest(t *testing.T) {
 		require.NotNil(t, response.GetCollDataRes().Elements[3])
 		assert.NotNil(t, response.GetCollDataRes().Elements[3].Value)
 	})
+
+	t.Run("No keys in request -> nil response", func(t *testing.T) {
+		reqID := uint64(1010)
+
+		var response *gproto.GossipMessage
+		msg := &mocks.MockReceivedMessage{
+			Message: mocks.NewCollDataReqMsg(channelID, reqID),
+			RespondTo: func(msg *gproto.GossipMessage) {
+				response = msg
+			},
+			Member: mocks.NewMember(p1Org2Endpoint, p1Org2PKIID, endorserRole),
+		}
+		assert.True(t, dispatcher.Dispatch(msg))
+		require.Nil(t, response)
+	})
+
+	t.Run("Invalid MSP ID -> nil response", func(t *testing.T) {
+		reqID := uint64(1010)
+
+		var response *gproto.GossipMessage
+		msg := &mocks.MockReceivedMessage{
+			Message: mocks.NewCollDataReqMsg(channelID, reqID, key1),
+			RespondTo: func(msg *gproto.GossipMessage) {
+				response = msg
+			},
+			Member: mocks.NewMember(p1Org2Endpoint, gcommon.PKIidType("pkiid_invalid"), endorserRole),
+		}
+		assert.True(t, dispatcher.Dispatch(msg))
+		require.Nil(t, response)
+	})
+
+	t.Run("nil digest -> nil response", func(t *testing.T) {
+		reqID := uint64(1020)
+
+		reqMsg := mocks.NewCollDataReqMsgWithDigests(channelID, reqID, nil)
+
+		var response *gproto.GossipMessage
+		msg := &mocks.MockReceivedMessage{
+			Message: reqMsg,
+			RespondTo: func(msg *gproto.GossipMessage) {
+				response = msg
+			},
+			Member: mocks.NewMember(p1Org2Endpoint, p1Org2PKIID, endorserRole),
+		}
+		assert.True(t, dispatcher.Dispatch(msg))
+		require.Nil(t, response)
+	})
 }
 
 func TestDispatchDataResponse(t *testing.T) {
@@ -321,5 +368,25 @@ func TestDispatchDataResponse(t *testing.T) {
 		res, err := req.GetResponse(ctxt)
 		assert.EqualError(t, err, "context deadline exceeded")
 		assert.Nil(t, res)
+	})
+
+	t.Run("Unknown MSP -> fail", func(t *testing.T) {
+		req := reqMgr.NewRequest()
+
+		msg := &mocks.MockReceivedMessage{
+			Message: mocks.NewCollDataResMsg(channelID, req.ID(), mocks.NewKeyValue(key1, value1), mocks.NewKeyValue(key2, value2)),
+			Member:  mocks.NewMember(p1Org2Endpoint, []byte("unknown"), endorserRole),
+		}
+
+		go func() {
+			if !dispatcher.Dispatch(msg) {
+				t.Fatal("Message not handled")
+			}
+		}()
+		ctxt, _ := context.WithTimeout(context.Background(), 50*time.Millisecond)
+
+		res, err := req.GetResponse(ctxt)
+		assert.Error(t, err)
+		require.Nil(t, res)
 	})
 }

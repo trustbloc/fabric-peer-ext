@@ -8,7 +8,7 @@ package transientstore
 
 import (
 	"github.com/hyperledger/fabric/common/flogging"
-	"github.com/hyperledger/fabric/core/transientstore"
+	storageapi "github.com/hyperledger/fabric/extensions/storage/api"
 )
 
 var logger = flogging.MustGetLogger("transientstore")
@@ -24,7 +24,7 @@ func NewStoreProvider() *Provider {
 }
 
 // OpenStore creates a handle to the transient data store for the given ledger ID
-func (p *Provider) OpenStore(ledgerid string) (transientstore.Store, error) {
+func (p *Provider) OpenStore(ledgerid string) (storageapi.TransientStore, error) {
 	return newStore(), nil
 }
 

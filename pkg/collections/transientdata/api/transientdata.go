@@ -9,8 +9,8 @@ package api
 import (
 	"context"
 
+	proto "github.com/hyperledger/fabric-protos-go/transientstore"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	proto "github.com/hyperledger/fabric/protos/transientstore"
 )
 
 // Store manages the storage of transient data.

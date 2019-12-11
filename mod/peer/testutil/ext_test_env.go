@@ -11,6 +11,7 @@ import (
 
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
+	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 	"github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
 
@@ -33,5 +34,9 @@ func GetExtStateDBProvider(t testing.TB, dbProvider statedb.VersionedDBProvider)
 // TestLedgerConf return the ledger configs
 func TestLedgerConf() *ledger.Config {
 	return testutil.TestLedgerConf()
+}
 
+// TestPrivateDataConf return the private data configs
+func TestPrivateDataConf() *pvtdatastorage.PrivateDataConfig {
+	return testutil.TestPrivateDataConf()
 }
