@@ -13,7 +13,7 @@ import (
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/scc/builder"
+	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/builder"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
@@ -59,12 +59,7 @@ func newSCCWithDependencies(qeProvider queryExecutorProvider) *testSCC {
 }
 
 func (scc *testSCC) Name() string              { return "testscc" }
-func (scc *testSCC) Path() string              { return "/testpath" }
-func (scc *testSCC) InitArgs() [][]byte        { return nil }
 func (scc *testSCC) Chaincode() shim.Chaincode { return scc }
-func (scc *testSCC) InvokableExternal() bool   { return true }
-func (scc *testSCC) InvokableCC2CC() bool      { return true }
-func (scc *testSCC) Enabled() bool             { return true }
 
 func (scc *testSCC) Init(stub shim.ChaincodeStubInterface) pb.Response {
 	return shim.Success(nil)

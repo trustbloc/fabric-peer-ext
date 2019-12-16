@@ -10,7 +10,7 @@ run:
   issues-exit-code: 1
   tests: true
   build-tags: ["testing"]
-  skip-dirs:  ["pvtdatastorage/common","test/bddtests"]
+  skip-dirs:  ["pvtdatastorage/common","test/bddtests","test/cc","test/scc"]
   skip-files:
     - ^(.*_test.go.*$)$
 

@@ -12,13 +12,11 @@ Feature: off-ledger
     Given the channel "mychannel" is created and all peers have joined
     And the channel "yourchannel" is created and all peers have joined
 
-    And off-ledger collection config "ol_coll1" is defined for collection "collection1" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=10s
-    And DCAS collection config "dcas_coll2" is defined for collection "collection2" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=10m
-    And collection config "coll3" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and blocksToLive=10
+    And off-ledger collection config "ol_coll1" is defined for collection "collection1" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=3, and timeToLive=10s
+    And DCAS collection config "dcas_coll2" is defined for collection "collection2" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=3, and timeToLive=10m
+    And collection config "coll3" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=3, and blocksToLive=10
     And DCAS collection config "dcas_accounts" is defined for collection "accounts" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=3, and timeToLive=30m
-    And "test" chaincode "ol_examplecc" is installed from path "github.com/trustbloc/e2e_cc" to all peers
-    And "test" chaincode "ol_examplecc" is instantiated from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_coll2,coll3,dcas_accounts"
-    And chaincode "ol_examplecc" is warmed up on all peers on the "mychannel" channel
+    And "test" chaincode "ol_examplecc" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_coll2,coll3,dcas_accounts"
 
   @off_ledger_s1
   Scenario: Put and get off-ledger data
@@ -85,11 +83,10 @@ Feature: off-ledger
     #   then all caches should be refreshed.
     Given off-ledger collection config "ol_coll1_upgrade" is defined for collection "collection1" as policy="OR('Org1MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
     And DCAS collection config "dcas_coll2_upgrade" is defined for collection "collection2" as policy="OR('Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
-    And "test" chaincode "ol_examplecc" version "v3" is installed from path "github.com/trustbloc/e2e_cc" to all peers
-    And "test" chaincode "ol_examplecc" is upgraded with version "v3" from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1_upgrade,dcas_coll2_upgrade,coll3,dcas_accounts"
-    And chaincode "ol_examplecc" is warmed up on all peers on the "mychannel" channel
+    And "test" chaincode "ol_examplecc" is upgraded with version "v3" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1_upgrade,dcas_coll2_upgrade,coll3,dcas_accounts"
     # Put the data to org2 - the data should be disseminated to org1
     When client queries chaincode "ol_examplecc" with args "putprivate,collection1,keyA,valueA" on a single peer in the "peerorg2" org on the "mychannel" channel
+    And we wait 1 seconds
     # Get the data from org1 - the data should be there
     And client queries chaincode "ol_examplecc" with args "getprivate,collection1,keyA" on a single peer in the "peerorg1" org on the "mychannel" channel
     Then response from "ol_examplecc" to client equal value "valueA"
@@ -99,6 +96,7 @@ Feature: off-ledger
     # Put the data to org1 - the data should be disseminated to org2
     When client queries chaincode "ol_examplecc" with args "putcas,collection2,valueB" on a single peer in the "peerorg1" org on the "mychannel" channel
     And the response is saved to variable "keyB"
+    And we wait 1 seconds
     # Get the data from org2 - the data should be there
     And client queries chaincode "ol_examplecc" with args "getprivate,collection2,${keyB}" on a single peer in the "peerorg2" org on the "mychannel" channel
     Then response from "ol_examplecc" to client equal value "valueB"
@@ -107,9 +105,7 @@ Feature: off-ledger
     Then response from "ol_examplecc" to client equal value ""
 
     # Test chaincode-to-chaincode invocation (same channel)
-    Given "test" chaincode "ol_examplecc_2" is installed from path "github.com/trustbloc/e2e_cc" to all peers
-    And "test" chaincode "ol_examplecc_2" is instantiated from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts"
-    And chaincode "ol_examplecc_2" is warmed up on all peers on the "mychannel" channel
+    Given "test" chaincode "ol_examplecc_2" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts"
     # Set the data on the target chaincode using a chaincode-to-chaincode invocation
     When client queries chaincode "ol_examplecc" with args "invokecc,ol_examplecc_2,,{`Args`:[`putprivate`|`collection1`|`keyC`|`valueC`]}" on the "mychannel" channel
     # Query the target chaincode directly
@@ -120,8 +116,7 @@ Feature: off-ledger
     Then response from "ol_examplecc" to client equal value "valueC"
 
     # Test chaincode-to-chaincode invocation (different channel)
-    Given "test" chaincode "ol_examplecc_2" is instantiated from path "github.com/trustbloc/e2e_cc" on the "yourchannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts"
-    And chaincode "ol_examplecc_2" is warmed up on all peers on the "yourchannel" channel
+    Given "test" chaincode "ol_examplecc_2" is instantiated from path "in-process" on the "yourchannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts"
     # Set the data on a different channel
     When client queries chaincode "ol_examplecc_2" with args "putprivate,collection1,keyD,valueD" on the "yourchannel" channel
     # Query the target chaincode directly
