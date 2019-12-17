@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package configscc
+package configcc
 
 import (
 	"encoding/json"
@@ -14,6 +14,7 @@ import (
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/scc"
+	ccapi "github.com/hyperledger/fabric/extensions/chaincode/api"
 	"github.com/pkg/errors"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	ledgerconfig "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/mgr"
@@ -22,7 +23,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/state/api"
 )
 
-var logger = flogging.MustGetLogger("configscc")
+var logger = flogging.MustGetLogger("configcc")
 
 type configMgr interface {
 	Query(key *config.Criteria) ([]*config.KeyValue, error)
@@ -32,37 +33,42 @@ type configMgr interface {
 
 type function func(shim.ChaincodeStubInterface, [][]byte) pb.Response
 
-type configSCC struct {
+type configCC struct {
 	functionRegistry map[string]function
 }
 
 // New returns a new configuration system chaincode
 func New() scc.SelfDescribingSysCC {
-	cc := &configSCC{}
+	cc := &configCC{}
 	cc.initFunctionRegistry()
 	return cc
 }
 
-func (scc *configSCC) Name() string              { return service.ConfigNS }
-func (scc *configSCC) Chaincode() shim.Chaincode { return scc }
+// Name returns the name of this chaincode
+func (cc *configCC) Name() string { return service.ConfigNS }
 
-// Init initializes the config SCC
-func (scc *configSCC) Init(stub shim.ChaincodeStubInterface) pb.Response {
-	logger.Infof("Initializing config scc for channel [%s]", stub.GetChannelID())
+// Chaincode returns the chaincode implementation
+func (cc *configCC) Chaincode() shim.Chaincode { return cc }
+
+// GetDBArtifacts returns DB artifacts. For this chaincode there are no artifacts.
+func (cc *configCC) GetDBArtifacts() map[string]*ccapi.DBArtifacts { return nil }
+
+// Init will be deprecated in a future release
+func (cc *configCC) Init(stub shim.ChaincodeStubInterface) pb.Response {
 	return shim.Success(nil)
 }
 
 // Invoke invokes the config SCC
-func (scc *configSCC) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
+func (cc *configCC) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	args := stub.GetArgs()
 	if len(args) == 0 {
-		return shim.Error(fmt.Sprintf("Function not provided. Expecting one of [%s]", scc.functionSet()))
+		return shim.Error(fmt.Sprintf("Function not provided. Expecting one of [%s]", cc.functionSet()))
 	}
 
 	functionName := string(args[0])
-	f, ok := scc.functionRegistry[functionName]
+	f, ok := cc.functionRegistry[functionName]
 	if !ok {
-		return shim.Error(fmt.Sprintf("Invalid function: [%s]. Expecting one of [%s]", functionName, scc.functionSet()))
+		return shim.Error(fmt.Sprintf("Invalid function: [%s]. Expecting one of [%s]", functionName, cc.functionSet()))
 	}
 
 	functionArgs := args[1:]
@@ -73,7 +79,7 @@ func (scc *configSCC) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 
 // put saves configuration to the ledger
 // args[0] - Is the JSON marshalled Config
-func (scc *configSCC) put(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
+func (cc *configCC) put(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
 	if len(args) == 0 {
 		return shim.Error("config is empty - cannot be saved")
 	}
@@ -95,7 +101,7 @@ func (scc *configSCC) put(stub shim.ChaincodeStubInterface, args [][]byte) pb.Re
 
 // get retrieves configuration from the ledger
 // args[0] - Is the JSON marshalled Criteria
-func (scc *configSCC) get(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
+func (cc *configCC) get(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
 	if len(args) == 0 {
 		return shim.Error("criteria not provided")
 	}
@@ -123,7 +129,7 @@ func (scc *configSCC) get(stub shim.ChaincodeStubInterface, args [][]byte) pb.Re
 
 // remove deletes configuration from the ledger
 // args[0] - Is the JSON marshalled Criteria
-func (scc *configSCC) remove(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
+func (cc *configCC) remove(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
 	if len(args) == 0 {
 		return shim.Error("criteria not provided")
 	}
@@ -142,17 +148,17 @@ func (scc *configSCC) remove(stub shim.ChaincodeStubInterface, args [][]byte) pb
 	return shim.Success(nil)
 }
 
-func (scc *configSCC) initFunctionRegistry() {
-	scc.functionRegistry = make(map[string]function)
-	scc.functionRegistry["save"] = scc.put
-	scc.functionRegistry["get"] = scc.get
-	scc.functionRegistry["delete"] = scc.remove
+func (cc *configCC) initFunctionRegistry() {
+	cc.functionRegistry = make(map[string]function)
+	cc.functionRegistry["save"] = cc.put
+	cc.functionRegistry["get"] = cc.get
+	cc.functionRegistry["delete"] = cc.remove
 }
 
 // functionSet returns a string enumerating all available functions
-func (scc *configSCC) functionSet() string {
+func (cc *configCC) functionSet() string {
 	var functionNames string
-	for name := range scc.functionRegistry {
+	for name := range cc.functionRegistry {
 		if functionNames != "" {
 			functionNames += ", "
 		}

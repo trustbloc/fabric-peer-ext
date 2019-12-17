@@ -61,23 +61,20 @@ type channelListener interface {
 
 // ChannelJoined is called when the peer joins a channel
 func (r *Registry) ChannelJoined(channelID string) {
-	logger.Info("Channel joined [%s]", channelID)
+	logger.Infof("Channel joined [%s]", channelID)
 
 	for _, cc := range r.chaincodes() {
 		l, ok := cc.(channelListener)
 		if ok {
-			logger.Info("Notifying in-process user chaincode [%s] that channel [%s] was joined", cc.Name(), channelID)
+			logger.Infof("Notifying in-process user chaincode [%s] that channel [%s] was joined", cc.Name(), channelID)
 			l.ChannelJoined(channelID)
 		}
 	}
 }
 
 func (r *Registry) registerChaincodes() {
-	logger.Info("Registering in-process user chaincodes")
-
 	b := builder.New()
 	for _, c := range r.creators {
-		logger.Info("Adding in-process user chaincode creator to builder")
 		b.Add(c)
 	}
 
