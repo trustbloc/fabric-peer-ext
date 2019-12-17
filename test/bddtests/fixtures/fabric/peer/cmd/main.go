@@ -13,11 +13,10 @@ import (
 	ccapi "github.com/hyperledger/fabric/extensions/chaincode/api"
 	"github.com/hyperledger/fabric/peer/node"
 	"github.com/spf13/viper"
-	extscc "github.com/trustbloc/fabric-peer-ext/pkg/chaincode/scc"
 	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/ucc"
 	extpeer "github.com/trustbloc/fabric-peer-ext/pkg/peer"
 	"github.com/trustbloc/fabric-peer-ext/test/cc/examplecc"
-	"github.com/trustbloc/fabric-peer-ext/test/scc/testscc"
+	"github.com/trustbloc/fabric-peer-ext/test/cc/testcc"
 )
 
 var logger = flogging.MustGetLogger("peer-ext-test")
@@ -37,10 +36,9 @@ func main() {
 
 	extpeer.Initialize()
 
-	logger.Infof("Registering testscc...")
-	extscc.Register(testscc.New)
-
 	logger.Infof("Registering in-process user chaincodes for BDD tests...")
+
+	ucc.Register(testcc.New)
 	ucc.Register(func() ccapi.UserCC { return examplecc.New("ol_examplecc", offLedgerDBArtifacts) })
 	ucc.Register(func() ccapi.UserCC { return examplecc.New("ol_examplecc_2", offLedgerDBArtifacts) })
 	ucc.Register(func() ccapi.UserCC { return examplecc.New("tdata_examplecc", nil) })

@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package configscc
+package configcc
 
 import (
 	"encoding/json"
@@ -25,7 +25,7 @@ const (
 	org1MSP = "org1MSP"
 )
 
-func TestConfigSCC_New(t *testing.T) {
+func TestConfigCC_New(t *testing.T) {
 	cc := New()
 	require.NotNil(t, cc)
 
@@ -33,7 +33,7 @@ func TestConfigSCC_New(t *testing.T) {
 	require.Equal(t, cc, cc.Chaincode())
 }
 
-func TestConfigSCC_Init(t *testing.T) {
+func TestConfigCC_Init(t *testing.T) {
 	cc := New()
 	require.NotNil(t, cc)
 
@@ -59,7 +59,7 @@ func TestConfigSCC_Init(t *testing.T) {
 	})
 }
 
-func TestConfigSCC_Invoke_Invalid(t *testing.T) {
+func TestConfigCC_Invoke_Invalid(t *testing.T) {
 	cc := New()
 	require.NotNil(t, cc)
 
@@ -80,7 +80,7 @@ func TestConfigSCC_Invoke_Invalid(t *testing.T) {
 	})
 }
 
-func TestConfigSCC_Invoke_Save(t *testing.T) {
+func TestConfigCC_Invoke_Save(t *testing.T) {
 	cc := New()
 	require.NotNil(t, cc)
 
@@ -135,7 +135,7 @@ func TestConfigSCC_Invoke_Save(t *testing.T) {
 	})
 }
 
-func TestConfigSCC_Invoke_Get(t *testing.T) {
+func TestConfigCC_Invoke_Get(t *testing.T) {
 	cc := New()
 	require.NotNil(t, cc)
 
@@ -230,7 +230,7 @@ func TestConfigSCC_Invoke_Get(t *testing.T) {
 	})
 }
 
-func TestConfigSCC_Invoke_Delete(t *testing.T) {
+func TestConfigCC_Invoke_Delete(t *testing.T) {
 	cc := New()
 	require.NotNil(t, cc)
 

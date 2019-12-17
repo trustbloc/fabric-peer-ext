@@ -10,6 +10,7 @@ declare -a tests=(
    "e2e"
    "off_ledger"
    "transient_data"
+   "ledger_config"
 )
 
 PWD=`pwd`
