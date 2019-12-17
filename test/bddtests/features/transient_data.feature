@@ -18,9 +18,7 @@ Feature:
     And collection config "coll3" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and blocksToLive=1000
 
     # Start out with a chaincode that just has one static collection
-    And "test" chaincode "tdata_examplecc" is installed from path "github.com/trustbloc/e2e_cc" to all peers
-    And "test" chaincode "tdata_examplecc" is instantiated from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "coll3"
-    And chaincode "tdata_examplecc" is warmed up on all peers on the "mychannel" channel
+    And "test" chaincode "tdata_examplecc" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "coll3"
 
     # Prove that the transient data collection1 is not there
     When client queries chaincode "tdata_examplecc" with args "putprivate,collection1,key1,value1" on the "mychannel" channel then the error response should contain "collection mychannel/tdata_examplecc/collection1 could not be found"
@@ -30,10 +28,7 @@ Feature:
     Then response from "tdata_examplecc" to client equal value "pvtValX"
 
     # Upgrade the chaincode, adding two transient data collections
-    And "test" chaincode "tdata_examplecc" version "v2" is installed from path "github.com/trustbloc/e2e_cc" to all peers
-    And "test" chaincode "tdata_examplecc" is upgraded with version "v2" from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll1,tdata_coll2,coll3"
-    And chaincode "tdata_examplecc" is warmed up on all peers on the "mychannel" channel
-
+    Given "test" chaincode "tdata_examplecc" is upgraded with version "v2" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll1,tdata_coll2,coll3"
     When client queries chaincode "tdata_examplecc" with args "putprivate,collection1,key1,value1" on the "mychannel" channel
     And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,key1" on the "mychannel" channel
     Then response from "tdata_examplecc" to client equal value "value1"
@@ -114,17 +109,14 @@ Feature:
     # Test Chaincode Upgrade:
     #   - Ensure collection Type cannot be changed during chaincode upgrade
     Given transient collection config "coll3_upgrade" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
-    And "test" chaincode "tdata_examplecc" version "v999" is installed from path "github.com/trustbloc/e2e_cc" to all peers
-    And "test" chaincode "tdata_examplecc" is upgraded with version "v999" from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll1,tdata_coll2,coll3_upgrade" then the error response should contain "ENDORSEMENT_POLICY_FAILURE. Description: instantiateOrUpgradeCC failed"
+    And "test" chaincode "tdata_examplecc" is upgraded with version "v999" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll1,tdata_coll2,coll3_upgrade" then the error response should contain "ENDORSEMENT_POLICY_FAILURE. Description: instantiateOrUpgradeCC failed"
     #   - When the chaincode is upgraded with a new policy, all caches should be refreshed.
     #     Change the policy of collection1 so that it expires in 1m instead of 3s and
     #     change the policy of collection2 so that it expires in 3s instead of 10m
     Given transient collection config "tdata_coll1_upgrade" is defined for collection "collection1" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
     And transient collection config "tdata_coll2_upgrade" is defined for collection "collection2" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=3s
     And collection config "coll3" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and blocksToLive=1000
-    And "test" chaincode "tdata_examplecc" version "v3" is installed from path "github.com/trustbloc/e2e_cc" to all peers
-    And "test" chaincode "tdata_examplecc" is upgraded with version "v3" from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll1_upgrade,tdata_coll2_upgrade,coll3"
-    And chaincode "tdata_examplecc" is warmed up on all peers on the "mychannel" channel
+    And "test" chaincode "tdata_examplecc" is upgraded with version "v3" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll1_upgrade,tdata_coll2_upgrade,coll3"
 
     When client queries chaincode "tdata_examplecc" with args "putprivate,collection1,keyA,valueA" on the "mychannel" channel
     And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,keyA" on the "mychannel" channel
@@ -146,9 +138,7 @@ Feature:
     Then response from "tdata_examplecc" to client equal value ""
 
     # Test chaincode-to-chaincode invocation (same channel)
-    Given "test" chaincode "tdata_examplecc_2" is installed from path "github.com/trustbloc/e2e_cc" to all peers
-    And "test" chaincode "tdata_examplecc_2" is instantiated from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll2"
-    And chaincode "tdata_examplecc_2" is warmed up on all peers on the "mychannel" channel
+    Given "test" chaincode "tdata_examplecc_2" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll2"
     # Set the transient data on the target chaincode using a chaincode-to-chaincode invocation
     When client queries chaincode "tdata_examplecc" with args "invokecc,tdata_examplecc_2,,{`Args`:[`putprivate`|`collection2`|`keyC`|`valueC`]}" on the "mychannel" channel
     # Query the target chaincode directly
@@ -159,8 +149,7 @@ Feature:
     Then response from "tdata_examplecc" to client equal value "valueC"
 
     # Test chaincode-to-chaincode invocation (different channel)
-    Given "test" chaincode "tdata_examplecc_2" is instantiated from path "github.com/trustbloc/e2e_cc" on the "yourchannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll2"
-    And chaincode "tdata_examplecc_2" is warmed up on all peers on the "yourchannel" channel
+    Given "test" chaincode "tdata_examplecc_2" is instantiated from path "in-process" on the "yourchannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll2"
     # Set the transient data on a different channel
     When client queries chaincode "tdata_examplecc_2" with args "putprivate,collection2,keyD,valueD" on the "yourchannel" channel
     # Query the target chaincode directly

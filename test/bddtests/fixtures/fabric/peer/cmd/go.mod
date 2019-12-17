@@ -6,11 +6,12 @@ module github.com/trustbloc/fabric-peer-ext/test/bddtests/fixtures/fabric/peer/c
 
 require (
 	github.com/hyperledger/fabric v2.0.0-alpha+incompatible
+	github.com/hyperledger/fabric/extensions v0.0.0
 	github.com/spf13/viper v1.3.2
 	github.com/trustbloc/fabric-peer-ext v0.0.0
 )
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.1-0.20191210140617-384d402d27ae
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.1-0.20191216193459-e53a0534d4f8
 
 replace github.com/hyperledger/fabric/extensions => ../../../../../../mod/peer
 

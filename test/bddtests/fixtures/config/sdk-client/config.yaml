@@ -101,8 +101,8 @@ channels:
       discovery:
         maxTargets: 1
         retryOpts:
-          attempts: 4
-          initialBackoff: 500ms
+          attempts: 10
+          initialBackoff: 100ms
           maxBackoff: 5s
           backoffFactor: 2.0
       selection:

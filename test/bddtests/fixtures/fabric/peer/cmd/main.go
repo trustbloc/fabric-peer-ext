@@ -10,14 +10,27 @@ import (
 	"strings"
 
 	"github.com/hyperledger/fabric/common/flogging"
+	ccapi "github.com/hyperledger/fabric/extensions/chaincode/api"
 	"github.com/hyperledger/fabric/peer/node"
 	"github.com/spf13/viper"
 	extscc "github.com/trustbloc/fabric-peer-ext/pkg/chaincode/scc"
+	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/ucc"
 	extpeer "github.com/trustbloc/fabric-peer-ext/pkg/peer"
+	"github.com/trustbloc/fabric-peer-ext/test/cc/examplecc"
 	"github.com/trustbloc/fabric-peer-ext/test/scc/testscc"
 )
 
 var logger = flogging.MustGetLogger("peer-ext-test")
+
+var (
+	offLedgerDBArtifacts = map[string]*ccapi.DBArtifacts{
+		"couchdb": {
+			CollectionIndexes: map[string][]string{
+				"accounts": {`{"index": {"fields": ["id"]}, "ddoc": "indexIDDoc", "name": "indexID", "type": "json"}`},
+			},
+		},
+	}
+)
 
 func main() {
 	setup()
@@ -26,6 +39,12 @@ func main() {
 
 	logger.Infof("Registering testscc...")
 	extscc.Register(testscc.New)
+
+	logger.Infof("Registering in-process user chaincodes for BDD tests...")
+	ucc.Register(func() ccapi.UserCC { return examplecc.New("ol_examplecc", offLedgerDBArtifacts) })
+	ucc.Register(func() ccapi.UserCC { return examplecc.New("ol_examplecc_2", offLedgerDBArtifacts) })
+	ucc.Register(func() ccapi.UserCC { return examplecc.New("tdata_examplecc", nil) })
+	ucc.Register(func() ccapi.UserCC { return examplecc.New("tdata_examplecc_2", nil) })
 
 	if err := startPeer(); err != nil {
 		panic(err)

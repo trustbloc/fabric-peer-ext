@@ -12,8 +12,8 @@ Feature:
   Scenario: e2e
     Given the channel "mychannel" is created and all peers have joined
     And collection config "privColl" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and blocksToLive=3
-    And "test" chaincode "e2e_cc" is installed from path "github.com/trustbloc/e2e_cc" to all peers
-    And "test" chaincode "e2e_cc" is instantiated from path "github.com/trustbloc/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "privColl"
+    And "test" chaincode "e2e_cc" is installed from path "github.com/trustbloc/fabric-peer-ext/test/chaincode/e2e_cc" to all peers
+    And "test" chaincode "e2e_cc" is instantiated from path "github.com/trustbloc/fabric-peer-ext/test/chaincode/e2e_cc" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "privColl"
     And chaincode "e2e_cc" is warmed up on all peers on the "mychannel" channel
 
 

@@ -8,7 +8,7 @@ package scc
 
 import (
 	"github.com/hyperledger/fabric/core/scc"
-	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/scc/builder"
+	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/builder"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
 )
 

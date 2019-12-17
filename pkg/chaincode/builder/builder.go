@@ -17,21 +17,21 @@ import (
 
 var sdSysSccType = reflect.TypeOf((*scc.SelfDescribingSysCC)(nil)).Elem()
 
-// SCCBuilder builds a slice of SelfDescribingSysCC
-type SCCBuilder struct {
+// CCBuilder builds a slice of SelfDescribingSysCC
+type CCBuilder struct {
 	mutex    sync.Mutex
 	creators []interface{}
 }
 
-// New returns a new SCCBuilder
-func New() *SCCBuilder {
-	return &SCCBuilder{}
+// New returns a new CCBuilder
+func New() *CCBuilder {
+	return &CCBuilder{}
 }
 
-// Add adds a new SCC creator function. The function has zero or more args
+// Add adds a new chaincode creator function. The function has zero or more args
 // that define dependencies and a single return value of type scc.SelfDescribingSysCC.
 // Note: The args must all be interfaces.
-func (b *SCCBuilder) Add(creator interface{}) *SCCBuilder {
+func (b *CCBuilder) Add(creator interface{}) *CCBuilder {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
@@ -40,7 +40,7 @@ func (b *SCCBuilder) Add(creator interface{}) *SCCBuilder {
 }
 
 // Build returns a slice of SelfDescribingSysCC using the given set of providers
-func (b *SCCBuilder) Build(providers ...interface{}) ([]scc.SelfDescribingSysCC, error) {
+func (b *CCBuilder) Build(providers ...interface{}) ([]scc.SelfDescribingSysCC, error) {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
