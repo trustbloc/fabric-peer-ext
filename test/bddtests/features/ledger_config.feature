@@ -12,6 +12,9 @@ Feature: ledger-config
     Given the channel "mychannel" is created and all peers have joined
     And "test" chaincode "configscc" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy ""
 
+    # We need to wait a while so that all of the peers' channel membership is Gossip'ed to all other peers.
+    Then we wait 10 seconds
+
   @ledger_config_s1
   Scenario: Save, get and delete application config
     # Save and query app1 v1 config
