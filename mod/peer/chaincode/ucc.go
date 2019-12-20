@@ -15,3 +15,13 @@ import (
 func GetUCC(ccID string) (api.UserCC, bool) {
 	return ucc.Get(ccID)
 }
+
+// Chaincodes returns all registered in-process chaincodes
+func Chaincodes() []api.UserCC {
+	return ucc.Chaincodes()
+}
+
+// WaitForReady blocks until the chaincodes are all registered
+func WaitForReady() {
+	ucc.WaitForReady()
+}

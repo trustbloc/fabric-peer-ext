@@ -40,7 +40,7 @@ func main() {
 
 	ucc.Register(testcc.New)
 	ucc.Register(func() ccapi.UserCC { return examplecc.New("ol_examplecc", offLedgerDBArtifacts) })
-	ucc.Register(func() ccapi.UserCC { return examplecc.New("ol_examplecc_2", offLedgerDBArtifacts) })
+	ucc.Register(func() ccapi.UserCC { return examplecc.New("ol_examplecc_2", nil) })
 	ucc.Register(func() ccapi.UserCC { return examplecc.New("tdata_examplecc", nil) })
 	ucc.Register(func() ccapi.UserCC { return examplecc.New("tdata_examplecc_2", nil) })
 

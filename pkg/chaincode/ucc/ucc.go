@@ -46,9 +46,23 @@ func Get(ccID string) (api.UserCC, bool) {
 	return instance.Get(ccID)
 }
 
+// Chaincodes returns all registered in-process chaincodes
+func Chaincodes() []api.UserCC {
+	return instance.Chaincodes()
+}
+
+// WaitForReady blocks until the chaincodes are all registered
+func WaitForReady() {
+	instance.WaitForReady()
+}
+
 // Initialize is called on peer startup
 func (r *Registry) Initialize() *Registry {
 	logger.Info("Initializing in-process user chaincode registry")
+
+	// Acquire a write lock. The lock will be released once
+	//the chaincodes have all registered.
+	r.mutex.Lock()
 
 	go r.registerChaincodes()
 
@@ -63,7 +77,7 @@ type channelListener interface {
 func (r *Registry) ChannelJoined(channelID string) {
 	logger.Infof("Channel joined [%s]", channelID)
 
-	for _, cc := range r.chaincodes() {
+	for _, cc := range r.Chaincodes() {
 		l, ok := cc.(channelListener)
 		if ok {
 			logger.Infof("Notifying in-process user chaincode [%s] that channel [%s] was joined", cc.Name(), channelID)
@@ -73,6 +87,10 @@ func (r *Registry) ChannelJoined(channelID string) {
 }
 
 func (r *Registry) registerChaincodes() {
+	// mutex.Lock was called by the Initialize function and this function
+	// will call mutex.Unlock after all chaincodes are registered.
+	defer r.mutex.Unlock()
+
 	b := builder.New()
 	for _, c := range r.creators {
 		b.Add(c)
@@ -98,9 +116,6 @@ func (r *Registry) addCreator(c interface{}) {
 }
 
 func (r *Registry) register(cc api.UserCC) error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
 	logger.Infof("Registering in-process user chaincode [%s]", cc.Name())
 
 	_, exists := r.registry[cc.Name()]
@@ -122,7 +137,8 @@ func (r *Registry) Get(ccID string) (api.UserCC, bool) {
 	return cc, ok
 }
 
-func (r *Registry) chaincodes() []api.UserCC {
+// Chaincodes returns all registered in-process chaincodes
+func (r *Registry) Chaincodes() []api.UserCC {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
@@ -133,4 +149,14 @@ func (r *Registry) chaincodes() []api.UserCC {
 	}
 
 	return ccs
+}
+
+// WaitForReady blocks until the chaincodes are all registered
+func (r *Registry) WaitForReady() {
+	logger.Debugf("Waiting for chaincodes to be registered...")
+
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	logger.Debugf("... done registering chaincodes.")
 }

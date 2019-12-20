@@ -101,7 +101,7 @@ channels:
       discovery:
         maxTargets: 1
         retryOpts:
-          attempts: 10
+          attempts: 15
           initialBackoff: 100ms
           maxBackoff: 5s
           backoffFactor: 2.0
@@ -127,7 +127,7 @@ channels:
     # Required. list of peers from participating orgs
     peers:
       peer0.org1.example.com:
-        endorsingPeer: true
+        endorsingPeer: false
         chaincodeQuery: true
         ledgerQuery: true
         eventSource: true
@@ -139,7 +139,7 @@ channels:
         eventSource: true
 
       peer0.org2.example.com:
-        endorsingPeer: true
+        endorsingPeer: false
         chaincodeQuery: true
         ledgerQuery: true
         eventSource: true
@@ -156,7 +156,7 @@ channels:
     # Required. list of peers from participating orgs
     peers:
       peer0.org1.example.com:
-        endorsingPeer: true
+        endorsingPeer: false
         chaincodeQuery: true
         ledgerQuery: true
         eventSource: true
@@ -168,7 +168,7 @@ channels:
         eventSource: true
 
       peer0.org2.example.com:
-        endorsingPeer: true
+        endorsingPeer: false
         chaincodeQuery: true
         ledgerQuery: true
         eventSource: true

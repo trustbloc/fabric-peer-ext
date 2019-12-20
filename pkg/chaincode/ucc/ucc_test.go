@@ -35,7 +35,9 @@ func TestRegister(t *testing.T) {
 
 	require.NoError(t, resource.Mgr.Initialize())
 
-	time.Sleep(50 * time.Millisecond)
+	WaitForReady()
+
+	require.Len(t, Chaincodes(), 2)
 
 	cc, ok := Get(cc1)
 	require.True(t, ok)

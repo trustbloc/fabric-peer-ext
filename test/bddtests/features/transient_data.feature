@@ -20,6 +20,9 @@ Feature:
     # Start out with a chaincode that just has one static collection
     And "test" chaincode "tdata_examplecc" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "coll3"
 
+    # We need to wait a while so that all of the peers' channel membership is Gossip'ed to all other peers.
+    Then we wait 10 seconds
+
     # Prove that the transient data collection1 is not there
     When client queries chaincode "tdata_examplecc" with args "putprivate,collection1,key1,value1" on the "mychannel" channel then the error response should contain "collection mychannel/tdata_examplecc/collection1 could not be found"
     When client invokes chaincode "tdata_examplecc" with args "putprivate,collection3,pvtKeyX,pvtValX" on the "mychannel" channel
