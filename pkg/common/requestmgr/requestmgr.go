@@ -119,7 +119,7 @@ func (c *channelMgr) NewRequest() Request {
 
 	reqID := c.newRequestID()
 
-	logger.Debugf("[%s] Subscribing to transient data request %d", c.channelID, reqID)
+	logger.Debugf("[%s] Subscribing to data request %d", c.channelID, reqID)
 
 	s := newRequest(reqID, c.channelID, c.remove)
 	c.requests[reqID] = s
@@ -133,11 +133,11 @@ func (c *channelMgr) Respond(reqID uint64, response *Response) {
 
 	s, ok := c.requests[reqID]
 	if !ok {
-		logger.Debugf("[%s] No transient data requests for %d", c.channelID, reqID)
+		logger.Debugf("[%s] No data requests for %d", c.channelID, reqID)
 		return
 	}
 
-	logger.Debugf("[%s] Publishing transient data response %d", c.channelID, reqID)
+	logger.Debugf("[%s] Publishing data response %d", c.channelID, reqID)
 	s.respond(response)
 }
 
@@ -150,7 +150,7 @@ func (c *channelMgr) remove(reqID uint64) {
 	}
 
 	delete(c.requests, reqID)
-	logger.Debugf("[%s] Unsubscribed from transient data request %d", c.channelID, reqID)
+	logger.Debugf("[%s] Unsubscribed from data request %d", c.channelID, reqID)
 }
 
 func (c *channelMgr) newRequestID() uint64 {

@@ -87,11 +87,13 @@ func TestDispatchDataRequest(t *testing.T) {
 	const ns2 = "ns2"
 	const coll1 = "coll1"
 	const coll2 = "coll2"
+	const coll3 = "coll3"
 
 	key1 := store.NewKey("txID1", ns1, coll1, "key1")
 	key2 := store.NewKey("txID1", ns2, coll2, "key2")
 	key3 := store.NewKey("txID1", ns1, coll2, "key3")
 	key4 := store.NewKey("txID1", ns2, coll1, "key4")
+	key5 := store.NewKey("txID1", ns2, coll3, "key5")
 
 	value1 := &store.ExpiringValue{Value: []byte("value1")}
 	value2 := &store.ExpiringValue{Value: []byte("value2")}
@@ -105,6 +107,7 @@ func TestDispatchDataRequest(t *testing.T) {
 	nsBuilder2 := mocks.NewNamespaceBuilder(ns2)
 	nsBuilder2.Collection(coll2).TransientConfig("OR ('Org1MSP.member','Org2MSP.member','Org3MSP.member')", 3, 3, "1m")
 	nsBuilder2.Collection(coll1).DCASConfig("OR ('Org1MSP.member','Org2MSP.member','Org3MSP.member')", 3, 3, "1m")
+	nsBuilder2.Collection(coll3).StaticConfig("OR ('Org1MSP.member','Org2MSP.member','Org3MSP.member')", 3, 3, 100)
 
 	configPkgBytes1, err := proto.Marshal(nsBuilder1.BuildCollectionConfig())
 	require.NoError(t, err)
@@ -191,19 +194,61 @@ func TestDispatchDataRequest(t *testing.T) {
 		assert.Equal(t, value4.Value, element.Value)
 	})
 
-	t.Run("Non-Endorser -> no response", func(t *testing.T) {
-		f := isEndorser
-		defer func() { isEndorser = f }()
-		isEndorser = func() bool { return false }
+	t.Run("Endorser/Committer", func(t *testing.T) {
+		restoreEndorser := isEndorser
+		restoreCommitter := isCommitter
+
+		defer func() {
+			isEndorser = restoreEndorser
+			isCommitter = restoreCommitter
+		}()
 
 		reqID2 := uint64(1001)
 
 		var response *gproto.GossipMessage
 		msg := &mocks.MockReceivedMessage{
-			Message: mocks.NewCollDataReqMsg(channelID, reqID2, key1, key2),
+			Message: mocks.NewCollDataReqMsg(channelID, reqID2, key1, key2, key3, key4),
 			RespondTo: func(msg *gproto.GossipMessage) {
 				response = msg
 			},
+			Member: mocks.NewMember(p1Org2Endpoint, p1Org2PKIID, endorserRole),
+		}
+
+		t.Run("Non-Endorser/Non-Committer -> no response", func(t *testing.T) {
+			isEndorser = func() bool { return false }
+			isCommitter = func() bool { return false }
+
+			require.True(t, dispatcher.Dispatch(msg))
+			require.Nil(t, response)
+		})
+
+		t.Run("Endorser/Non-Committer -> success", func(t *testing.T) {
+			isEndorser = restoreEndorser
+			isCommitter = func() bool { return false }
+
+			require.True(t, dispatcher.Dispatch(msg))
+			require.NotNil(t, response)
+		})
+
+		t.Run("Non-Endorser/Committer -> success", func(t *testing.T) {
+			isEndorser = func() bool { return false }
+			isCommitter = restoreCommitter
+
+			require.True(t, dispatcher.Dispatch(msg))
+			require.NotNil(t, response)
+		})
+	})
+
+	t.Run("Unsupported collection type -> fail", func(t *testing.T) {
+		reqID := uint64(1100)
+
+		var response *gproto.GossipMessage
+		msg := &mocks.MockReceivedMessage{
+			Message: mocks.NewCollDataReqMsg(channelID, reqID, key5),
+			RespondTo: func(msg *gproto.GossipMessage) {
+				response = msg
+			},
+			Member: mocks.NewMember(p1Org2Endpoint, p1Org2PKIID, endorserRole),
 		}
 		assert.True(t, dispatcher.Dispatch(msg))
 		require.Nil(t, response)
@@ -355,19 +400,6 @@ func TestDispatchDataResponse(t *testing.T) {
 		assert.Equal(t, key2.Collection, element.Collection)
 		assert.Equal(t, key2.Key, element.Key)
 		assert.Equal(t, value2.Value, element.Value)
-	})
-
-	t.Run("Non-Endorser -> no response", func(t *testing.T) {
-		f := isEndorser
-		defer func() { isEndorser = f }()
-		isEndorser = func() bool { return false }
-
-		req := reqMgr.NewRequest()
-		ctxt, _ := context.WithTimeout(context.Background(), 50*time.Millisecond)
-
-		res, err := req.GetResponse(ctxt)
-		assert.EqualError(t, err, "context deadline exceeded")
-		assert.Nil(t, res)
 	})
 
 	t.Run("Unknown MSP -> fail", func(t *testing.T) {

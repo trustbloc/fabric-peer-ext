@@ -21,7 +21,7 @@ Feature:
     And "test" chaincode "tdata_examplecc" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "coll3"
 
     # We need to wait a while so that all of the peers' channel membership is Gossip'ed to all other peers.
-    Then we wait 10 seconds
+    Then we wait 20 seconds
 
     # Prove that the transient data collection1 is not there
     When client queries chaincode "tdata_examplecc" with args "putprivate,collection1,key1,value1" on the "mychannel" channel then the error response should contain "collection mychannel/tdata_examplecc/collection1 could not be found"
@@ -32,6 +32,8 @@ Feature:
 
     # Upgrade the chaincode, adding two transient data collections
     Given "test" chaincode "tdata_examplecc" is upgraded with version "v2" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll1,tdata_coll2,coll3"
+    Given we wait 20 seconds
+
     When client queries chaincode "tdata_examplecc" with args "putprivate,collection1,key1,value1" on the "mychannel" channel
     And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,key1" on the "mychannel" channel
     Then response from "tdata_examplecc" to client equal value "value1"
@@ -113,6 +115,8 @@ Feature:
     #   - Ensure collection Type cannot be changed during chaincode upgrade
     Given transient collection config "coll3_upgrade" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
     And "test" chaincode "tdata_examplecc" is upgraded with version "v999" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll1,tdata_coll2,coll3_upgrade" then the error response should contain "ENDORSEMENT_POLICY_FAILURE. Description: instantiateOrUpgradeCC failed"
+    Given we wait 20 seconds
+
     #   - When the chaincode is upgraded with a new policy, all caches should be refreshed.
     #     Change the policy of collection1 so that it expires in 1m instead of 3s and
     #     change the policy of collection2 so that it expires in 3s instead of 10m
@@ -120,6 +124,7 @@ Feature:
     And transient collection config "tdata_coll2_upgrade" is defined for collection "collection2" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=3s
     And collection config "coll3" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and blocksToLive=1000
     And "test" chaincode "tdata_examplecc" is upgraded with version "v3" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll1_upgrade,tdata_coll2_upgrade,coll3"
+    Given we wait 20 seconds
 
     When client queries chaincode "tdata_examplecc" with args "putprivate,collection1,keyA,valueA" on the "mychannel" channel
     And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,keyA" on the "mychannel" channel
@@ -142,6 +147,8 @@ Feature:
 
     # Test chaincode-to-chaincode invocation (same channel)
     Given "test" chaincode "tdata_examplecc_2" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll2"
+    Given we wait 20 seconds
+
     # Set the transient data on the target chaincode using a chaincode-to-chaincode invocation
     When client queries chaincode "tdata_examplecc" with args "invokecc,tdata_examplecc_2,,{`Args`:[`putprivate`|`collection2`|`keyC`|`valueC`]}" on the "mychannel" channel
     # Query the target chaincode directly
@@ -153,6 +160,8 @@ Feature:
 
     # Test chaincode-to-chaincode invocation (different channel)
     Given "test" chaincode "tdata_examplecc_2" is instantiated from path "in-process" on the "yourchannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll2"
+    Given we wait 20 seconds
+
     # Set the transient data on a different channel
     When client queries chaincode "tdata_examplecc_2" with args "putprivate,collection2,keyD,valueD" on the "yourchannel" channel
     # Query the target chaincode directly
