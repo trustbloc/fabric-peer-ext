@@ -11,8 +11,7 @@ import (
 	"time"
 
 	"github.com/hyperledger/fabric/core/config"
-
-	"github.com/spf13/viper"
+	viper "github.com/spf13/viper2015"
 )
 
 const (

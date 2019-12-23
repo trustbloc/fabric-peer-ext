@@ -25,7 +25,7 @@ import (
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/util"
 	origts "github.com/hyperledger/fabric/core/transientstore"
-	"github.com/spf13/viper"
+	viper "github.com/spf13/viper2015"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	cm "github.com/trustbloc/fabric-peer-ext/pkg/transientstore/common"

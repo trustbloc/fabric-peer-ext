@@ -16,7 +16,7 @@ import (
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	ccapi "github.com/hyperledger/fabric/extensions/chaincode/api"
-	"github.com/spf13/viper"
+	viper "github.com/spf13/viper2015"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	configsvc "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/service"
 )

@@ -20,7 +20,7 @@ import (
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/hyperledger/fabric/extensions/testutil"
-	"github.com/spf13/viper"
+	viper "github.com/spf13/viper2015"
 	"github.com/stretchr/testify/require"
 	xtestutil "github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )

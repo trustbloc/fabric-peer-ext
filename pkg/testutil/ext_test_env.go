@@ -20,7 +20,7 @@ import (
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/hyperledger/fabric/integration/runner"
-	"github.com/spf13/viper"
+	viper "github.com/spf13/viper2015"
 	clientmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/client/mocks"
 	olretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/mocks"
 	storemocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/storeprovider/mocks"

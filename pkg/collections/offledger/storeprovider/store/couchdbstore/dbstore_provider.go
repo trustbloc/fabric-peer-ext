@@ -14,7 +14,7 @@ import (
 	"github.com/hyperledger/fabric/common/metrics/disabled"
 	coreconfig "github.com/hyperledger/fabric/core/config"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
-	"github.com/spf13/viper"
+	viper "github.com/spf13/viper2015"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 )
