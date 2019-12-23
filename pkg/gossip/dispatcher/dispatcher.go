@@ -31,6 +31,11 @@ var isEndorser = func() bool {
 	return ledgerconfig.IsEndorser()
 }
 
+// isCommitter should only be overridden for unit testing
+var isCommitter = func() bool {
+	return ledgerconfig.IsCommitter()
+}
+
 // Dispatcher is a Gossip message dispatcher
 type Dispatcher struct {
 	ccProvider collcommon.CollectionConfigProvider
@@ -63,8 +68,8 @@ func (s *Dispatcher) handleDataRequest(msg protoext.ReceivedMessage) {
 		defer logger.Debug("[EXIT] ->  handleDataRequest")
 	}
 
-	if !isEndorser() {
-		logger.Warningf("Non-endorser should not be receiving collection data request messages")
+	if !isEndorser() && !isCommitter() {
+		logger.Warningf("Only endorsers and committers should be receiving collection data request messages")
 		return
 	}
 

@@ -13,7 +13,7 @@ Feature: ledger-config
     And "test" chaincode "configscc" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy ""
 
     # We need to wait a while so that all of the peers' channel membership is Gossip'ed to all other peers.
-    Then we wait 10 seconds
+    Then we wait 20 seconds
 
   @ledger_config_s1
   Scenario: Save, get and delete application config
@@ -87,6 +87,8 @@ Feature: ledger-config
   @ledger_config_s3
   Scenario: Ledger config service - peer-specific config
     Given "test" chaincode "testcc" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "OR('Org1MSP.member','Org2MSP.member')" with collection policy ""
+    Then we wait 20 seconds
+
     # Save the config
     Given variable "testCCGeneralConfig" is assigned the JSON value '{"MspID":"general","Apps":[{"AppName":"testcc","Version":"v1","Components":[{"Name":"comp1","Version":"v1","Config":"{\"Org\":\"general\",\"Application\":\"testcc\",\"SubComponent\":\"comp1\"}","Format":"JSON"},{"Name":"comp2","Version":"v1","Config":"{\"Org\":\"general\",\"Application\":\"testcc\",\"SubComponent\":\"comp2\"}","Format":"JSON"}]}]}'
     Given variable "testCCOrg1Config" is assigned the JSON value '{"MspID":"Org1MSP","Peers":[{"PeerID":"peer0.org1.example.com","Apps":[{"AppName":"testcc","Version":"v1","Config":"p0-org1-testcc-v1-config","Format":"Other"}]},{"PeerID":"peer1.org1.example.com","Apps":[{"AppName":"testcc","Version":"v1","Config":"p1-org1-testcc-v1-config","Format":"Other"}]}]}'
