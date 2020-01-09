@@ -9,7 +9,7 @@ package roles
 import (
 	"testing"
 
-	"github.com/spf13/viper"
+	viper "github.com/spf13/viper2015"
 	"github.com/stretchr/testify/require"
 )
 

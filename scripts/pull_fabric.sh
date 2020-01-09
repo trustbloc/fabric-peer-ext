@@ -11,17 +11,8 @@ git clone https://github.com/trustbloc/fabric-mod.git $GOPATH/src/github.com/hyp
 cp -r . $GOPATH/src/github.com/hyperledger/fabric/fabric-peer-ext
 cd $GOPATH/src/github.com/hyperledger/fabric
 git config advice.detachedHead false
-# fabric-mod (Dec 18, 2019)
-git checkout 256bdd7351ad39c61ea37b69b4b7038ba560becf
-
-# Rewrite viper import to allow plugins to load different version of viper
-sed 's/\github.com\/spf13\/viper.*/github.com\/spf13\/oldviper v0.0.0/g' -i fabric-peer-ext/mod/peer/go.mod
-sed -e "\$areplace github.com/spf13/oldviper => github.com/spf13/viper v0.0.0-20150908122457-1967d93db724" -i fabric-peer-ext/mod/peer/go.mod
-sed 's/\github.com\/spf13\/viper.*/github.com\/spf13\/oldviper v0.0.0/g' -i fabric-peer-ext/go.mod
-sed -e "\$areplace github.com/spf13/oldviper => github.com/spf13/viper v0.0.0-20150908122457-1967d93db724" -i fabric-peer-ext/go.mod
-sed 's/\github.com\/spf13\/viper v1.3.2/github.com\/spf13\/oldviper v0.0.0/g' -i go.mod
-sed 's:replace github.com/spf13/viper:replace github.com/spf13/oldviper:g' -i go.mod
-find . -type f -name "*.go" -print0 | xargs -0 sed -i "s/github.com\/spf13\/viper/github.com\/spf13\/oldviper/g"
+# fabric-mod (Jan 9, 2020)
+git checkout 55843c4fd520784bda71c3bb7769521687eef38f
 
 # apply custom modules
 sed 's/\.\/extensions/.\/fabric-peer-ext\/mod\/peer/g' -i go.mod
