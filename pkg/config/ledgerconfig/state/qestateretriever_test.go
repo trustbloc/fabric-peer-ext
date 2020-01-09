@@ -10,7 +10,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/compositekey"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
@@ -143,9 +142,9 @@ func TestQERetriever_GetStateByPartialCompositeKey_Error(t *testing.T) {
 	errExpected := errors.New("iterator error")
 	rp := NewQERetrieverProvider(
 		channelID, mocks.NewQueryExecutorProvider().WithMockQueryExecutor(
-			mocks.NewQueryExecutor().WithKVIteratorProvider(
-				func(kvs []*statedb.VersionedKV) *mocks.KVIterator {
-					return mocks.NewKVIterator(kvs).WithError(errExpected)
+			mocks.NewQueryExecutor().WithIteratorProvider(
+				func() *mocks.ResultsIterator {
+					return mocks.NewResultsIterator().WithError(errExpected)
 				},
 			),
 		),

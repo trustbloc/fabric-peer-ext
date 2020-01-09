@@ -105,25 +105,33 @@ Feature: ledger-config
     Then the JSON path "Org" of the response equals "general"
     Then the JSON path "Application" of the response equals "testcc"
     Then the JSON path "SubComponent" of the response equals "comp1"
+
     Given variable "testCCGeneralComp2Criteria" is assigned the JSON value '{"MspID":"general","AppName":"testcc","AppVersion":"v1","ComponentName":"comp2","ComponentVersion":"v1"}'
     When client queries chaincode "testcc" with args "getconfig,${testCCGeneralComp2Criteria}" on a single peer in the "peerorg2" org on the "mychannel" channel
     Then the JSON path "Org" of the response equals "general"
     Then the JSON path "Application" of the response equals "testcc"
     Then the JSON path "SubComponent" of the response equals "comp2"
 
+    Given variable "testCCGeneralCriteria" is assigned the JSON value '{"MspID":"general","AppName":"testcc","AppVersion":"v1"}'
+    When client queries chaincode "testcc" with args "getconfig,${testCCGeneralCriteria}" on the "mychannel" channel then the error response should contain "received more than one result for key"
+
     # Get peer-specific data (tests config update events)
     Given variable "testCCOrg1Peer0Criteria" is assigned the JSON value '{"MspID":"Org1MSP","PeerID":"peer0.org1.example.com","AppName":"testcc","AppVersion":"v1"}'
     When client queries chaincode "testcc" with args "getconfig,${testCCOrg1Peer0Criteria}" on peers "peer0.org1.example.com" on the "mychannel" channel
     Then response from "testcc" to client equal value "p0-org1-testcc-v1-config"
+
     Given variable "testCCOrg1Peer1Criteria" is assigned the JSON value '{"MspID":"Org1MSP","PeerID":"peer1.org1.example.com","AppName":"testcc","AppVersion":"v1"}'
     When client queries chaincode "testcc" with args "getconfig,${testCCOrg1Peer1Criteria}" on peers "peer1.org1.example.com" on the "mychannel" channel
     Then response from "testcc" to client equal value "p1-org1-testcc-v1-config"
+
     Given variable "testCCOrg2Peer0Criteria" is assigned the JSON value '{"MspID":"Org2MSP","PeerID":"peer0.org2.example.com","AppName":"testcc","AppVersion":"v1"}'
     When client queries chaincode "testcc" with args "getconfig,${testCCOrg2Peer0Criteria}" on peers "peer0.org2.example.com" on the "mychannel" channel
     Then response from "testcc" to client equal value "p0-org2-testcc-v1-config"
+
     Given variable "testCCOrg2Peer1Criteria" is assigned the JSON value '{"MspID":"Org2MSP","PeerID":"peer1.org2.example.com","AppName":"testcc","AppVersion":"v1"}'
     When client queries chaincode "testcc" with args "getconfig,${testCCOrg2Peer1Criteria}" on peers "peer1.org2.example.com" on the "mychannel" channel
     Then response from "testcc" to client equal value "p1-org2-testcc-v1-config"
+
     # The following peer-specific data should not be found on foreign peer
     Given variable "testCCOrg1Peer0Criteria" is assigned the JSON value '{"MspID":"Org1MSP","PeerID":"peer0.org1.example.com","AppName":"testcc","AppVersion":"v1"}'
     When client queries chaincode "testcc" with args "getconfig,${testCCOrg1Peer0Criteria}" on peers "peer1.org1.example.com" on the "mychannel" channel

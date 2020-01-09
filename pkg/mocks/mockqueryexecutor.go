@@ -23,7 +23,6 @@ type QueryExecutor struct {
 	error        error
 	queryError   error
 	itProvider   func() *ResultsIterator
-	kvItProvider func(kvs []*statedb.VersionedKV) *KVIterator
 }
 
 // NewQueryExecutor returns a new mock query executor
@@ -32,7 +31,6 @@ func NewQueryExecutor() *QueryExecutor {
 		state:        make(map[string]map[string][]byte),
 		queryResults: make(map[string][]*queryresult.KV),
 		itProvider:   NewResultsIterator,
-		kvItProvider: NewKVIterator,
 	}
 }
 
@@ -95,12 +93,6 @@ func (m *QueryExecutor) WithIteratorProvider(p func() *ResultsIterator) *QueryEx
 	return m
 }
 
-// WithKVIteratorProvider sets the KV iterator provider
-func (m *QueryExecutor) WithKVIteratorProvider(p func(kvs []*statedb.VersionedKV) *KVIterator) *QueryExecutor {
-	m.kvItProvider = p
-	return m
-}
-
 // WithError injects an error to the mock executor
 func (m *QueryExecutor) WithError(err error) *QueryExecutor {
 	m.error = err
@@ -140,23 +132,22 @@ func (m *QueryExecutor) GetStateRangeScanIterator(namespace string, startKey str
 		return nil, m.queryError
 	}
 
-	var kvs []*statedb.VersionedKV
+	var kvs []*queryresult.KV
 	for key, value := range m.state[namespace] {
 		if strings.Compare(key, startKey) < 0 || strings.Compare(key, endKey) >= 0 {
 			continue
 		}
-		kv := &statedb.VersionedKV{}
-		kv.Namespace = namespace
-		kv.Key = key
-		kv.Value = value
-
-		kvs = append(kvs, kv)
+		kvs = append(kvs, &queryresult.KV{
+			Namespace: namespace,
+			Key:       key,
+			Value:     value,
+		})
 	}
 	sort.Slice(kvs, func(i, j int) bool {
 		return strings.Compare(kvs[i].Key, kvs[j].Key) < 0
 	})
 
-	return m.kvItProvider(kvs), nil
+	return m.itProvider().WithResults(kvs), nil
 }
 
 // GetStateRangeScanIteratorWithMetadata is not currently implemented and will panic if called

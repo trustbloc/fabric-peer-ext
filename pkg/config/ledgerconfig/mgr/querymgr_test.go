@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	commonledger "github.com/hyperledger/fabric/common/ledger"
-	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
@@ -182,8 +181,8 @@ func TestManager_QueryExecutorError(t *testing.T) {
 	t.Run("Iterator error", func(t *testing.T) {
 		expectedErr := errors.New("iterator error")
 		r := configmocks.NewStateRetriever()
-		r.WithKVIteratorProvider(func(kvs []*statedb.VersionedKV) *mocks.KVIterator {
-			return mocks.NewKVIterator(kvs).WithError(expectedErr)
+		r.WithIteratorProvider(func() *mocks.ResultsIterator {
+			return mocks.NewResultsIterator().WithError(expectedErr)
 		})
 		m := NewQueryManager(configNamespace, configmocks.NewStateRetrieverProvider().WithStateRetriever(r))
 		_, err := m.Query(&config.Criteria{MspID: msp1})
