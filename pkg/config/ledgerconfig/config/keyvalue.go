@@ -31,7 +31,7 @@ type Key struct {
 
 // String returns a readable string for the key
 func (k *Key) String() string {
-	return fmt.Sprintf("(MSP:%s),(Peer:%s),(Apps:%s),(AppVersion:%s),(Comp:%s),(CompVersion:%s)", k.MspID, k.PeerID, k.AppName, k.AppVersion, k.ComponentName, k.ComponentVersion)
+	return fmt.Sprintf("(MSP:%s),(Peer:%s),(AppName:%s),(AppVersion:%s),(Comp:%s),(CompVersion:%s)", k.MspID, k.PeerID, k.AppName, k.AppVersion, k.ComponentName, k.ComponentVersion)
 }
 
 // Validate validates the key for completeness

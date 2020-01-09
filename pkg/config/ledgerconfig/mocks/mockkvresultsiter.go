@@ -9,7 +9,6 @@ package mocks
 import (
 	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
 	commonledger "github.com/hyperledger/fabric/common/ledger"
-	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
 )
 
 // KVResultsIter is a mock key-value results iterator
@@ -67,7 +66,7 @@ func (m *KVResultsIter) Next() (*queryresult.KV, error) {
 		return nil, nil
 	}
 
-	versionedKV := queryResult.(*statedb.VersionedKV)
+	versionedKV := queryResult.(*queryresult.KV)
 	return &queryresult.KV{
 		Namespace: versionedKV.Namespace,
 		Key:       versionedKV.Key,

@@ -9,7 +9,6 @@ package state
 import (
 	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
 	commonledger "github.com/hyperledger/fabric/common/ledger"
-	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
 	"github.com/pkg/errors"
 )
 
@@ -61,7 +60,7 @@ func (it *KVResultsIter) Next() (*queryresult.KV, error) {
 		return nil, errors.New("Next() called when there is no next")
 	}
 
-	versionedKV := queryResult.(*statedb.VersionedKV)
+	versionedKV := queryResult.(*queryresult.KV)
 	return &queryresult.KV{
 		Namespace: versionedKV.Namespace,
 		Key:       versionedKV.Key,
