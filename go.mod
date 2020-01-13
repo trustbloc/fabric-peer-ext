@@ -11,6 +11,7 @@ require (
 	github.com/hyperledger/fabric v2.0.0-alpha+incompatible
 	github.com/hyperledger/fabric-chaincode-go v0.0.0-20191108205148-17c4b2760b56
 	github.com/hyperledger/fabric-protos-go v0.0.0-20191121202242-f5500d5e3e85
+	github.com/hyperledger/fabric-sdk-go v1.0.0-beta1
 	github.com/hyperledger/fabric/extensions v0.0.0
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper2015 v1.3.2

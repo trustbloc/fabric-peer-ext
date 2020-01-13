@@ -13,7 +13,7 @@ import (
 	"github.com/hyperledger/fabric/extensions/collections/storeprovider"
 	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+	extconfig "github.com/trustbloc/fabric-peer-ext/pkg/config"
 	statemocks "github.com/trustbloc/fabric-peer-ext/pkg/gossip/state/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
@@ -39,7 +39,7 @@ func TestInitialize(t *testing.T) {
 }
 
 func removeDBPath(t testing.TB) {
-	removePath(t, config.GetTransientDataLevelDBPath())
+	removePath(t, extconfig.GetTransientDataLevelDBPath())
 }
 
 func removePath(t testing.TB, path string) {

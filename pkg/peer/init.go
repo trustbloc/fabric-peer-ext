@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package peer
 
 import (
+	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configcc"
 	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/ucc"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/client"
@@ -19,10 +20,15 @@ import (
 	cfgservice "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/service"
 	gossipstate "github.com/trustbloc/fabric-peer-ext/pkg/gossip/state"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
+	"github.com/trustbloc/fabric-peer-ext/pkg/txn"
 )
+
+var logger = flogging.MustGetLogger("ext_peer")
 
 // Initialize initializes the peer
 func Initialize() {
+	logger.Info("Initializing peer")
+
 	registerResources()
 	registerChaincodes()
 }
@@ -37,6 +43,8 @@ func registerResources() {
 	resource.Register(dcasclient.NewProvider)
 	resource.Register(gossipstate.NewUpdateHandler)
 	resource.Register(cfgservice.NewSvcMgr)
+	resource.Register(txn.NewProvider)
+	resource.Register(newConfig)
 }
 
 func registerChaincodes() {
