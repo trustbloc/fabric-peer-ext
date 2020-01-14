@@ -31,6 +31,7 @@ type ChannelClient interface {
 type Client struct {
 	ChannelClient
 	channelID string
+	sdk       *fabsdk.FabricSDK
 }
 
 // New returns a new instance of an SDK client for the given channel
@@ -63,7 +64,15 @@ func New(channelID, userName string, peerConfig api.PeerConfig, sdkCfgBytes []by
 	return &Client{
 		ChannelClient: chClient,
 		channelID:     channelID,
+		sdk:           sdk,
 	}, nil
+}
+
+// Close closes the SDK
+func (c *Client) Close() {
+	if c.sdk != nil {
+		c.sdk.Close()
+	}
 }
 
 func orgFromMSPID(endpointConfig fabapi.EndpointConfig, peerCfg api.PeerConfig) (string, error) {

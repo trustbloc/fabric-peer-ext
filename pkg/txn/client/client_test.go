@@ -54,6 +54,7 @@ func TestNew(t *testing.T) {
 		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
 		require.NoError(t, err)
 		require.NotNil(t, c)
+		require.NotPanics(t, c.Close)
 	})
 
 	t.Run("Invalid SDK config -> error", func(t *testing.T) {
