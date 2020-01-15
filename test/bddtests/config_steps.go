@@ -27,7 +27,7 @@ func NewConfigSteps(context *bddtests.BDDContext) *configSteps {
 	return &configSteps{BDDContext: context}
 }
 
-// DefineTransientCollectionConfig defines a new transient data collection configuration
+// loadConfigFromFile loads configuration data from a file and sets the value to the given variable
 func (d *configSteps) loadConfigFromFile(varName, filePath string) error {
 	logger.Infof("Loading config from file [%s] to variable [%s]", filePath, varName)
 

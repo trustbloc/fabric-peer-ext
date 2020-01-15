@@ -12,5 +12,6 @@ type UpdateHandler func(kv *KeyValue)
 // Service defines the operations of a configuration service
 type Service interface {
 	Get(key *Key) (*Value, error)
+	Query(criteria *Criteria) ([]*KeyValue, error)
 	AddUpdateHandler(handler UpdateHandler)
 }

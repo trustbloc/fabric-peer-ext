@@ -115,6 +115,11 @@ Feature: ledger-config
     Given variable "testCCGeneralCriteria" is assigned the JSON value '{"MspID":"general","AppName":"testcc","AppVersion":"v1"}'
     When client queries chaincode "testcc" with args "getconfig,${testCCGeneralCriteria}" on the "mychannel" channel then the error response should contain "received more than one result for key"
 
+    When client queries chaincode "testcc" with args "queryconfig,${testCCGeneralCriteria}" on a single peer in the "peerorg1" org on the "mychannel" channel
+    Then the JSON path "#" of the response has 2 items
+    And the JSON path "#.ComponentName" of the response contains "comp1"
+    And the JSON path "#.ComponentName" of the response contains "comp2"
+
     # Get peer-specific data (tests config update events)
     Given variable "testCCOrg1Peer0Criteria" is assigned the JSON value '{"MspID":"Org1MSP","PeerID":"peer0.org1.example.com","AppName":"testcc","AppVersion":"v1"}'
     When client queries chaincode "testcc" with args "getconfig,${testCCOrg1Peer0Criteria}" on peers "peer0.org1.example.com" on the "mychannel" channel

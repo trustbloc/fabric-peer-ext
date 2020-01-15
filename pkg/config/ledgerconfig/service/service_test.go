@@ -18,6 +18,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/mgr"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/mocks"
+	configmocks "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/gossip/blockpublisher"
 	mocks2 "github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
@@ -33,6 +34,7 @@ const (
 	app4 = "app4"
 
 	comp1 = "comp1"
+	comp2 = "comp2"
 	v1    = "1"
 
 	tx1 = "tx1"
@@ -43,6 +45,24 @@ const (
 	config2        = "config2"
 	config3        = "config3"
 	config1Updated = "config1-updated"
+
+	comp1V1Config = "comp1-v1-config"
+	comp2V1Config = "comp2-v1-config"
+)
+
+var (
+	msp1App1ComponentsConfig = &config.Config{
+		MspID: msp1,
+		Apps: []*config.App{
+			{
+				AppName: app1, Version: v1,
+				Components: []*config.Component{
+					{Name: comp1, Version: v1, Config: comp1V1Config, Format: config.FormatOther},
+					{Name: comp2, Version: v1, Config: comp2V1Config, Format: config.FormatOther},
+				},
+			},
+		},
+	}
 )
 
 func TestConfigService_Get(t *testing.T) {
@@ -102,6 +122,32 @@ func TestConfigService_Get(t *testing.T) {
 		value, err := svc.Get(&config.Key{MspID: msp1, AppName: app2, AppVersion: v1})
 		require.EqualError(t, err, ErrConfigNotFound.Error())
 		require.Empty(t, value)
+	})
+}
+
+func TestConfigService_Query(t *testing.T) {
+	sp := configmocks.NewStoreProvider()
+	m := mgr.NewUpdateManager(ConfigNS, sp)
+	require.NotNil(t, m)
+	require.NoError(t, m.Save("tx1", msp1App1ComponentsConfig))
+
+	svc := New(channelID, sp, mocks2.NewBlockPublisher())
+	require.NotNil(t, svc)
+
+	t.Run("Success", func(t *testing.T) {
+		results, err := svc.Query(&config.Criteria{
+			MspID:      msp1,
+			AppName:    app1,
+			AppVersion: v1,
+		})
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+	})
+
+	t.Run("Invalid criteria -> error", func(t *testing.T) {
+		results, err := svc.Query(&config.Criteria{})
+		require.EqualError(t, err, "field [MspID] is required")
+		require.Empty(t, results)
 	})
 }
 
