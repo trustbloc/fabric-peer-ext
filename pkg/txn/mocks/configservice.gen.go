@@ -21,6 +21,19 @@ type ConfigService struct {
 		result1 *config.Value
 		result2 error
 	}
+	QueryStub        func(criteria *config.Criteria) ([]*config.KeyValue, error)
+	queryMutex       sync.RWMutex
+	queryArgsForCall []struct {
+		criteria *config.Criteria
+	}
+	queryReturns struct {
+		result1 []*config.KeyValue
+		result2 error
+	}
+	queryReturnsOnCall map[int]struct {
+		result1 []*config.KeyValue
+		result2 error
+	}
 	AddUpdateHandlerStub        func(handler config.UpdateHandler)
 	addUpdateHandlerMutex       sync.RWMutex
 	addUpdateHandlerArgsForCall []struct {
@@ -81,6 +94,57 @@ func (fake *ConfigService) GetReturnsOnCall(i int, result1 *config.Value, result
 	}{result1, result2}
 }
 
+func (fake *ConfigService) Query(criteria *config.Criteria) ([]*config.KeyValue, error) {
+	fake.queryMutex.Lock()
+	ret, specificReturn := fake.queryReturnsOnCall[len(fake.queryArgsForCall)]
+	fake.queryArgsForCall = append(fake.queryArgsForCall, struct {
+		criteria *config.Criteria
+	}{criteria})
+	fake.recordInvocation("Query", []interface{}{criteria})
+	fake.queryMutex.Unlock()
+	if fake.QueryStub != nil {
+		return fake.QueryStub(criteria)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fake.queryReturns.result1, fake.queryReturns.result2
+}
+
+func (fake *ConfigService) QueryCallCount() int {
+	fake.queryMutex.RLock()
+	defer fake.queryMutex.RUnlock()
+	return len(fake.queryArgsForCall)
+}
+
+func (fake *ConfigService) QueryArgsForCall(i int) *config.Criteria {
+	fake.queryMutex.RLock()
+	defer fake.queryMutex.RUnlock()
+	return fake.queryArgsForCall[i].criteria
+}
+
+func (fake *ConfigService) QueryReturns(result1 []*config.KeyValue, result2 error) {
+	fake.QueryStub = nil
+	fake.queryReturns = struct {
+		result1 []*config.KeyValue
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *ConfigService) QueryReturnsOnCall(i int, result1 []*config.KeyValue, result2 error) {
+	fake.QueryStub = nil
+	if fake.queryReturnsOnCall == nil {
+		fake.queryReturnsOnCall = make(map[int]struct {
+			result1 []*config.KeyValue
+			result2 error
+		})
+	}
+	fake.queryReturnsOnCall[i] = struct {
+		result1 []*config.KeyValue
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *ConfigService) AddUpdateHandler(handler config.UpdateHandler) {
 	fake.addUpdateHandlerMutex.Lock()
 	fake.addUpdateHandlerArgsForCall = append(fake.addUpdateHandlerArgsForCall, struct {
@@ -110,6 +174,8 @@ func (fake *ConfigService) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.getMutex.RLock()
 	defer fake.getMutex.RUnlock()
+	fake.queryMutex.RLock()
+	defer fake.queryMutex.RUnlock()
 	fake.addUpdateHandlerMutex.RLock()
 	defer fake.addUpdateHandlerMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

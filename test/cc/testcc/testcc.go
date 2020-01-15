@@ -150,6 +150,33 @@ func (cc *TestCC) getConfig(stub shim.ChaincodeStubInterface, args [][]byte) pb.
 	return shim.Success(nil)
 }
 
+func (cc *TestCC) queryConfig(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
+	if len(args) < 1 {
+		return shim.Error("expecting config criteria")
+	}
+
+	criteria := &config.Criteria{}
+	err := json.Unmarshal(args[0], criteria)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("invalid criteria [%s]: %s", args[0], err))
+	}
+
+	logger.Infof("Retrieving value for criteria [%s] from the config service...", criteria)
+	results, err := cc.configProvider.ForChannel(stub.GetChannelID()).Query(criteria)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("error getting value for criteria [%s]: %s", criteria, err))
+	}
+
+	logger.Infof("... got results for criteria [%s] from the config service: %+v", criteria, results)
+
+	resultBytes, err := json.Marshal(results)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("error marshalling results: %s", err))
+	}
+
+	return shim.Success(resultBytes)
+}
+
 func (cc *TestCC) endorse(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
 	if len(args) < 1 {
 		return shim.Error("expecting chaincode name and optional args")
@@ -234,6 +261,7 @@ func (cc *TestCC) getComponentConfig(key *config.Key) *config.Value {
 func (cc *TestCC) initFunctionRegistry() {
 	cc.functionRegistry = make(map[string]function)
 	cc.functionRegistry["getconfig"] = cc.getConfig
+	cc.functionRegistry["queryconfig"] = cc.queryConfig
 	cc.functionRegistry["endorse"] = cc.endorse
 	cc.functionRegistry["endorseandcommit"] = cc.endorseAndCommit
 }

@@ -93,6 +93,16 @@ func (s *ConfigService) Get(key *config.Key) (*config.Value, error) {
 	return value.(*config.Value), nil
 }
 
+// Query retrieves configurations based on the provided criteria.
+func (s *ConfigService) Query(criteria *config.Criteria) ([]*config.KeyValue, error) {
+	err := criteria.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	return s.configMgr.Query(criteria)
+}
+
 // AddUpdateHandler adds a handler that is notified of config updates/deletes
 func (s *ConfigService) AddUpdateHandler(handler config.UpdateHandler) {
 	s.mutex.Lock()
