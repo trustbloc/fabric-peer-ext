@@ -9,32 +9,37 @@ package testcc
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	ccapi "github.com/hyperledger/fabric/extensions/chaincode/api"
-	viper "github.com/spf13/viper2015"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	configsvc "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/service"
+	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
 )
 
 var logger = flogging.MustGetLogger("testcc")
 
 const (
-	ccName         = "testcc"
-	peerConfigName = "core"
-	envPrefix      = "core"
-	peerConfigPath = "/etc/hyperledger/fabric"
-	generalMSPID   = "general"
+	ccName       = "testcc"
+	generalMSPID = "general"
 )
 
 type function func(shim.ChaincodeStubInterface, [][]byte) pb.Response
 
+type peerConfig interface {
+	PeerID() string
+	MSPID() string
+}
+
 type configServiceProvider interface {
 	ForChannel(channelID string) config.Service
+}
+
+type txnServiceProvider interface {
+	ForChannel(channelID string) (api.Service, error)
 }
 
 type TestCC struct {
@@ -43,21 +48,18 @@ type TestCC struct {
 	localPeerID      string
 	mutex            sync.RWMutex
 	configProvider   configServiceProvider
+	txnProvider      txnServiceProvider
 	config           map[config.Key]*config.Value
 }
 
 // New returns a new test chaincode
-func New(configServiceProvider configServiceProvider) *TestCC {
-	peerConfig, err := newPeerViper()
-	if err != nil {
-		panic("Error reading peer config: " + err.Error())
-	}
-
+func New(configServiceProvider configServiceProvider, peerConfig peerConfig, txnProvider txnServiceProvider) *TestCC {
 	cc := &TestCC{
 		config:         make(map[config.Key]*config.Value),
-		localMSPID:     peerConfig.GetString("peer.localMspId"),
-		localPeerID:    peerConfig.GetString("peer.id"),
+		localMSPID:     peerConfig.MSPID(),
+		localPeerID:    peerConfig.PeerID(),
 		configProvider: configServiceProvider,
+		txnProvider:    txnProvider,
 	}
 	cc.initFunctionRegistry()
 	return cc
@@ -148,6 +150,68 @@ func (cc *TestCC) getConfig(stub shim.ChaincodeStubInterface, args [][]byte) pb.
 	return shim.Success(nil)
 }
 
+func (cc *TestCC) endorse(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
+	if len(args) < 1 {
+		return shim.Error("expecting chaincode name and optional args")
+	}
+
+	req := &api.Request{
+		ChaincodeID: string(args[0]),
+		Args:        args[1:],
+	}
+
+	channelID := stub.GetChannelID()
+
+	txnSvc, err := cc.txnProvider.ForChannel(channelID)
+	if err != nil {
+		logger.Errorf("Error getting transaction service for channel [%s]: %s", channelID, err)
+		return shim.Error(fmt.Sprintf("Error getting transaction service for channel [%s]: %s", channelID, err))
+	}
+
+	logger.Infof("Executing Endorse on channel [%s]...", channelID)
+
+	resp, err := txnSvc.Endorse(req)
+	if err != nil {
+		logger.Errorf("Error returned from Endorse: %s", err)
+		return shim.Error(fmt.Sprintf("Error returned from Endorse: %s", err))
+	}
+
+	logger.Infof("... Endorse succeeded on channel [%s]", channelID)
+
+	return shim.Success(resp.Payload)
+}
+
+func (cc *TestCC) endorseAndCommit(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
+	if len(args) < 1 {
+		return shim.Error("expecting chaincode name and optional args")
+	}
+
+	req := &api.Request{
+		ChaincodeID: string(args[0]),
+		Args:        args[1:],
+	}
+
+	// Perform the transaction in the background so as not to cause a deadlock in the current invocation
+	go func(channelID string, req *api.Request) {
+		txnSvc, err := cc.txnProvider.ForChannel(channelID)
+		if err != nil {
+			logger.Errorf("Error getting transaction service for channel [%s]: %s", channelID, err)
+			return
+		}
+
+		logger.Infof("Executing EndorseAndCommit on channel [%s]...", channelID)
+
+		if _, err := txnSvc.EndorseAndCommit(req); err != nil {
+			logger.Errorf("Error returned from EndorseAndCommit: %s", err)
+			return
+		}
+
+		logger.Infof("... EndorseAndCommit succeeded on channel [%s]", channelID)
+	}(stub.GetChannelID(), req)
+
+	return shim.Success(nil)
+}
+
 func (cc *TestCC) updateConfig(key *config.Key, value *config.Value) {
 	cc.mutex.Lock()
 	defer cc.mutex.Unlock()
@@ -170,6 +234,8 @@ func (cc *TestCC) getComponentConfig(key *config.Key) *config.Value {
 func (cc *TestCC) initFunctionRegistry() {
 	cc.functionRegistry = make(map[string]function)
 	cc.functionRegistry["getconfig"] = cc.getConfig
+	cc.functionRegistry["endorse"] = cc.endorse
+	cc.functionRegistry["endorseandcommit"] = cc.endorseAndCommit
 }
 
 // functionSet returns a string enumerating all available functions
@@ -182,18 +248,4 @@ func (cc *TestCC) functionSet() string {
 		functionNames += name
 	}
 	return functionNames
-}
-
-func newPeerViper() (*viper.Viper, error) {
-	peerViper := viper.New()
-	peerViper.AddConfigPath(peerConfigPath)
-	peerViper.SetConfigName(peerConfigName)
-	peerViper.SetEnvPrefix(envPrefix)
-	peerViper.AutomaticEnv()
-	peerViper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	if err := peerViper.ReadInConfig(); err != nil {
-		return nil, err
-	}
-	return peerViper, nil
 }
