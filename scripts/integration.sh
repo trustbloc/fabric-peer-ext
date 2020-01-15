@@ -11,6 +11,7 @@ declare -a tests=(
    "off_ledger"
    "transient_data"
    "ledger_config"
+   "txn"
 )
 
 PWD=`pwd`
