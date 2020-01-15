@@ -19,6 +19,7 @@ import (
 	cfgservice "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/service"
 	gossipstate "github.com/trustbloc/fabric-peer-ext/pkg/gossip/state"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
+	"github.com/trustbloc/fabric-peer-ext/pkg/txn"
 )
 
 // Initialize initializes the peer
@@ -37,6 +38,8 @@ func registerResources() {
 	resource.Register(dcasclient.NewProvider)
 	resource.Register(gossipstate.NewUpdateHandler)
 	resource.Register(cfgservice.NewSvcMgr)
+	resource.Register(newConfig)
+	resource.Register(txn.NewProvider)
 }
 
 func registerChaincodes() {
