@@ -24,11 +24,13 @@ const (
 	msp1Peer1App3V2Config = "org1-peer1-app3-v2-config"
 	msp1Peer1App4V1Config = "org1-peer1-app4-v1-config"
 	msp1Peer1App4V2Config = "org1-peer1-app4-v2-config"
+	msp1Peer1App5V1Config = "org1-peer1-app5-v1-config"
 	msp1Peer1App6V1Config = "org1-peer1-app6-v1-config"
 
 	msp1Peer2App3V2Config = "org1-peer2-app3-v2-config"
 	msp1Peer2App4V1Config = "org1-peer2-app4-v1-config"
 	msp1Peer2App4V2Config = "org1-peer2-app4-v2-config"
+	msp1Peer2App5V1Config = "org1-peer2-app5-v1-config"
 
 	msp1Peer1App3V1ConfigUpdated = "org1-peer1-app3-v1-config-updated"
 
@@ -59,7 +61,7 @@ var (
 					{AppName: app4, Version: v1, Config: msp1Peer1App4V1Config, Format: config.FormatOther},
 					{AppName: app4, Version: v2, Config: msp1Peer1App4V2Config, Format: config.FormatOther},
 					{
-						AppName: app5, Version: v1,
+						AppName: app5, Version: v1, Config: msp1Peer1App5V1Config, Format: config.FormatOther,
 						Components: []*config.Component{
 							{Name: comp1, Version: v1, Config: msp1Peer1App5Comp1V1Config, Format: config.FormatOther},
 							{Name: comp1, Version: v2, Config: msp1Peer1App5Comp1V2Config, Format: config.FormatOther},
@@ -76,7 +78,7 @@ var (
 					{AppName: app4, Version: v1, Config: msp1Peer2App4V1Config, Format: config.FormatOther},
 					{AppName: app4, Version: v2, Config: msp1Peer2App4V2Config, Format: config.FormatOther},
 					{
-						AppName: app5, Version: v1,
+						AppName: app5, Version: v1, Config: msp1Peer2App5V1Config, Format: config.FormatOther,
 						Components: []*config.Component{
 							{Name: comp1, Version: v1, Config: msp1Peer2App5Comp1V1Config, Format: config.FormatOther},
 							{Name: comp1, Version: v2, Config: msp1Peer2App5Comp1V2Config, Format: config.FormatOther},
@@ -139,8 +141,8 @@ func TestManager_QueryExecutorError(t *testing.T) {
 		sp := configmocks.NewStateRetrieverProvider().WithError(expectedErr)
 		m := NewQueryManager(configNamespace, sp)
 
-		// Query by unique key
-		_, err := m.Query(&config.Criteria{MspID: msp1, AppName: app1, AppVersion: v1})
+		// Get by unique key
+		_, err := m.Get(config.NewAppKey(msp1, app1, v1))
 		require.EqualError(t, err, expectedErr.Error())
 
 		// Query by search
@@ -157,8 +159,8 @@ func TestManager_QueryExecutorError(t *testing.T) {
 
 		m := NewQueryManager(configNamespace, qep)
 
-		// Query by unique key
-		_, err := m.Query(&config.Criteria{MspID: msp1, AppName: app1, AppVersion: v1})
+		// Get by unique key
+		_, err := m.Get(config.NewAppKey(msp1, app1, v1))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), expectedErr.Error())
 
@@ -198,6 +200,17 @@ func TestManager_QueryExecutorError(t *testing.T) {
 		m := NewQueryManager(configNamespace, configmocks.NewStateRetrieverProvider().WithStateRetriever(r))
 		_, err := m.Query(&config.Criteria{MspID: msp1})
 		require.NoError(t, err) // Should just log a message
+	})
+	t.Run("Key unmarshal error", func(t *testing.T) {
+		r := configmocks.NewStateRetriever()
+		r.WithState(configNamespace, getIndexKey("invalid key", []string{msp1}), []byte("{}"))
+		qep := configmocks.NewStateRetrieverProvider().WithStateRetriever(r)
+
+		m := NewQueryManager(configNamespace, qep)
+
+		_, err := m.Query(&config.Criteria{MspID: msp1})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid config str")
 	})
 }
 
@@ -300,7 +313,7 @@ func TestManager_Search_PeerConfig(t *testing.T) {
 	t.Run("MSP -> success", func(t *testing.T) {
 		results, err := m.Query(&config.Criteria{MspID: msp1})
 		require.NoError(t, err)
-		require.Equal(t, 14, len(results))
+		require.Equal(t, 16, len(results))
 	})
 
 	t.Run("Peer-app-version -> success", func(t *testing.T) {
@@ -332,7 +345,12 @@ func TestManager_Search_PeerConfig(t *testing.T) {
 	t.Run("Peer-app-component-version -> success", func(t *testing.T) {
 		results, err := m.Query(&config.Criteria{MspID: msp1, PeerID: peer1, AppName: app5, AppVersion: v1})
 		require.NoError(t, err)
-		require.Equal(t, 3, len(results))
+		require.Equal(t, 4, len(results))
+
+		value, err := m.Get(config.NewPeerKey(msp1, peer1, app5, v1))
+		require.NoError(t, err)
+		require.NotNil(t, value)
+		require.Equal(t, msp1Peer1App5V1Config, value.Config)
 
 		results, err = m.Query(&config.Criteria{MspID: msp1, PeerID: peer1, AppName: app5, AppVersion: v1, ComponentName: comp1})
 		require.NoError(t, err)
@@ -384,6 +402,18 @@ func TestManager_Search_PeerConfig(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, len(results))
 		requireEqualConfigData(t, results[0].Value, app3, v1, txID1, msp1Peer2App3V1Config)
+	})
+
+	t.Run("Get peer-app-version -> success", func(t *testing.T) {
+		key := config.NewPeerKey("invalid", peer2, app3, v1)
+		value, err := m.Get(key)
+		require.NoError(t, err)
+		require.Nil(t, value)
+
+		key = config.NewPeerKey(msp1, peer1, app3, v1)
+		value, err = m.Get(key)
+		require.NoError(t, err)
+		require.NotNil(t, value)
 	})
 }
 

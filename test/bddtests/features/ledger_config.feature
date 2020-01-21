@@ -90,7 +90,7 @@ Feature: ledger-config
     Then we wait 20 seconds
 
     # Save the config
-    Given variable "testCCGeneralConfig" is assigned the JSON value '{"MspID":"general","Apps":[{"AppName":"testcc","Version":"v1","Components":[{"Name":"comp1","Version":"v1","Config":"{\"Org\":\"general\",\"Application\":\"testcc\",\"SubComponent\":\"comp1\"}","Format":"JSON"},{"Name":"comp2","Version":"v1","Config":"{\"Org\":\"general\",\"Application\":\"testcc\",\"SubComponent\":\"comp2\"}","Format":"JSON"}]}]}'
+    Given variable "testCCGeneralConfig" is assigned the JSON value '{"MspID":"general","Apps":[{"AppName":"testcc","Version":"v1","Config":"{\"Org\":\"general\",\"Application\":\"testcc\"}","Format":"JSON","Components":[{"Name":"comp1","Version":"v1","Config":"{\"Org\":\"general\",\"Application\":\"testcc\",\"SubComponent\":\"comp1\"}","Format":"JSON"},{"Name":"comp2","Version":"v1","Config":"{\"Org\":\"general\",\"Application\":\"testcc\",\"SubComponent\":\"comp2\"}","Format":"JSON"}]}]}'
     Given variable "testCCOrg1Config" is assigned the JSON value '{"MspID":"Org1MSP","Peers":[{"PeerID":"peer0.org1.example.com","Apps":[{"AppName":"testcc","Version":"v1","Config":"p0-org1-testcc-v1-config","Format":"Other"}]},{"PeerID":"peer1.org1.example.com","Apps":[{"AppName":"testcc","Version":"v1","Config":"p1-org1-testcc-v1-config","Format":"Other"}]}]}'
     Given variable "testCCOrg2Config" is assigned the JSON value '{"MspID":"Org2MSP","Peers":[{"PeerID":"peer0.org2.example.com","Apps":[{"AppName":"testcc","Version":"v1","Config":"p0-org2-testcc-v1-config","Format":"Other"}]},{"PeerID":"peer1.org2.example.com","Apps":[{"AppName":"testcc","Version":"v1","Config":"p1-org2-testcc-v1-config","Format":"Other"}]}]}'
     Then client invokes chaincode "configscc" with args "save,${testCCGeneralConfig}" on the "mychannel" channel
@@ -113,12 +113,18 @@ Feature: ledger-config
     Then the JSON path "SubComponent" of the response equals "comp2"
 
     Given variable "testCCGeneralCriteria" is assigned the JSON value '{"MspID":"general","AppName":"testcc","AppVersion":"v1"}'
-    When client queries chaincode "testcc" with args "getconfig,${testCCGeneralCriteria}" on the "mychannel" channel then the error response should contain "received more than one result for key"
+    When client queries chaincode "testcc" with args "getconfig,${testCCGeneralCriteria}" on a single peer in the "peerorg1" org on the "mychannel" channel
+    Then the JSON path "Org" of the response equals "general"
+    Then the JSON path "Application" of the response equals "testcc"
 
     When client queries chaincode "testcc" with args "queryconfig,${testCCGeneralCriteria}" on a single peer in the "peerorg1" org on the "mychannel" channel
-    Then the JSON path "#" of the response has 2 items
-    And the JSON path "#.ComponentName" of the response contains "comp1"
-    And the JSON path "#.ComponentName" of the response contains "comp2"
+    Then the JSON path "#" of the response has 3 items
+    And the JSON path "0.MspID" of the response equals "general"
+    And the JSON path "0.AppName" of the response equals "testcc"
+    And the JSON path "1.MspID" of the response equals "general"
+    And the JSON path "1.AppName" of the response equals "testcc"
+    And the JSON path "2.MspID" of the response equals "general"
+    And the JSON path "2.AppName" of the response equals "testcc"
 
     # Get peer-specific data (tests config update events)
     Given variable "testCCOrg1Peer0Criteria" is assigned the JSON value '{"MspID":"Org1MSP","PeerID":"peer0.org1.example.com","AppName":"testcc","AppVersion":"v1"}'
