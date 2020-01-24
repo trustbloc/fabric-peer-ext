@@ -33,6 +33,7 @@ var ErrConfigNotFound = errors.New("config not found")
 
 type configMgr interface {
 	Query(criteria *config.Criteria) ([]*config.KeyValue, error)
+	Get(key *config.Key) (*config.Value, error)
 }
 
 // ConfigService manages configuration data for a given channel
@@ -113,20 +114,18 @@ func (s *ConfigService) AddUpdateHandler(handler config.UpdateHandler) {
 
 func (s *ConfigService) load(key config.Key) (*config.Value, error) {
 	logger.Debugf("[%s] Loading key [%s] from ledger...", s.channelID, key)
-	results, err := s.configMgr.Query(config.CriteriaFromKey(&key))
+	value, err := s.configMgr.Get(&key)
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Debugf("[%s] ... received results for key [%s]: %s", s.channelID, key, results)
+	logger.Debugf("[%s] ... received result for key [%s]: %s", s.channelID, key, value)
 
-	if len(results) > 1 {
-		return nil, errors.Errorf("received more than one result for key [%s]", key)
-	}
-	if len(results) == 0 {
+	if value == nil {
 		return nil, ErrConfigNotFound
 	}
-	return results[0].Value, nil
+
+	return value, nil
 }
 
 func (s *ConfigService) handleKeyUpdate(kvWrite *kvrwset.KVWrite) error {

@@ -51,7 +51,9 @@ func (c keyValueMap) populateApps(config *config.Config, txID string) {
 func (c keyValueMap) populateApp(mspID string, app *config.App, txID string) {
 	if len(app.Components) > 0 {
 		c.populateComponents(mspID, app, txID)
-	} else {
+	}
+
+	if app.Config != "" {
 		logger.Debugf("[%s] ... adding config for app [%s] ...", txID, app.AppName)
 		c[*config.NewAppKey(mspID, app.AppName, app.Version)] = config.NewValue(txID, app.Config, app.Format)
 	}
@@ -61,7 +63,9 @@ func (c keyValueMap) populatePeerApp(mspID, peerID string, app *config.App, txID
 	logger.Debugf("[%s] ... adding config for peer [%s] and app [%s] ...", txID, peerID, app.AppName)
 	if len(app.Components) > 0 {
 		c.populatePeerComponents(mspID, peerID, app, txID)
-	} else {
+	}
+
+	if app.Config != "" {
 		logger.Debugf("[%s] ... adding config for peer [%s] and app [%s] ...", txID, peerID, app.AppName)
 		c[*config.NewPeerKey(mspID, peerID, app.AppName, app.Version)] = config.NewValue(txID, app.Config, app.Format)
 	}

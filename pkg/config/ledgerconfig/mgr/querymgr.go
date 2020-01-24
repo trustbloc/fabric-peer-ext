@@ -37,25 +37,20 @@ func (m *QueryManager) Query(criteria *config.Criteria) ([]*config.KeyValue, err
 		return nil, errors.New("MspID is required")
 	}
 
-	// Short-circuit the search if the key is complete. This way we can
-	// query by key directly instead of using composite keys.
-	key, err := criteria.AsKey()
-	if err == nil {
-		// Retrieve the individual config item by key
-		results, err := m.queryByKey(key)
-		if err != nil {
-			return nil, err
-		}
-		// If the result of the query returned a value then we're done,
-		// otherwise fall through and perform an index-based query
-		if len(results) > 0 {
-			return results, nil
-		}
-	}
-
 	// Query for keys and and out undesired records
 	logger.Debugf("Searching for config by criteria [%s]", criteria)
 	return m.query(criteria)
+}
+
+// Get retrieves the configuration based on the provided config key.
+func (m *QueryManager) Get(key *config.Key) (*config.Value, error) {
+	retriever, err := m.retrieverProvider.GetStateRetriever()
+	if err != nil {
+		return nil, err
+	}
+	defer retriever.Done()
+
+	return m.getConfig(retriever, key)
 }
 
 func (m *QueryManager) query(criteria *config.Criteria) ([]*config.KeyValue, error) {
@@ -92,25 +87,6 @@ func (m *QueryManager) query(criteria *config.Criteria) ([]*config.KeyValue, err
 		configs = append(configs, &config.KeyValue{Key: k, Value: v})
 	}
 	return ConfigResults(configs).Filter(criteria), nil
-}
-
-func (m *QueryManager) queryByKey(key *config.Key) ([]*config.KeyValue, error) {
-	logger.Debugf("Retrieving config by key [%s]", key)
-	retriever, err := m.retrieverProvider.GetStateRetriever()
-	if err != nil {
-		return nil, err
-	}
-	defer retriever.Done()
-
-	value, err := m.getConfig(retriever, key)
-	if err != nil {
-		return nil, err
-	}
-	var results []*config.KeyValue
-	if value != nil {
-		results = append(results, &config.KeyValue{Key: key, Value: value})
-	}
-	return results, nil
 }
 
 func (m *QueryManager) getConfig(retriever state.StateRetriever, key *config.Key) (*config.Value, error) {
