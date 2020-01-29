@@ -12,7 +12,7 @@ cp -r . $GOPATH/src/github.com/hyperledger/fabric/fabric-peer-ext
 cd $GOPATH/src/github.com/hyperledger/fabric
 git config advice.detachedHead false
 # fabric-mod (Jan 9, 2020)
-git checkout 55843c4fd520784bda71c3bb7769521687eef38f
+git checkout v0.1.1
 
 # apply custom modules
 sed 's/\.\/extensions/.\/fabric-peer-ext\/mod\/peer/g' -i go.mod
