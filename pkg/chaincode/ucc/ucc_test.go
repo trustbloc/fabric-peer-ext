@@ -22,6 +22,11 @@ const (
 	cc1 = "testcc1"
 	cc2 = "testcc2"
 
+	v1     = "v1"
+	v1_0_1 = "v1.0.1"
+	v2     = "v2"
+	v2_1_1 = "v2.1.1"
+
 	channel1 = "channel1"
 )
 
@@ -30,26 +35,41 @@ func TestNew(t *testing.T) {
 }
 
 func TestRegister(t *testing.T) {
-	Register(newTestCC1)
-	Register(newTestCC2)
+	Register(newTestCC1V1)
+	Register(newTestCC1V2)
+	Register(newTestCC2V1)
 
 	require.NoError(t, resource.Mgr.Initialize())
 
 	WaitForReady()
 
-	require.Len(t, Chaincodes(), 2)
+	require.Len(t, Chaincodes(), 3)
 
-	cc, ok := Get(cc1)
+	cc, ok := Get(cc1, v1)
 	require.True(t, ok)
 	require.NotNil(t, cc)
 	require.Equal(t, cc1, cc.Name())
+	require.Equal(t, v1, cc.Version())
 
-	cc, ok = Get(cc2)
+	cc, ok = Get(cc1, v1_0_1)
+	require.True(t, ok)
+	require.NotNil(t, cc)
+	require.Equal(t, cc1, cc.Name())
+	require.Equal(t, v1, cc.Version())
+
+	cc, ok = Get(cc1, v2)
+	require.True(t, ok)
+	require.NotNil(t, cc)
+	require.Equal(t, cc1, cc.Name())
+	require.Equal(t, v2, cc.Version())
+
+	cc, ok = Get(cc2, v1)
 	require.True(t, ok)
 	require.NotNil(t, cc)
 	require.Equal(t, cc2, cc.Name())
+	require.Equal(t, v1, cc.Version())
 
-	noCC, ok := Get("non-existent")
+	noCC, ok := Get(cc1, v2_1_1)
 	require.False(t, ok)
 	require.Nil(t, noCC)
 
@@ -61,27 +81,62 @@ func TestRegister(t *testing.T) {
 	require.True(t, exists)
 }
 
+func TestRegister_InvalidVersion(t *testing.T) {
+	inst := newRegistry()
+	errExpected := "validation error for in-process user chaincode [testcc2:v2.1.1]: version must only have a major and optional minor part (e.g. v1 or v1.1)"
+	require.EqualError(t, inst.register(newTestCC2V211()), errExpected)
+}
+
+func TestRegister_Duplicate(t *testing.T) {
+	inst := newRegistry()
+	require.NoError(t, inst.register(newTestCC1V1()))
+
+	err := inst.register(newTestCC1V1())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "chaincode already registered")
+}
+
 type testCC struct {
 	name     string
+	version  string
 	channels map[string]struct{}
 	mutex    sync.RWMutex
 }
 
-func newTestCC1() *testCC {
+func newTestCC1V1() *testCC {
 	return &testCC{
 		name:     cc1,
+		version:  v1,
 		channels: make(map[string]struct{}),
 	}
 }
 
-func newTestCC2() *testCC {
+func newTestCC1V2() *testCC {
+	return &testCC{
+		name:     cc1,
+		version:  v2,
+		channels: make(map[string]struct{}),
+	}
+}
+
+func newTestCC2V1() *testCC {
 	return &testCC{
 		name:     cc2,
+		version:  v1,
+		channels: make(map[string]struct{}),
+	}
+}
+
+func newTestCC2V211() *testCC {
+	return &testCC{
+		name:     cc2,
+		version:  v2_1_1,
 		channels: make(map[string]struct{}),
 	}
 }
 
 func (cc *testCC) Name() string                                { return cc.name }
+func (cc *testCC) Version() string                             { return cc.version }
 func (cc *testCC) Chaincode() shim.Chaincode                   { return cc }
 func (cc *testCC) GetDBArtifacts() map[string]*api.DBArtifacts { return nil }
 

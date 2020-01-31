@@ -12,6 +12,7 @@ declare -a tests=(
    "transient_data"
    "ledger_config"
    "txn"
+   "in_proc_ucc"
 )
 
 PWD=`pwd`

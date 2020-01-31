@@ -24,12 +24,12 @@ var instance = newRegistry()
 type Registry struct {
 	mutex    sync.RWMutex
 	creators []interface{}
-	registry map[string]api.UserCC
+	registry map[chaincodeID]api.UserCC
 }
 
 func newRegistry() *Registry {
 	r := &Registry{
-		registry: make(map[string]api.UserCC),
+		registry: make(map[chaincodeID]api.UserCC),
 	}
 	resource.Register(r.Initialize)
 	return r
@@ -42,8 +42,8 @@ func Register(ccCreator interface{}) {
 }
 
 // Get returns the in-process chaincode for the given ID
-func Get(ccID string) (api.UserCC, bool) {
-	return instance.Get(ccID)
+func Get(name, version string) (api.UserCC, bool) {
+	return instance.Get(name, version)
 }
 
 // Chaincodes returns all registered in-process chaincodes
@@ -80,7 +80,7 @@ func (r *Registry) ChannelJoined(channelID string) {
 	for _, cc := range r.Chaincodes() {
 		l, ok := cc.(channelListener)
 		if ok {
-			logger.Infof("Notifying in-process user chaincode [%s] that channel [%s] was joined", cc.Name(), channelID)
+			logger.Infof("Notifying in-process user chaincode [%s:%s] that channel [%s] was joined", cc.Name(), cc.Version(), channelID)
 			l.ChannelJoined(channelID)
 		}
 	}
@@ -116,25 +116,51 @@ func (r *Registry) addCreator(c interface{}) {
 }
 
 func (r *Registry) register(cc api.UserCC) error {
-	logger.Infof("Registering in-process user chaincode [%s]", cc.Name())
-
-	_, exists := r.registry[cc.Name()]
-	if exists {
-		return errors.Errorf("Chaincode already registered: [%s]", cc.Name())
+	if err := getVersion(cc).Validate(); err != nil {
+		return errors.WithMessagef(err, "validation error for in-process user chaincode [%s:%s]", cc.Name(), cc.Version())
 	}
 
-	r.registry[cc.Name()] = cc
+	ccID := newChaincodeID(cc.Name(), cc.Version())
+
+	logger.Infof("Registering in-process user chaincode [%s]", ccID)
+
+	_, exists := r.registry[ccID]
+	if exists {
+		return errors.Errorf("chaincode already registered: [%s]", ccID)
+	}
+
+	r.registry[ccID] = cc
 
 	return nil
 }
 
 // Get returns the in-process chaincode for the given ID
-func (r *Registry) Get(ccID string) (api.UserCC, bool) {
+func (r *Registry) Get(name, version string) (api.UserCC, bool) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
+	ccID := newChaincodeID(name, version)
+
 	cc, ok := r.registry[ccID]
-	return cc, ok
+	if ok {
+		logger.Debugf("Found exact match for in-process user chaincode [%s]", ccID)
+		return cc, true
+	}
+
+	for _, cc := range r.registry {
+		if cc.Name() != name {
+			continue
+		}
+
+		if getVersion(cc).Matches(version) {
+			logger.Debugf("Found in-process user chaincode that matches the desired version [%s:%s]: [%s]", name, version, cc.Name(), cc.Version())
+			return cc, true
+		}
+	}
+
+	logger.Debugf("Did NOT find any matching in-process user chaincode for [%s]", ccID)
+
+	return nil, false
 }
 
 // Chaincodes returns all registered in-process chaincodes
@@ -159,4 +185,25 @@ func (r *Registry) WaitForReady() {
 	defer r.mutex.RUnlock()
 
 	logger.Debugf("... done registering chaincodes.")
+}
+
+type chaincodeID struct {
+	name    string
+	version string
+}
+
+func newChaincodeID(name, version string) chaincodeID {
+	return chaincodeID{
+		name:    name,
+		version: version,
+	}
+}
+
+// String returns the string representation of the chaincode ID
+func (c chaincodeID) String() string {
+	return c.name + ":" + c.version
+}
+
+func getVersion(cc api.UserCC) Version {
+	return Version(cc.Version())
 }

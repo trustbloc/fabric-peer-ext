@@ -25,6 +25,10 @@ import (
 
 var logger = flogging.MustGetLogger("configcc")
 
+const (
+	version = "v1"
+)
+
 type configMgr interface {
 	Query(key *config.Criteria) ([]*config.KeyValue, error)
 	Save(txID string, config *config.Config) error
@@ -46,6 +50,9 @@ func New() scc.SelfDescribingSysCC {
 
 // Name returns the name of this chaincode
 func (cc *configCC) Name() string { return service.ConfigNS }
+
+// Version returns the version of this chaincode
+func (cc *configCC) Version() string { return version }
 
 // Chaincode returns the chaincode implementation
 func (cc *configCC) Chaincode() shim.Chaincode { return cc }
