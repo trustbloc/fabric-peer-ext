@@ -24,6 +24,8 @@ type invokeFunc func(stub shim.ChaincodeStubInterface, args []string) pb.Respons
 type funcMap map[string]invokeFunc
 
 const (
+	v1 = "v1"
+
 	warmupFunc             = "warmup"
 	getFunc                = "get"
 	putFunc                = "put"
@@ -63,6 +65,9 @@ func New(name string, dbArtifacts map[string]*ccapi.DBArtifacts) *ExampleCC {
 
 // Name returns the name of this chaincode
 func (cc *ExampleCC) Name() string { return cc.name }
+
+// Version returns the version of the chaincode
+func (cc *ExampleCC) Version() string { return v1 }
 
 // Chaincode returns the DocumentCC chaincode
 func (cc *ExampleCC) Chaincode() shim.Chaincode { return cc }

@@ -16,6 +16,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/ucc"
 	extpeer "github.com/trustbloc/fabric-peer-ext/pkg/peer"
 	"github.com/trustbloc/fabric-peer-ext/test/cc/examplecc"
+	"github.com/trustbloc/fabric-peer-ext/test/cc/inprocucc"
 	"github.com/trustbloc/fabric-peer-ext/test/cc/testcc"
 )
 
@@ -39,6 +40,11 @@ func main() {
 	logger.Infof("Registering in-process user chaincodes for BDD tests...")
 
 	ucc.Register(testcc.New)
+
+	ucc.Register(inprocucc.NewV1)
+	ucc.Register(inprocucc.NewV1_1)
+	ucc.Register(inprocucc.NewV2)
+
 	ucc.Register(func() ccapi.UserCC { return examplecc.New("ol_examplecc", offLedgerDBArtifacts) })
 	ucc.Register(func() ccapi.UserCC { return examplecc.New("ol_examplecc_2", nil) })
 	ucc.Register(func() ccapi.UserCC { return examplecc.New("tdata_examplecc", nil) })

@@ -24,6 +24,7 @@ var logger = flogging.MustGetLogger("testcc")
 
 const (
 	ccName       = "testcc"
+	ccVersion    = "v1"
 	generalMSPID = "general"
 )
 
@@ -67,6 +68,9 @@ func New(configServiceProvider configServiceProvider, peerConfig peerConfig, txn
 
 // Name returns the name of this chaincode
 func (cc *TestCC) Name() string { return ccName }
+
+// Version returns the version of this chaincode
+func (cc *TestCC) Version() string { return ccVersion }
 
 // Chaincode returns the chaincode implementation
 func (cc *TestCC) Chaincode() shim.Chaincode { return cc }

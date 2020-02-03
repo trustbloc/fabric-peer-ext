@@ -9,11 +9,14 @@ package chaincode
 import (
 	"testing"
 
+	"github.com/hyperledger/fabric/extensions/chaincode/mocks"
 	"github.com/stretchr/testify/require"
 )
 
+//go:generate counterfeiter -o ./mocks/usercc.gen.go -fake-name UserCC ./api UserCC
+
 func TestGetUCC(t *testing.T) {
-	cc, ok := GetUCC("ccid")
+	cc, ok := GetUCC("name", "version")
 	require.False(t, ok)
 	require.Nil(t, cc)
 }
@@ -24,4 +27,16 @@ func TestChaincodes(t *testing.T) {
 
 func TestWaitForReady(t *testing.T) {
 	require.NotPanics(t, WaitForReady)
+}
+
+func TestGetID(t *testing.T) {
+	const cc1 = "cc1"
+	const v1 = "v1"
+
+	cc := &mocks.UserCC{}
+	cc.NameReturns(cc1)
+	cc.VersionReturns(v1)
+
+	ccid := GetID(cc)
+	require.Equal(t, "cc1:v1", ccid)
 }

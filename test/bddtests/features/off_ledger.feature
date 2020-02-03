@@ -20,21 +20,6 @@ Feature: off-ledger
     And "test" chaincode "ol_examplecc_2" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts"
     And "test" chaincode "ol_examplecc_2" is instantiated from path "in-process" on the "yourchannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts"
 
-    # Perform a rolling restart of all peers to ensure that the in-process user chaincodes are re-registered
-    Given container "peer0.org1.example.com" is stopped
-    And container "peer0.org1.example.com" is started
-    Then we wait 5 seconds
-
-    Then container "peer1.org1.example.com" is stopped
-    And container "peer1.org1.example.com" is started
-    Then we wait 5 seconds
-
-    Then container "peer0.org2.example.com" is stopped
-    And container "peer0.org2.example.com" is started
-    Then we wait 5 seconds
-
-    Then container "peer1.org2.example.com" is stopped
-    And container "peer1.org2.example.com" is started
     Then we wait 10 seconds
 
   @off_ledger_s1
@@ -103,7 +88,7 @@ Feature: off-ledger
     #   then all caches should be refreshed.
     Given off-ledger collection config "ol_coll1_upgrade" is defined for collection "collection1" as policy="OR('Org1MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
     And DCAS collection config "dcas_coll2_upgrade" is defined for collection "collection2" as policy="OR('Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
-    And "test" chaincode "ol_examplecc" is upgraded with version "v3" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1_upgrade,dcas_coll2_upgrade,coll3,dcas_accounts"
+    And "test" chaincode "ol_examplecc" is upgraded with version "v1.0.1" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1_upgrade,dcas_coll2_upgrade,coll3,dcas_accounts"
     Then we wait 20 seconds
 
     # Put the data to org2 - the data should be disseminated to org1
