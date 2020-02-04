@@ -26,13 +26,22 @@ type configServiceProvider interface {
 
 // NewProvider returns a new transaction service provider
 func NewProvider(configProvider configServiceProvider, peerConfig api.PeerConfig) *Provider {
+	return newProvider(configProvider, peerConfig, &defaultClientProvider{})
+}
+
+func newProvider(configProvider configServiceProvider, peerConfig api.PeerConfig, clientProvider clientProvider) *Provider {
 	logger.Info("Creating transaction service provider")
 
 	return &Provider{
 		services: gcache.New(0).LoaderFunc(func(chID interface{}) (interface{}, error) {
 			channelID := chID.(string)
 
-			return New(channelID, peerConfig, configProvider.ForChannel(channelID))
+			return newService(channelID,
+				&providers{
+					peerConfig:     peerConfig,
+					configService:  configProvider.ForChannel(channelID),
+					clientProvider: clientProvider,
+				})
 		}).Build(),
 	}
 }

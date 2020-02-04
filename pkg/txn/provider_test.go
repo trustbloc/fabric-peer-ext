@@ -14,8 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
-	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
-	"github.com/trustbloc/fabric-peer-ext/pkg/txn/client"
 	txnmocks "github.com/trustbloc/fabric-peer-ext/pkg/txn/mocks"
 )
 
@@ -24,6 +22,10 @@ import (
 //go:generate counterfeiter -o ./mocks/configservice.gen.go --fake-name ConfigService ../config/ledgerconfig/config Service
 
 func TestNewProvider(t *testing.T) {
+	require.NotNil(t, NewProvider(&txnmocks.ConfigServiceProvider{}, &mocks.PeerConfig{}))
+}
+
+func TestProvider(t *testing.T) {
 	csp := &txnmocks.ConfigServiceProvider{}
 	cs := &txnmocks.ConfigService{}
 
@@ -43,17 +45,7 @@ func TestNewProvider(t *testing.T) {
 	}, nil)
 	csp.ForChannelReturns(cs)
 
-	peerCfg := &mocks.PeerConfig{}
-
-	restoreNewClient := newClient
-	defer func() {
-		newClient = restoreNewClient
-	}()
-	newClient = func(channelID, userName string, peerConfig api.PeerConfig, sdkCfgBytes []byte, format config.Format) (client.ChannelClient, error) {
-		return &client.Client{}, nil
-	}
-
-	p := NewProvider(csp, peerCfg)
+	p := newProvider(csp, &mocks.PeerConfig{}, &mockClientProvider{cl: &txnmocks.TxnClient{}})
 	require.NotNil(t, p)
 
 	s, err := p.ForChannel("channel1")
@@ -86,5 +78,4 @@ func TestNewProvider(t *testing.T) {
 	require.Nil(t, s)
 
 	p.Close()
-	//require.NotPanics(t, p.Close)
 }

@@ -1,0 +1,22 @@
+{
+  "MspID": "Org2MSP",
+  "Peers": [
+    {
+      "PeerID": "peer0.org2.example.com",
+      "Apps": [
+        {
+          "AppName": "txn",
+          "Version": "1",
+          "Components": [
+            {
+              "Name": "general",
+              "Version": "1",
+              "Config": "file://./txn-config-update.json",
+              "Format": "json"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -29,8 +29,8 @@ Feature: txn
     And client invokes chaincode "configscc" with args "save,${org2Config}" on the "mychannel" channel
     And we wait 3 seconds
 
-    When client queries chaincode "testcc" with args "endorseandcommit,target_cc,put,key1,value1" on a single peer in the "peerorg1" org on the "mychannel" channel
-    And client queries chaincode "testcc" with args "endorseandcommit,target_cc,put,key2,value2" on a single peer in the "peerorg2" org on the "mychannel" channel
+    When client queries chaincode "testcc" with args "endorseandcommit,target_cc,put,key1,value1" on peers "peer0.org1.example.com" on the "mychannel" channel
+    And client queries chaincode "testcc" with args "endorseandcommit,target_cc,put,key2,value2" on peers "peer0.org2.example.com" on the "mychannel" channel
     Then we wait 5 seconds
 
     Then container "peer0.org2.example.com" is stopped
@@ -41,14 +41,32 @@ Feature: txn
 
     Then we wait 10 seconds
 
-    When client queries chaincode "testcc" with args "endorseandcommit,target_cc,put,key3,value3" on a single peer in the "peerorg2" org on the "mychannel" channel
+    When client queries chaincode "testcc" with args "endorseandcommit,target_cc,put,key3,value3" on peers "peer1.org1.example.com" on the "mychannel" channel
     Then we wait 5 seconds
 
-    When client queries chaincode "testcc" with args "endorse,target_cc,get,key1" on a single peer in the "peerorg2" org on the "mychannel" channel
+    When client queries chaincode "testcc" with args "endorse,target_cc,get,key1" on peers "peer1.org2.example.com" on the "mychannel" channel
     Then response from "testcc" to client equal value "value1"
 
-    When client queries chaincode "testcc" with args "endorse,target_cc,get,key2" on a single peer in the "peerorg1" org on the "mychannel" channel
+    When client queries chaincode "testcc" with args "endorse,target_cc,get,key2" on peers "peer0.org1.example.com" on the "mychannel" channel
     Then response from "testcc" to client equal value "value2"
 
-    When client queries chaincode "testcc" with args "endorse,target_cc,get,key3" on a single peer in the "peerorg1" org on the "mychannel" channel
+    When client queries chaincode "testcc" with args "endorse,target_cc,get,key3" on peers "peer0.org2.example.com" on the "mychannel" channel
     Then response from "testcc" to client equal value "value3"
+
+    # SDK config update
+    Given variable "org1ConfigUpdate" is assigned config from file "./fixtures/config/fabric/org1-config-update.json"
+    And variable "org2ConfigUpdate" is assigned config from file "./fixtures/config/fabric/org2-config-update.json"
+
+    When client invokes chaincode "configscc" with args "save,${org1ConfigUpdate}" on the "mychannel" channel
+    And client invokes chaincode "configscc" with args "save,${org2ConfigUpdate}" on the "mychannel" channel
+    And we wait 5 seconds
+
+    When client queries chaincode "testcc" with args "endorseandcommit,target_cc,put,keyA,valueA" on peers "peer0.org1.example.com" on the "mychannel" channel
+    And client queries chaincode "testcc" with args "endorseandcommit,target_cc,put,keyB,valueB" on peers "peer0.org2.example.com" on the "mychannel" channel
+    And we wait 5 seconds
+
+    When client queries chaincode "testcc" with args "endorse,target_cc,get,keyA" on peers "peer1.org1.example.com" on the "mychannel" channel
+    Then response from "testcc" to client equal value "valueA"
+
+    When client queries chaincode "testcc" with args "endorse,target_cc,get,keyB" on peers "peer1.org2.example.com" on the "mychannel" channel
+    Then response from "testcc" to client equal value "valueB"
