@@ -15,6 +15,7 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/pkg/errors"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/reference"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
 )
@@ -30,6 +31,7 @@ type ChannelClient interface {
 // Client holds an SDK client instance
 type Client struct {
 	ChannelClient
+	refCount  *reference.Counter
 	channelID string
 	sdk       *fabsdk.FabricSDK
 }
@@ -61,17 +63,57 @@ func New(channelID, userName string, peerConfig api.PeerConfig, sdkCfgBytes []by
 		return nil, err
 	}
 
-	return &Client{
+	c := &Client{
 		ChannelClient: chClient,
 		channelID:     channelID,
 		sdk:           sdk,
-	}, nil
+	}
+
+	c.refCount = reference.NewCounter(c.close)
+
+	return c, nil
 }
 
-// Close closes the SDK
+// Query sends an endorsement proposal request to one or more peers (according to policy and options) but does not
+// send the proposal responses to the orderer.
+func (c *Client) Query(request channel.Request, options ...channel.RequestOption) (channel.Response, error) {
+	_, err := c.refCount.Increment()
+	if err != nil {
+		return channel.Response{}, err
+	}
+	defer c.decrementCounter()
+
+	return c.ChannelClient.Query(request, options...)
+}
+
+// Execute sends an endorsement proposal request to one or more peers (according to policy and options) and
+// then sends the proposal responses to the orderer.
+func (c *Client) Execute(request channel.Request, options ...channel.RequestOption) (channel.Response, error) {
+	_, err := c.refCount.Increment()
+	if err != nil {
+		return channel.Response{}, err
+	}
+	defer c.decrementCounter()
+
+	return c.ChannelClient.Execute(request, options...)
+}
+
+// Close will close the SDK after all references have been released.
 func (c *Client) Close() {
+	c.refCount.Close()
+}
+
+func (c *Client) close() {
 	if c.sdk != nil {
+		logger.Debugf("[%s] Closing the SDK", c.channelID)
 		c.sdk.Close()
+	}
+}
+
+func (c *Client) decrementCounter() {
+	_, err := c.refCount.Decrement()
+	if err != nil {
+		logger.Warning(err.Error())
 	}
 }
 
@@ -120,10 +162,5 @@ var newSDK = func(channelID string, configProvider core.ConfigProvider, config f
 }
 
 var newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, error) {
-	chClient, err := channel.New(sdk.ChannelContext(channelID, fabsdk.WithUser(userName), fabsdk.WithOrg(org)))
-	if err != nil {
-		return nil, err
-	}
-
-	return chClient, nil
+	return channel.New(sdk.ChannelContext(channelID, fabsdk.WithUser(userName), fabsdk.WithOrg(org)))
 }
