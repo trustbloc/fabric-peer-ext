@@ -41,7 +41,7 @@ func SetupExtTestEnv() (addr string, cleanup func(string), stop func()) {
 	}
 
 	couchDB := &runner.CouchDB{}
-	couchDB.Image = "couchdb:2.2.0"
+	couchDB.Image = "couchdb:2.3"
 	if err := couchDB.Start(); err != nil {
 		panic(fmt.Errorf("failed to start couchDB: %s", err))
 	}
