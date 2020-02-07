@@ -13,7 +13,7 @@ import (
 	cb "github.com/hyperledger/fabric-protos-go/common"
 	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
-	"github.com/hyperledger/fabric/core/ledger"
+	coreledger "github.com/hyperledger/fabric/core/ledger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	olclient "github.com/trustbloc/fabric-peer-ext/pkg/collections/client"
@@ -30,10 +30,11 @@ const (
 )
 
 func TestDCASClient_Put(t *testing.T) {
+	txSimulator := &mocks.TxSimulator{}
+	txSimulator.GetTxSimulationResultsReturns(&coreledger.TxSimulationResults{}, nil)
+
 	ledger := &mocks.Ledger{
-		TxSimulator: &mocks.TxSimulator{
-			SimulationResults: &ledger.TxSimulationResults{},
-		},
+		TxSimulator: txSimulator,
 		BlockchainInfo: &cb.BlockchainInfo{
 			Height: blockHeight,
 		},

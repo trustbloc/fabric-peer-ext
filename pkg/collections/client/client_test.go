@@ -11,13 +11,15 @@ import (
 	cb "github.com/hyperledger/fabric-protos-go/common"
 	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
-	"github.com/hyperledger/fabric/core/ledger"
+	coreledger "github.com/hyperledger/fabric/core/ledger"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	clientmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/client/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
+
+//go:generate counterfeiter -o ../../mocks/txsimulator.gen.go -fake-name TxSimulator github.com/hyperledger/fabric/core/ledger.TxSimulator
 
 const (
 	channelID   = "testchannel"
@@ -29,10 +31,11 @@ const (
 )
 
 func TestClient_Put(t *testing.T) {
+	txSimulator := &mocks.TxSimulator{}
+	txSimulator.GetTxSimulationResultsReturns(&coreledger.TxSimulationResults{}, nil)
+
 	ledger := &mocks.Ledger{
-		TxSimulator: &mocks.TxSimulator{
-			SimulationResults: &ledger.TxSimulationResults{},
-		},
+		TxSimulator: txSimulator,
 		BlockchainInfo: &cb.BlockchainInfo{
 			Height: blockHeight,
 		},
@@ -75,8 +78,8 @@ func TestClient_Put(t *testing.T) {
 	})
 
 	t.Run("Simulation results error", func(t *testing.T) {
-		ledger.TxSimulator.SimError = errors.New("mock TxSimulator error")
-		defer func() { ledger.TxSimulator.SimError = nil }()
+		ledger.TxSimulator.GetTxSimulationResultsReturns(nil, errors.New("mock TxSimulator error"))
+		defer func() { txSimulator.GetTxSimulationResultsReturns(&coreledger.TxSimulationResults{}, nil) }()
 
 		err := c.Put(ns1, coll1, key1, value1)
 		require.Error(t, err)
@@ -93,8 +96,8 @@ func TestClient_Put(t *testing.T) {
 	})
 
 	t.Run("TxSimulator - Put error", func(t *testing.T) {
-		ledger.TxSimulator.Error = errors.New("mock TxSimulator error")
-		defer func() { ledger.TxSimulator.Error = nil }()
+		ledger.TxSimulator.SetPrivateDataMultipleKeysReturns(errors.New("mock TxSimulator error"))
+		defer func() { ledger.TxSimulator.SetPrivateDataMultipleKeysReturns(nil) }()
 
 		err := c.Put(ns1, coll1, key1, value1)
 		require.Error(t, err)
