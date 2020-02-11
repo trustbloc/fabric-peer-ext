@@ -11,20 +11,22 @@ import (
 )
 
 type config struct {
-	peerID        string
-	peerAddress   string
-	mspID         string
-	mspConfigPath string
-	certPath      string
+	peerID          string
+	peerAddress     string
+	mspID           string
+	mspConfigPath   string
+	certPath        string
+	dbPartitionType string
 }
 
 func newConfig() *config {
 	return &config{
-		mspID:         viper.GetString("peer.localMspId"),
-		peerID:        viper.GetString("peer.id"),
-		peerAddress:   viper.GetString("peer.address"),
-		mspConfigPath: viper.GetString("peer.mspConfigPath"),
-		certPath:      viper.GetString("peer.tls.cert.file"),
+		mspID:           viper.GetString("peer.localMspId"),
+		peerID:          viper.GetString("peer.id"),
+		peerAddress:     viper.GetString("peer.address"),
+		mspConfigPath:   viper.GetString("peer.mspConfigPath"),
+		certPath:        viper.GetString("peer.tls.cert.file"),
+		dbPartitionType: viper.GetString("ledger.state.DBConfig.partitionType"),
 	}
 }
 
@@ -51,4 +53,9 @@ func (c *config) MSPConfigPath() string {
 // TLSCertPath returns absolute path to the TLS certificate
 func (c *config) TLSCertPath() string {
 	return c.certPath
+}
+
+// DBPartitionType returns the database partition type.
+func (c *config) DBPartitionType() string {
+	return c.dbPartitionType
 }
