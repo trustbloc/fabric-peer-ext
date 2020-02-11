@@ -26,7 +26,10 @@ testCount=${#tests[@]}
 if [ "$agentNumber" -eq 0 ]; then agentNumber=1; fi
 
 if [ "$totalAgents" -eq 0 ]; then
-  echo "Running fabric-peer-ext integration tests..."
+  echo "***** Running e2e test in non-clustered mode..."
+  DOCKER_COMPOSE_FILE=docker-compose-nocluster.yml go test -count=1 -v -cover . -p 1 -timeout=20m -run e2e
+
+  echo "***** Running fabric-peer-ext integration tests in clustered mode..."
   go test -count=1 -v -cover . -p 1 -timeout=20m
 else
   if [ "$agentNumber" -gt $totalAgents ]; then
@@ -34,8 +37,13 @@ else
   else
     for ((i = "$agentNumber"; i <= "$testCount"; )); do
       testToRun=("${tests[$i - 1]}")
-      echo "Running the following test: $testToRun"
-      go test -count=1 -v -cover . -p 1 -timeout=20m -run $testToRun
+      if [ "$testToRun" = "e2e" ]; then
+        echo "***** Running the following test in non-clustered mode: $testToRun"
+        DOCKER_COMPOSE_FILE=docker-compose-nocluster.yml go test -count=1 -v -cover . -p 1 -timeout=20m -run $testToRun
+      else
+        echo "***** Running the following test in clustered mode: $testToRun"
+        go test -count=1 -v -cover . -p 1 -timeout=20m -run $testToRun
+      fi
       i=$((${i} + ${totalAgents}))
     done
     mv ./docker-compose.log "./docker-compose-$agentNumber.log"

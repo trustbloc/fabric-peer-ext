@@ -15,6 +15,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/storeprovider"
 	tretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/retriever"
 	tdatastore "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/dbname"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
 	cfgservice "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/service"
 	gossipstate "github.com/trustbloc/fabric-peer-ext/pkg/gossip/state"
@@ -26,6 +27,10 @@ import (
 func Initialize() {
 	registerResources()
 	registerChaincodes()
+
+	// The DB name resolver needs to be initialized explicitly since the
+	// databases are created before the resources are initialized.
+	dbname.ResolverInstance.Initialize(newConfig())
 }
 
 func registerResources() {

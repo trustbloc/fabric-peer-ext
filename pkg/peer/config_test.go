@@ -19,12 +19,14 @@ func TestConfig(t *testing.T) {
 	peerAddress := "peer1.org1.com"
 	mspConfigPath := "./msp"
 	certFile := "./cert"
+	dbPartitionType := "MSP"
 
 	viper.Set("peer.localMspId", mspID)
 	viper.Set("peer.id", peerID)
 	viper.Set("peer.address", peerAddress)
 	viper.Set("peer.mspConfigPath", mspConfigPath)
 	viper.Set("peer.tls.cert.file", certFile)
+	viper.Set("ledger.state.DBConfig.partitionType", dbPartitionType)
 
 	c := newConfig()
 	require.Equal(t, mspID, c.MSPID())
@@ -32,4 +34,5 @@ func TestConfig(t *testing.T) {
 	require.Equal(t, peerAddress, c.PeerAddress())
 	require.Equal(t, mspConfigPath, c.MSPConfigPath())
 	require.Equal(t, certFile, c.TLSCertPath())
+	require.Equal(t, dbPartitionType, c.DBPartitionType())
 }

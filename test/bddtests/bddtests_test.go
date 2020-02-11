@@ -95,7 +95,15 @@ func FeatureContext(s *godog.Suite) {
 	}
 
 	composeProjectName := strings.Replace(GenerateUUID(), "-", "", -1)
-	composition, err := bddtests.NewDockerCompose(composeProjectName, "docker-compose.yml", "./fixtures")
+
+	composeFile := os.Getenv("DOCKER_COMPOSE_FILE")
+	if composeFile == "" {
+		composeFile = "docker-compose.yml"
+	}
+
+	logger.Infof("Using docker-compose file [%s]", composeFile)
+
+	composition, err := bddtests.NewDockerCompose(composeProjectName, composeFile, "./fixtures")
 	if err != nil {
 		panic(fmt.Sprintf("Error creating a Docker-Compose client: %s", err))
 	}
