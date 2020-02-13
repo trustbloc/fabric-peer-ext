@@ -26,7 +26,7 @@ const (
 )
 
 func TestConfigCC_New(t *testing.T) {
-	cc := New()
+	cc := New(&configmocks.ValidatorRegistry{})
 	require.NotNil(t, cc)
 
 	require.Equal(t, service.ConfigNS, cc.Name())
@@ -34,7 +34,7 @@ func TestConfigCC_New(t *testing.T) {
 }
 
 func TestConfigCC_Init(t *testing.T) {
-	cc := New()
+	cc := New(&configmocks.ValidatorRegistry{})
 	require.NotNil(t, cc)
 
 	t.Run("System channel", func(t *testing.T) {
@@ -60,7 +60,7 @@ func TestConfigCC_Init(t *testing.T) {
 }
 
 func TestConfigCC_Invoke_Invalid(t *testing.T) {
-	cc := New()
+	cc := New(&configmocks.ValidatorRegistry{})
 	require.NotNil(t, cc)
 
 	t.Run("No func arg", func(t *testing.T) {
@@ -81,7 +81,7 @@ func TestConfigCC_Invoke_Invalid(t *testing.T) {
 }
 
 func TestConfigCC_Invoke_Save(t *testing.T) {
-	cc := New()
+	cc := New(&configmocks.ValidatorRegistry{})
 	require.NotNil(t, cc)
 
 	t.Run("Empty config", func(t *testing.T) {
@@ -96,7 +96,7 @@ func TestConfigCC_Invoke_Save(t *testing.T) {
 		prevProvider := getConfigMgr
 		defer func() { getConfigMgr = prevProvider }()
 
-		getConfigMgr = func(ns string, sp api.StoreProvider) configMgr {
+		getConfigMgr = func(string, api.StoreProvider, configValidatorRegistry) configMgr {
 			return configmocks.NewConfigMgr()
 		}
 
@@ -109,7 +109,7 @@ func TestConfigCC_Invoke_Save(t *testing.T) {
 		prevProvider := getConfigMgr
 		defer func() { getConfigMgr = prevProvider }()
 
-		getConfigMgr = func(ns string, sp api.StoreProvider) configMgr {
+		getConfigMgr = func(string, api.StoreProvider, configValidatorRegistry) configMgr {
 			return configmocks.NewConfigMgr()
 		}
 
@@ -124,7 +124,7 @@ func TestConfigCC_Invoke_Save(t *testing.T) {
 		defer func() { getConfigMgr = prevProvider }()
 
 		errExpected := errors.New("config mgr error")
-		getConfigMgr = func(ns string, sp api.StoreProvider) configMgr {
+		getConfigMgr = func(string, api.StoreProvider, configValidatorRegistry) configMgr {
 			return configmocks.NewConfigMgr().WithError(errExpected)
 		}
 
@@ -136,7 +136,7 @@ func TestConfigCC_Invoke_Save(t *testing.T) {
 }
 
 func TestConfigCC_Invoke_Get(t *testing.T) {
-	cc := New()
+	cc := New(&configmocks.ValidatorRegistry{})
 	require.NotNil(t, cc)
 
 	t.Run("No criteria", func(t *testing.T) {
@@ -151,7 +151,7 @@ func TestConfigCC_Invoke_Get(t *testing.T) {
 		prevProvider := getConfigMgr
 		defer func() { getConfigMgr = prevProvider }()
 
-		getConfigMgr = func(ns string, sp api.StoreProvider) configMgr {
+		getConfigMgr = func(string, api.StoreProvider, configValidatorRegistry) configMgr {
 			return configmocks.NewConfigMgr()
 		}
 		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("get"), {}})
@@ -169,7 +169,7 @@ func TestConfigCC_Invoke_Get(t *testing.T) {
 			Key:   &config.Key{},
 			Value: config.NewValue(tx1, "config_value", config.FormatOther),
 		}
-		getConfigMgr = func(ns string, sp api.StoreProvider) configMgr {
+		getConfigMgr = func(string, api.StoreProvider, configValidatorRegistry) configMgr {
 			return configmocks.NewConfigMgr().WithQueryResults(criteria, []*config.KeyValue{result})
 		}
 
@@ -194,7 +194,7 @@ func TestConfigCC_Invoke_Get(t *testing.T) {
 
 		criteria := &config.Criteria{MspID: org1MSP}
 		result := config.NewKeyValue(&config.Key{}, config.NewValue(tx1, "config_value", config.FormatOther))
-		getConfigMgr = func(ns string, sp api.StoreProvider) configMgr {
+		getConfigMgr = func(string, api.StoreProvider, configValidatorRegistry) configMgr {
 			return configmocks.NewConfigMgr().WithQueryResults(criteria, []*config.KeyValue{result})
 		}
 
@@ -216,7 +216,7 @@ func TestConfigCC_Invoke_Get(t *testing.T) {
 		defer func() { getConfigMgr = prevProvider }()
 
 		errExpected := errors.New("config mgr error")
-		getConfigMgr = func(ns string, sp api.StoreProvider) configMgr {
+		getConfigMgr = func(string, api.StoreProvider, configValidatorRegistry) configMgr {
 			return configmocks.NewConfigMgr().WithError(errExpected)
 		}
 
@@ -231,7 +231,7 @@ func TestConfigCC_Invoke_Get(t *testing.T) {
 }
 
 func TestConfigCC_Invoke_Delete(t *testing.T) {
-	cc := New()
+	cc := New(&configmocks.ValidatorRegistry{})
 	require.NotNil(t, cc)
 
 	t.Run("No criteria", func(t *testing.T) {
@@ -246,7 +246,7 @@ func TestConfigCC_Invoke_Delete(t *testing.T) {
 		prevProvider := getConfigMgr
 		defer func() { getConfigMgr = prevProvider }()
 
-		getConfigMgr = func(ns string, sp api.StoreProvider) configMgr {
+		getConfigMgr = func(string, api.StoreProvider, configValidatorRegistry) configMgr {
 			return configmocks.NewConfigMgr()
 		}
 		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("delete"), {}})
@@ -259,7 +259,7 @@ func TestConfigCC_Invoke_Delete(t *testing.T) {
 		prevProvider := getConfigMgr
 		defer func() { getConfigMgr = prevProvider }()
 
-		getConfigMgr = func(ns string, sp api.StoreProvider) configMgr {
+		getConfigMgr = func(string, api.StoreProvider, configValidatorRegistry) configMgr {
 			return configmocks.NewConfigMgr()
 		}
 
@@ -277,7 +277,7 @@ func TestConfigCC_Invoke_Delete(t *testing.T) {
 		defer func() { getConfigMgr = prevProvider }()
 
 		errExpected := errors.New("config mgr error")
-		getConfigMgr = func(ns string, sp api.StoreProvider) configMgr {
+		getConfigMgr = func(string, api.StoreProvider, configValidatorRegistry) configMgr {
 			return configmocks.NewConfigMgr().WithError(errExpected)
 		}
 

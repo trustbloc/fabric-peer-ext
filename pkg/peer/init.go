@@ -18,6 +18,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/dbname"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
 	cfgservice "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/service"
+	configvalidator "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/validator"
 	gossipstate "github.com/trustbloc/fabric-peer-ext/pkg/gossip/state"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn"
@@ -43,6 +44,7 @@ func registerResources() {
 	resource.Register(dcasclient.NewProvider)
 	resource.Register(gossipstate.NewUpdateHandler)
 	resource.Register(cfgservice.NewSvcMgr)
+	resource.Register(configvalidator.NewRegistry)
 	resource.Register(newConfig)
 	resource.Register(txn.NewProvider)
 }
