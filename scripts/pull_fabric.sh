@@ -14,7 +14,21 @@ git config advice.detachedHead false
 # fabric-mod (Feb 11, 2020)
 git checkout 62c249e072e20e78d2e9b186d0c9b99ea36448f6
 
+declare envOS
+envOS=$(uname -s)
+
 # apply custom modules
+if [ ${envOS} = 'Darwin' ]; then
+/usr/bin/sed -i '' 's/\.\/extensions/.\/fabric-peer-ext\/mod\/peer/g' go.mod
+/usr/bin/sed -i '' '$a\
+require  github.com/trustbloc/fabric-peer-ext v0.0.0
+' go.mod
+/usr/bin/sed -i '' '$a\
+replace  github.com/trustbloc/fabric-peer-ext => .\/fabric-peer-ext
+' go.mod
+else
 sed 's/\.\/extensions/.\/fabric-peer-ext\/mod\/peer/g' -i go.mod
 sed  -e "\$arequire  github.com/trustbloc/fabric-peer-ext v0.0.0" -i go.mod
 sed  -e "\$areplace  github.com/trustbloc/fabric-peer-ext => .\/fabric-peer-ext" -i go.mod
+fi
+
