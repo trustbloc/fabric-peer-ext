@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package bddtests
 
 import (
-	"github.com/DATA-DOG/godog"
+	"github.com/cucumber/godog"
 	"github.com/hyperledger/fabric-protos-go/common"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/logging"
