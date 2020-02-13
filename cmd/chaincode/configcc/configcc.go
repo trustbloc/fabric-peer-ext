@@ -13,7 +13,6 @@ import (
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
-	"github.com/hyperledger/fabric/core/scc"
 	ccapi "github.com/hyperledger/fabric/extensions/chaincode/api"
 	"github.com/pkg/errors"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
@@ -38,12 +37,17 @@ type configMgr interface {
 type function func(shim.ChaincodeStubInterface, [][]byte) pb.Response
 
 type configCC struct {
-	functionRegistry map[string]function
+	validatorRegistry configValidatorRegistry
+	functionRegistry  map[string]function
+}
+
+type configValidatorRegistry interface {
+	ValidatorForKey(key *config.Key) config.Validator
 }
 
 // New returns a new configuration system chaincode
-func New() scc.SelfDescribingSysCC {
-	cc := &configCC{}
+func New(validatorRegistry configValidatorRegistry) ccapi.UserCC {
+	cc := &configCC{validatorRegistry: validatorRegistry}
 	cc.initFunctionRegistry()
 	return cc
 }
@@ -97,7 +101,7 @@ func (cc *configCC) put(stub shim.ChaincodeStubInterface, args [][]byte) pb.Resp
 		return shim.Error(fmt.Sprintf("Error unmarshalling config: %s", err))
 	}
 
-	mgr := getConfigMgr(service.ConfigNS, state.NewShimStoreProvider(stub))
+	mgr := getConfigMgr(service.ConfigNS, state.NewShimStoreProvider(stub), cc.validatorRegistry)
 	if err := mgr.Save(stub.GetTxID(), config); err != nil {
 		logger.Errorf("Error saving config: %s", err)
 		return shim.Error(fmt.Sprintf("Error saving config: %s", err))
@@ -119,7 +123,7 @@ func (cc *configCC) get(stub shim.ChaincodeStubInterface, args [][]byte) pb.Resp
 		return shim.Error(err.Error())
 	}
 
-	config, err := getConfigMgr(service.ConfigNS, state.NewShimStoreProvider(stub)).Query(criteria)
+	config, err := getConfigMgr(service.ConfigNS, state.NewShimStoreProvider(stub), cc.validatorRegistry).Query(criteria)
 	if err != nil {
 		logger.Errorf("Error getting config for criteria [%s]: %s", criteria, err)
 		return shim.Error(fmt.Sprintf("error retrieving config: %s", err))
@@ -147,7 +151,7 @@ func (cc *configCC) remove(stub shim.ChaincodeStubInterface, args [][]byte) pb.R
 		return shim.Error(err.Error())
 	}
 
-	if err := getConfigMgr(service.ConfigNS, state.NewShimStoreProvider(stub)).Delete(criteria); err != nil {
+	if err := getConfigMgr(service.ConfigNS, state.NewShimStoreProvider(stub), cc.validatorRegistry).Delete(criteria); err != nil {
 		logger.Errorf("Error deleting config for criteria [%s]: %s", criteria, err)
 		return shim.Error(fmt.Sprintf("Error deleting config: %s", err))
 	}
@@ -185,8 +189,8 @@ func unmarshalCriteria(bytes []byte) (*config.Criteria, error) {
 }
 
 // getConfigMgr returns the config manager. This variable may be overridden by unit tests.
-var getConfigMgr = func(ns string, sp api.StoreProvider) configMgr {
-	return ledgerconfig.NewUpdateManager(ns, sp)
+var getConfigMgr = func(ns string, sp api.StoreProvider, cfgValidatorRegistry configValidatorRegistry) configMgr {
+	return ledgerconfig.NewUpdateManager(ns, sp, cfgValidatorRegistry)
 }
 
 // marshalJSON returns the JSON representation of the given value. This variable may be overridden by unit tests.

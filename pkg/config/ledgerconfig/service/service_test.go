@@ -127,7 +127,7 @@ func TestConfigService_Get(t *testing.T) {
 
 func TestConfigService_Query(t *testing.T) {
 	sp := configmocks.NewStoreProvider()
-	m := mgr.NewUpdateManager(ConfigNS, sp)
+	m := mgr.NewUpdateManager(ConfigNS, sp, &mocks.ValidatorRegistry{})
 	require.NotNil(t, m)
 	require.NoError(t, m.Save("tx1", msp1App1ComponentsConfig))
 

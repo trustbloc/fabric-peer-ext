@@ -215,7 +215,8 @@ func TestManager_QueryExecutorError(t *testing.T) {
 }
 
 func TestManager_Search_AppConfig(t *testing.T) {
-	m := NewUpdateManager(configNamespace, configmocks.NewStoreProvider())
+	vr := &configmocks.ValidatorRegistry{}
+	m := NewUpdateManager(configNamespace, configmocks.NewStoreProvider(), vr)
 	require.NotNil(t, m)
 
 	require.NoError(t, m.Save(txID1, msp1App1ComponentsConfig))
@@ -301,7 +302,7 @@ func TestManager_Search_AppConfig(t *testing.T) {
 }
 
 func TestManager_Search_PeerConfig(t *testing.T) {
-	m := NewUpdateManager(configNamespace, configmocks.NewStoreProvider())
+	m := NewUpdateManager(configNamespace, configmocks.NewStoreProvider(), &configmocks.ValidatorRegistry{})
 	require.NotNil(t, m)
 	require.NoError(t, m.Save(txID1, msp1PeerConfig))
 
