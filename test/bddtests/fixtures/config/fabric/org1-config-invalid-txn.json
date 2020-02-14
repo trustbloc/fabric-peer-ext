@@ -1,0 +1,22 @@
+{
+  "MspID": "Org1MSP",
+  "Peers": [
+    {
+      "PeerID": "peer0.org1.example.com",
+      "Apps": [
+        {
+          "AppName": "txn",
+          "Version": "1",
+          "Components": [
+            {
+              "Name": "general",
+              "Version": "1",
+              "Config": "{}",
+              "Format": "json"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

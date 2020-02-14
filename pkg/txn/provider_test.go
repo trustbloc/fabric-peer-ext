@@ -20,9 +20,10 @@ import (
 //go:generate counterfeiter -o ./mocks/configserviceprovider.gen.go --fake-name ConfigServiceProvider . configServiceProvider
 //go:generate counterfeiter -o ./mocks/peerconfig.gen.go --fake-name PeerConfig ./api PeerConfig
 //go:generate counterfeiter -o ./mocks/configservice.gen.go --fake-name ConfigService ../config/ledgerconfig/config Service
+//go:generate counterfeiter -o ./mocks/configvalidatorregistry.gen.go --fake-name ConfigValidatorRegistry . configValidatorRegistry
 
 func TestNewProvider(t *testing.T) {
-	require.NotNil(t, NewProvider(&txnmocks.ConfigServiceProvider{}, &mocks.PeerConfig{}))
+	require.NotNil(t, NewProvider(&txnmocks.ConfigServiceProvider{}, &mocks.PeerConfig{}, &txnmocks.ConfigValidatorRegistry{}))
 }
 
 func TestProvider(t *testing.T) {

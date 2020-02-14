@@ -38,7 +38,7 @@ type Client struct {
 
 // New returns a new instance of an SDK client for the given channel
 func New(channelID, userName string, peerConfig api.PeerConfig, sdkCfgBytes []byte, format config.Format) (*Client, error) {
-	configProvider, endpointConfig, err := getEndpointConfig(sdkCfgBytes, format)
+	configProvider, endpointConfig, err := GetEndpointConfig(sdkCfgBytes, format)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,8 @@ func orgFromMSPID(endpointConfig fabapi.EndpointConfig, peerCfg api.PeerConfig) 
 	return "", errors.Errorf("org not configured for MSP [%s]", peerCfg.MSPID())
 }
 
-func getEndpointConfig(configBytes []byte, format config.Format) (core.ConfigProvider, fabapi.EndpointConfig, error) {
+// GetEndpointConfig unmarshals the given bytes and returns the SDK endpoint config and config provider.
+func GetEndpointConfig(configBytes []byte, format config.Format) (core.ConfigProvider, fabapi.EndpointConfig, error) {
 	configProvider := func() ([]core.ConfigBackend, error) {
 		// Make sure the buffer is created each time it is called, otherwise
 		// there will be no data left in the buffer the second time it's called

@@ -24,8 +24,14 @@ type configServiceProvider interface {
 	ForChannel(channelID string) config.Service
 }
 
+type configValidatorRegistry interface {
+	Register(v config.Validator)
+}
+
 // NewProvider returns a new transaction service provider
-func NewProvider(configProvider configServiceProvider, peerConfig api.PeerConfig) *Provider {
+func NewProvider(configProvider configServiceProvider, peerConfig api.PeerConfig, validatorRegistry configValidatorRegistry) *Provider {
+	validatorRegistry.Register(newConfigValidator())
+
 	return newProvider(configProvider, peerConfig, &defaultClientProvider{})
 }
 
