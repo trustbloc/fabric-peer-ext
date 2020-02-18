@@ -8,11 +8,10 @@ import (
 )
 
 type Validator struct {
-	ValidateStub        func(key *config.Key, value *config.Value) error
+	ValidateStub        func(kv *config.KeyValue) error
 	validateMutex       sync.RWMutex
 	validateArgsForCall []struct {
-		key   *config.Key
-		value *config.Value
+		kv *config.KeyValue
 	}
 	validateReturns struct {
 		result1 error
@@ -20,32 +19,20 @@ type Validator struct {
 	validateReturnsOnCall map[int]struct {
 		result1 error
 	}
-	CanValidateStub        func(key *config.Key) bool
-	canValidateMutex       sync.RWMutex
-	canValidateArgsForCall []struct {
-		key *config.Key
-	}
-	canValidateReturns struct {
-		result1 bool
-	}
-	canValidateReturnsOnCall map[int]struct {
-		result1 bool
-	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *Validator) Validate(key *config.Key, value *config.Value) error {
+func (fake *Validator) Validate(kv *config.KeyValue) error {
 	fake.validateMutex.Lock()
 	ret, specificReturn := fake.validateReturnsOnCall[len(fake.validateArgsForCall)]
 	fake.validateArgsForCall = append(fake.validateArgsForCall, struct {
-		key   *config.Key
-		value *config.Value
-	}{key, value})
-	fake.recordInvocation("Validate", []interface{}{key, value})
+		kv *config.KeyValue
+	}{kv})
+	fake.recordInvocation("Validate", []interface{}{kv})
 	fake.validateMutex.Unlock()
 	if fake.ValidateStub != nil {
-		return fake.ValidateStub(key, value)
+		return fake.ValidateStub(kv)
 	}
 	if specificReturn {
 		return ret.result1
@@ -59,10 +46,10 @@ func (fake *Validator) ValidateCallCount() int {
 	return len(fake.validateArgsForCall)
 }
 
-func (fake *Validator) ValidateArgsForCall(i int) (*config.Key, *config.Value) {
+func (fake *Validator) ValidateArgsForCall(i int) *config.KeyValue {
 	fake.validateMutex.RLock()
 	defer fake.validateMutex.RUnlock()
-	return fake.validateArgsForCall[i].key, fake.validateArgsForCall[i].value
+	return fake.validateArgsForCall[i].kv
 }
 
 func (fake *Validator) ValidateReturns(result1 error) {
@@ -84,61 +71,11 @@ func (fake *Validator) ValidateReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *Validator) CanValidate(key *config.Key) bool {
-	fake.canValidateMutex.Lock()
-	ret, specificReturn := fake.canValidateReturnsOnCall[len(fake.canValidateArgsForCall)]
-	fake.canValidateArgsForCall = append(fake.canValidateArgsForCall, struct {
-		key *config.Key
-	}{key})
-	fake.recordInvocation("CanValidate", []interface{}{key})
-	fake.canValidateMutex.Unlock()
-	if fake.CanValidateStub != nil {
-		return fake.CanValidateStub(key)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.canValidateReturns.result1
-}
-
-func (fake *Validator) CanValidateCallCount() int {
-	fake.canValidateMutex.RLock()
-	defer fake.canValidateMutex.RUnlock()
-	return len(fake.canValidateArgsForCall)
-}
-
-func (fake *Validator) CanValidateArgsForCall(i int) *config.Key {
-	fake.canValidateMutex.RLock()
-	defer fake.canValidateMutex.RUnlock()
-	return fake.canValidateArgsForCall[i].key
-}
-
-func (fake *Validator) CanValidateReturns(result1 bool) {
-	fake.CanValidateStub = nil
-	fake.canValidateReturns = struct {
-		result1 bool
-	}{result1}
-}
-
-func (fake *Validator) CanValidateReturnsOnCall(i int, result1 bool) {
-	fake.CanValidateStub = nil
-	if fake.canValidateReturnsOnCall == nil {
-		fake.canValidateReturnsOnCall = make(map[int]struct {
-			result1 bool
-		})
-	}
-	fake.canValidateReturnsOnCall[i] = struct {
-		result1 bool
-	}{result1}
-}
-
 func (fake *Validator) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
 	fake.validateMutex.RLock()
 	defer fake.validateMutex.RUnlock()
-	fake.canValidateMutex.RLock()
-	defer fake.canValidateMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
@@ -157,5 +94,3 @@ func (fake *Validator) recordInvocation(key string, args []interface{}) {
 	}
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
-
-var _ config.Validator = new(Validator)

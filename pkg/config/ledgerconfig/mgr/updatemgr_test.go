@@ -17,8 +17,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/state/api"
 )
 
-//go:generate counterfeiter -o ../mocks/validatorRegistry.gen.go --fake-name ValidatorRegistry . validatorRegistry
-//go:generate counterfeiter -o ../mocks/validator.gen.go --fake-name Validator ../config Validator
+//go:generate counterfeiter -o ../mocks/validator.gen.go --fake-name Validator . validator
 
 const (
 	configNamespace = "configcc"
@@ -266,19 +265,19 @@ var (
 )
 
 func TestUpdateManager_StoreError(t *testing.T) {
-	vr := &mocks.ValidatorRegistry{}
+	v := &mocks.Validator{}
 
 	t.Run("Provider error", func(t *testing.T) {
 		expectedErr := errors.New("provider error")
 		sp := mocks.NewStoreProvider().WithError(expectedErr)
-		m := NewUpdateManager(configNamespace, sp, vr)
+		m := NewUpdateManager(configNamespace, sp, v)
 		require.EqualError(t, m.Save("tx1", msp1App1ComponentsConfig), expectedErr.Error())
 	})
 	t.Run("StateStore error", func(t *testing.T) {
 		expectedErr := errors.New("store error")
 		s := mocks.NewStateStore().WithStoreError(expectedErr)
 		sp := mocks.NewStoreProvider().WithStore(s)
-		m := NewUpdateManager(configNamespace, sp, vr)
+		m := NewUpdateManager(configNamespace, sp, v)
 		err := m.Save("tx1", msp1App1ComponentsConfig)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), expectedErr.Error())
@@ -288,7 +287,7 @@ func TestUpdateManager_StoreError(t *testing.T) {
 		s := mocks.NewStateStore().WithRetrieverError(expectedErr)
 		sp := mocks.NewStoreProvider().WithStore(s)
 
-		m := NewUpdateManager(configNamespace, sp, vr)
+		m := NewUpdateManager(configNamespace, sp, v)
 		err := m.Save("tx1", msp1App1ComponentsConfig)
 		require.NoError(t, err)
 
@@ -303,7 +302,7 @@ func TestUpdateManager_Save(t *testing.T) {
 	r, err := sp.GetStateRetriever()
 	require.NoError(t, err)
 
-	m := NewUpdateManager(configNamespace, sp, &mocks.ValidatorRegistry{})
+	m := NewUpdateManager(configNamespace, sp, &mocks.Validator{})
 
 	t.Run("Invalid config", func(t *testing.T) {
 		err := m.Save(txID1, noAppName)
@@ -391,12 +390,8 @@ func TestUpdateManager_Save(t *testing.T) {
 func TestUpdateManager_ValidationError(t *testing.T) {
 	errExpected := errors.New("injected config validation error")
 	v := &mocks.Validator{}
-	v.CanValidateReturns(true)
 
-	vr := &mocks.ValidatorRegistry{}
-	vr.ValidatorForKeyReturns(v)
-
-	m := NewUpdateManager(configNamespace, mocks.NewStoreProvider(), vr)
+	m := NewUpdateManager(configNamespace, mocks.NewStoreProvider(), v)
 
 	t.Run("With validation error", func(t *testing.T) {
 		v.ValidateReturns(errExpected)
@@ -413,8 +408,8 @@ func TestUpdateManager_ValidationError(t *testing.T) {
 }
 
 func TestUpdateManager_Delete(t *testing.T) {
-	vr := &mocks.ValidatorRegistry{}
-	m := NewUpdateManager(configNamespace, mocks.NewStoreProvider(), vr)
+	v := &mocks.Validator{}
+	m := NewUpdateManager(configNamespace, mocks.NewStoreProvider(), v)
 	require.NotNil(t, m)
 
 	require.NoError(t, m.Save(txID1, msp1PeerConfig))
@@ -431,7 +426,7 @@ func TestUpdateManager_Delete(t *testing.T) {
 	t.Run("StateStoreProvider error", func(t *testing.T) {
 		expectedErr := errors.New("store provider error")
 		sp := mocks.NewStoreProvider()
-		m := NewUpdateManager(configNamespace, sp, vr)
+		m := NewUpdateManager(configNamespace, sp, v)
 		require.NoError(t, m.Save(txID1, msp1PeerConfig))
 		sp.WithError(expectedErr)
 		err := m.Delete(&config.Criteria{MspID: msp1})
@@ -443,7 +438,7 @@ func TestUpdateManager_Delete(t *testing.T) {
 		expectedErr := errors.New("store error")
 		s := mocks.NewStateStore()
 		sp := mocks.NewStoreProvider().WithStore(s)
-		m := NewUpdateManager(configNamespace, sp, vr)
+		m := NewUpdateManager(configNamespace, sp, v)
 		require.NoError(t, m.Save(txID1, msp1PeerConfig))
 		s.WithStoreError(expectedErr)
 		err := m.Delete(&config.Criteria{MspID: msp1})
