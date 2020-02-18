@@ -122,6 +122,7 @@ func (cp *configPreprocessor) visitApps(srcApps []*App) ([]*App, error) {
 			AppName:    a.AppName,
 			Version:    a.Version,
 			Format:     a.Format,
+			Tags:       a.Tags,
 			Config:     config,
 			Components: components,
 		}
@@ -140,6 +141,7 @@ func (cp *configPreprocessor) visitComponents(srcComponents []*Component) ([]*Co
 			Name:    c.Name,
 			Version: c.Version,
 			Format:  c.Format,
+			Tags:    c.Tags,
 			Config:  config,
 		}
 	}
@@ -221,6 +223,8 @@ type App struct {
 	Format Format
 	// Config contains the actual configuration
 	Config string
+	// Tags contains optional tags that describe the data
+	Tags []string `json:",omitempty"`
 	// Components zero or more component configs
 	Components []*Component `json:",omitempty"`
 }
@@ -235,4 +239,6 @@ type Component struct {
 	Format Format
 	// Config contains the actual configuration
 	Config string
+	// Tags contains optional tags that describe the data
+	Tags []string `json:",omitempty"`
 }
