@@ -37,16 +37,16 @@ type configMgr interface {
 type function func(shim.ChaincodeStubInterface, [][]byte) pb.Response
 
 type configCC struct {
-	validatorRegistry configValidatorRegistry
+	validatorRegistry configValidator
 	functionRegistry  map[string]function
 }
 
-type configValidatorRegistry interface {
-	ValidatorForKey(key *config.Key) config.Validator
+type configValidator interface {
+	Validate(kv *config.KeyValue) error
 }
 
-// New returns a new configuration system chaincode
-func New(validatorRegistry configValidatorRegistry) ccapi.UserCC {
+// New returns a new configuration chaincode
+func New(validatorRegistry configValidator) ccapi.UserCC {
 	cc := &configCC{validatorRegistry: validatorRegistry}
 	cc.initFunctionRegistry()
 	return cc
@@ -189,7 +189,7 @@ func unmarshalCriteria(bytes []byte) (*config.Criteria, error) {
 }
 
 // getConfigMgr returns the config manager. This variable may be overridden by unit tests.
-var getConfigMgr = func(ns string, sp api.StoreProvider, cfgValidatorRegistry configValidatorRegistry) configMgr {
+var getConfigMgr = func(ns string, sp api.StoreProvider, cfgValidatorRegistry configValidator) configMgr {
 	return ledgerconfig.NewUpdateManager(ns, sp, cfgValidatorRegistry)
 }
 

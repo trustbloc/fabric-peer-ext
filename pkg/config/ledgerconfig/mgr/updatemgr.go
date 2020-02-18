@@ -27,23 +27,23 @@ const (
 	indexMspID = "cfgmgmt-mspid"
 )
 
-type validatorRegistry interface {
-	ValidatorForKey(key *config.Key) config.Validator
+type validator interface {
+	Validate(kv *config.KeyValue) error
 }
 
 // UpdateManager allows you to query and update ledger configuration
 type UpdateManager struct {
 	*QueryManager
-	validatorRegistry
+	validator
 	storeProvider state.StoreProvider
 }
 
 // NewUpdateManager returns a new configuration update manager
-func NewUpdateManager(namespace string, sp state.StoreProvider, validatorRegistry validatorRegistry) *UpdateManager {
+func NewUpdateManager(namespace string, sp state.StoreProvider, validator validator) *UpdateManager {
 	return &UpdateManager{
-		QueryManager:      NewQueryManager(namespace, sp),
-		validatorRegistry: validatorRegistry,
-		storeProvider:     sp,
+		QueryManager:  NewQueryManager(namespace, sp),
+		validator:     validator,
+		storeProvider: sp,
 	}
 }
 
@@ -116,12 +116,10 @@ func (m *UpdateManager) save(kvMap keyValueMap) error {
 
 func (m *UpdateManager) validate(kvMap keyValueMap) error {
 	for key, value := range kvMap {
-		validator := m.ValidatorForKey(&key)
-		if validator == nil {
-			return nil
-		}
+		k := key
+		kv := config.NewKeyValue(&k, value)
 
-		if err := validator.Validate(&key, value); err != nil {
+		if err := m.Validate(kv); err != nil {
 			return err
 		}
 	}

@@ -29,19 +29,25 @@ func NewRegistry() *Registry {
 	return &Registry{}
 }
 
-// ValidatorForKey returns the first validator that indicates it can perform validation on the given key.
-func (r *Registry) ValidatorForKey(key *config.Key) config.Validator {
+// Validate invokes the registered validators to validate the key and value.
+// An error is returned in the case of invalid config
+func (r *Registry) Validate(kv *config.KeyValue) error {
+	// Perform basic validation of the key/value
+	if err := validate(kv); err != nil {
+		return err
+	}
+
 	r.mutex.RLock()
 	validators := r.validators
 	r.mutex.RUnlock()
 
 	for _, v := range validators {
-		if v.CanValidate(key) {
-			return &keyValueValidator{appValidator: v}
+		if err := v.Validate(kv); err != nil {
+			return err
 		}
 	}
 
-	return &keyValueValidator{}
+	return nil
 }
 
 // Register registers a configuration validator
@@ -52,37 +58,22 @@ func (r *Registry) Register(v config.Validator) {
 	r.validators = append(r.validators, v)
 }
 
-type keyValueValidator struct {
-	appValidator config.Validator
-}
+func validate(kv *config.KeyValue) error {
+	logger.Debugf("Validating key %s", kv.Key)
 
-// Validate performs basic validation on the key and value and then delegates
-// to the application-specific validator (if any).
-func (v *keyValueValidator) Validate(key *config.Key, value *config.Value) error {
-	logger.Debugf("Validating key %s", key)
-
-	if err := key.Validate(); err != nil {
+	if err := kv.Validate(); err != nil {
 		return err
 	}
 
-	logger.Debugf("Validating value %s", value)
+	logger.Debugf("Validating value %s", kv.Value)
 
-	if value.Format == "" {
+	if kv.Value.Format == "" {
 		return errors.New("field 'Format' must not be empty")
 	}
 
-	if value.Config == "" {
+	if kv.Value.Config == "" {
 		return errors.New("field 'Config' must not be empty")
 	}
 
-	if v.appValidator != nil {
-		return v.appValidator.Validate(key, value)
-	}
-
 	return nil
-}
-
-// CanValidate always returns true
-func (v *keyValueValidator) CanValidate(key *config.Key) bool {
-	return true
 }

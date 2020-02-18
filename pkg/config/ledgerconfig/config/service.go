@@ -18,8 +18,6 @@ type Service interface {
 
 // Validator validates application-specific configuration
 type Validator interface {
-	// Validate validates the key and value and returns an error in the case of invalid config
-	Validate(key *Key, value *Value) error
-	// CanValidate returns true if the validator is able to validate the given config key
-	CanValidate(key *Key) bool
+	// Validate validates the key/value and returns an error in the case of invalid config
+	Validate(kv *KeyValue) error
 }
