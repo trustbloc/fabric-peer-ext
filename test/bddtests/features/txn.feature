@@ -70,3 +70,11 @@ Feature: txn
 
     When client queries chaincode "testcc" with args "endorse,target_cc,get,keyB" on peers "peer1.org2.example.com" on the "mychannel" channel
     Then response from "testcc" to client equal value "valueB"
+
+  @txn_s2
+  Scenario: Configuration validation errors
+    Given variable "org1ConfigUpdateInvalidTxn" is assigned config from file "./fixtures/config/fabric/org1-config-invalid-txn.json"
+    When client queries chaincode "configscc" with args "save,${org1ConfigUpdateInvalidTxn}" on the "mychannel" channel then the error response should contain "validation error: field 'UserID' was not specified for TXN config"
+
+    Given variable "org1ConfigUpdateInvalidSDK" is assigned config from file "./fixtures/config/fabric/org1-config-invalid-sdk.json"
+    When client queries chaincode "configscc" with args "save,${org1ConfigUpdateInvalidSDK}" on the "mychannel" channel then the error response should contain "validation error: invalid SDK config"
