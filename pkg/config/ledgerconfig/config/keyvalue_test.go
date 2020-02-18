@@ -81,7 +81,7 @@ func TestKey_String(t *testing.T) {
 
 func TestValue_String(t *testing.T) {
 	kv := NewKeyValue(NewAppKey(msp1, app1, v1), NewValue(tx1, "some config", FormatOther))
-	require.Equal(t, "[(MSP:org1MSP),(Peer:),(AppName:app1),(AppVersion:v1),(Comp:),(CompVersion:)]=[(TxID:tx1),(Config:some config),(Format:OTHER)]", kv.String())
+	require.Equal(t, "[(MSP:org1MSP),(Peer:),(AppName:app1),(AppVersion:v1),(Comp:),(CompVersion:)]=[(TxID:tx1),(Config:some config),(Format:OTHER),(Tags:[])]", kv.String())
 }
 
 func TestKey_Validate(t *testing.T) {

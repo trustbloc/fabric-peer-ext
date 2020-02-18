@@ -132,20 +132,23 @@ type Value struct {
 	Format Format
 	// Config contains the actual configuration
 	Config string
+	// Tags contains an optional set of tags that describe the data
+	Tags []string
 }
 
 // NewValue returns a new config Value
-func NewValue(txID string, config string, format Format) *Value {
+func NewValue(txID string, config string, format Format, tags ...string) *Value {
 	return &Value{
 		TxID:   txID,
 		Config: config,
 		Format: format,
+		Tags:   tags,
 	}
 }
 
 // String returns a readable string for the value
 func (v *Value) String() string {
-	return fmt.Sprintf("(TxID:%s),(Config:%s),(Format:%s)", v.TxID, v.Config, v.Format)
+	return fmt.Sprintf("(TxID:%s),(Config:%s),(Format:%s),(Tags:%s)", v.TxID, v.Config, v.Format, v.Tags)
 }
 
 // KeyValue contains the key and the value for the key

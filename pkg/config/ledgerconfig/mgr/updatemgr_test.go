@@ -31,6 +31,8 @@ const (
 	app1 = "app1"
 	app2 = "app2"
 	app3 = "app3"
+	app7 = "app7"
+	app8 = "app8"
 
 	comp1 = "comp1"
 	comp2 = "comp2"
@@ -43,10 +45,12 @@ const (
 	txID2 = "tx2"
 	txID3 = "tx3"
 
-	msp1App1V1Config = "msp1-app1-v1-config"
-	msp1App1V2Config = "msp1-app1-v2-config"
-	msp1App2V1Config = `{"msp":"msp1", key1": "value1"}`
-	msp1App2V2Config = `{"msp":"msp1", "key1_1": "value1"}`
+	msp1App1V1Config        = "msp1-app1-v1-config"
+	msp1App1V2Config        = "msp1-app1-v2-config"
+	msp1App2V1Config        = `{"msp":"msp1", key1": "value1"}`
+	msp1App2V2Config        = `{"msp":"msp1", "key1_1": "value1"}`
+	msp1App7V1Config        = `{"msp":"msp1", "key7": "value7"}`
+	msp1App8V1Comp1V1Config = `{"msp":"msp1", "key7": "value7"}`
 
 	msp2App1V1Config = "msp2-app1-v1-config"
 	msp2App1V2Config = "msp2-app1-v2-config"
@@ -262,6 +266,18 @@ var (
 			},
 		},
 	}
+	appConfigWithTags = &config.Config{
+		MspID: msp1,
+		Apps: []*config.App{
+			{AppName: app7, Version: v1, Config: msp1App7V1Config, Format: config.FormatJSON, Tags: []string{"tag1", "tag2"}},
+			{
+				AppName: app8, Version: v1,
+				Components: []*config.Component{
+					{Name: comp1, Version: v1, Config: msp1App8V1Comp1V1Config, Format: config.FormatJSON, Tags: []string{"tag1"}},
+				},
+			},
+		},
+	}
 )
 
 func TestUpdateManager_StoreError(t *testing.T) {
@@ -384,6 +400,12 @@ func TestUpdateManager_Save(t *testing.T) {
 		require.NoError(t, m.Save(txID2, peerComponentConfigUpdate))
 		requireEqualValue(t, r, config.NewPeerComponentKey(msp1, peer1, app1, v1, comp1, v1), config.NewValue(txID2, peer1App1V1Comp1V1ConfigUpdate, config.FormatOther))
 		requireEqualValue(t, r, config.NewPeerComponentKey(msp1, peer2, app2, v1, comp1, v1), config.NewValue(txID2, peer2App2V1Comp1V1Config, config.FormatYAML))
+	})
+	t.Run("App with tags", func(t *testing.T) {
+		require.NoError(t, m.Save(txID3, appConfigWithTags))
+
+		requireEqualValue(t, r, config.NewAppKey(msp1, app7, v1), config.NewValue(txID3, msp1App7V1Config, config.FormatJSON, "tag1", "tag2"))
+		requireEqualValue(t, r, config.NewComponentKey(msp1, app8, v1, comp1, v1), config.NewValue(txID3, msp1App8V1Comp1V1Config, config.FormatJSON, "tag1"))
 	})
 }
 

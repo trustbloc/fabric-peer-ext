@@ -18,13 +18,15 @@ Feature: ledger-config
   @ledger_config_s1
   Scenario: Save, get and delete application config
     # Save and query app1 v1 config
-    Given variable "msp1App1V1Config" is assigned the JSON value '{"MspID":"MSP1","Apps":[{"AppName":"app1","Version":"v1","Config":"msp1-app1-v1-config","Format":"Other"}]}'
+    Given variable "msp1App1V1Config" is assigned the JSON value '{"MspID":"MSP1","Apps":[{"AppName":"app1","Version":"v1","Config":"msp1-app1-v1-config","Format":"Other","Tags":["tag1","tag2"]}]}'
     When client invokes chaincode "configscc" with args "save,${msp1App1V1Config}" on the "mychannel" channel
     And we wait 1 seconds
     Given variable "msp1App1Criteria" is assigned the JSON value '{"MspID":"MSP1","AppName":"app1"}'
     When client queries chaincode "configscc" with args "get,${msp1App1Criteria}" on a single peer in the "peerorg1" org on the "mychannel" channel
     Then the JSON path "#" of the response has 1 items
     And the JSON path "0.Config" of the response equals "msp1-app1-v1-config"
+    And the JSON path "0.Tags.0" of the response equals "tag1"
+    And the JSON path "0.Tags.1" of the response equals "tag2"
 
     # Save and query app1 v2 config
     Given variable "msp1App1V2Config" is assigned the JSON value '{"MspID":"MSP1","Apps":[{"AppName":"app1","Version":"v2","Config":"msp1-app1-v2-config","Format":"Other"}]}'

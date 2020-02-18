@@ -55,7 +55,7 @@ func (c keyValueMap) populateApp(mspID string, app *config.App, txID string) {
 
 	if app.Config != "" {
 		logger.Debugf("[%s] ... adding config for app [%s] ...", txID, app.AppName)
-		c[*config.NewAppKey(mspID, app.AppName, app.Version)] = config.NewValue(txID, app.Config, app.Format)
+		c[*config.NewAppKey(mspID, app.AppName, app.Version)] = config.NewValue(txID, app.Config, app.Format, app.Tags...)
 	}
 }
 
@@ -67,7 +67,7 @@ func (c keyValueMap) populatePeerApp(mspID, peerID string, app *config.App, txID
 
 	if app.Config != "" {
 		logger.Debugf("[%s] ... adding config for peer [%s] and app [%s] ...", txID, peerID, app.AppName)
-		c[*config.NewPeerKey(mspID, peerID, app.AppName, app.Version)] = config.NewValue(txID, app.Config, app.Format)
+		c[*config.NewPeerKey(mspID, peerID, app.AppName, app.Version)] = config.NewValue(txID, app.Config, app.Format, app.Tags...)
 	}
 }
 
@@ -75,7 +75,7 @@ func (c keyValueMap) populateComponents(mspID string, app *config.App, txID stri
 	logger.Debugf("[%s] ... adding components for app [%s] ...", txID, app.AppName)
 	for _, comp := range app.Components {
 		logger.Debugf("[%s] ... adding component [%s:%s] for app [%s] ...", txID, comp.Name, comp.Version, app.AppName)
-		c[*config.NewComponentKey(mspID, app.AppName, app.Version, comp.Name, comp.Version)] = config.NewValue(txID, comp.Config, comp.Format)
+		c[*config.NewComponentKey(mspID, app.AppName, app.Version, comp.Name, comp.Version)] = config.NewValue(txID, comp.Config, comp.Format, comp.Tags...)
 	}
 }
 
@@ -83,6 +83,6 @@ func (c keyValueMap) populatePeerComponents(mspID, peerID string, app *config.Ap
 	logger.Debugf("[%s] ... adding components for peer [%s] and app [%s] ...", txID, peerID, app.AppName)
 	for _, comp := range app.Components {
 		logger.Debugf("[%s] ... adding component [%s:%s] for peer [%s] and app [%s] ...", txID, comp.Name, comp.Version, peerID, app.AppName)
-		c[*config.NewPeerComponentKey(mspID, peerID, app.AppName, app.Version, comp.Name, comp.Version)] = config.NewValue(txID, comp.Config, comp.Format)
+		c[*config.NewPeerComponentKey(mspID, peerID, app.AppName, app.Version, comp.Name, comp.Version)] = config.NewValue(txID, comp.Config, comp.Format, comp.Tags...)
 	}
 }

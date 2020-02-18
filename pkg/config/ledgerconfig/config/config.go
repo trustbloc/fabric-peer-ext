@@ -91,6 +91,8 @@ type App struct {
 	Format Format
 	// Config contains the actual configuration
 	Config string
+	// Tags contains optional tags that describe the data
+	Tags []string `json:",omitempty"`
 	// Components zero or more component configs
 	Components []*Component
 }
@@ -130,6 +132,8 @@ type Component struct {
 	Format Format
 	// Config contains the actual configuration
 	Config string
+	// Tags contains optional tags that describe the data
+	Tags []string `json:",omitempty"`
 }
 
 // Validate validates the Component
