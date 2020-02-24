@@ -11,8 +11,8 @@ git clone https://github.com/trustbloc/fabric-mod.git $GOPATH/src/github.com/hyp
 cp -r . $GOPATH/src/github.com/hyperledger/fabric/fabric-peer-ext
 cd $GOPATH/src/github.com/hyperledger/fabric
 git config advice.detachedHead false
-# fabric-mod (Feb 11, 2020)
-git checkout 62c249e072e20e78d2e9b186d0c9b99ea36448f6
+# fabric-mod (Feb 24, 2020)
+git checkout v0.1.2
 
 declare envOS
 envOS=$(uname -s)

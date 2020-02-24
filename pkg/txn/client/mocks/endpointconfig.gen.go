@@ -30,7 +30,7 @@ type EndpointConfig struct {
 	orderersConfigReturnsOnCall map[int]struct {
 		result1 []fab.OrdererConfig
 	}
-	OrdererConfigStub        func(nameOrURL string) (*fab.OrdererConfig, bool)
+	OrdererConfigStub        func(nameOrURL string) (*fab.OrdererConfig, bool, bool)
 	ordererConfigMutex       sync.RWMutex
 	ordererConfigArgsForCall []struct {
 		nameOrURL string
@@ -38,10 +38,12 @@ type EndpointConfig struct {
 	ordererConfigReturns struct {
 		result1 *fab.OrdererConfig
 		result2 bool
+		result3 bool
 	}
 	ordererConfigReturnsOnCall map[int]struct {
 		result1 *fab.OrdererConfig
 		result2 bool
+		result3 bool
 	}
 	PeersConfigStub        func(org string) ([]fab.PeerConfig, bool)
 	peersConfigMutex       sync.RWMutex
@@ -239,7 +241,7 @@ func (fake *EndpointConfig) OrderersConfigReturnsOnCall(i int, result1 []fab.Ord
 	}{result1}
 }
 
-func (fake *EndpointConfig) OrdererConfig(nameOrURL string) (*fab.OrdererConfig, bool) {
+func (fake *EndpointConfig) OrdererConfig(nameOrURL string) (*fab.OrdererConfig, bool, bool) {
 	fake.ordererConfigMutex.Lock()
 	ret, specificReturn := fake.ordererConfigReturnsOnCall[len(fake.ordererConfigArgsForCall)]
 	fake.ordererConfigArgsForCall = append(fake.ordererConfigArgsForCall, struct {
@@ -251,9 +253,9 @@ func (fake *EndpointConfig) OrdererConfig(nameOrURL string) (*fab.OrdererConfig,
 		return fake.OrdererConfigStub(nameOrURL)
 	}
 	if specificReturn {
-		return ret.result1, ret.result2
+		return ret.result1, ret.result2, ret.result3
 	}
-	return fake.ordererConfigReturns.result1, fake.ordererConfigReturns.result2
+	return fake.ordererConfigReturns.result1, fake.ordererConfigReturns.result2, fake.ordererConfigReturns.result3
 }
 
 func (fake *EndpointConfig) OrdererConfigCallCount() int {
@@ -268,26 +270,29 @@ func (fake *EndpointConfig) OrdererConfigArgsForCall(i int) string {
 	return fake.ordererConfigArgsForCall[i].nameOrURL
 }
 
-func (fake *EndpointConfig) OrdererConfigReturns(result1 *fab.OrdererConfig, result2 bool) {
+func (fake *EndpointConfig) OrdererConfigReturns(result1 *fab.OrdererConfig, result2 bool, result3 bool) {
 	fake.OrdererConfigStub = nil
 	fake.ordererConfigReturns = struct {
 		result1 *fab.OrdererConfig
 		result2 bool
-	}{result1, result2}
+		result3 bool
+	}{result1, result2, result3}
 }
 
-func (fake *EndpointConfig) OrdererConfigReturnsOnCall(i int, result1 *fab.OrdererConfig, result2 bool) {
+func (fake *EndpointConfig) OrdererConfigReturnsOnCall(i int, result1 *fab.OrdererConfig, result2 bool, result3 bool) {
 	fake.OrdererConfigStub = nil
 	if fake.ordererConfigReturnsOnCall == nil {
 		fake.ordererConfigReturnsOnCall = make(map[int]struct {
 			result1 *fab.OrdererConfig
 			result2 bool
+			result3 bool
 		})
 	}
 	fake.ordererConfigReturnsOnCall[i] = struct {
 		result1 *fab.OrdererConfig
 		result2 bool
-	}{result1, result2}
+		result3 bool
+	}{result1, result2, result3}
 }
 
 func (fake *EndpointConfig) PeersConfig(org string) ([]fab.PeerConfig, bool) {
