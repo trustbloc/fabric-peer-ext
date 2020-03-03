@@ -98,20 +98,23 @@ type Handlers struct {
 	HandleConfigUpdate ConfigUpdateHandler
 }
 
+// ErrorHandler allows clients to handle errors
+type ErrorHandler func(err error, ctx *Context) error
+
 // Options contains all block Visitor options
 type Options struct {
 	*Handlers
-	StopOnError bool
+	HandleError ErrorHandler
 }
 
 // Opt is a block visitor option
 type Opt func(options *Options)
 
-// WithNoStopOnError indicates that processing should proceed even
-// though an error occurs in one of the handlers.
-func WithNoStopOnError() Opt {
+// WithErrorHandler provides an error handler that's invoked when
+// an error occurs in one of the handlers.
+func WithErrorHandler(handler ErrorHandler) Opt {
 	return func(options *Options) {
-		options.StopOnError = false
+		options.HandleError = handler
 	}
 }
 
@@ -163,7 +166,7 @@ func New(channelID string, opts ...Opt) *Visitor {
 		channelID: channelID,
 		Options: &Options{
 			Handlers:    noopHandlers(),
-			StopOnError: true,
+			HandleError: defaultHandleError,
 		},
 	}
 
@@ -172,6 +175,12 @@ func New(channelID string, opts ...Opt) *Visitor {
 	}
 
 	return visitor
+}
+
+// defaultHandleError logs the error and continues
+func defaultHandleError(err error, ctx *Context) error {
+	logger.Warnf("Error of type %s occurred: %s", ctx.Category, err)
+	return nil
 }
 
 // ChannelID returns the channel ID for the vistor
@@ -220,56 +229,77 @@ func (p *blockEvent) visit() error {
 	for txNum := range p.block.Data.Data {
 		envelope, err := extractEnvelope(p.block, txNum)
 		if err != nil {
-			if p.StopOnError {
-				return errors.Wrapf(err, "error extracting envelope at index %d in block %d", txNum, p.block.Header.Number)
+			if e := p.HandleError(err, p.newUnmarshalErrContext()); e != nil {
+				return newVisitorError(e)
 			}
+
 			logger.Warningf("[%s] Error extracting envelope at index %d in block %d: %s", p.channelID, txNum, p.block.Header.Number, err)
 			continue
 		}
+
 		if err = p.visitEnvelope(uint64(txNum), envelope); err != nil {
-			if p.StopOnError {
+			if haltOnError(err) {
 				return errors.Wrapf(err, "error visiting envelope at index %d in block %d", txNum, p.block.Header.Number)
 			}
+
 			logger.Warningf("[%s] Error visiting envelope at index %d in block %d: %s", p.channelID, txNum, p.block.Header.Number, err)
+			continue
 		}
 	}
 	return nil
 }
 
 func (p *blockEvent) visitEnvelope(txNum uint64, envelope *cb.Envelope) error {
-	payload, err := extractPayload(envelope)
+	payload, chdr, err := extractPayloadAndHeader(envelope)
 	if err != nil {
+		if e := p.HandleError(err, p.newUnmarshalErrContext(withTxNum(txNum))); e != nil {
+			return newVisitorError(e)
+		}
+
+		return nil
+	}
+
+	switch cb.HeaderType(chdr.Type) {
+	case cb.HeaderType_ENDORSER_TRANSACTION:
+		return p.visitTx(txNum, payload, chdr)
+	case cb.HeaderType_CONFIG_UPDATE:
+		return p.visitConfigUpdate(payload)
+	default:
+		return nil
+	}
+}
+
+func (p *blockEvent) visitTx(txNum uint64, payload *cb.Payload, chdr *cb.ChannelHeader) error {
+	txFilter := ledgerutil.TxValidationFlags(p.block.Metadata.Metadata[cb.BlockMetadataIndex_TRANSACTIONS_FILTER])
+	code := txFilter.Flag(int(txNum))
+	if code != pb.TxValidationCode_VALID {
+		logger.Debugf("[%s] Transaction at index %d in block %d is not valid. Status code: %s", p.channelID, txNum, p.block.Header.Number, code)
+		return nil
+	}
+
+	tx, err := getTransaction(payload.Data)
+	if err != nil {
+		if e := p.HandleError(err, p.newUnmarshalErrContext(withTxNum(txNum), withTxID(chdr.TxId))); e != nil {
+			return newVisitorError(e)
+		}
+
+		return nil
+	}
+
+	return newTxEvent(p.channelID, p.block.Header.Number, txNum, chdr.TxId, tx, p.Options).visit()
+}
+
+func (p *blockEvent) visitConfigUpdate(payload *cb.Payload) error {
+	envelope := &cb.ConfigUpdateEnvelope{}
+	if err := unmarshal(payload.Data, envelope); err != nil {
 		return err
 	}
 
-	chdr, err := unmarshalChannelHeader(payload.Header.ChannelHeader)
-	if err != nil {
-		return err
-	}
+	return newConfigUpdateEvent(p.channelID, p.block.Header.Number, envelope, p.Options).visit()
+}
 
-	if cb.HeaderType(chdr.Type) == cb.HeaderType_ENDORSER_TRANSACTION {
-		txFilter := ledgerutil.TxValidationFlags(p.block.Metadata.Metadata[cb.BlockMetadataIndex_TRANSACTIONS_FILTER])
-		code := txFilter.Flag(int(txNum))
-		if code != pb.TxValidationCode_VALID {
-			logger.Debugf("[%s] Transaction at index %d in block %d is not valid. Status code: %s", p.channelID, txNum, p.block.Header.Number, code)
-			return nil
-		}
-		tx, err := getTransaction(payload.Data)
-		if err != nil {
-			return err
-		}
-		return newTxEvent(p.channelID, p.block.Header.Number, txNum, chdr.TxId, tx, p.Options).visit()
-	}
-
-	if cb.HeaderType(chdr.Type) == cb.HeaderType_CONFIG_UPDATE {
-		envelope := &cb.ConfigUpdateEnvelope{}
-		if err := unmarshal(payload.Data, envelope); err != nil {
-			return err
-		}
-		return newConfigUpdateEvent(p.channelID, p.block.Header.Number, envelope, p.Handlers).visit()
-	}
-
-	return nil
+func (p *blockEvent) newUnmarshalErrContext(opts ...ctxOpt) *Context {
+	return newContext(UnmarshalErr, p.channelID, p.block.Header.Number, opts...)
 }
 
 type txEvent struct {
@@ -297,20 +327,27 @@ func (p *txEvent) visit() error {
 	for i, action := range p.tx.Actions {
 		err := p.visitTXAction(action)
 		if err != nil {
-			if p.StopOnError {
-				return errors.Wrapf(err, "error checking TxAction at index %d", i)
+			if haltOnError(err) {
+				return err
 			}
+
 			logger.Warningf("[%s] Error checking TxAction at index %d: %s", p.channelID, i, err)
 		}
 	}
+
 	return nil
 }
 
 func (p *txEvent) visitTXAction(action *pb.TransactionAction) error {
 	chaPayload, err := getChaincodeActionPayload(action.Payload)
 	if err != nil {
-		return err
+		if e := p.HandleError(err, p.newContext(UnmarshalErr)); e != nil {
+			return newVisitorError(e)
+		}
+
+		return nil
 	}
+
 	return p.visitChaincodeActionPayload(chaPayload)
 }
 
@@ -318,7 +355,11 @@ func (p *txEvent) visitChaincodeActionPayload(chaPayload *pb.ChaincodeActionPayl
 	cpp := &pb.ChaincodeProposalPayload{}
 	err := unmarshal(chaPayload.ChaincodeProposalPayload, cpp)
 	if err != nil {
-		return err
+		if e := p.HandleError(err, p.newContext(UnmarshalErr)); e != nil {
+			return newVisitorError(e)
+		}
+
+		return nil
 	}
 
 	return p.visitAction(chaPayload.Action)
@@ -328,8 +369,13 @@ func (p *txEvent) visitAction(action *pb.ChaincodeEndorsedAction) error {
 	prp := &pb.ProposalResponsePayload{}
 	err := unmarshal(action.ProposalResponsePayload, prp)
 	if err != nil {
-		return err
+		if e := p.HandleError(err, p.newContext(UnmarshalErr)); e != nil {
+			return newVisitorError(e)
+		}
+
+		return nil
 	}
+
 	return p.visitProposalResponsePayload(prp)
 }
 
@@ -337,35 +383,73 @@ func (p *txEvent) visitProposalResponsePayload(prp *pb.ProposalResponsePayload) 
 	chaincodeAction := &pb.ChaincodeAction{}
 	err := unmarshal(prp.Extension, chaincodeAction)
 	if err != nil {
-		return err
+		if e := p.HandleError(err, p.newContext(UnmarshalErr)); e != nil {
+			return newVisitorError(e)
+		}
+
+		return nil
 	}
+
 	return p.visitChaincodeAction(chaincodeAction)
 }
 
 func (p *txEvent) visitChaincodeAction(chaincodeAction *pb.ChaincodeAction) error {
-	if len(chaincodeAction.Results) > 0 {
-		txRWSet := &rwsetutil.TxRwSet{}
-		if err := txRWSet.FromProtoBytes(chaincodeAction.Results); err != nil {
-			return err
-		}
-		if err := p.visitTxReadWriteSet(txRWSet); err != nil {
-			return err
-		}
+	if err := p.visitChaincodeActionResults(chaincodeAction); err != nil && haltOnError(err) {
+		return err
 	}
 
-	if len(chaincodeAction.Events) > 0 {
-		evt := &pb.ChaincodeEvent{}
-		if err := unmarshal(chaincodeAction.Events, evt); err != nil {
-			logger.Warningf("[%s] Invalid chaincode Event for chaincode [%s]", p.channelID, chaincodeAction.ChaincodeId)
-			return errors.WithMessagef(err, "invalid chaincode Event for chaincode [%s]", chaincodeAction.ChaincodeId)
+	if err := p.visitChaincodeActionEvents(chaincodeAction); err != nil && haltOnError(err) {
+		return err
+	}
+
+	return nil
+}
+
+func (p *txEvent) visitChaincodeActionResults(chaincodeAction *pb.ChaincodeAction) error {
+	if len(chaincodeAction.Results) == 0 {
+		return nil
+	}
+
+	txRWSet := &rwsetutil.TxRwSet{}
+	if err := txRWSet.FromProtoBytes(chaincodeAction.Results); err != nil {
+		if e := p.HandleError(err, p.newContext(UnmarshalErr)); e != nil {
+			return newVisitorError(e)
 		}
-		err := p.HandleCCEvent(&CCEvent{
-			BlockNum: p.blockNum,
-			TxID:     p.txID,
-			Event:    evt,
-		})
-		if err != nil {
-			return err
+
+		return nil
+	}
+
+	if err := p.visitTxReadWriteSet(txRWSet); err != nil && haltOnError(err) {
+		return err
+	}
+
+	return nil
+}
+
+func (p *txEvent) visitChaincodeActionEvents(chaincodeAction *pb.ChaincodeAction) error {
+	if len(chaincodeAction.Events) == 0 {
+		return nil
+	}
+
+	evt := &pb.ChaincodeEvent{}
+	if err := unmarshal(chaincodeAction.Events, evt); err != nil {
+		if e := p.HandleError(err, p.newContext(UnmarshalErr)); e != nil {
+			return newVisitorError(errors.WithMessagef(e, "invalid chaincode Event for chaincode [%s]", chaincodeAction.ChaincodeId))
+		}
+
+		logger.Warningf("[%s] Invalid chaincode Event for chaincode [%s]", p.channelID, chaincodeAction.ChaincodeId)
+		return nil
+	}
+
+	ccEvent := &CCEvent{
+		BlockNum: p.blockNum,
+		TxID:     p.txID,
+		Event:    evt,
+	}
+
+	if err := p.HandleCCEvent(ccEvent); err != nil {
+		if e := p.HandleError(err, p.newContext(CCEventHandlerErr, withCCEvent(ccEvent))); e != nil {
+			return newVisitorError(e)
 		}
 	}
 
@@ -375,30 +459,27 @@ func (p *txEvent) visitChaincodeAction(chaincodeAction *pb.ChaincodeAction) erro
 func (p *txEvent) visitTxReadWriteSet(txRWSet *rwsetutil.TxRwSet) error {
 	for _, nsRWSet := range txRWSet.NsRwSets {
 		if err := p.visitNsReadWriteSet(nsRWSet); err != nil {
-			if p.StopOnError {
+			if haltOnError(err) {
 				return err
 			}
+
+			logger.Warningf("[%s] Error checking TxReadWriteSet for namespace [%s]: %s", p.channelID, nsRWSet.NameSpace, err)
 		}
 	}
+
 	return nil
 }
 
 func (p *txEvent) visitNsReadWriteSet(nsRWSet *rwsetutil.NsRwSet) error {
-	for _, r := range nsRWSet.KvRwSet.Reads {
-		if err := p.HandleRead(&Read{
-			BlockNum:  p.blockNum,
-			TxID:      p.txID,
-			Namespace: nsRWSet.NameSpace,
-			Read:      r,
-		}); err != nil {
-			if p.StopOnError {
-				return err
-			}
-		}
+	err := p.publishReads(nsRWSet.NameSpace, nsRWSet.KvRwSet.Reads)
+	if err != nil && haltOnError(err) {
+		return err
 	}
+
 	if nsRWSet.NameSpace == LsccID {
 		return p.publishLSCCWrite(nsRWSet.KvRwSet.Writes)
 	}
+
 	return p.publishWrites(nsRWSet.NameSpace, nsRWSet.KvRwSet.Writes)
 }
 
@@ -411,48 +492,84 @@ func (p *txEvent) publishLSCCWrite(writes []*kvrwset.KVWrite) error {
 
 	ccID, ccData, ccp, err := getCCInfo(writes)
 	if err != nil {
-		if p.StopOnError {
-			return err
+		if e := p.HandleError(err, p.newContext(UnmarshalErr)); e != nil {
+			return newVisitorError(e)
 		}
-		logger.Warningf("[%s] Error getting chaincode info: %s", p.channelID, err)
+
+		logger.Warnf("Error getting CC info: %s", err)
 		return nil
 	}
 
-	return p.HandleLSCCWrite(&LSCCWrite{
+	lsccWrite := &LSCCWrite{
 		BlockNum: p.blockNum,
 		TxID:     p.txID,
 		CCID:     ccID,
 		CCData:   ccData,
 		CCP:      ccp,
-	})
+	}
+
+	if err := p.HandleLSCCWrite(lsccWrite); err != nil {
+		if e := p.HandleError(err, p.newContext(LSCCWriteHandlerErr, withLSCCWrite(lsccWrite))); e != nil {
+			return newVisitorError(e)
+		}
+	}
+
+	return nil
+}
+
+func (p *txEvent) publishReads(ns string, reads []*kvrwset.KVRead) error {
+	for _, r := range reads {
+		read := &Read{
+			BlockNum:  p.blockNum,
+			TxID:      p.txID,
+			Namespace: ns,
+			Read:      r,
+		}
+
+		if err := p.HandleRead(read); err != nil {
+			if e := p.HandleError(err, p.newContext(ReadHandlerErr, withRead(read))); e != nil {
+				return newVisitorError(e)
+			}
+
+			logger.Warningf("[%s] Error checking read %+v", p.channelID, r, err)
+		}
+	}
+
+	return nil
 }
 
 func (p *txEvent) publishWrites(ns string, writes []*kvrwset.KVWrite) error {
 	for _, w := range writes {
-		if err := p.HandleWrite(&Write{
+		write := &Write{
 			BlockNum:  p.blockNum,
 			TxID:      p.txID,
 			Namespace: ns,
 			Write:     w,
-		}); err != nil {
-			if p.StopOnError {
-				return err
+		}
+
+		if err := p.HandleWrite(write); err != nil {
+			if e := p.HandleError(err, p.newContext(WriteHandlerErr, withWrite(write))); e != nil {
+				return newVisitorError(e)
 			}
 		}
 	}
 	return nil
 }
 
+func (p *txEvent) newContext(category Category, opts ...ctxOpt) *Context {
+	return newContext(category, p.channelID, p.blockNum, append(opts, withTxNum(p.txNum), withTxID(p.txID))...)
+}
+
 type configUpdateEvent struct {
-	*Handlers
+	*Options
 	channelID string
 	blockNum  uint64
 	envelope  *cb.ConfigUpdateEnvelope
 }
 
-func newConfigUpdateEvent(channelID string, blockNum uint64, envelope *cb.ConfigUpdateEnvelope, handlers *Handlers) *configUpdateEvent {
+func newConfigUpdateEvent(channelID string, blockNum uint64, envelope *cb.ConfigUpdateEnvelope, options *Options) *configUpdateEvent {
 	return &configUpdateEvent{
-		Handlers:  handlers,
+		Options:   options,
 		channelID: channelID,
 		blockNum:  blockNum,
 		envelope:  envelope,
@@ -462,16 +579,46 @@ func newConfigUpdateEvent(channelID string, blockNum uint64, envelope *cb.Config
 func (p *configUpdateEvent) visit() error {
 	cu := &cb.ConfigUpdate{}
 	if err := unmarshal(p.envelope.ConfigUpdate, cu); err != nil {
+		if e := p.HandleError(err, p.newContext(UnmarshalErr)); e != nil {
+			return newVisitorError(e)
+		}
+
 		logger.Warningf("[%s] Error unmarshalling config update: %s", p.channelID, err)
 		return err
 	}
 
 	logger.Debugf("[%s] Publishing Config Update [%s] in block #%d", p.channelID, cu, p.blockNum)
 
-	return p.HandleConfigUpdate(&ConfigUpdate{
+	update := &ConfigUpdate{
 		BlockNum:     p.blockNum,
 		ConfigUpdate: cu,
-	})
+	}
+
+	if err := p.HandleConfigUpdate(update); err != nil {
+		if e := p.HandleError(err, p.newContext(ConfigUpdateHandlerErr, withConfigUpdate(update))); e != nil {
+			return newVisitorError(e)
+		}
+	}
+
+	return nil
+}
+
+func (p *configUpdateEvent) newContext(category Category, opts ...ctxOpt) *Context {
+	return newContext(category, p.channelID, p.blockNum, opts...)
+}
+
+func extractPayloadAndHeader(envelope *cb.Envelope) (*cb.Payload, *cb.ChannelHeader, error) {
+	payload, err := extractPayload(envelope)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	chdr, err := unmarshalChannelHeader(payload.Header.ChannelHeader)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return payload, chdr, nil
 }
 
 func getCCInfo(writes []*kvrwset.KVWrite) (string, *ccprovider.ChaincodeData, *pb.CollectionConfigPackage, error) {
@@ -533,4 +680,23 @@ var getTransaction = func(txBytes []byte) (*pb.Transaction, error) {
 
 var getChaincodeActionPayload = func(capBytes []byte) (*pb.ChaincodeActionPayload, error) {
 	return util.GetChaincodeActionPayload(capBytes)
+}
+
+type visitorError struct {
+	cause error
+}
+
+func newVisitorError(cuase error) visitorError {
+	return visitorError{cause: cuase}
+}
+
+func (e visitorError) Error() string {
+	return e.cause.Error()
+}
+
+// haltOnError returns true if the error was handled by an error handler
+// and processing should halt because of the error
+func haltOnError(err error) bool {
+	_, ok := err.(visitorError)
+	return ok
 }

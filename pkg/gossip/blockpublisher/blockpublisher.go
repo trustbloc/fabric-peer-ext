@@ -105,7 +105,6 @@ func New(channelID string) *Publisher {
 		doneChan: make(chan struct{}),
 		Visitor: blockvisitor.New(
 			channelID,
-			blockvisitor.WithNoStopOnError(),
 			blockvisitor.WithCCEventHandler(channels.sendCCEvent),
 			blockvisitor.WithReadHandler(channels.sendRead),
 			blockvisitor.WithWriteHandler(channels.sendWrite),
@@ -191,15 +190,15 @@ func (p *Publisher) listen() {
 	for {
 		select {
 		case w := <-p.wChan:
-			panicOnError(p.handleWrite(w))
+			p.handleWrite(w)
 		case r := <-p.rChan:
-			panicOnError(p.handleRead(r))
+			p.handleRead(r)
 		case lscc := <-p.lsccChan:
-			panicOnError(p.handleLSCCWrite(lscc))
+			p.handleLSCCWrite(lscc)
 		case ccEvt := <-p.ccEvtChan:
-			panicOnError(p.handleCCEvent(ccEvt))
+			p.handleCCEvent(ccEvt)
 		case cu := <-p.configUpdateChan:
-			panicOnError(p.handleConfigUpdate(cu))
+			p.handleConfigUpdate(cu)
 		case <-p.doneChan:
 			logger.Debugf("[%s] Exiting block Publisher", p.ChannelID())
 			return
@@ -207,71 +206,51 @@ func (p *Publisher) listen() {
 	}
 }
 
-func (p *Publisher) handleRead(r *blockvisitor.Read) error {
+func (p *Publisher) handleRead(r *blockvisitor.Read) {
 	logger.Debugf("[%s] Handling read: [%s]", p.ChannelID(), r)
 	for _, handleRead := range p.getReadHandlers() {
 		if err := handleRead(api.TxMetadata{BlockNum: r.BlockNum, ChannelID: p.ChannelID(), TxID: r.TxID, TxNum: r.TxNum}, r.Namespace, r.Read); err != nil {
-			if p.StopOnError {
-				return err
-			}
 			logger.Warningf("[%s] Error returned from KV Read handler: %s", p.ChannelID(), err)
 		}
 	}
-	return nil
 }
 
-func (p *Publisher) handleWrite(w *blockvisitor.Write) error {
+func (p *Publisher) handleWrite(w *blockvisitor.Write) {
 	logger.Debugf("[%s] Handling write: [%s]", p.ChannelID(), w)
 	for _, handleWrite := range p.getWriteHandlers() {
 		if err := handleWrite(api.TxMetadata{BlockNum: w.BlockNum, ChannelID: p.ChannelID(), TxID: w.TxID, TxNum: w.TxNum}, w.Namespace, w.Write); err != nil {
-			if p.StopOnError {
-				return err
-			}
 			logger.Warningf("[%s] Error returned from KV Write handler: %s", p.ChannelID(), err)
 		}
 	}
-	return nil
 }
 
-func (p *Publisher) handleLSCCWrite(w *blockvisitor.LSCCWrite) error {
+func (p *Publisher) handleLSCCWrite(w *blockvisitor.LSCCWrite) {
 	logger.Debugf("[%s] Handling LSCC write: [%s]", p.ChannelID(), w)
 
 	for _, handler := range p.getLSCCWriteHandlers() {
 		if err := handler(
 			api.TxMetadata{BlockNum: w.BlockNum, ChannelID: p.ChannelID(), TxID: w.TxID, TxNum: w.TxNum}, w.CCID, w.CCData, w.CCP); err != nil {
-			if p.StopOnError {
-				return err
-			}
 			logger.Warningf("[%s] Error returned from LSCC Write handler: %s", p.ChannelID(), err)
 		}
 	}
-	return nil
 }
 
-func (p *Publisher) handleCCEvent(event *blockvisitor.CCEvent) error {
+func (p *Publisher) handleCCEvent(event *blockvisitor.CCEvent) {
 	logger.Debugf("[%s] Handling chaincode event: [%s]", p.ChannelID(), event)
 	for _, handleCCEvent := range p.getCCEventHandlers() {
 		if err := handleCCEvent(api.TxMetadata{BlockNum: event.BlockNum, ChannelID: p.ChannelID(), TxID: event.TxID, TxNum: event.TxNum}, event.Event); err != nil {
-			if p.StopOnError {
-				return err
-			}
 			logger.Warningf("[%s] Error returned from CC event handler: %s", p.ChannelID(), err)
 		}
 	}
-	return nil
 }
 
-func (p *Publisher) handleConfigUpdate(cu *blockvisitor.ConfigUpdate) error {
+func (p *Publisher) handleConfigUpdate(cu *blockvisitor.ConfigUpdate) {
 	logger.Debugf("[%s] Handling config update [%s]", p.ChannelID(), cu)
 	for _, handleConfigUpdate := range p.getConfigUpdateHandlers() {
 		if err := handleConfigUpdate(cu.BlockNum, cu.ConfigUpdate); err != nil {
-			if p.StopOnError {
-				return err
-			}
 			logger.Warningf("[%s] Error returned from config update handler: %s", p.ChannelID(), err)
 		}
 	}
-	return nil
 }
 
 func (p *Publisher) getReadHandlers() []api.ReadHandler {
@@ -384,12 +363,5 @@ func newChaincodeUpgradeHandler(handleUpgrade api.ChaincodeUpgradeHandler) api.C
 
 		logger.Debugf("[%s] Handling chaincode upgrade of chaincode [%s]", txnMetadata.ChannelID, ccData.ChaincodeName)
 		return handleUpgrade(txnMetadata, ccData.ChaincodeName)
-	}
-}
-
-// panicOnError panics if there's an error.
-func panicOnError(err error) {
-	if err != nil {
-		panic(err.Error())
 	}
 }

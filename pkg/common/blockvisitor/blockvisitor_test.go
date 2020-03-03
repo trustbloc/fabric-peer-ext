@@ -43,32 +43,6 @@ const (
 )
 
 func TestVisitor_HandleEndorsementEvents(t *testing.T) {
-	numReads := 0
-	numWrites := 0
-	numLSCCWrites := 0
-	numCCEvents := 0
-
-	p := New(channelID,
-		WithCCEventHandler(func(ccEvent *CCEvent) error {
-			numCCEvents++
-			return nil
-		}),
-		WithReadHandler(func(read *Read) error {
-			numReads++
-			return nil
-		}),
-		WithWriteHandler(func(write *Write) error {
-			numWrites++
-			return nil
-		}),
-		WithLSCCWriteHandler(func(lsccWrite *LSCCWrite) error {
-			numLSCCWrites++
-			return nil
-		}),
-	)
-	require.NotNil(t, p)
-	require.Equal(t, channelID, p.ChannelID())
-
 	block := mockBlockWithTransactions(t)
 	t.Run("No handlers", func(t *testing.T) {
 		p := New(channelID)
@@ -77,12 +51,211 @@ func TestVisitor_HandleEndorsementEvents(t *testing.T) {
 	})
 
 	t.Run("With handlers", func(t *testing.T) {
+		numReads := 0
+		numWrites := 0
+		numLSCCWrites := 0
+		numCCEvents := 0
+
+		p := New(channelID,
+			WithCCEventHandler(func(ccEvent *CCEvent) error {
+				numCCEvents++
+				return nil
+			}),
+			WithReadHandler(func(read *Read) error {
+				numReads++
+				return nil
+			}),
+			WithWriteHandler(func(write *Write) error {
+				numWrites++
+				return nil
+			}),
+			WithLSCCWriteHandler(func(lsccWrite *LSCCWrite) error {
+				numLSCCWrites++
+				return nil
+			}),
+		)
+		require.NotNil(t, p)
+		require.Equal(t, channelID, p.ChannelID())
+
 		require.NoError(t, p.Visit(block))
 		assert.Equal(t, 2, numReads)
 		assert.Equal(t, 5, numWrites)
 		assert.Equal(t, 2, numCCEvents)
 		assert.Equal(t, 2, numLSCCWrites)
 		assert.EqualValues(t, 1101, p.LedgerHeight())
+	})
+}
+
+func TestVisitor_ErrorHandler(t *testing.T) {
+	block := mockBlockWithTransactions(t)
+
+	t.Run("With CCEventHandler error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected event handler error")
+		handler := func(*CCEvent) error { return errExpected }
+
+		t.Run("Ignore", func(t *testing.T) {
+			p := New(channelID,
+				WithCCEventHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+			require.NoError(t, p.Visit(block))
+		})
+
+		t.Run("Halt", func(t *testing.T) {
+			p := New(channelID,
+				WithErrorHandler(func(err error, ctx *Context) error {
+					require.Equal(t, CCEventHandlerErr, ctx.Category)
+					require.Equal(t, channelID, ctx.ChannelID)
+					require.NotNil(t, ctx.CCEvent)
+
+					return err
+				}),
+				WithCCEventHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+
+			err := p.Visit(block)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errExpected.Error())
+		})
+	})
+
+	t.Run("With ReadHandler error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected read handler error")
+		handler := func(*Read) error { return errExpected }
+
+		t.Run("Ignore", func(t *testing.T) {
+			p := New(channelID,
+				WithReadHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+			require.NoError(t, p.Visit(block))
+		})
+
+		t.Run("Halt", func(t *testing.T) {
+			p := New(channelID,
+				WithErrorHandler(func(err error, ctx *Context) error {
+					require.Equal(t, ReadHandlerErr, ctx.Category)
+					require.Equal(t, channelID, ctx.ChannelID)
+					require.NotNil(t, ctx.Read)
+
+					return err
+				}),
+				WithReadHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+
+			err := p.Visit(block)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errExpected.Error())
+		})
+	})
+
+	t.Run("With WriteHandler error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected write handler error")
+		handler := func(*Write) error { return errExpected }
+
+		t.Run("Ignore", func(t *testing.T) {
+			p := New(channelID,
+				WithWriteHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+			require.NoError(t, p.Visit(block))
+		})
+
+		t.Run("Halt", func(t *testing.T) {
+			p := New(channelID,
+				WithErrorHandler(func(err error, ctx *Context) error {
+					require.Equal(t, WriteHandlerErr, ctx.Category)
+					require.Equal(t, channelID, ctx.ChannelID)
+					require.NotNil(t, ctx.Write)
+
+					return err
+				}),
+				WithWriteHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+
+			err := p.Visit(block)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errExpected.Error())
+		})
+	})
+
+	t.Run("With LSCCWriteHandler error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected LSCC write handler error")
+		handler := func(*LSCCWrite) error { return errExpected }
+
+		t.Run("Ignore", func(t *testing.T) {
+			p := New(channelID,
+				WithLSCCWriteHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+			require.NoError(t, p.Visit(block))
+		})
+
+		t.Run("Halt", func(t *testing.T) {
+			p := New(channelID,
+				WithErrorHandler(func(err error, ctx *Context) error {
+					require.Equal(t, LSCCWriteHandlerErr, ctx.Category)
+					require.Equal(t, channelID, ctx.ChannelID)
+					require.NotNil(t, ctx.LSCCWrite)
+
+					return err
+				}),
+				WithLSCCWriteHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+
+			err := p.Visit(block)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errExpected.Error())
+		})
+	})
+
+	t.Run("With ConfigUpdateHandler error", func(t *testing.T) {
+		bb := mocks.NewBlockBuilder(channelID, 1100)
+		bb.ConfigUpdate()
+		block := bb.Build()
+
+		errExpected := fmt.Errorf("injected config update handler error")
+		handler := func(*ConfigUpdate) error { return errExpected }
+
+		t.Run("Ignore", func(t *testing.T) {
+			p := New(channelID,
+				WithConfigUpdateHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+			require.NoError(t, p.Visit(block))
+		})
+
+		t.Run("Halt", func(t *testing.T) {
+			p := New(channelID,
+				WithErrorHandler(func(err error, ctx *Context) error {
+					require.Equal(t, ConfigUpdateHandlerErr, ctx.Category)
+					require.Equal(t, channelID, ctx.ChannelID)
+					require.NotNil(t, ctx.ConfigUpdate)
+
+					return err
+				}),
+				WithConfigUpdateHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+
+			err := p.Visit(block)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errExpected.Error())
+		})
 	})
 }
 
@@ -185,14 +358,22 @@ func TestVisitor_LSCCWriteEventMarshalError(t *testing.T) {
 
 	var info ccInfo
 
-	p := New(channelID,
-		WithLSCCWriteHandler(func(lsccWrite *LSCCWrite) error {
-			numLSCCWrites++
-			info.set(lsccWrite.CCID, lsccWrite.CCData, lsccWrite.CCP)
-			return nil
-		}),
+	handler := func(lsccWrite *LSCCWrite) error {
+		numLSCCWrites++
+		info.set(lsccWrite.CCID, lsccWrite.CCData, lsccWrite.CCP)
+		return nil
+	}
+
+	v := New(channelID,
+		WithLSCCWriteHandler(handler),
 	)
-	require.NotNil(t, p)
+	require.NotNil(t, v)
+
+	vHalt := New(channelID,
+		WithErrorHandler(func(err error, ctx *Context) error { return err }),
+		WithLSCCWriteHandler(handler),
+	)
+	require.NotNil(t, vHalt)
 
 	ccData := &ccprovider.ChaincodeData{
 		Name: ccID1,
@@ -222,9 +403,12 @@ func TestVisitor_LSCCWriteEventMarshalError(t *testing.T) {
 			Write(ccID1, []byte("invalid cc data")).
 			Write(ccID1+CollectionSeparator+"collection", ccpBytes)
 
-		err := p.Visit(b.Build())
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "error unmarshaling chaincode data")
+		require.NoError(t, v.Visit(b.Build()))
+		require.Empty(t, info.ccName)
+		require.Nil(t, info.ccData)
+		require.Nil(t, info.ccp)
+
+		require.Error(t, vHalt.Visit(b.Build()))
 		require.Empty(t, info.ccName)
 		require.Nil(t, info.ccData)
 		require.Nil(t, info.ccp)
@@ -238,9 +422,12 @@ func TestVisitor_LSCCWriteEventMarshalError(t *testing.T) {
 			Write(ccID1, ccDataBytes).
 			Write(ccID1+CollectionSeparator+"collection", []byte("invalid ccp"))
 
-		err := p.Visit(b.Build())
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "error unmarshaling collection configuration")
+		require.NoError(t, v.Visit(b.Build()))
+		require.Empty(t, info.ccName)
+		require.Nil(t, info.ccData)
+		require.Nil(t, info.ccp)
+
+		require.Error(t, vHalt.Visit(b.Build()))
 		require.Empty(t, info.ccName)
 		require.Nil(t, info.ccData)
 		require.Nil(t, info.ccp)
@@ -248,8 +435,11 @@ func TestVisitor_LSCCWriteEventMarshalError(t *testing.T) {
 }
 
 func TestVisitor_Error(t *testing.T) {
-	p := New(channelID)
-	pNoStop := New(channelID, WithNoStopOnError())
+	v := New(channelID)
+
+	vHalt := New(channelID, WithErrorHandler(func(err error, ctx *Context) error {
+		return err
+	}))
 
 	block := mockBlockWithTransactions(t)
 
@@ -259,10 +449,10 @@ func TestVisitor_Error(t *testing.T) {
 		unmarshal = func(buf []byte, pb proto.Message) error { return errExpected }
 		defer func() { unmarshal = restore }()
 
-		err := p.Visit(block)
+		err := vHalt.Visit(block)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
-		require.NoError(t, pNoStop.Visit(block))
+		require.NoError(t, v.Visit(block))
 	})
 
 	t.Run("ExtractEnvelope error", func(t *testing.T) {
@@ -271,10 +461,10 @@ func TestVisitor_Error(t *testing.T) {
 		extractEnvelope = func(block *cb.Block, index int) (envelope *cb.Envelope, e error) { return nil, errExpected }
 		defer func() { extractEnvelope = restore }()
 
-		err := p.Visit(block)
+		err := vHalt.Visit(block)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
-		require.NoError(t, pNoStop.Visit(block))
+		require.NoError(t, v.Visit(block))
 	})
 
 	t.Run("ExtractPayload error", func(t *testing.T) {
@@ -283,10 +473,10 @@ func TestVisitor_Error(t *testing.T) {
 		extractPayload = func(envelope *cb.Envelope) (payload *cb.Payload, e error) { return nil, errExpected }
 		defer func() { extractPayload = restore }()
 
-		err := p.Visit(block)
+		err := vHalt.Visit(block)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
-		require.NoError(t, pNoStop.Visit(block))
+		require.NoError(t, v.Visit(block))
 	})
 
 	t.Run("UnmarshalChannelHeader error", func(t *testing.T) {
@@ -295,10 +485,10 @@ func TestVisitor_Error(t *testing.T) {
 		unmarshalChannelHeader = func(bytes []byte) (header *cb.ChannelHeader, e error) { return nil, errExpected }
 		defer func() { unmarshalChannelHeader = restore }()
 
-		err := p.Visit(block)
+		err := vHalt.Visit(block)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
-		require.NoError(t, pNoStop.Visit(block))
+		require.NoError(t, v.Visit(block))
 	})
 
 	t.Run("GetTransaction error", func(t *testing.T) {
@@ -307,10 +497,10 @@ func TestVisitor_Error(t *testing.T) {
 		getTransaction = func(txBytes []byte) (transaction *pb.Transaction, e error) { return nil, errExpected }
 		defer func() { getTransaction = restore }()
 
-		err := p.Visit(block)
+		err := vHalt.Visit(block)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
-		require.NoError(t, pNoStop.Visit(block))
+		require.NoError(t, v.Visit(block))
 	})
 
 	t.Run("GetChaincodeActionPayload error", func(t *testing.T) {
@@ -319,10 +509,10 @@ func TestVisitor_Error(t *testing.T) {
 		getChaincodeActionPayload = func(capBytes []byte) (payload *pb.ChaincodeActionPayload, e error) { return nil, errExpected }
 		defer func() { getChaincodeActionPayload = restore }()
 
-		err := p.Visit(block)
+		err := vHalt.Visit(block)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
-		require.NoError(t, pNoStop.Visit(block))
+		require.NoError(t, v.Visit(block))
 	})
 }
 
@@ -333,7 +523,7 @@ func TestVisitor_NoStopOnError(t *testing.T) {
 	numLSCCWrites := 0
 	numCCEvents := 0
 
-	p := New(channelID, WithNoStopOnError(),
+	p := New(channelID,
 		WithCCEventHandler(func(ccEvent *CCEvent) error {
 			numCCEvents++
 			return expectedErr
