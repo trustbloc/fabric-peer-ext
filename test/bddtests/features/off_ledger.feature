@@ -12,10 +12,14 @@ Feature: off-ledger
     Given the channel "mychannel" is created and all peers have joined
     And the channel "yourchannel" is created and all peers have joined
 
+    # Data in collection1 are purged after 10s
     And off-ledger collection config "ol_coll1" is defined for collection "collection1" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=10s
-    And DCAS collection config "dcas_coll2" is defined for collection "collection2" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=10m
+    # Data in collection2 are never purged
+    And DCAS collection config "dcas_coll2" is defined for collection "collection2" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=
+    # Data in collection3 are purged after 10 blocks of being added
     And collection config "coll3" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=3, and blocksToLive=10
-    And DCAS collection config "dcas_accounts" is defined for collection "accounts" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=30m
+    # Data in accounts are never purged
+    And DCAS collection config "dcas_accounts" is defined for collection "accounts" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=
     And "test" chaincode "ol_examplecc" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_coll2,coll3,dcas_accounts"
     And "test" chaincode "ol_examplecc_2" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts"
     And "test" chaincode "ol_examplecc_2" is instantiated from path "in-process" on the "yourchannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts"

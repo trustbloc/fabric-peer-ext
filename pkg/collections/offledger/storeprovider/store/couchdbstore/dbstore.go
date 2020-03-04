@@ -34,17 +34,9 @@ const (
 )
 
 const (
-	fetchExpiryDataQuery = `
-	{
-		"selector": {
-			"` + expiryField + `": {
-				"$lt": %v
-			}
-		},
-		"fields": [
-			"` + idField + `",
-			"` + revField + `"
-		],
+	fetchExpiryDataQuery = `{
+		"selector": {"$and": [{"` + expiryField + `": {"$gt": 0}},{"` + expiryField + `": {"$lt": %v}}]},
+		"fields": ["` + idField + `","` + revField + `"],
 		"use_index": ["_design/` + expiryIndexDoc + `", "` + expiryIndexName + `"]
 	}`
 )
@@ -148,8 +140,8 @@ func (s *dbstore) DeleteExpiredKeys() error {
 	if err != nil {
 		return err
 	}
+
 	if len(data) == 0 {
-		logger.Debugf("No keys to delete from db")
 		return nil
 	}
 
