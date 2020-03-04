@@ -22,7 +22,9 @@ jobs:
         cp -R pkg/testutil/sampleconfig ${GOPATH}/src/github.com/trustbloc/fabric-peer-ext/pkg/testutil
         make unit-test
       displayName: Run checks and unit test
-    - script: bash <(curl https://codecov.io/bash)
+    - script: bash <(curl https://codecov.io/bash) -t $CODECOV_UPLOAD_TOKEN
+      env:
+        CODECOV_UPLOAD_TOKEN: $(CODECOV_UPLOAD_TOKEN)
       displayName: Upload coverage to Codecov
 
   - job: BDDTest
