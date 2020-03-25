@@ -24,6 +24,7 @@ import (
 	"github.com/hyperledger/fabric/msp"
 	"github.com/pkg/errors"
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/implicitpolicy"
 )
 
 var logger = flogging.MustGetLogger("ext_support")
@@ -39,16 +40,22 @@ type CollectionConfigRetrieverProvider struct {
 	ledgerProvider         ledgerProvider
 	blockPublisherProvider api.BlockPublisherProvider
 	idProvider             collcommon.IdentityDeserializerProvider
+	identifierProvider     collcommon.IdentifierProvider
 }
 
 // NewCollectionConfigRetrieverProvider returns a new CollectionConfigRetrieverProvider
-func NewCollectionConfigRetrieverProvider(ledgerProvider ledgerProvider, blockPublisherProvider api.BlockPublisherProvider, idProvider collcommon.IdentityDeserializerProvider) *CollectionConfigRetrieverProvider {
+func NewCollectionConfigRetrieverProvider(
+	ledgerProvider ledgerProvider,
+	blockPublisherProvider api.BlockPublisherProvider,
+	idProvider collcommon.IdentityDeserializerProvider,
+	identifierProvider collcommon.IdentifierProvider) *CollectionConfigRetrieverProvider {
 	logger.Info("Creating collection config retriever provider")
 	return &CollectionConfigRetrieverProvider{
 		retrievers:             make(map[string]*CollectionConfigRetriever),
 		ledgerProvider:         ledgerProvider,
 		blockPublisherProvider: blockPublisherProvider,
 		idProvider:             idProvider,
+		identifierProvider:     identifierProvider,
 	}
 }
 
@@ -74,6 +81,7 @@ func (rc *CollectionConfigRetrieverProvider) ForChannel(channelID string) suppor
 			rc.ledgerProvider.GetLedger(channelID),
 			rc.blockPublisherProvider.ForChannel(channelID),
 			rc.idProvider.GetIdentityDeserializer(channelID),
+			rc.identifierProvider,
 		)
 		rc.retrievers[channelID] = r
 	}
@@ -92,6 +100,7 @@ type CollectionConfigRetriever struct {
 	channelID            string
 	ledger               peerLedger
 	identityDeserializer msp.IdentityDeserializer
+	identifierProvider   collcommon.IdentifierProvider
 	cache                gcache.Cache
 }
 
@@ -99,11 +108,12 @@ type blockPublisher interface {
 	AddLSCCWriteHandler(handler gossipapi.LSCCWriteHandler)
 }
 
-func newCollectionConfigRetriever(channelID string, ledger peerLedger, blockPublisher blockPublisher, identityDeserializer msp.IdentityDeserializer) *CollectionConfigRetriever {
+func newCollectionConfigRetriever(channelID string, ledger peerLedger, blockPublisher blockPublisher, identityDeserializer msp.IdentityDeserializer, identifierProvider collcommon.IdentifierProvider) *CollectionConfigRetriever {
 	r := &CollectionConfigRetriever{
 		channelID:            channelID,
 		ledger:               ledger,
 		identityDeserializer: identityDeserializer,
+		identifierProvider:   identifierProvider,
 	}
 
 	r.cache = gcache.New(0).Simple().LoaderFunc(
@@ -273,7 +283,12 @@ func (s *CollectionConfigRetriever) loadPolicy(ns string, config *pb.StaticColle
 		return nil, errors.Wrapf(err, "error setting up collection policy %s", config.Name)
 	}
 
-	return colAP, nil
+	localMSP, err := s.identifierProvider.GetIdentifier()
+	if err != nil {
+		return nil, errors.WithMessagef(err, "unable to get local MSP ID")
+	}
+
+	return implicitpolicy.NewResolver(localMSP, colAP), nil
 }
 
 func (s *CollectionConfigRetriever) getCCPBytes(ns string) ([]byte, error) {

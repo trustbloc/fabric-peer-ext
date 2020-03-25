@@ -44,9 +44,14 @@ func TestConfigRetriever(t *testing.T) {
 
 	qe := mocks.NewQueryExecutor().WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes)
 
-	r := newCollectionConfigRetriever(channelID, &mocks.Ledger{
-		QueryExecutor: qe,
-	}, blockPublisher, &mocks.IdentityDeserializer{})
+	r := newCollectionConfigRetriever(
+		channelID, &mocks.Ledger{
+			QueryExecutor: qe,
+		},
+		blockPublisher,
+		&mocks.IdentityDeserializer{},
+		&mocks.IdentifierProvider{},
+	)
 	require.NotNil(t, r)
 
 	t.Run("Policy", func(t *testing.T) {
@@ -120,9 +125,15 @@ func TestConfigRetrieverError(t *testing.T) {
 	blockPublisher := mocks.NewBlockPublisher()
 
 	expectedErr := fmt.Errorf("injected error")
-	r := newCollectionConfigRetriever(channelID, &mocks.Ledger{
-		QueryExecutor: mocks.NewQueryExecutor().WithError(expectedErr),
-	}, blockPublisher, &mocks.IdentityDeserializer{})
+	r := newCollectionConfigRetriever(
+		channelID,
+		&mocks.Ledger{
+			QueryExecutor: mocks.NewQueryExecutor().WithError(expectedErr),
+		},
+		blockPublisher,
+		&mocks.IdentityDeserializer{},
+		&mocks.IdentifierProvider{},
+	)
 	require.NotNil(t, r)
 
 	t.Run("Policy", func(t *testing.T) {
@@ -156,6 +167,7 @@ func TestCollectionConfigRetrieverForChannel(t *testing.T) {
 		&mocks.LedgerProvider{},
 		mocks.NewBlockPublisherProvider(),
 		&mocks.IdentityDeserializerProvider{},
+		&mocks.IdentifierProvider{},
 	)
 	require.NotNil(t, p)
 

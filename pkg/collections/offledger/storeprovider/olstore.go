@@ -21,6 +21,7 @@ import (
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/cache"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/implicitpolicy"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 )
 
@@ -361,7 +362,12 @@ func (s *store) loadPolicy(ns string, config *pb.StaticCollectionConfig) (privda
 		return nil, errors.Wrapf(err, "error setting up collection policy %s", config.Name)
 	}
 
-	return colAP, nil
+	localMSP, err := s.identifierProvider.GetIdentifier()
+	if err != nil {
+		return nil, errors.WithMessagef(err, "unable to get local MSP ID")
+	}
+
+	return implicitpolicy.NewResolver(localMSP, colAP), nil
 }
 
 func (s *store) getExpirationTime(config *pb.StaticCollectionConfig) (time.Time, error) {
