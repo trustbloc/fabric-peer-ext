@@ -137,7 +137,7 @@ func TestDispatchDataRequest(t *testing.T) {
 
 	dispatcher := NewProvider().Initialize(
 		gossipProvider,
-		support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}),
+		support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}, &mocks.IdentifierProvider{}),
 	).ForChannel(
 		channelID,
 		mocks.NewDataStore().TransientData(key1, value1).TransientData(key2, value2).Data(key3, value3).Data(key4, value4),
@@ -358,7 +358,7 @@ func TestDispatchDataResponse(t *testing.T) {
 
 	dispatcher := NewProvider().Initialize(
 		gossipProvider,
-		support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}),
+		support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}, &mocks.IdentifierProvider{}),
 	).ForChannel(
 		channelID,
 		mocks.NewDataStore().TransientData(key1, value1).TransientData(key2, value2),

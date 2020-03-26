@@ -20,9 +20,12 @@ Feature: off-ledger
     And collection config "coll3" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=3, and blocksToLive=10
     # Data in accounts are never purged
     And DCAS collection config "dcas_accounts" is defined for collection "accounts" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=
-    And "test" chaincode "ol_examplecc" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_coll2,coll3,dcas_accounts"
-    And "test" chaincode "ol_examplecc_2" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts"
-    And "test" chaincode "ol_examplecc_2" is instantiated from path "in-process" on the "yourchannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts"
+    # Define an off-ledger collection with implicit policy, which means that data is stored and distributed only within the peer's local org.
+    And off-ledger collection config "ol_implicitColl" is defined for collection "implicitcoll" as policy="OR('IMPLICIT-ORG.member')", requiredPeerCount=0, maxPeerCount=0, and timeToLive=10s
+
+    And "test" chaincode "ol_examplecc" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_coll2,coll3,dcas_accounts,ol_implicitColl"
+    And "test" chaincode "ol_examplecc_2" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts,ol_implicitColl"
+    And "test" chaincode "ol_examplecc_2" is instantiated from path "in-process" on the "yourchannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts,ol_implicitColl"
 
     Then we wait 10 seconds
 
@@ -92,7 +95,7 @@ Feature: off-ledger
     #   then all caches should be refreshed.
     Given off-ledger collection config "ol_coll1_upgrade" is defined for collection "collection1" as policy="OR('Org1MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
     And DCAS collection config "dcas_coll2_upgrade" is defined for collection "collection2" as policy="OR('Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
-    And "test" chaincode "ol_examplecc" is upgraded with version "v1.0.1" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1_upgrade,dcas_coll2_upgrade,coll3,dcas_accounts"
+    And "test" chaincode "ol_examplecc" is upgraded with version "v1.0.1" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1_upgrade,dcas_coll2_upgrade,coll3,dcas_accounts,ol_implicitColl"
     Then we wait 20 seconds
 
     # Put the data to org2 - the data should be disseminated to org1
@@ -153,3 +156,14 @@ Feature: off-ledger
     Then the variable "account_operations" contains 2 accounts
     And the variable "account_operations" contains an account at index 0 with Key "${tim_account_key}", ID "456456", Owner "Tim Jones", and Balance 1000
     And the variable "account_operations" contains an account at index 1 with Key "${tim_account_update_key}", ID "456456", Owner "Tim Jones", and Balance 2000
+
+  @off_ledger_s3
+  Scenario: Test for off-ledger collections with implicit policy, i.e. data is stored and distributed only within the peer's local org.
+    When client queries chaincode "ol_examplecc" with args "putprivate,implicitcoll,key1,org1value" on a single peer in the "peerorg1" org on the "mychannel" channel
+    And client queries chaincode "ol_examplecc" with args "putprivate,implicitcoll,key1,org2value" on a single peer in the "peerorg2" org on the "mychannel" channel
+
+    When client queries chaincode "ol_examplecc" with args "getprivate,implicitcoll,key1" on peers "peer0.org1.example.com,peer1.org1.example.com" on the "mychannel" channel
+    Then response from "ol_examplecc" to client equal value "org1value"
+
+    When client queries chaincode "ol_examplecc" with args "getprivate,implicitcoll,key1" on peers "peer0.org2.example.com,peer1.org2.example.com" on the "mychannel" channel
+    Then response from "ol_examplecc" to client equal value "org2value"

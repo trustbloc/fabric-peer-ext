@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/implicitpolicy"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
@@ -223,6 +224,11 @@ func TestDisseminator_ResolvePeersForRetrieval(t *testing.T) {
 func TestComputeDisseminationPlan(t *testing.T) {
 	channelID := "testchannel"
 
+	ip := &mocks.IdentifierProvider{}
+	ip.GetIdentifierReturns(org1MSPID, nil)
+
+	LocalMSPProvider.Initialize(ip)
+
 	p1Org1 := mocks.NewMember(p1Org1Endpoint, p1Org1PKIID, committerRole)
 	p2Org1 := mocks.NewMember(p2Org1Endpoint, p2Org1PKIID, endorserRole)
 	p3Org1 := mocks.NewMember(p3Org1Endpoint, p3Org1PKIID, committerRole)
@@ -263,6 +269,52 @@ func TestComputeDisseminationPlan(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, handled)
 		assert.NotNil(t, dPlan)
+	})
+
+	t.Run("Implicit policy", func(t *testing.T) {
+		colAP := &mocks.MockAccessPolicy{
+			ReqPeerCount: 1,
+			MaxPeerCount: 2,
+			Orgs:         []string{implicitpolicy.ImplicitOrg},
+		}
+
+		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
+			Write(key1, []byte("value1")).
+			Delete(key2).
+			Build()
+		colConfig := &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_OFFLEDGER,
+		}
+
+		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colConfig, colAP, nil, gossip)
+		assert.NoError(t, err)
+		assert.True(t, handled)
+		assert.NotNil(t, dPlan)
+	})
+
+	t.Run("Implicit policy error", func(t *testing.T) {
+		errExpected := errors.New("injected identifier error")
+		ip.GetIdentifierReturns("", errExpected)
+		defer func() { ip.GetIdentifierReturns(org1MSPID, nil) }()
+
+		colAP := &mocks.MockAccessPolicy{
+			ReqPeerCount: 1,
+			MaxPeerCount: 2,
+			Orgs:         []string{implicitpolicy.ImplicitOrg},
+		}
+
+		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
+			Write(key1, []byte("value1")).
+			Delete(key2).
+			Build()
+		colConfig := &pb.StaticCollectionConfig{
+			Type: pb.CollectionType_COL_OFFLEDGER,
+		}
+
+		dPlan, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colConfig, colAP, nil, gossip)
+		require.EqualError(t, err, errExpected.Error())
+		require.True(t, handled)
+		require.Nil(t, dPlan)
 	})
 
 	t.Run("Invalid CAS Key", func(t *testing.T) {

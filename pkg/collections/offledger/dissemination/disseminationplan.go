@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 	viper "github.com/spf13/viper2015"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/implicitpolicy"
 )
 
 type gossipAdapter interface {
@@ -44,11 +45,17 @@ func ComputeDisseminationPlan(
 		return nil, true, errors.WithMessage(err, "error unmarshalling KV read/write set")
 	}
 
-	if err := validateAll(collConfig.Type, kvRwSet); err != nil {
+	err = validateAll(collConfig.Type, kvRwSet)
+	if err != nil {
 		return nil, true, errors.WithMessagef(err, "one or more keys did not validate for collection [%s:%s]", ns, rwSet.CollectionName)
 	}
 
-	peers := New(channelID, ns, rwSet.CollectionName, colAP, gossipAdapter).resolvePeersForDissemination().Remote()
+	localMSP, err := LocalMSPProvider.LocalMSP()
+	if err != nil {
+		return nil, true, err
+	}
+
+	peers := New(channelID, ns, rwSet.CollectionName, implicitpolicy.NewResolver(localMSP, colAP), gossipAdapter).resolvePeersForDissemination().Remote()
 
 	logger.Debugf("Peers for dissemination of collection [%s:%s]: %s", ns, rwSet.CollectionName, peers)
 

@@ -11,6 +11,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/ucc"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/client"
 	dcasclient "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas/client"
+	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dissemination"
 	extretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/retriever"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/storeprovider"
 	tretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/retriever"
@@ -47,6 +48,7 @@ func registerResources() {
 	resource.Register(configvalidator.NewRegistry)
 	resource.Register(newConfig)
 	resource.Register(txn.NewProvider)
+	resource.Register(dissemination.LocalMSPProvider.Initialize)
 }
 
 func registerChaincodes() {

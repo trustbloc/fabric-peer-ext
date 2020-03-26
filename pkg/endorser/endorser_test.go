@@ -80,7 +80,7 @@ func TestFilterPubSimulationResults(t *testing.T) {
 	lp.GetLedgerReturns(&mocks.Ledger{
 		QueryExecutor: newMockQueryExecutor(pvtBuilder.BuildCollectionConfigs()),
 	})
-	f := NewCollRWSetFilter().Initialize(support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}))
+	f := NewCollRWSetFilter().Initialize(support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}, &mocks.IdentifierProvider{}))
 
 	filteredResults, err := f.Filter(channelID, results)
 	assert.NoError(t, err)
@@ -114,7 +114,7 @@ func TestFilterPubSimulationResults_NoCollections(t *testing.T) {
 		QueryExecutor: newMockQueryExecutor(pvtBuilder.BuildCollectionConfigs()),
 	})
 
-	f := NewCollRWSetFilter().Initialize(support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}))
+	f := NewCollRWSetFilter().Initialize(support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}, &mocks.IdentifierProvider{}))
 	filteredResults, err := f.Filter(channelID, results)
 	assert.NoError(t, err)
 	assert.Equal(t, results, filteredResults)
