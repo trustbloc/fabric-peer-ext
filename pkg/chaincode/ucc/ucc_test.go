@@ -135,10 +135,10 @@ func newTestCC2V211() *testCC {
 	}
 }
 
-func (cc *testCC) Name() string                                { return cc.name }
-func (cc *testCC) Version() string                             { return cc.version }
-func (cc *testCC) Chaincode() shim.Chaincode                   { return cc }
-func (cc *testCC) GetDBArtifacts() map[string]*api.DBArtifacts { return nil }
+func (cc *testCC) Name() string                                        { return cc.name }
+func (cc *testCC) Version() string                                     { return cc.version }
+func (cc *testCC) Chaincode() shim.Chaincode                           { return cc }
+func (cc *testCC) GetDBArtifacts([]string) map[string]*api.DBArtifacts { return nil }
 
 func (cc *testCC) ChannelJoined(channelID string) {
 	cc.mutex.Lock()
