@@ -73,8 +73,22 @@ func (cc *ExampleCC) Version() string { return v1 }
 func (cc *ExampleCC) Chaincode() shim.Chaincode { return cc }
 
 // GetDBArtifacts returns Couch DB indexes (if applicable)
-func (cc *ExampleCC) GetDBArtifacts() map[string]*ccapi.DBArtifacts {
-	return cc.dbArtifacts
+func (cc *ExampleCC) GetDBArtifacts(collNames []string) map[string]*ccapi.DBArtifacts {
+	dbArtifacts := make(map[string]*ccapi.DBArtifacts)
+
+	for dbName, artifactsForDB := range cc.dbArtifacts {
+		collIndexes := make(map[string][]string)
+		for _, collName := range collNames {
+			collIndexes[collName] = artifactsForDB.CollectionIndexes[collName]
+		}
+
+		dbArtifacts[dbName] = &ccapi.DBArtifacts{
+			Indexes:           artifactsForDB.Indexes,
+			CollectionIndexes: collIndexes,
+		}
+	}
+
+	return dbArtifacts
 }
 
 // Init is not used

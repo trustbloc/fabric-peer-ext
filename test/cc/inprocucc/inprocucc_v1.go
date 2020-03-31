@@ -40,7 +40,7 @@ func (cc *V1) Version() string { return v1 }
 func (cc *V1) Chaincode() shim.Chaincode { return cc }
 
 // GetDBArtifacts returns DB artifacts. For this chaincode there are no artifacts.
-func (cc *V1) GetDBArtifacts() map[string]*ccapi.DBArtifacts { return nil }
+func (cc *V1) GetDBArtifacts([]string) map[string]*ccapi.DBArtifacts { return nil }
 
 // Init will be deprecated in a future Fabric release
 func (cc *V1) Init(stub shim.ChaincodeStubInterface) pb.Response {
