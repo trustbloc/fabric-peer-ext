@@ -48,10 +48,10 @@ func (d *Disseminator) resolvePeersForDissemination() discovery.PeerGroup {
 	logger.Debugf("maxPeerCount: %d, Roles: %s", maxPeerCount, d.Self().Roles())
 	if maxPeerCount == 0 && !d.Self().HasRole(roles.CommitterRole) {
 		logger.Debugf("[%s] MaximumPeerCount is 0 and I am not a committer. Getting a random peer for dissemination from orgs %s", d.ChannelID(), orgs)
-		committers = getRandomPeers(d.getPeersWithRole(roles.CommitterRole, orgs), 1)
+		committers = getRandomPeers(d.getPeersWithRole(roles.CommitterRole, orgs).Remote(), 1)
 	} else {
 		logger.Debugf("[%s] Getting %d random peer(s) with the 'committer' role for dissemination from orgs %s", d.ChannelID(), maxPeerCount, orgs)
-		committers = getRandomPeers(d.getPeersWithRole(roles.CommitterRole, orgs), maxPeerCount)
+		committers = getRandomPeers(d.getPeersWithRole(roles.CommitterRole, orgs).Remote(), maxPeerCount)
 	}
 
 	if len(committers) < maxPeerCount {

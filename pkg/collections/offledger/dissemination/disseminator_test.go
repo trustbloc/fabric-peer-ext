@@ -88,19 +88,26 @@ func TestDisseminator_ResolvePeersForDissemination(t *testing.T) {
 		d := New(channelID, ns1, coll1,
 			&mocks.MockAccessPolicy{
 				ReqPeerCount: 1,
-				MaxPeerCount: 4,
+				MaxPeerCount: 3,
 				Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
 			}, gossip)
 
 		peers := d.resolvePeersForDissemination()
-		require.Equal(t, 4, len(peers))
+		require.Equal(t, 3, len(peers))
 
 		peersStr := peers.String()
 
-		assert.Contains(t, peersStr, p1Org1Endpoint)
 		assert.Contains(t, peersStr, p2Org1Endpoint)
 		assert.Contains(t, peersStr, p2Org2Endpoint)
 		assert.Contains(t, peersStr, p2Org3Endpoint)
+
+		var numCommitters int
+		for _, p := range peers {
+			if p.HasRole(roles.CommitterRole) {
+				numCommitters++
+			}
+		}
+		assert.Equal(t, 3, numCommitters)
 	})
 
 	t.Run("Not enough committers", func(t *testing.T) {
@@ -120,7 +127,7 @@ func TestDisseminator_ResolvePeersForDissemination(t *testing.T) {
 				numCommitters++
 			}
 		}
-		assert.Equal(t, 4, numCommitters)
+		assert.Equal(t, 3, numCommitters)
 		assert.NotContains(t, peers.String(), "org4")
 	})
 
@@ -133,7 +140,7 @@ func TestDisseminator_ResolvePeersForDissemination(t *testing.T) {
 			}, gossip)
 
 		peers := d.resolvePeersForDissemination()
-		require.Equal(t, 9, len(peers))
+		require.Equal(t, 8, len(peers))
 		assert.NotContains(t, peers.String(), "org4")
 	})
 
