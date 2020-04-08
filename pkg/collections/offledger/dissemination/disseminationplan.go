@@ -55,7 +55,7 @@ func ComputeDisseminationPlan(
 		return nil, true, err
 	}
 
-	peers := New(channelID, ns, rwSet.CollectionName, implicitpolicy.NewResolver(localMSP, colAP), gossipAdapter).resolvePeersForDissemination().Remote()
+	peers := New(channelID, ns, rwSet.CollectionName, implicitpolicy.NewResolver(localMSP, colAP), gossipAdapter).resolvePeersForDissemination()
 
 	logger.Debugf("Peers for dissemination of collection [%s:%s]: %s", ns, rwSet.CollectionName, peers)
 
