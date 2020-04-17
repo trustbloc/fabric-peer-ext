@@ -444,6 +444,7 @@ func (p *txEvent) visitChaincodeActionEvents(chaincodeAction *pb.ChaincodeAction
 	ccEvent := &CCEvent{
 		BlockNum: p.blockNum,
 		TxID:     p.txID,
+		TxNum:    p.txNum,
 		Event:    evt,
 	}
 
@@ -503,6 +504,7 @@ func (p *txEvent) publishLSCCWrite(writes []*kvrwset.KVWrite) error {
 	lsccWrite := &LSCCWrite{
 		BlockNum: p.blockNum,
 		TxID:     p.txID,
+		TxNum:    p.txNum,
 		CCID:     ccID,
 		CCData:   ccData,
 		CCP:      ccp,
@@ -522,6 +524,7 @@ func (p *txEvent) publishReads(ns string, reads []*kvrwset.KVRead) error {
 		read := &Read{
 			BlockNum:  p.blockNum,
 			TxID:      p.txID,
+			TxNum:     p.txNum,
 			Namespace: ns,
 			Read:      r,
 		}
@@ -543,6 +546,7 @@ func (p *txEvent) publishWrites(ns string, writes []*kvrwset.KVWrite) error {
 		write := &Write{
 			BlockNum:  p.blockNum,
 			TxID:      p.txID,
+			TxNum:     p.txNum,
 			Namespace: ns,
 			Write:     w,
 		}

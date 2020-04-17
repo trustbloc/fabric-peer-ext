@@ -28,6 +28,8 @@ const (
 	txID1 = "tx1"
 	txID2 = "tx2"
 	txID3 = "tx3"
+	txID4 = "tx4"
+	txID5 = "tx5"
 
 	ccID1 = "cc1"
 	ccID2 = "cc2"
@@ -51,26 +53,26 @@ func TestVisitor_HandleEndorsementEvents(t *testing.T) {
 	})
 
 	t.Run("With handlers", func(t *testing.T) {
-		numReads := 0
-		numWrites := 0
-		numLSCCWrites := 0
-		numCCEvents := 0
+		var ccEvents []*CCEvent
+		var reads []*Read
+		var writes []*Write
+		var lsccWrites []*LSCCWrite
 
 		p := New(channelID,
 			WithCCEventHandler(func(ccEvent *CCEvent) error {
-				numCCEvents++
+				ccEvents = append(ccEvents, ccEvent)
 				return nil
 			}),
 			WithReadHandler(func(read *Read) error {
-				numReads++
+				reads = append(reads, read)
 				return nil
 			}),
 			WithWriteHandler(func(write *Write) error {
-				numWrites++
+				writes = append(writes, write)
 				return nil
 			}),
 			WithLSCCWriteHandler(func(lsccWrite *LSCCWrite) error {
-				numLSCCWrites++
+				lsccWrites = append(lsccWrites, lsccWrite)
 				return nil
 			}),
 		)
@@ -78,11 +80,37 @@ func TestVisitor_HandleEndorsementEvents(t *testing.T) {
 		require.Equal(t, channelID, p.ChannelID())
 
 		require.NoError(t, p.Visit(block))
-		assert.Equal(t, 2, numReads)
-		assert.Equal(t, 5, numWrites)
-		assert.Equal(t, 2, numCCEvents)
-		assert.Equal(t, 2, numLSCCWrites)
 		assert.EqualValues(t, 1101, p.LedgerHeight())
+
+		require.Len(t, ccEvents, 2)
+		assert.Equal(t, uint64(0), ccEvents[0].TxNum)
+		assert.Equal(t, txID1, ccEvents[0].TxID)
+		assert.Equal(t, uint64(4), ccEvents[1].TxNum)
+		assert.Equal(t, txID5, ccEvents[1].TxID)
+
+		require.Len(t, reads, 2)
+		assert.Equal(t, uint64(0), reads[0].TxNum)
+		assert.Equal(t, txID1, reads[0].TxID)
+		assert.Equal(t, uint64(0), reads[1].TxNum)
+		assert.Equal(t, txID1, reads[1].TxID)
+
+		require.Len(t, writes, 5)
+		assert.Equal(t, uint64(0), writes[0].TxNum)
+		assert.Equal(t, txID1, writes[0].TxID)
+		assert.Equal(t, uint64(0), writes[1].TxNum)
+		assert.Equal(t, txID1, writes[1].TxID)
+		assert.Equal(t, uint64(1), writes[2].TxNum)
+		assert.Equal(t, txID2, writes[2].TxID)
+		assert.Equal(t, uint64(1), writes[3].TxNum)
+		assert.Equal(t, txID2, writes[3].TxID)
+		assert.Equal(t, uint64(1), writes[4].TxNum)
+		assert.Equal(t, txID2, writes[4].TxID)
+
+		require.Len(t, lsccWrites, 2)
+		assert.Equal(t, uint64(3), lsccWrites[0].TxNum)
+		assert.Equal(t, txID4, lsccWrites[0].TxID)
+		assert.Equal(t, uint64(4), lsccWrites[1].TxNum)
+		assert.Equal(t, txID5, lsccWrites[1].TxID)
 	})
 }
 
@@ -647,11 +675,11 @@ func mockBlockWithTransactions(t *testing.T) *cb.Block {
 	ccDataBytes, err := proto.Marshal(ccData)
 	require.NoError(t, err)
 
-	b.Transaction(txID1, pb.TxValidationCode_VALID).
+	b.Transaction(txID4, pb.TxValidationCode_VALID).
 		ChaincodeAction(LsccID).
 		Write(ccID1, ccDataBytes)
 
-	tb4 := b.Transaction(txID2, pb.TxValidationCode_VALID)
+	tb4 := b.Transaction(txID5, pb.TxValidationCode_VALID)
 	tb4.ChaincodeAction(LsccID).
 		Write(ccID1, ccDataBytes).
 		ChaincodeEvent(ccEvent1, nil)
