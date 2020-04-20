@@ -11,18 +11,20 @@ import (
 	"github.com/hyperledger/fabric-protos-go/common"
 	proto "github.com/hyperledger/fabric-protos-go/gossip"
 	"github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric/common/flogging"
 	ledgerUtil "github.com/hyperledger/fabric/core/ledger/util"
-	"github.com/hyperledger/fabric/extensions/gossip/api"
-	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
-	"github.com/hyperledger/fabric/extensions/roles"
 	common2 "github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/gossip/discovery"
 	"github.com/hyperledger/fabric/gossip/protoext"
 	"github.com/hyperledger/fabric/gossip/util"
 	"github.com/pkg/errors"
+
+	"github.com/hyperledger/fabric/extensions/gossip/api"
+	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
+	"github.com/hyperledger/fabric/extensions/roles"
 )
 
-var logger = util.GetLogger(util.StateLogger, "")
+var logger = flogging.MustGetLogger("ext_gossip_state")
 
 //GossipStateProviderExtension extends GossipStateProvider features
 type GossipStateProviderExtension interface {
@@ -98,8 +100,27 @@ func (s *gossipStateProviderExtension) Predicate(handle func(peer discovery.Netw
 }
 
 func (s *gossipStateProviderExtension) AddPayload(handle func(payload *proto.Payload, blockingMode bool) error) func(payload *proto.Payload, blockingMode bool) error {
+	return func(payload *proto.Payload, blockingMode bool) error {
+		logger.Debugf("[%s] Got payload for sequence [%d]", s.chainID, payload.SeqNum)
 
-	return handle
+		block := &common.Block{}
+		if err := pb.Unmarshal(payload.Data, block); err != nil {
+			return errors.WithMessagef(err, "error unmarshalling block with seqNum %d", payload.SeqNum)
+		}
+
+		if block.Data == nil || block.Header == nil {
+			return errors.Errorf("block with sequence %d has no header (%v) or data (%v)", payload.SeqNum, block.Header, block.Data)
+		}
+
+		if !roles.IsCommitter() && !isBlockValidated(block) {
+			logger.Debugf("[%s] I'm not a committer so will not add payload for unvalidated block [%d]", s.chainID, block.Header.Number)
+			return nil
+		}
+
+		logger.Debugf("[%s] Adding payload for sequence [%d]", s.chainID, payload.SeqNum)
+
+		return handle(payload, blockingMode)
+	}
 }
 
 func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Block, pvtData util.PvtDataCollections) error) func(block *common.Block, pvtData util.PvtDataCollections) error {
@@ -127,6 +148,9 @@ func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Bloc
 			blockpublisher.ForChannel(s.chainID).Publish(block)
 			return nil
 		}
+
+		logger.Warnf("[%s] I'm not a committer but received an unvalidated block [%d]", s.chainID, block.Header.Number)
+
 		return nil
 	}
 }
@@ -135,7 +159,8 @@ func (s *gossipStateProviderExtension) gossipBlock(block *common.Block) {
 	blockNum := block.Header.Number
 
 	if err := s.mediator.VerifyBlock(common2.ChannelID(s.chainID), blockNum, block); err != nil {
-		logger.Errorf("[%s] Error verifying block with sequnce number %d, due to %s", s.chainID, blockNum, err)
+		logger.Errorf("[%s] Error verifying block with sequence number %d, due to %s", s.chainID, blockNum, err)
+		return
 	}
 
 	numberOfPeers := len(s.mediator.PeersOfChannel(common2.ChannelID(s.chainID)))
@@ -143,6 +168,7 @@ func (s *gossipStateProviderExtension) gossipBlock(block *common.Block) {
 	marshaledBlock, err := pb.Marshal(block)
 	if err != nil {
 		logger.Errorf("[%s] Error serializing block with sequence number %d, due to %s", s.chainID, blockNum, err)
+		return
 	}
 
 	// Create payload with a block received
@@ -171,12 +197,18 @@ func (s *gossipStateProviderExtension) RequestBlocksInRange(handle func(start ui
 	if roles.IsCommitter() {
 		return handle
 	}
+
 	return func(start uint64, end uint64) {
+		logger.Debugf("[%s] Loading blocks in range [%d:%d]", s.chainID, start, end)
+
 		payloads, err := s.loadBlocksInRange(start, end)
 		if err != nil {
 			logger.Errorf("Error loading blocks for channel [%s]: %s", s.chainID, err)
+			return
 		}
 		for _, payload := range payloads {
+			logger.Debugf("[%s] Adding payload for block [%d]", s.chainID, payload.SeqNum)
+
 			if err := addPayload(payload, s.blockingMode); err != nil {
 				logger.Errorf("Error adding payloads for channel [%s]: %s", s.chainID, err)
 				continue

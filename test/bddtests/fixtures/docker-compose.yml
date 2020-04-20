@@ -45,7 +45,7 @@ services:
     environment:
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
       - CORE_PEER_ID=peer0.org1.example.com
-      - FABRIC_LOGGING_SPEC=comm.grpc.server=error:cauthdsl=warn:gossip=warn:grpc=warn:ledger=info:msp=warn:policies=warn:peer.gossip=warn:info
+      - FABRIC_LOGGING_SPEC=comm.grpc.server=error:cauthdsl=warn:gossip=warn:grpc=warn:ledger=info:msp=warn:policies=warn:peer.gossip=warn:ext_gossip=debug:ext_blockvisitor=debug:info
       ## the following setting redirects chaincode container logs to the peer container logs
       - CORE_VM_DOCKER_ATTACHSTDOUT=true
       - CORE_PEER_LOCALMSPID=Org1MSP
@@ -105,7 +105,7 @@ services:
     environment:
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
       - CORE_PEER_ID=peer1.org1.example.com
-      - FABRIC_LOGGING_SPEC=comm.grpc.server=error:cauthdsl=warn:gossip=warn:grpc=warn:ledger=info:msp=warn:policies=warn:peer.gossip=warn:info
+      - FABRIC_LOGGING_SPEC=comm.grpc.server=error:cauthdsl=warn:gossip=warn:grpc=warn:ledger=info:msp=warn:policies=warn:peer.gossip=warn:ext_gossip=debug:ext_blockvisitor=debug:info
       ## the following setting redirects chaincode container logs to the peer container logs
       - CORE_VM_DOCKER_ATTACHSTDOUT=true
       - CORE_PEER_LOCALMSPID=Org1MSP
@@ -166,7 +166,7 @@ services:
     environment:
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
       - CORE_PEER_ID=peer0.org2.example.com
-      - FABRIC_LOGGING_SPEC=comm.grpc.server=error:cauthdsl=warn:gossip=warn:grpc=warn:ledger=info:msp=warn:policies=warn:peer.gossip=warn:info
+      - FABRIC_LOGGING_SPEC=comm.grpc.server=error:cauthdsl=warn:gossip=warn:grpc=warn:ledger=info:msp=warn:policies=warn:peer.gossip=warn:ext_gossip=debug:ext_blockvisitor=debug:info
       ## the following setting redirects chaincode container logs to the peer container logs
       - CORE_VM_DOCKER_ATTACHSTDOUT=true
       - CORE_PEER_LOCALMSPID=Org2MSP
@@ -225,7 +225,7 @@ services:
     environment:
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
       - CORE_PEER_ID=peer1.org2.example.com
-      - FABRIC_LOGGING_SPEC=comm.grpc.server=error:cauthdsl=warn:gossip=warn:grpc=warn:ledger=info:msp=warn:policies=warn:peer.gossip=warn:info
+      - FABRIC_LOGGING_SPEC=comm.grpc.server=error:cauthdsl=warn:gossip=warn:grpc=warn:ledger=info:msp=warn:policies=warn:peer.gossip=warn:ext_gossip=debug:ext_blockvisitor=debug:info
       ## the following setting redirects chaincode container logs to the peer container logs
       - CORE_VM_DOCKER_ATTACHSTDOUT=true
       - CORE_PEER_LOCALMSPID=Org2MSP
