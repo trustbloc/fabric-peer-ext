@@ -9,25 +9,21 @@ package state
 import (
 	"testing"
 
-	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
-
-	"github.com/hyperledger/fabric/extensions/gossip/api"
-
-	"github.com/hyperledger/fabric/gossip/protoext"
-
-	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
-
-	"github.com/pkg/errors"
-
 	"github.com/hyperledger/fabric-protos-go/common"
 	proto "github.com/hyperledger/fabric-protos-go/gossip"
 	"github.com/hyperledger/fabric/gossip/discovery"
+	"github.com/hyperledger/fabric/gossip/protoext"
 	"github.com/hyperledger/fabric/gossip/util"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hyperledger/fabric/extensions/gossip/api"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
+	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
 func TestProviderExtension(t *testing.T) {
-
 	//all roles
 	rolesValue := make(map[roles.Role]struct{})
 	roles.SetRoles(rolesValue)
@@ -45,8 +41,12 @@ func TestProviderExtension(t *testing.T) {
 
 	extension := NewGossipStateProviderExtension("test", nil, &api.Support{}, false)
 
+	payload := &proto.Payload{
+		SeqNum: 1000,
+	}
+
 	//test extension.AddPayload
-	require.Error(t, sampleError, extension.AddPayload(handleAddPayload)(nil, false))
+	require.Error(t, sampleError, extension.AddPayload(handleAddPayload)(payload, false))
 
 	//test extension.StoreBlock
 	require.Error(t, sampleError, extension.StoreBlock(handleStoreBlock)(nil, util.PvtDataCollections{}))
@@ -116,11 +116,21 @@ func TestProviderByEndorser(t *testing.T) {
 		Ledger: &mockPeerLedger{&mocks.Ledger{}},
 	}, false)
 
+	payload := &proto.Payload{
+		SeqNum: 1000,
+	}
+
+	block := &common.Block{
+		Header: &common.BlockHeader{
+			Number: 1000,
+		},
+	}
+
 	//test extension.AddPayload
-	require.Error(t, sampleError, extension.AddPayload(handleAddPayload)(nil, false))
+	require.Error(t, sampleError, extension.AddPayload(handleAddPayload)(payload, false))
 
 	//test extension.StoreBlock
-	require.Nil(t, extension.StoreBlock(handleStoreBlock)(nil, util.PvtDataCollections{}))
+	require.Nil(t, extension.StoreBlock(handleStoreBlock)(block, util.PvtDataCollections{}))
 
 	//test extension.AntiEntropy
 	handled := make(chan bool, 1)
@@ -196,8 +206,12 @@ func TestProviderByCommitter(t *testing.T) {
 
 	extension := NewGossipStateProviderExtension("test", nil, &api.Support{}, false)
 
+	payload := &proto.Payload{
+		SeqNum: 1000,
+	}
+
 	//test extension.AddPayload
-	require.Error(t, sampleError, extension.AddPayload(handleAddPayload)(nil, false))
+	require.Error(t, sampleError, extension.AddPayload(handleAddPayload)(payload, false))
 
 	//test extension.StoreBlock
 	require.Error(t, sampleError, extension.StoreBlock(handleStoreBlock)(nil, util.PvtDataCollections{}))
