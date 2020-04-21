@@ -686,3 +686,10 @@ func mockBlockWithTransactions(t *testing.T) *cb.Block {
 
 	return b.Build()
 }
+
+func TestVisitorError_Cause(t *testing.T) {
+	cause := errors.New("cause of the error")
+	err := newVisitorError(cause)
+	require.NotNil(t, err)
+	require.Equal(t, cause, errors.Cause(err))
+}

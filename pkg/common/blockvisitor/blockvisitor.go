@@ -698,6 +698,10 @@ func (e visitorError) Error() string {
 	return e.cause.Error()
 }
 
+func (e visitorError) Cause() error {
+	return e.cause
+}
+
 // haltOnError returns true if the error was handled by an error handler
 // and processing should halt because of the error
 func haltOnError(err error) bool {
