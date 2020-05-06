@@ -20,13 +20,13 @@ require (
 	go.uber.org/zap v1.10.0
 )
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.3-0.20200420201434-ba9a41234a50
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.3
 
 replace github.com/hyperledger/fabric/extensions => ./mod/peer
 
 replace github.com/trustbloc/fabric-peer-ext => ./
 
-replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.1.2
+replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.1.3
 
 replace github.com/spf13/viper2015 => github.com/spf13/viper v0.0.0-20150908122457-1967d93db724
 
