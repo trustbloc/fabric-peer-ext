@@ -80,6 +80,11 @@ func IsValidator() bool {
 	return HasRole(ValidatorRole)
 }
 
+// IsClustered returns true if we're running in clustered mode
+func IsClustered() bool {
+	return (IsCommitter() && !IsEndorser()) || (IsEndorser() && !IsCommitter())
+}
+
 // GetRoles returns the roles for the peer
 func GetRoles() []Role {
 	var ret []Role

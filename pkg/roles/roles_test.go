@@ -58,6 +58,7 @@ func TestLocalRoles(t *testing.T) {
 	require.True(t, IsEndorser())
 	require.True(t, IsValidator())
 	require.False(t, HasRole("newRole"))
+	require.False(t, IsClustered())
 
 	testRole = "committer,endorser,validator"
 	viper.Set(confRoles, testRole)
@@ -67,6 +68,7 @@ func TestLocalRoles(t *testing.T) {
 	require.True(t, IsValidator())
 	require.Equal(t, len(GetRoles()), 3)
 	require.Equal(t, len(AsString()), 3)
+	require.False(t, IsClustered())
 
 	testRole = "CoMMiTTER,  ENDORSER,   validator"
 	viper.Set(confRoles, testRole)
@@ -74,6 +76,7 @@ func TestLocalRoles(t *testing.T) {
 	require.True(t, IsCommitter())
 	require.True(t, IsEndorser())
 	require.True(t, IsValidator())
+	require.False(t, IsClustered())
 
 	testRole = "committer,endorser"
 	viper.Set(confRoles, testRole)
@@ -81,5 +84,13 @@ func TestLocalRoles(t *testing.T) {
 	require.True(t, IsCommitter())
 	require.True(t, IsEndorser())
 	require.False(t, IsValidator())
+	require.False(t, IsClustered())
 
+	testRole = "endorser"
+	viper.Set(confRoles, testRole)
+	roles = initRoles()
+	require.False(t, IsCommitter())
+	require.True(t, IsEndorser())
+	require.False(t, IsValidator())
+	require.True(t, IsClustered())
 }
