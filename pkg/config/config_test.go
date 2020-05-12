@@ -144,6 +144,17 @@ func TestGetOLCollMaxPeersForRetrieval(t *testing.T) {
 	assert.Equal(t, 7, GetOLCollMaxPeersForRetrieval())
 }
 
+func TestGetOLCollMaxRetrievalAttempts(t *testing.T) {
+	oldVal := viper.Get(confOLCollMaxRetrievalAttempts)
+	defer viper.Set(confOLCollMaxRetrievalAttempts, oldVal)
+
+	viper.Set(confOLCollMaxRetrievalAttempts, "")
+	assert.Equal(t, defaultOLCollMaxRetrievalAttempts, GetOLCollMaxRetrievalAttempts())
+
+	viper.Set(confOLCollMaxRetrievalAttempts, 7)
+	assert.Equal(t, 7, GetOLCollMaxRetrievalAttempts())
+}
+
 func TestGetOLCollPullTimeout(t *testing.T) {
 	oldVal := viper.Get(confOLCollPullTimeout)
 	defer viper.Set(confOLCollPullTimeout, oldVal)

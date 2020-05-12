@@ -71,40 +71,82 @@ func (d *Disseminator) resolvePeersForDissemination() discovery.PeerGroup {
 	return committers
 }
 
+// PeerFilter returns true if the given member should be included
+type PeerFilter func(*discovery.Member) bool
+
 // ResolvePeersForRetrieval resolves to a set of peers from which data should may be retrieved
-func (d *Disseminator) ResolvePeersForRetrieval() discovery.PeerGroup {
-	orgs := d.policy.MemberOrgs()
+func (d *Disseminator) ResolvePeersForRetrieval(includePeer PeerFilter) discovery.PeerGroup {
+	orgs := d.resolveOrgsForRetrieval()
 
-	logger.Debugf("[%s] Member orgs: %s", d.ChannelID(), orgs)
+	logger.Debugf("[%s] Retrieving peers for orgs: %s", d.ChannelID(), orgs)
 
-	// Maximum number of peers to ask for the data
+	// Maximum number of peer to ask for the data
 	maxPeers := getMaxPeersForRetrieval()
 
 	var peersForRetrieval discovery.PeerGroup
-	for _, peer := range d.getPeersWithRole(roles.EndorserRole, orgs).Remote().Shuffle() {
-		if len(peersForRetrieval) >= maxPeers {
-			// We have enough peers
-			break
-		}
-		logger.Debugf("Adding endorser [%s] ...", peer)
-		peersForRetrieval = append(peersForRetrieval, peer)
-	}
+
+	// First use endorsers
+	peersForRetrieval = append(peersForRetrieval,
+		d.filterPeers(d.getPeersWithRole(roles.EndorserRole, orgs).Remote().Shuffle(), includePeer, maxPeers)...,
+	)
 
 	if len(peersForRetrieval) < maxPeers {
-		// Add some committers too
-		for _, peer := range d.getPeersWithRole(roles.CommitterRole, orgs).Remote().Shuffle() {
-			if len(peersForRetrieval) >= maxPeers {
-				// We have enough peers
-				break
-			}
-			logger.Debugf("Adding committer [%s] ...", peer)
-			peersForRetrieval = append(peersForRetrieval, peer)
-		}
+		// We don't have enough peers. Add some committers.
+		peersForRetrieval = append(peersForRetrieval,
+			d.filterPeers(d.getPeersWithRole(roles.CommitterRole, orgs).Remote().Shuffle(), includePeer, maxPeers-len(peersForRetrieval))...,
+		)
 	}
 
 	logger.Debugf("[%s] Peers for retrieval from orgs %s: %s", d.ChannelID(), orgs, peersForRetrieval)
 
 	return peersForRetrieval
+}
+
+func (d *Disseminator) resolveOrgsForRetrieval() []string {
+	orgs := d.policy.MemberOrgs()
+
+	logger.Debugf("[%s] Member orgs: %s", d.ChannelID(), orgs)
+
+	if !roles.IsClustered() {
+		return orgs
+	}
+
+	// Running in clustered mode - only ask peers from other orgs for the data
+	logger.Debugf("[%s] Running in clustered mode so filtering out the local org [%s]", d.ChannelID(), d.Self().MSPID)
+
+	localMSP := d.Self().MSPID
+
+	var filteredOrgs []string
+	for _, org := range orgs {
+		if org != localMSP {
+			filteredOrgs = append(filteredOrgs, org)
+		}
+	}
+
+	return filteredOrgs
+}
+
+func (d *Disseminator) filterPeers(peers discovery.PeerGroup, includePeer PeerFilter, maxNum int) discovery.PeerGroup {
+	var filteredPeers discovery.PeerGroup
+
+	for _, peer := range peers {
+		if len(filteredPeers) >= maxNum {
+			// We have enough peers
+			break
+		}
+
+		if includePeer != nil && !includePeer(peer) {
+			logger.Debugf("Not adding peer [%s] since it has been filteredPeers out", peer)
+
+			continue
+		}
+
+		logger.Debugf("Adding peer [%s] ...", peer)
+
+		filteredPeers = append(filteredPeers, peer)
+	}
+
+	return filteredPeers
 }
 
 func (d *Disseminator) getPeersWithRole(role roles.Role, mspIDs []string) discovery.PeerGroup {

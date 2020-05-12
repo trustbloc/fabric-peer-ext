@@ -29,6 +29,7 @@ const (
 	confOLCollLeveldb              = "offLedgerLeveldb"
 	confOLCollCleanupIntervalTime  = "coll.offledger.cleanupExpired.Interval"
 	confOLCollMaxPeersForRetrieval = "coll.offledger.maxpeers"
+	confOLCollMaxRetrievalAttempts = "coll.offledger.maxRetrievalAttempts"
 	confOLCollCacheEnabled         = "coll.offledger.cache.enable"
 	confOLCollCacheSize            = "coll.offledger.cache.size"
 	confOLCollPullTimeout          = "coll.offledger.gossip.pullTimeout"
@@ -42,6 +43,7 @@ const (
 
 	defaultOLCollCleanupIntervalTime  = 5 * time.Second
 	defaultOLCollMaxPeersForRetrieval = 2
+	defaultOLCollMaxRetrievalAttempts = 3
 	defaultOLCollCacheSize            = 10000
 	defaultOLCollPullTimeout          = 5 * time.Second
 
@@ -118,12 +120,24 @@ func GetBlockPublisherBufferSize() int {
 	return size
 }
 
-// GetOLCollMaxPeersForRetrieval returns the number of peers that should be messaged
+// GetOLCollMaxPeersForRetrieval returns the number of peers that should be concurrently messaged
 // to retrieve collection data that is not stored locally.
 func GetOLCollMaxPeersForRetrieval() int {
 	maxPeers := viper.GetInt(confOLCollMaxPeersForRetrieval)
 	if maxPeers <= 0 {
 		maxPeers = defaultOLCollMaxPeersForRetrieval
+	}
+	return maxPeers
+}
+
+// GetOLCollMaxRetrievalAttempts returns the maximum number of attempts to retrieve collection data from remote
+// peers. On each attempt, multiple peers are messaged (up to a maximum number given by confOLCollMaxPeersForRetrieval).
+// If not all data is retrieved on an attempt, then a new set of peers is chosen. This process continues
+// until MaxRetrievalAttempts is reached or no more peers are left (that haven't already been attempted).
+func GetOLCollMaxRetrievalAttempts() int {
+	maxPeers := viper.GetInt(confOLCollMaxRetrievalAttempts)
+	if maxPeers <= 0 {
+		maxPeers = defaultOLCollMaxRetrievalAttempts
 	}
 	return maxPeers
 }

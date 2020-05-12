@@ -25,6 +25,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/discovery"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/multirequest"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/requestmgr"
+	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
@@ -108,7 +109,7 @@ func (p *Provider) RetrieverForChannel(channelID string) olapi.Retriever {
 
 type resolver interface {
 	// ResolvePeersForRetrieval resolves to a set of peers from which data should be retrieved
-	ResolvePeersForRetrieval() discovery.PeerGroup
+	ResolvePeersForRetrieval(filter dissemination.PeerFilter) discovery.PeerGroup
 }
 
 type collKey struct {
@@ -147,7 +148,6 @@ func (r *retriever) GetData(ctxt context.Context, key *storeapi.Key) (*storeapi.
 	return values[0], nil
 }
 
-// GetDataMultipleKeys gets the values for the multiple data items in a single call
 func (r *retriever) GetDataMultipleKeys(ctxt context.Context, key *storeapi.MultiKey) (storeapi.ExpiringValues, error) {
 	authorized, err := r.isAuthorized(key.Namespace, key.Collection)
 	if err != nil {
@@ -162,7 +162,10 @@ func (r *retriever) GetDataMultipleKeys(ctxt context.Context, key *storeapi.Mult
 	if err != nil {
 		return nil, err
 	}
+
 	if localValues.Values().AllSet() {
+		logger.Debugf("[%s] Got all values from local store for %s: %s", r.channelID, key, localValues)
+
 		err = r.validateValues(key, localValues)
 		if err != nil {
 			logger.Warningf(err.Error())
@@ -171,30 +174,66 @@ func (r *retriever) GetDataMultipleKeys(ctxt context.Context, key *storeapi.Mult
 		return localValues, nil
 	}
 
-	res, err := r.getResolver(key.Namespace, key.Collection)
+	logger.Debugf("[%s] Did NOT get all values from local store for %s. Got: %s", r.channelID, key, localValues)
+
+	// Retrieve missing data from remote peers and merge with what we already have
+	values, err := r.getDataFromRemotePeers(ctxt, key, localValues.Values())
 	if err != nil {
-		return nil, errors.WithMessagef(err, "unable to get resolver for channel [%s] and [%s:%s]", r.channelID, key.Namespace, key.Collection)
+		return nil, err
 	}
 
-	// Retrieve from the remote peers
-	cReq := multirequest.New()
-	for _, peer := range res.ResolvePeersForRetrieval() {
-		logger.Debugf("Adding request to get data for [%s] from [%s] ...", key, peer)
-		cReq.Add(peer.String(), r.getDataFromPeer(key, peer))
-	}
-
-	response := cReq.Execute(ctxt)
-
-	// Merge the values with the values received locally
-	values := asExpiringValues(localValues.Values().Merge(response.Values))
-
-	if err := r.validateValues(key, values); err != nil {
+	expiringValues := asExpiringValues(values)
+	if err := r.validateValues(key, expiringValues); err != nil {
 		logger.Warningf(err.Error())
 		return nil, err
 	}
 
 	if roles.IsCommitter() {
-		r.persistMissingKeys(key, localValues, values)
+		r.persistMissingKeys(key, localValues, expiringValues)
+	}
+
+	return expiringValues, nil
+}
+
+func (r *retriever) getDataFromRemotePeers(ctxt context.Context, key *storeapi.MultiKey, values common.Values) (common.Values, error) {
+	res, err := r.getResolver(key.Namespace, key.Collection)
+	if err != nil {
+		return nil, errors.WithMessagef(err, "unable to get resolver for channel [%s] and [%s:%s]", r.channelID, key.Namespace, key.Collection)
+	}
+
+	var attemptedPeers discovery.PeerGroup
+	for attempt := 1; attempt <= getMaxRetrievalAttempts(); attempt++ {
+		peers := res.ResolvePeersForRetrieval(func(peer *discovery.Member) bool {
+			return !attemptedPeers.Contains(peer)
+		})
+
+		if len(peers) == 0 {
+			logger.Debugf("[%s] Exhausted all peers for retrieval on attempt %d for %s", r.channelID, attempt, key)
+			break
+		}
+
+		attemptedPeers = append(attemptedPeers, peers...)
+
+		cReq := multirequest.New()
+		for _, peer := range peers {
+			logger.Debugf("Adding request to get data for [%s] from [%s] ...", key, peer)
+
+			cReq.Add(peer.String(), r.getDataFromPeer(key, peer))
+		}
+
+		remoteValues := cReq.Execute(ctxt).Values
+
+		logger.Debugf("[%s] Merging existing values for %s: %s, with values received from remote peer: %s", r.channelID, key, values, remoteValues)
+
+		// Merge the values with the values received locally
+		values = values.Merge(remoteValues)
+
+		if values.AllSet() {
+			logger.Debugf("[%s] Got all values on attempt %d for %s: %s", r.channelID, attempt, key, values)
+			break
+		}
+
+		logger.Debugf("[%s] Could not get all values on attempt %d for %s. Got: %s", r.channelID, attempt, key, values)
 	}
 
 	return values, nil
@@ -541,4 +580,9 @@ func (it *emptyIterator) Next() (*storeapi.QueryResult, error) {
 
 // Close has no effect
 func (it *emptyIterator) Close() {
+}
+
+// getMaxRetrievalAttempts may be overridden by unit tests
+var getMaxRetrievalAttempts = func() int {
+	return config.GetOLCollMaxRetrievalAttempts()
 }

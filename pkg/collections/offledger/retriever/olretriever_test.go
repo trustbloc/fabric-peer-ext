@@ -240,6 +240,27 @@ func TestRetriever(t *testing.T) {
 		assert.Equal(t, value3, values[2])
 	})
 
+	t.Run("GetDataMultipleKeys - Exhausted peer list -> success", func(t *testing.T) {
+		restore := getMaxRetrievalAttempts
+		defer func() { getMaxRetrievalAttempts = restore }()
+		getMaxRetrievalAttempts = func() int { return 5 }
+
+		gossip.MessageHandler(
+			newMockGossipMsgHandler(channelID).
+				Value(key1, value1).
+				Value(key2, value2).
+				Value(key3, value3).
+				Handle)
+
+		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
+		values, err := retriever.GetDataMultipleKeys(ctx, storeapi.NewMultiKey(txID, ns1, coll1, "xxx", key2, key3))
+		require.NoError(t, err)
+		require.Equal(t, 3, len(values))
+		assert.Nil(t, values[0])
+		assert.Equal(t, value2, values[1])
+		assert.Equal(t, value3, values[2])
+	})
+
 	t.Run("GetDataMultipleKeys - Timeout -> fail", func(t *testing.T) {
 		gossip.MessageHandler(
 			newMockGossipMsgHandler(channelID).

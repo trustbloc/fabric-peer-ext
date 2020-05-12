@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/discovery"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/implicitpolicy"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
@@ -67,6 +68,9 @@ var (
 	endorserRole  = string(roles.EndorserRole)
 	validatorRole = string(roles.ValidatorRole)
 )
+
+// Ensure that the roles are initialized
+var _ = roles.GetRoles()
 
 func TestDisseminator_ResolvePeersForDissemination(t *testing.T) {
 	channelID := "testchannel"
@@ -194,7 +198,7 @@ func TestDisseminator_ResolvePeersForRetrieval(t *testing.T) {
 				Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
 			}, gossip)
 
-		peers := d.ResolvePeersForRetrieval()
+		peers := d.ResolvePeersForRetrieval(nil)
 		require.Equal(t, 2, len(peers))
 
 		for _, p := range peers {
@@ -213,7 +217,7 @@ func TestDisseminator_ResolvePeersForRetrieval(t *testing.T) {
 				Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
 			}, gossip)
 
-		peers := d.ResolvePeersForRetrieval()
+		peers := d.ResolvePeersForRetrieval(nil)
 		require.Equal(t, 7, len(peers))
 
 		var numEndorsers int
@@ -226,6 +230,49 @@ func TestDisseminator_ResolvePeersForRetrieval(t *testing.T) {
 		assert.NotContains(t, peers.String(), "org4")
 	})
 
+	t.Run("Peer filter", func(t *testing.T) {
+		getMaxPeersForRetrieval = func() int { return 7 }
+
+		d := New(channelID, ns1, coll1,
+			&mocks.MockAccessPolicy{
+				ReqPeerCount: 1,
+				MaxPeerCount: 7,
+				Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
+			}, gossip)
+
+		peers := d.ResolvePeersForRetrieval(func(peer *discovery.Member) bool {
+			return peer.MSPID != org2MSPID
+		})
+
+		require.Equal(t, 5, len(peers))
+
+		for _, p := range peers {
+			require.NotEqual(t, org2MSPID, p.MSPID)
+		}
+	})
+
+	t.Run("Clustered mode", func(t *testing.T) {
+		roles.SetRoles(map[roles.Role]struct{}{roles.EndorserRole: {}})
+		require.True(t, roles.IsClustered())
+		defer roles.SetRoles(nil)
+
+		getMaxPeersForRetrieval = func() int { return 7 }
+
+		d := New(channelID, ns1, coll1,
+			&mocks.MockAccessPolicy{
+				ReqPeerCount: 1,
+				MaxPeerCount: 7,
+				Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
+			}, gossip)
+
+		peers := d.ResolvePeersForRetrieval(nil)
+
+		require.Equal(t, 6, len(peers))
+
+		for _, p := range peers {
+			require.NotEqual(t, org1MSPID, p.MSPID)
+		}
+	})
 }
 
 func TestComputeDisseminationPlan(t *testing.T) {
