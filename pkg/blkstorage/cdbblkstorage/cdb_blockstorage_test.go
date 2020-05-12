@@ -7,12 +7,14 @@ SPDX-License-Identifier: Apache-2.0
 package cdbblkstorage
 
 import (
+	"errors"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 
 	"github.com/hyperledger/fabric/common/ledger/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/blkstorage/cdbblkstorage/mocks"
 )
 
 func TestWrongBlockNumber(t *testing.T) {
@@ -57,7 +59,10 @@ func TestCheckpointBlockFailure(t *testing.T) {
 
 	blocks := testutil.ConstructTestBlocks(t, 1)
 
-	store.(*cdbBlockStore).cp.db.DBName = ""
+	db := &mocks.CouchDB{}
+	db.SaveDocReturns("", errors.New("injected DB error"))
+
+	store.(*cdbBlockStore).cp.db = db
 	err := store.CheckpointBlock(blocks[0])
 	require.Error(t, err, "adding cpInfo to couchDB failed")
 }
