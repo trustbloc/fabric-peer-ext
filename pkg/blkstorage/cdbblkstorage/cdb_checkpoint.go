@@ -8,16 +8,20 @@ package cdbblkstorage
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric/common/util/retry"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/pkg/errors"
+	viper "github.com/spf13/viper2015"
 )
 
 const blkMgrInfoKey = "blkMgrInfo"
 
 type checkpoint struct {
-	db *couchdb.CouchDatabase
+	db         couchDB
+	maxRetries int
 }
 
 // checkpointInfo
@@ -27,8 +31,16 @@ type checkpointInfo struct {
 	currentHash     []byte
 }
 
-func newCheckpoint(db *couchdb.CouchDatabase) *checkpoint {
-	return &checkpoint{db: db}
+type couchDB interface {
+	ReadDoc(id string) (*couchdb.CouchDoc, string, error)
+	SaveDoc(id string, rev string, couchDoc *couchdb.CouchDoc) (string, error)
+}
+
+func newCheckpoint(db couchDB) *checkpoint {
+	return &checkpoint{
+		db:         db,
+		maxRetries: viper.GetInt("ledger.state.couchDBConfig.maxRetries"),
+	}
 }
 
 func (cp *checkpoint) getCheckpointInfo() *checkpointInfo {
@@ -46,7 +58,7 @@ func (cp *checkpoint) getCheckpointInfo() *checkpointInfo {
 
 //Get the current checkpoint information that is stored in the database
 func (cp *checkpoint) loadCurrentInfo() (*checkpointInfo, error) {
-	doc, _, err := cp.db.ReadDoc(blkMgrInfoKey)
+	doc, err := cp.readCheckpointInfo()
 	if err != nil {
 		return nil, errors.WithMessage(err, fmt.Sprintf("retrieval of checkpointInfo from couchDB failed [%s]", blkMgrInfoKey))
 	}
@@ -59,6 +71,26 @@ func (cp *checkpoint) loadCurrentInfo() (*checkpointInfo, error) {
 	}
 	logger.Debugf("loaded checkpointInfo:%s", checkpointInfo)
 	return checkpointInfo, nil
+}
+
+func (cp *checkpoint) readCheckpointInfo() (*couchdb.CouchDoc, error) {
+	doc, err := retry.Invoke(
+		func() (interface{}, error) {
+			doc, _, err := cp.db.ReadDoc(blkMgrInfoKey)
+			return doc, err
+		},
+		retry.WithMaxAttempts(cp.maxRetries+1),
+		retry.WithBeforeRetry(func(err error, attempt int, backoff time.Duration) bool {
+			logger.Warnf("Error reading checkpoint info on attempt %d. Will retry in %s: %s", attempt, backoff, err)
+			return true
+		}),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return doc.(*couchdb.CouchDoc), nil
 }
 
 func (cp *checkpoint) saveCurrentInfo(i *checkpointInfo) error {

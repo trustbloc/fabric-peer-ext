@@ -7,12 +7,15 @@ SPDX-License-Identifier: Apache-2.0
 package cdbblkstorage
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"testing"
 
 	"github.com/hyperledger/fabric/common/metrics/disabled"
 	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/fabric-peer-ext/pkg/blkstorage/cdbblkstorage/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 
 	"github.com/golang/protobuf/proto"
@@ -26,6 +29,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	xtestutil "github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
+
+//go:generate counterfeiter -o ./mocks/couchdb.gen.go -fake-name CouchDB . couchDB
 
 var cdbInstance *couchdb.CouchInstance
 
@@ -211,6 +216,27 @@ func TestBlockStoreAsCommitter(t *testing.T) {
 	//test block store
 	checkBlocks(t, blocks, store)
 	checkWithWrongInputs(t, store, 5)
+}
+
+func TestReadCheckpointInfo(t *testing.T) {
+	errExpected := errors.New("injected DB error")
+
+	doc := &couchdb.CouchDoc{}
+
+	db := &mocks.CouchDB{}
+	db.ReadDocReturnsOnCall(0, nil, "", errExpected)
+	db.ReadDocReturnsOnCall(1, nil, "", errExpected)
+	db.ReadDocReturnsOnCall(2, nil, "", errExpected)
+	db.ReadDocReturnsOnCall(3, doc, "", nil)
+
+	cp := &checkpoint{
+		maxRetries: 3,
+		db:         db,
+	}
+
+	d, err := cp.readCheckpointInfo()
+	require.NoError(t, err)
+	require.Equal(t, d, doc)
 }
 
 func TestBlockStoreAsEndorser(t *testing.T) {
