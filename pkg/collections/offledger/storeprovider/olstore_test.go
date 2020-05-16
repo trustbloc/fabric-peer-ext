@@ -23,6 +23,7 @@ import (
 	olstoreapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
 	olmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
+	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
 const (
@@ -60,6 +61,9 @@ var (
 		pb.CollectionType_COL_OFFLEDGER: {},
 		pb.CollectionType_COL_DCAS:      {decorator: dcas.Decorator},
 	}
+
+	// Ensure roles are initialized
+	_ = roles.GetRoles()
 )
 
 func TestStore_Close(t *testing.T) {
@@ -75,7 +79,6 @@ func TestStore_Close(t *testing.T) {
 }
 
 func TestStore_PutAndGet(t *testing.T) {
-
 	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
 	require.NotNil(t, s)
 	defer s.Close()
@@ -539,6 +542,50 @@ func TestStore_PersistNotAuthorized(t *testing.T) {
 	assert.NoError(t, err)
 	require.NotNil(t, value)
 	assert.Equal(t, value2_1, value.Value)
+}
+
+func TestStore_PersistNonCommitter(t *testing.T) {
+	roles.SetRoles(map[roles.Role]struct{}{roles.EndorserRole: {}})
+	defer func() { roles.SetRoles(nil) }()
+
+	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
+
+	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
+	require.NotNil(t, s)
+	defer s.Close()
+
+	b := mocks.NewPvtReadWriteSetBuilder()
+
+	t.Run("MaxPeerCount = 0 -> persisted", func(t *testing.T) {
+		ns1Builder := b.Namespace(ns1)
+		coll1Builder := ns1Builder.Collection(coll1)
+		coll1Builder.
+			OffLedgerConfig("OR('Org1MSP.member')", 0, 0, "1m").
+			Write(key1, value1_1)
+
+		err := s.Persist(txID1, b.Build())
+		require.NoError(t, err)
+
+		value, err := s.GetData(storeapi.NewKey(txID2, ns1, coll1, key1))
+		require.NoError(t, err)
+		require.NotNil(t, value)
+		require.Equal(t, value1_1, value.Value)
+	})
+
+	t.Run("MaxPeerCount = 1 -> not persisted", func(t *testing.T) {
+		ns1Builder := b.Namespace(ns1)
+		coll1Builder := ns1Builder.Collection(coll1)
+		coll1Builder.
+			OffLedgerConfig("OR('Org1MSP.member')", 0, 1, "1m").
+			Write(key2, value1_1)
+
+		err := s.Persist(txID1, b.Build())
+		require.NoError(t, err)
+
+		value, err := s.GetData(storeapi.NewKey(txID2, ns1, coll1, key2))
+		require.NoError(t, err)
+		require.Nil(t, value)
+	})
 }
 
 type testValue struct {

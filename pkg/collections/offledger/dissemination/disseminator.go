@@ -43,16 +43,15 @@ func (d *Disseminator) resolvePeersForDissemination() discovery.PeerGroup {
 
 	logger.Debugf("[%s] MaximumPeerCount: %d, RequiredPeerCount: %d, Member orgs: %s", d.ChannelID(), maxPeerCount, d.policy.RequiredPeerCount(), orgs)
 
-	var committers discovery.PeerGroup
+	if maxPeerCount == 0 {
+		logger.Debugf("[%s] MaximumPeerCount is 0. No need to disseminate.", d.ChannelID())
 
-	logger.Debugf("maxPeerCount: %d, Roles: %s", maxPeerCount, d.Self().Roles())
-	if maxPeerCount == 0 && !d.Self().HasRole(roles.CommitterRole) {
-		logger.Debugf("[%s] MaximumPeerCount is 0 and I am not a committer. Getting a random peer for dissemination from orgs %s", d.ChannelID(), orgs)
-		committers = getRandomPeers(d.getPeersWithRole(roles.CommitterRole, orgs).Remote(), 1)
-	} else {
-		logger.Debugf("[%s] Getting %d random peer(s) with the 'committer' role for dissemination from orgs %s", d.ChannelID(), maxPeerCount, orgs)
-		committers = getRandomPeers(d.getPeersWithRole(roles.CommitterRole, orgs).Remote(), maxPeerCount)
+		return nil
 	}
+
+	logger.Debugf("[%s] Getting %d random peer(s) with the 'committer' role for dissemination from orgs %s", d.ChannelID(), maxPeerCount, orgs)
+
+	committers := getRandomPeers(d.getPeersWithRole(roles.CommitterRole, orgs).Remote(), maxPeerCount)
 
 	if len(committers) < maxPeerCount {
 		logger.Debugf("[%s] MaximumPeerCount in collection policy is %d and we only have %d peer(s) with the 'committer' role. Adding some endorsers too...", d.ChannelID(), maxPeerCount, len(committers))

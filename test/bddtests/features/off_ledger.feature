@@ -159,8 +159,8 @@ Feature: off-ledger
 
   @off_ledger_s3
   Scenario: Test for off-ledger collections with implicit policy, i.e. data is stored and distributed only within the peer's local org.
-    When client queries chaincode "ol_examplecc" with args "putprivate,implicitcoll,key1,org1value" on a single peer in the "peerorg1" org on the "mychannel" channel
-    And client queries chaincode "ol_examplecc" with args "putprivate,implicitcoll,key1,org2value" on a single peer in the "peerorg2" org on the "mychannel" channel
+    When client queries chaincode "ol_examplecc" with args "putprivate,implicitcoll,key1,org1value" on peers "peer1.org1.example.com" on the "mychannel" channel
+    And client queries chaincode "ol_examplecc" with args "putprivate,implicitcoll,key1,org2value" on peers "peer1.org2.example.com" on the "mychannel" channel
 
     When client queries chaincode "ol_examplecc" with args "getprivate,implicitcoll,key1" on peers "peer0.org1.example.com,peer1.org1.example.com" on the "mychannel" channel
     Then response from "ol_examplecc" to client equal value "org1value"

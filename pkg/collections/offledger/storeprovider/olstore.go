@@ -23,6 +23,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/cache"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/implicitpolicy"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
 var logger = flogging.MustGetLogger("ext_offledger")
@@ -163,23 +164,47 @@ func (s *store) Query(key *storeapi.QueryKey) (storeapi.ResultsIterator, error) 
 }
 
 func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*pb.CollectionConfigPackage, collRWSet *rwsetutil.CollPvtRwSet) error {
-	config, exists := s.getCollectionConfig(collConfigPkgs, ns, collRWSet.CollectionName)
+	collConfig, exists := s.getCollectionConfig(collConfigPkgs, ns, collRWSet.CollectionName)
 	if !exists {
-		logger.Debugf("[%s]  config for collection [%s:%s] not found in config packages", s.channelID, ns, collRWSet.CollectionName)
+		logger.Debugf("[%s] collConfig for collection [%s:%s] not found in collConfig packages", s.channelID, ns, collRWSet.CollectionName)
 		return nil
 	}
 
-	authorized, err := s.isAuthorized(ns, config)
+	logger.Debugf("[%s] Collection [%s:%s] is of type [%s]", s.channelID, ns, collRWSet.CollectionName, collConfig.Type)
+
+	ok, err := s.canPersist(ns, collConfig)
 	if err != nil {
 		return err
 	}
-	if !authorized {
-		logger.Infof("[%s] Will not store  collection [%s:%s] since local peer is not authorized.", s.channelID, ns, collRWSet.CollectionName)
+	if !ok {
 		return nil
 	}
 
-	logger.Debugf("[%s] Collection [%s:%s] is of type [%s]", s.channelID, ns, collRWSet.CollectionName, config.Type)
+	return s.persist(txID, ns, collConfig, collRWSet)
+}
 
+func (s *store) canPersist(ns string, collConfig *pb.StaticCollectionConfig) (bool, error) {
+	if !roles.IsCommitter() && collConfig.MaximumPeerCount > 0 {
+		logger.Debugf("[%s] MaximumPeerCount for collection [%s:%s] is > 0 and this peer is not a committer, in which case we will let the committer persist the data", s.channelID, ns, collConfig.Name)
+
+		return false, nil
+	}
+
+	authorized, err := s.isAuthorized(ns, collConfig)
+	if err != nil {
+		return false, err
+	}
+
+	if !authorized {
+		logger.Infof("[%s] Will not store  collection [%s:%s] since local peer is not authorized.", s.channelID, ns, collConfig.Name)
+
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func (s *store) persist(txID, ns string, config *pb.StaticCollectionConfig, collRWSet *rwsetutil.CollPvtRwSet) error {
 	expiryTime, err := s.getExpirationTime(config)
 	if err != nil {
 		return err

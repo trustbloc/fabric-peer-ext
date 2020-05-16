@@ -120,8 +120,6 @@ func TestStore_PutAndGetData(t *testing.T) {
 	})
 
 	t.Run("Persist", func(t *testing.T) {
-		isCommitter = func() bool { return true }
-
 		err := s.Persist(tx1, mocks.NewPvtReadWriteSetBuilder().Build())
 		assert.NoError(t, err)
 
