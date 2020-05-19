@@ -75,6 +75,8 @@ func (s *dbstore) Put(keyVal ...*api.KeyValue) error {
 		return errors.WithMessage(err, fmt.Sprintf("BatchUpdateDocuments failed for [%d] documents", len(docs)))
 	}
 
+	logger.Debugf("[%s] Successfully persisted %d documents", s.dbName, len(docs))
+
 	return nil
 }
 

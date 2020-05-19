@@ -13,7 +13,6 @@ import (
 	"github.com/pkg/errors"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
 	tdapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
-	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
 type targetStores struct {
@@ -39,11 +38,8 @@ func (d *store) Persist(txID string, privateSimulationResultsWithConfig *proto.T
 		return errors.WithMessage(err, "error persisting transient data")
 	}
 
-	// Off-ledger data should only be persisted on committers
-	if isCommitter() {
-		if err := d.offLedgerStore.Persist(txID, privateSimulationResultsWithConfig); err != nil {
-			return errors.WithMessage(err, "error persisting off-ledger data")
-		}
+	if err := d.offLedgerStore.Persist(txID, privateSimulationResultsWithConfig); err != nil {
+		return errors.WithMessage(err, "error persisting off-ledger data")
 	}
 
 	return nil
@@ -83,9 +79,4 @@ func (d *store) Query(key *storeapi.QueryKey) (storeapi.ResultsIterator, error) 
 func (d *store) Close() {
 	d.transientDataStore.Close()
 	d.offLedgerStore.Close()
-}
-
-// isCommitter may be overridden in unit tests
-var isCommitter = func() bool {
-	return roles.IsCommitter()
 }

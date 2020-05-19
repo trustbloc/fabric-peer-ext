@@ -114,6 +114,26 @@ func TestDisseminator_ResolvePeersForDissemination(t *testing.T) {
 		assert.Equal(t, 3, numCommitters)
 	})
 
+	t.Run("More than enough committers", func(t *testing.T) {
+		d := New(channelID, ns1, coll1,
+			&mocks.MockAccessPolicy{
+				ReqPeerCount: 1,
+				MaxPeerCount: 3,
+				Orgs:         []string{org1MSPID, org2MSPID, org3MSPID, org4MSPID},
+			}, gossip)
+
+		peers := d.resolvePeersForDissemination()
+		require.Equal(t, 3, len(peers))
+
+		var numCommitters int
+		for _, p := range peers {
+			if p.HasRole(roles.CommitterRole) {
+				numCommitters++
+			}
+		}
+		assert.Equal(t, 3, numCommitters)
+	})
+
 	t.Run("Not enough committers", func(t *testing.T) {
 		d := New(channelID, ns1, coll1,
 			&mocks.MockAccessPolicy{
@@ -170,7 +190,7 @@ func TestDisseminator_ResolvePeersForDissemination(t *testing.T) {
 			}, gossip)
 
 		peers := d.resolvePeersForDissemination()
-		require.Equal(t, 1, len(peers))
+		require.Empty(t, peers)
 	})
 }
 
