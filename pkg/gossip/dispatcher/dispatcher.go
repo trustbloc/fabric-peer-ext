@@ -17,11 +17,13 @@ import (
 	ledgerconfig "github.com/hyperledger/fabric/extensions/roles"
 	"github.com/hyperledger/fabric/gossip/protoext"
 	"github.com/pkg/errors"
+	"go.uber.org/zap/zapcore"
+
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/discovery"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/requestmgr"
-	"go.uber.org/zap/zapcore"
+	"github.com/trustbloc/fabric-peer-ext/pkg/gossip/appdata"
 )
 
 var logger = flogging.MustGetLogger("ext_dispatcher")
@@ -36,8 +38,13 @@ var isCommitter = func() bool {
 	return ledgerconfig.IsCommitter()
 }
 
+type appDataHandlerProvider interface {
+	HandlerForType(dataType string) (appdata.Handler, bool)
+}
+
 // Dispatcher is a Gossip message dispatcher
 type Dispatcher struct {
+	appDataHandlerProvider
 	ccProvider collcommon.CollectionConfigProvider
 	channelID  string
 	reqMgr     requestmgr.RequestMgr
@@ -55,6 +62,14 @@ func (s *Dispatcher) Dispatch(msg protoext.ReceivedMessage) bool {
 	case msg.GetGossipMessage().GetCollDataRes() != nil:
 		logger.Debug("Handling collection data response message")
 		s.handleDataResponse(msg)
+		return true
+	case msg.GetGossipMessage().GetAppDataReq() != nil:
+		logger.Debug("Handling application data request message")
+		s.handleAppDataRequest(msg)
+		return true
+	case msg.GetGossipMessage().GetAppDataRes() != nil:
+		logger.Debug("Handling application data response message")
+		s.handleAppDataResponse(msg)
 		return true
 	default:
 		logger.Debug("Not handling msg")
@@ -79,9 +94,8 @@ func (s *Dispatcher) handleDataRequest(msg protoext.ReceivedMessage) {
 		return
 	}
 
-	reqMSPID, ok := s.discovery.GetMSPID(msg.GetConnectionInfo().ID)
-	if !ok {
-		logger.Warningf("Unable to get MSP ID from PKI ID of remote endpoint [%s]", msg.GetConnectionInfo().Endpoint)
+	reqMSPID := s.mspIDFromPKIID(msg.GetConnectionInfo())
+	if reqMSPID == "" {
 		return
 	}
 
@@ -113,9 +127,8 @@ func (s *Dispatcher) handleDataResponse(msg protoext.ReceivedMessage) {
 		defer logger.Debug("[EXIT] ->  handleDataResponse")
 	}
 
-	mspID, ok := s.discovery.GetMSPID(msg.GetConnectionInfo().ID)
-	if !ok {
-		logger.Errorf("Unable to get MSP ID from PKI ID")
+	mspID := s.mspIDFromPKIID(msg.GetConnectionInfo())
+	if mspID == "" {
 		return
 	}
 
@@ -233,4 +246,64 @@ func (s *Dispatcher) isAuthorized(mspID string, ns, coll string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func (s *Dispatcher) handleAppDataRequest(msg protoext.ReceivedMessage) {
+	req := msg.GetGossipMessage().GetAppDataReq()
+
+	var resp []byte
+
+	handleRequest, ok := s.HandlerForType(req.DataType)
+	if ok {
+		var err error
+		resp, err = handleRequest(s.channelID, req)
+		if err != nil {
+			logger.Warnf("[%s] Error handling application data request from [%s] of type [%s]: %s", s.channelID, msg.GetConnectionInfo().Endpoint, req.DataType, err)
+		}
+	} else {
+		logger.Warnf("[%s] No handler registered for data type [%s]", s.channelID, req.DataType)
+	}
+
+	logger.Debugf("[%s] Responding with application data for request %d", s.channelID, req.Nonce)
+
+	msg.Respond(&gproto.GossipMessage{
+		// Copy nonce field from the request, so it will be possible to match response
+		Nonce:   msg.GetGossipMessage().Nonce,
+		Tag:     gproto.GossipMessage_CHAN_ONLY,
+		Channel: []byte(s.channelID),
+		Content: &gproto.GossipMessage_AppDataRes{
+			AppDataRes: &gproto.AppDataResponse{
+				Nonce:    req.Nonce,
+				Response: resp,
+			},
+		},
+	})
+}
+
+func (s *Dispatcher) handleAppDataResponse(msg protoext.ReceivedMessage) {
+	mspID := s.mspIDFromPKIID(msg.GetConnectionInfo())
+	if mspID == "" {
+		return
+	}
+
+	res := msg.GetGossipMessage().GetAppDataRes()
+
+	s.reqMgr.Respond(
+		res.Nonce,
+		&requestmgr.Response{
+			Endpoint: msg.GetConnectionInfo().Endpoint,
+			MSPID:    mspID,
+			Data:     res.Response,
+		},
+	)
+}
+
+func (s *Dispatcher) mspIDFromPKIID(conn *protoext.ConnectionInfo) string {
+	mspid, ok := s.discovery.GetMSPID(conn.ID)
+	if !ok {
+		logger.Warningf("Unable to get MSP ID from PKI ID of remote endpoint [%s]", conn.Endpoint)
+		return ""
+	}
+
+	return mspid
 }

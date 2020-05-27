@@ -8,6 +8,7 @@ package dispatcher
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -18,11 +19,15 @@ import (
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/requestmgr"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
+	gmocks "github.com/trustbloc/fabric-peer-ext/pkg/gossip/dispatcher/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
+
+//go:generate counterfeiter -o ./mocks/appdatahandlerprovider.gen.go --fake-name AppDataHandlerProvider . appDataHandlerProvider
 
 var (
 	org1MSPID      = "Org1MSP"
@@ -64,6 +69,7 @@ func TestDispatchUnhandled(t *testing.T) {
 	dispatcher := NewProvider().Initialize(
 		&mocks.GossipProvider{},
 		&mocks.CollectionConfigProvider{},
+		&gmocks.AppDataHandlerProvider{},
 	).ForChannel(
 		channelID,
 		&mocks.DataStore{},
@@ -138,6 +144,7 @@ func TestDispatchDataRequest(t *testing.T) {
 	dispatcher := NewProvider().Initialize(
 		gossipProvider,
 		support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}, &mocks.IdentifierProvider{}),
+		&gmocks.AppDataHandlerProvider{},
 	).ForChannel(
 		channelID,
 		mocks.NewDataStore().TransientData(key1, value1).TransientData(key2, value2).Data(key3, value3).Data(key4, value4),
@@ -359,6 +366,7 @@ func TestDispatchDataResponse(t *testing.T) {
 	dispatcher := NewProvider().Initialize(
 		gossipProvider,
 		support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}, &mocks.IdentifierProvider{}),
+		&gmocks.AppDataHandlerProvider{},
 	).ForChannel(
 		channelID,
 		mocks.NewDataStore().TransientData(key1, value1).TransientData(key2, value2),
@@ -387,15 +395,18 @@ func TestDispatchDataResponse(t *testing.T) {
 		assert.NoError(t, err)
 		require.NotNil(t, res)
 
-		require.Equal(t, 2, len(res.Data))
+		elements := requestmgr.AsElements(res.Data)
+		require.NotEmpty(t, elements)
 
-		element := res.Data[0]
+		require.Equal(t, 2, len(elements))
+
+		element := elements[0]
 		assert.Equal(t, key1.Namespace, element.Namespace)
 		assert.Equal(t, key1.Collection, element.Collection)
 		assert.Equal(t, key1.Key, element.Key)
 		assert.Equal(t, value1.Value, element.Value)
 
-		element = res.Data[1]
+		element = elements[1]
 		assert.Equal(t, key2.Namespace, element.Namespace)
 		assert.Equal(t, key2.Collection, element.Collection)
 		assert.Equal(t, key2.Key, element.Key)
@@ -420,5 +431,167 @@ func TestDispatchDataResponse(t *testing.T) {
 		res, err := req.GetResponse(ctxt)
 		assert.Error(t, err)
 		require.Nil(t, res)
+	})
+}
+
+func TestDispatchAppDataRequest(t *testing.T) {
+	const channelID = "testchannel"
+
+	gossipAdapter := mocks.NewMockGossipAdapter()
+	gossipAdapter.Self(org1MSPID, mocks.NewMember(p1Org1Endpoint, p1Org1PKIID)).
+		Member(org1MSPID, mocks.NewMember(p2Org1Endpoint, p2Org1PKIID, committerRole)).
+		Member(org1MSPID, mocks.NewMember(p3Org1Endpoint, p3Org1PKIID, committerRole)).
+		Member(org2MSPID, mocks.NewMember(p1Org2Endpoint, p1Org2PKIID, endorserRole)).
+		Member(org2MSPID, mocks.NewMember(p2Org2Endpoint, p2Org2PKIID, committerRole)).
+		Member(org2MSPID, mocks.NewMember(p3Org2Endpoint, p3Org2PKIID, endorserRole)).
+		Member(org3MSPID, mocks.NewMember(p1Org3Endpoint, p1Org3PKIID, endorserRole)).
+		Member(org3MSPID, mocks.NewMember(p2Org3Endpoint, p2Org3PKIID, committerRole)).
+		Member(org3MSPID, mocks.NewMember(p3Org3Endpoint, p3Org3PKIID, endorserRole))
+
+	lp := &mocks.LedgerProvider{}
+	lp.GetLedgerReturns(&mocks.Ledger{})
+
+	gossipProvider := &mocks.GossipProvider{}
+	gossipProvider.GetGossipServiceReturns(gossipAdapter)
+
+	collCfgProvider := support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}, &mocks.IdentifierProvider{})
+
+	t.Run("success", func(t *testing.T) {
+		appDataHandlerProvider := &gmocks.AppDataHandlerProvider{}
+		handlerResponse := []byte("handlerResponse")
+		appDataHandlerProvider.HandlerForTypeReturns(func(channelID string, request *gproto.AppDataRequest) ([]byte, error) {
+			return handlerResponse, nil
+		}, true)
+
+		dispatcher := NewProvider().Initialize(gossipProvider, collCfgProvider, appDataHandlerProvider).ForChannel(channelID, mocks.NewDataStore())
+		require.NotNil(t, dispatcher)
+
+		reqID1 := uint64(1000)
+
+		var response *gproto.GossipMessage
+		msg := &mocks.MockReceivedMessage{
+			Message: mocks.NewAppDataReqMsg(channelID, reqID1, "appData1", []byte("requestPayload")),
+			RespondTo: func(msg *gproto.GossipMessage) {
+				response = msg
+			},
+			Member: mocks.NewMember(p1Org2Endpoint, p1Org2PKIID, endorserRole),
+		}
+		require.True(t, dispatcher.Dispatch(msg))
+		require.NotNil(t, response)
+		require.Equal(t, []byte(channelID), response.Channel)
+		require.Equal(t, gproto.GossipMessage_CHAN_ONLY, response.Tag)
+
+		res := response.GetAppDataRes()
+		require.NotNil(t, res)
+		require.Equal(t, reqID1, res.Nonce)
+		require.Equal(t, handlerResponse, res.Response)
+	})
+
+	t.Run("handler error", func(t *testing.T) {
+		errExpected := errors.New("injected handler error")
+		appDataHandlerProvider := &gmocks.AppDataHandlerProvider{}
+		appDataHandlerProvider.HandlerForTypeReturns(func(channelID string, request *gproto.AppDataRequest) ([]byte, error) {
+			return nil, errExpected
+		}, true)
+
+		dispatcher := NewProvider().Initialize(gossipProvider, collCfgProvider, appDataHandlerProvider).ForChannel(channelID, mocks.NewDataStore())
+		require.NotNil(t, dispatcher)
+
+		reqID1 := uint64(1000)
+
+		var response *gproto.GossipMessage
+		msg := &mocks.MockReceivedMessage{
+			Message: mocks.NewAppDataReqMsg(channelID, reqID1, "appData1", []byte("requestPayload")),
+			RespondTo: func(msg *gproto.GossipMessage) {
+				response = msg
+			},
+			Member: mocks.NewMember(p1Org2Endpoint, p1Org2PKIID, endorserRole),
+		}
+		require.True(t, dispatcher.Dispatch(msg))
+		require.NotNil(t, response)
+		require.Equal(t, []byte(channelID), response.Channel)
+		require.Equal(t, gproto.GossipMessage_CHAN_ONLY, response.Tag)
+
+		res := response.GetAppDataRes()
+		require.NotNil(t, res)
+		require.Equal(t, reqID1, res.Nonce)
+		require.Empty(t, res.Response)
+	})
+
+	t.Run("No handler", func(t *testing.T) {
+		dispatcher := NewProvider().Initialize(gossipProvider, collCfgProvider, &gmocks.AppDataHandlerProvider{}).ForChannel(channelID, mocks.NewDataStore())
+		require.NotNil(t, dispatcher)
+
+		reqID1 := uint64(1000)
+
+		var response *gproto.GossipMessage
+		msg := &mocks.MockReceivedMessage{
+			Message: mocks.NewAppDataReqMsg(channelID, reqID1, "appData1", []byte("requestPayload")),
+			RespondTo: func(msg *gproto.GossipMessage) {
+				response = msg
+			},
+			Member: mocks.NewMember(p1Org2Endpoint, p1Org2PKIID, endorserRole),
+		}
+		require.True(t, dispatcher.Dispatch(msg))
+		require.NotNil(t, response)
+		require.Equal(t, []byte(channelID), response.Channel)
+		require.Equal(t, gproto.GossipMessage_CHAN_ONLY, response.Tag)
+
+		res := response.GetAppDataRes()
+		require.NotNil(t, res)
+		require.Equal(t, reqID1, res.Nonce)
+		require.Empty(t, res.Response)
+	})
+}
+
+func TestDispatchAppDataResponse(t *testing.T) {
+	const channelID = "testchannel"
+
+	p1Org1 := mocks.NewMember(p1Org1Endpoint, p1Org1PKIID)
+	p1Org2 := mocks.NewMember(p1Org2Endpoint, p1Org2PKIID, endorserRole)
+
+	gossip := mocks.NewMockGossipAdapter().
+		Self(org1MSPID, p1Org1).
+		Member(org2MSPID, p1Org2)
+
+	lp := &mocks.LedgerProvider{}
+	lp.GetLedgerReturns(&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor()})
+
+	gossipProvider := &mocks.GossipProvider{}
+	gossipProvider.GetGossipServiceReturns(gossip)
+
+	dispatcher := NewProvider().Initialize(
+		gossipProvider,
+		support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}, &mocks.IdentifierProvider{}),
+		&gmocks.AppDataHandlerProvider{},
+	).ForChannel(channelID, mocks.NewDataStore())
+	require.NotNil(t, dispatcher)
+
+	reqMgr := requestmgr.Get(channelID)
+	require.NotNil(t, reqMgr)
+
+	t.Run("success", func(t *testing.T) {
+		response := []byte("app data response")
+		req := reqMgr.NewRequest()
+
+		msg := &mocks.MockReceivedMessage{
+			Message: mocks.NewAppDataResMsg(channelID, req.ID(), response),
+			Member:  p1Org2,
+		}
+
+		go func() {
+			if !dispatcher.Dispatch(msg) {
+				t.Fatal("Message not handled")
+			}
+		}()
+		ctxt, _ := context.WithTimeout(context.Background(), 50*time.Millisecond)
+
+		res, err := req.GetResponse(ctxt)
+		assert.NoError(t, err)
+		require.NotNil(t, res)
+
+		resp, ok := res.Data.([]byte)
+		require.True(t, ok)
+		require.Equal(t, response, resp)
 	})
 }

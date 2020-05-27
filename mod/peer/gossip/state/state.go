@@ -101,6 +101,10 @@ func (s *gossipStateProviderExtension) Predicate(handle func(peer discovery.Netw
 
 func (s *gossipStateProviderExtension) AddPayload(handle func(payload *proto.Payload, blockingMode bool) error) func(payload *proto.Payload, blockingMode bool) error {
 	return func(payload *proto.Payload, blockingMode bool) error {
+		if payload == nil {
+			return errors.New("payload is nil")
+		}
+
 		logger.Debugf("[%s] Got payload for sequence [%d]", s.chainID, payload.SeqNum)
 
 		block := &common.Block{}

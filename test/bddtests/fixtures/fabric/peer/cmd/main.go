@@ -13,6 +13,7 @@ import (
 	ccapi "github.com/hyperledger/fabric/extensions/chaincode/api"
 	"github.com/hyperledger/fabric/peer/node"
 	viper "github.com/spf13/viper2015"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/ucc"
 	extpeer "github.com/trustbloc/fabric-peer-ext/pkg/peer"
 	"github.com/trustbloc/fabric-peer-ext/test/cc/examplecc"

@@ -53,6 +53,23 @@ func TestElements_Get(t *testing.T) {
 	require.Nil(t, e)
 }
 
+func TestAsElements(t *testing.T) {
+	var i0 interface{}
+	e0 := AsElements(i0)
+	require.Empty(t, e0)
+
+	e1 := []*Element{{Namespace: "ns1"}}
+
+	var i1 interface{} = e1
+	require.Equal(t, Elements(e1), AsElements(i1))
+
+	e2 := Elements{{Namespace: "ns1"}}
+	var i2 interface{} = e2
+	require.Equal(t, e2, AsElements(i2))
+
+	require.Panics(t, func() { AsElements("") })
+}
+
 func TestResponseMgr(t *testing.T) {
 	t.Parallel()
 
