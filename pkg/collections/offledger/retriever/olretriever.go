@@ -445,9 +445,10 @@ func (r *retriever) getData(ctxt context.Context, key *storeapi.MultiKey, peers 
 
 	logger.Debugf("[%s] Got response for %d for data for [%s]", r.channelID, req.ID(), key)
 
+	elements := requestmgr.AsElements(res.Data)
 	data := make(storeapi.ExpiringValues, len(key.Keys))
 	for i, k := range key.Keys {
-		d, ok := res.Data.Get(key.Namespace, key.Collection, k)
+		d, ok := elements.Get(key.Namespace, key.Collection, k)
 		if !ok {
 			return nil, errors.Errorf("the response does not contain a value for key [%s:%s:%s]", key.Namespace, key.Collection, k)
 		}

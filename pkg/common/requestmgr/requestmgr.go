@@ -30,6 +30,20 @@ type Element struct {
 // Elements is a slice of Element
 type Elements []*Element
 
+// AsElements converts the given value to Elements
+func AsElements(i interface{}) Elements {
+	if i == nil {
+		return nil
+	}
+
+	e, ok := i.([]*Element)
+	if ok {
+		return e
+	}
+
+	return i.(Elements)
+}
+
 // Get returns the Element matching the given namespace, collection, and key.
 func (e Elements) Get(ns, coll, key string) (*Element, bool) {
 	for _, element := range e {
@@ -42,11 +56,11 @@ func (e Elements) Get(ns, coll, key string) (*Element, bool) {
 
 // Response is the response from a remote peer for a collection of transient data keys
 type Response struct {
-	Endpoint  string   // The endpoint of the peer that sent the response
-	MSPID     string   // The MSP ID of the peer that sent the response
-	Signature []byte   // The signature of the peer that provided the data
-	Identity  []byte   // The identity of the peer that sent the response
-	Data      Elements // The transient data
+	Endpoint  string      // The endpoint of the peer that sent the response
+	MSPID     string      // The MSP ID of the peer that sent the response
+	Signature []byte      // The signature of the peer that provided the data
+	Identity  []byte      // The identity of the peer that sent the response
+	Data      interface{} // The response data
 }
 
 // Request is an interface to get the response

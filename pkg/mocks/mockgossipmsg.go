@@ -133,3 +133,34 @@ func (m *MockReceivedMessage) GetConnectionInfo() *protoext.ConnectionInfo {
 func (m *MockReceivedMessage) Ack(err error) {
 	// Nothing to do
 }
+
+// NewAppDataReqMsg returns a mock application data request message
+func NewAppDataReqMsg(channelID string, reqID uint64, dataType string, reqPayload []byte) *protoext.SignedGossipMessage {
+	msg, _ := protoext.NoopSign(&gproto.GossipMessage{
+		Tag:     gproto.GossipMessage_CHAN_ONLY,
+		Channel: []byte(channelID),
+		Content: &gproto.GossipMessage_AppDataReq{
+			AppDataReq: &gproto.AppDataRequest{
+				Nonce:    reqID,
+				DataType: dataType,
+				Request:  reqPayload,
+			},
+		},
+	})
+	return msg
+}
+
+// NewAppDataResMsg returns a mock application data response message
+func NewAppDataResMsg(channelID string, reqID uint64, response []byte) *protoext.SignedGossipMessage {
+	msg, _ := protoext.NoopSign(&gproto.GossipMessage{
+		Tag:     gproto.GossipMessage_CHAN_ONLY,
+		Channel: []byte(channelID),
+		Content: &gproto.GossipMessage_AppDataRes{
+			AppDataRes: &gproto.AppDataResponse{
+				Nonce:    reqID,
+				Response: response,
+			},
+		},
+	})
+	return msg
+}

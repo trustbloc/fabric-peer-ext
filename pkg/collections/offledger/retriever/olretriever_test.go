@@ -643,7 +643,7 @@ func (m *mockGossipMsgHandler) Handle(msg *gproto.GossipMessage) {
 			e.Expiry = v.Expiry
 		}
 
-		res.Data = append(res.Data, e)
+		res.Data = append(requestmgr.AsElements(res.Data), e)
 	}
 
 	requestmgr.Get(m.channelID).Respond(req.Nonce, res)

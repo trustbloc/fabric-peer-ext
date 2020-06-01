@@ -302,7 +302,8 @@ func (r *retriever) getTransientData(ctxt context.Context, key *storeapi.Key, en
 	}
 
 	logger.Debugf("[%s] Got response for %d for transient data for [%s]", r.channelID, req.ID(), key)
-	return r.findValue(res.Data, key)
+
+	return r.findValue(requestmgr.AsElements(res.Data), key)
 }
 
 func (r *retriever) findValue(data requestmgr.Elements, key *storeapi.Key) (*storeapi.ExpiringValue, error) {

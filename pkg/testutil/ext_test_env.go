@@ -25,6 +25,7 @@ import (
 	olretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/mocks"
 	storemocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/storeprovider/mocks"
 	tdretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/mocks"
+	"github.com/trustbloc/fabric-peer-ext/pkg/gossip/appdata"
 	statemocks "github.com/trustbloc/fabric-peer-ext/pkg/gossip/state/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
@@ -76,6 +77,7 @@ func SetupResources() func() {
 	resource.Register(func() *storemocks.StoreProvider { return storemocks.NewOffLedgerStoreProvider() })
 	resource.Register(func() *tdretriever.TransientDataProvider { return &tdretriever.TransientDataProvider{} })
 	resource.Register(func() *olretriever.Provider { return &olretriever.Provider{} })
+	resource.Register(appdata.NewHandlerRegistry)
 
 	l := &mocks.Ledger{BlockchainInfo: &common.BlockchainInfo{Height: 1000}}
 	ledgerProvider := &mocks.LedgerProvider{}
