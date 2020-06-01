@@ -8,7 +8,7 @@ set -e
 
 declare -a tests=(
    "e2e"
-   "off_ledger"
+   "off_ledger,gossip_appdata"
    "transient_data"
    "ledger_config"
    "txn"

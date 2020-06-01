@@ -17,6 +17,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/ucc"
 	extpeer "github.com/trustbloc/fabric-peer-ext/pkg/peer"
 	"github.com/trustbloc/fabric-peer-ext/test/cc/examplecc"
+	"github.com/trustbloc/fabric-peer-ext/test/cc/hellocc"
 	"github.com/trustbloc/fabric-peer-ext/test/cc/inprocucc"
 	"github.com/trustbloc/fabric-peer-ext/test/cc/testcc"
 )
@@ -50,6 +51,10 @@ func main() {
 	ucc.Register(func() ccapi.UserCC { return examplecc.New("ol_examplecc_2", nil) })
 	ucc.Register(func() ccapi.UserCC { return examplecc.New("tdata_examplecc", nil) })
 	ucc.Register(func() ccapi.UserCC { return examplecc.New("tdata_examplecc_2", nil) })
+
+	ucc.Register(func(handlerRegistry hellocc.AppDataHandlerRegistry, gossipProvider hellocc.GossipProvider) ccapi.UserCC {
+		return hellocc.New("hellocc", handlerRegistry, gossipProvider)
+	})
 
 	if err := startPeer(); err != nil {
 		panic(err)

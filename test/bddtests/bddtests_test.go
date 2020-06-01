@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/cucumber/godog"
+	"github.com/cucumber/godog/gherkin"
 	"github.com/spf13/viper"
 	"github.com/trustbloc/fabric-peer-test-common/bddtests"
 )
@@ -61,6 +62,14 @@ func TestMain(m *testing.M) {
 				if _, err := composition.Decompose(); err != nil {
 					logger.Warnf("Error decomposing: %s", err)
 				}
+			}
+		})
+
+		s.BeforeScenario(func(i interface{}) {
+			bddtests.ClearState()
+
+			if s, ok := i.(*gherkin.Scenario); ok {
+				logger.Infof("\n\n********** Running scenario: %s **********", s.Name)
 			}
 		})
 
