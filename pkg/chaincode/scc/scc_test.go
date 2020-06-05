@@ -13,13 +13,14 @@ import (
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/builder"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/injectinvoker"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
 func TestCreateSCC(t *testing.T) {
 	t.Run("No dependencies -> Success", func(t *testing.T) {
-		sccBuilder = builder.New()
+		sccBuilder = injectinvoker.NewBuilder()
 		Register(newSCCWithNoDependencies)
 
 		descs := Create()
@@ -27,7 +28,7 @@ func TestCreateSCC(t *testing.T) {
 	})
 
 	t.Run("Dependencies not satisfied -> panic", func(t *testing.T) {
-		sccBuilder = builder.New()
+		sccBuilder = injectinvoker.NewBuilder()
 		Register(newSCCWithDependencies)
 
 		require.Panics(t, func() {
@@ -35,7 +36,7 @@ func TestCreateSCC(t *testing.T) {
 		})
 	})
 	t.Run("Dependencies satisfied -> Success", func(t *testing.T) {
-		sccBuilder = builder.New()
+		sccBuilder = injectinvoker.NewBuilder()
 		Register(newSCCWithDependencies)
 
 		descs := Create(mocks.NewQueryExecutorProvider())

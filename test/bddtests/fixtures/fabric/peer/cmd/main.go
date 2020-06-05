@@ -15,11 +15,13 @@ import (
 	viper "github.com/spf13/viper2015"
 
 	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/ucc"
+	"github.com/trustbloc/fabric-peer-ext/pkg/handler/authfilter"
 	extpeer "github.com/trustbloc/fabric-peer-ext/pkg/peer"
 	"github.com/trustbloc/fabric-peer-ext/test/cc/examplecc"
 	"github.com/trustbloc/fabric-peer-ext/test/cc/hellocc"
 	"github.com/trustbloc/fabric-peer-ext/test/cc/inprocucc"
 	"github.com/trustbloc/fabric-peer-ext/test/cc/testcc"
+	"github.com/trustbloc/fabric-peer-ext/test/handler/exampleauthfilter"
 )
 
 var logger = flogging.MustGetLogger("peer-ext-test")
@@ -38,6 +40,10 @@ func main() {
 	setup()
 
 	extpeer.Initialize()
+
+	logger.Infof("Registering auth filters for BDD tests...")
+
+	authfilter.Register(exampleauthfilter.New)
 
 	logger.Infof("Registering in-process user chaincodes for BDD tests...")
 

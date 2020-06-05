@@ -12,7 +12,8 @@ import (
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/extensions/chaincode/api"
 	"github.com/pkg/errors"
-	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/builder"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/injectinvoker"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
 )
 
@@ -91,7 +92,7 @@ func (r *Registry) registerChaincodes() {
 	// will call mutex.Unlock after all chaincodes are registered.
 	defer r.mutex.Unlock()
 
-	b := builder.New()
+	b := injectinvoker.NewBuilder()
 	for _, c := range r.creators {
 		b.Add(c)
 	}

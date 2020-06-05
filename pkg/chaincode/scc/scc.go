@@ -8,11 +8,12 @@ package scc
 
 import (
 	"github.com/hyperledger/fabric/core/scc"
-	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/builder"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/injectinvoker"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
 )
 
-var sccBuilder = builder.New()
+var sccBuilder = injectinvoker.NewBuilder()
 
 type creator interface{}
 
@@ -25,9 +26,16 @@ func Register(c creator) {
 // Create returns a list of system chain codes, initialized with the given providers.
 func Create(providers ...interface{}) []scc.SelfDescribingSysCC {
 	// Merge the given providers with all of the registered resources
-	descs, err := sccBuilder.Build(append(providers, resource.Mgr.Resources()...)...)
+	resources, err := sccBuilder.Build(append(providers, resource.Mgr.Resources()...)...)
 	if err != nil {
 		panic(err.Error())
 	}
+
+	descs := make([]scc.SelfDescribingSysCC, len(resources))
+
+	for i, r := range resources {
+		descs[i] = r.(scc.SelfDescribingSysCC)
+	}
+
 	return descs
 }

@@ -386,6 +386,8 @@ peer:
             name: DefaultAuth
           -
             name: ExpirationCheck    # This filter checks identity x509 certificate expiration
+          -
+            name: ExampleAuthFilter  # Auth filter for BDD test
         decorators:
           -
             name: DefaultDecorator
