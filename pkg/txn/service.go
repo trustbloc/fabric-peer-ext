@@ -9,13 +9,18 @@ package txn
 import (
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
+	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
+	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/retry"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	"github.com/pkg/errors"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/client"
+	"github.com/trustbloc/fabric-peer-ext/pkg/txn/handler"
 )
 
 const (
@@ -45,6 +50,7 @@ type Service struct {
 	cfgTxID   string
 	c         client.ChannelClient
 	mutex     sync.RWMutex
+	retryOpts retry.Opts
 }
 
 // New returns a new transaction service
@@ -123,6 +129,7 @@ func (s *Service) load() error {
 	logger.Debugf("[%s] Loaded client", s.channelID)
 
 	s.c = c
+	s.retryOpts = newRetryOpts(txnCfg)
 
 	return nil
 }
@@ -149,24 +156,45 @@ func (s *Service) Endorse(req *api.Request) (*channel.Response, error) {
 }
 
 // EndorseAndCommit collects endorsements (according to chaincode policy) and sends the endorsements to the Orderer
-func (s *Service) EndorseAndCommit(req *api.Request) (*channel.Response, error) {
-	var fcn string
-	if len(req.Args) > 0 {
-		fcn = string(req.Args[0])
-	}
+func (s *Service) EndorseAndCommit(req *api.Request) (*channel.Response, bool, error) {
+	checkForCommit := handler.NewCheckForCommitHandler(req.IgnoreNameSpaces, req.CommitType,
+		invoke.NewCommitHandler(),
+	)
 
-	resp, err := s.client().Execute(channel.Request{
-		ChaincodeID:     req.ChaincodeID,
-		Fcn:             fcn,
-		Args:            req.Args[1:],
-		TransientMap:    req.TransientData,
-		InvocationChain: asInvocationChain(req.InvocationChain),
-	})
+	h := invoke.NewSelectAndEndorseHandler(
+		invoke.NewEndorsementValidationHandler(
+			invoke.NewSignatureValidationHandler(
+				checkForCommit,
+			),
+		),
+	)
+
+	numRetries := 0
+	var lastErr error
+
+	resp, err := s.client().InvokeHandler(
+		h, asChannelRequest(req),
+		channel.WithTargets(req.Targets...),
+		channel.WithRetry(s.retryOpts),
+		channel.WithBeforeRetry(func(err error) {
+			numRetries++
+			lastErr = err
+
+			logger.Infof("[%s] Retry #%d on error: %s", s.channelID, numRetries, err.Error())
+		}))
 	if err != nil {
-		return nil, err
+		if numRetries > 0 {
+			logger.Infof("[%s] Failed after %d retries. Last error: %s", s.channelID, numRetries, err)
+		}
+
+		return nil, false, err
 	}
 
-	return &resp, nil
+	if numRetries > 0 {
+		logger.Infof("[%s] Succeeded after %d retries. Last error: %s", s.channelID, numRetries, lastErr)
+	}
+
+	return &resp, checkForCommit.ShouldCommit, nil
 }
 
 type closable interface {
@@ -183,7 +211,11 @@ func (s *Service) Close() {
 }
 
 type txnConfig struct {
-	User string
+	User           string
+	RetryAttempts  int
+	InitialBackoff string
+	MaxBackoff     string
+	BackoffFactor  float64
 }
 
 func (s *Service) client() client.ChannelClient {
@@ -231,6 +263,44 @@ func (s *Service) compareAndSetTxID(txID string) bool {
 	return false
 }
 
+func newRetryOpts(cfg *txnConfig) retry.Opts {
+	attempts := cfg.RetryAttempts
+	initialBackoff, err := time.ParseDuration(cfg.InitialBackoff)
+	if err != nil {
+		logger.Warnf("Invalid value for InitialBackoff [%s]. Will use default InitialBackoff", cfg.InitialBackoff)
+	}
+
+	maxBackoff, err := time.ParseDuration(cfg.MaxBackoff)
+	if err != nil {
+		logger.Warnf("Invalid value for MaxBackoff [%s]. Will use default MaxBackoff", cfg.MaxBackoff)
+	}
+
+	factor := cfg.BackoffFactor
+
+	if attempts == 0 {
+		attempts = retry.DefaultAttempts
+	}
+
+	if initialBackoff == 0 {
+		initialBackoff = retry.DefaultInitialBackoff
+	}
+
+	if maxBackoff == 0 {
+		maxBackoff = retry.DefaultMaxBackoff
+	}
+
+	if factor == 0 {
+		factor = retry.DefaultBackoffFactor
+	}
+
+	return retry.Opts{
+		Attempts:       attempts,
+		InitialBackoff: initialBackoff,
+		MaxBackoff:     maxBackoff,
+		BackoffFactor:  factor,
+	}
+}
+
 func asInvocationChain(chain []*api.ChaincodeCall) []*fab.ChaincodeCall {
 	invocationChain := make([]*fab.ChaincodeCall, len(chain))
 	for i, call := range chain {
@@ -240,6 +310,21 @@ func asInvocationChain(chain []*api.ChaincodeCall) []*fab.ChaincodeCall {
 		}
 	}
 	return invocationChain
+}
+
+func asChannelRequest(req *api.Request) channel.Request {
+	var fcn string
+	if len(req.Args) > 0 {
+		fcn = string(req.Args[0])
+	}
+
+	return channel.Request{
+		ChaincodeID:     req.ChaincodeID,
+		Fcn:             fcn,
+		Args:            req.Args[1:],
+		TransientMap:    req.TransientData,
+		InvocationChain: asInvocationChain(req.InvocationChain),
+	}
 }
 
 type clientProvider interface {

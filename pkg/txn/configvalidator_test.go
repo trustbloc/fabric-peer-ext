@@ -43,7 +43,7 @@ func TestConfigValidator_Validate(t *testing.T) {
 
 	t.Run("Txn config", func(t *testing.T) {
 		t.Run("Valid", func(t *testing.T) {
-			require.NoError(t, v.Validate(config.NewKeyValue(txnKeyV1, &config.Value{Format: "json", Config: `{"User":"User1"}`})))
+			require.NoError(t, v.Validate(config.NewKeyValue(txnKeyV1, &config.Value{Format: "json", Config: `{"User":"User1","InitialBackoff":"500ms","MaxBackoff":"1s"}`})))
 		})
 
 		t.Run("Unsupported version", func(t *testing.T) {
@@ -68,6 +68,18 @@ func TestConfigValidator_Validate(t *testing.T) {
 			err := v.Validate(config.NewKeyValue(txnKeyV1, &config.Value{Format: "json", Config: `{}`}))
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "field 'UserID' was not specified for TXN config")
+		})
+
+		t.Run("Invalid InitialBackoff", func(t *testing.T) {
+			err := v.Validate(config.NewKeyValue(txnKeyV1, &config.Value{Format: "json", Config: `{"User":"User1","InitialBackoff":"xxx","MaxBackoff":"1s"}`}))
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "invalid value for 'InitialBackoff'")
+		})
+
+		t.Run("Invalid MaxBackoff", func(t *testing.T) {
+			err := v.Validate(config.NewKeyValue(txnKeyV1, &config.Value{Format: "json", Config: `{"User":"User1","InitialBackoff":"500ms","MaxBackoff":"xxx"}`}))
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "invalid value for 'MaxBackoff'")
 		})
 	})
 

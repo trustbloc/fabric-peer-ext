@@ -1,3 +1,7 @@
 {
-  "User": "User1"
+  "User": "User1",
+  "RetryAttempts":  3,
+  "InitialBackoff": "500ms",
+  "MaxBackoff":     "1s",
+  "BackoffFactor":  1.5
 }

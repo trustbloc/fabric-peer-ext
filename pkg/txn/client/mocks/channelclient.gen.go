@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
+	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
 )
 
 type ChannelClient struct {
@@ -22,17 +23,18 @@ type ChannelClient struct {
 		result1 channel.Response
 		result2 error
 	}
-	ExecuteStub        func(request channel.Request, options ...channel.RequestOption) (channel.Response, error)
-	executeMutex       sync.RWMutex
-	executeArgsForCall []struct {
+	InvokeHandlerStub        func(handler invoke.Handler, request channel.Request, options ...channel.RequestOption) (channel.Response, error)
+	invokeHandlerMutex       sync.RWMutex
+	invokeHandlerArgsForCall []struct {
+		handler invoke.Handler
 		request channel.Request
 		options []channel.RequestOption
 	}
-	executeReturns struct {
+	invokeHandlerReturns struct {
 		result1 channel.Response
 		result2 error
 	}
-	executeReturnsOnCall map[int]struct {
+	invokeHandlerReturnsOnCall map[int]struct {
 		result1 channel.Response
 		result2 error
 	}
@@ -92,53 +94,54 @@ func (fake *ChannelClient) QueryReturnsOnCall(i int, result1 channel.Response, r
 	}{result1, result2}
 }
 
-func (fake *ChannelClient) Execute(request channel.Request, options ...channel.RequestOption) (channel.Response, error) {
-	fake.executeMutex.Lock()
-	ret, specificReturn := fake.executeReturnsOnCall[len(fake.executeArgsForCall)]
-	fake.executeArgsForCall = append(fake.executeArgsForCall, struct {
+func (fake *ChannelClient) InvokeHandler(handler invoke.Handler, request channel.Request, options ...channel.RequestOption) (channel.Response, error) {
+	fake.invokeHandlerMutex.Lock()
+	ret, specificReturn := fake.invokeHandlerReturnsOnCall[len(fake.invokeHandlerArgsForCall)]
+	fake.invokeHandlerArgsForCall = append(fake.invokeHandlerArgsForCall, struct {
+		handler invoke.Handler
 		request channel.Request
 		options []channel.RequestOption
-	}{request, options})
-	fake.recordInvocation("Execute", []interface{}{request, options})
-	fake.executeMutex.Unlock()
-	if fake.ExecuteStub != nil {
-		return fake.ExecuteStub(request, options...)
+	}{handler, request, options})
+	fake.recordInvocation("InvokeHandler", []interface{}{handler, request, options})
+	fake.invokeHandlerMutex.Unlock()
+	if fake.InvokeHandlerStub != nil {
+		return fake.InvokeHandlerStub(handler, request, options...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.executeReturns.result1, fake.executeReturns.result2
+	return fake.invokeHandlerReturns.result1, fake.invokeHandlerReturns.result2
 }
 
-func (fake *ChannelClient) ExecuteCallCount() int {
-	fake.executeMutex.RLock()
-	defer fake.executeMutex.RUnlock()
-	return len(fake.executeArgsForCall)
+func (fake *ChannelClient) InvokeHandlerCallCount() int {
+	fake.invokeHandlerMutex.RLock()
+	defer fake.invokeHandlerMutex.RUnlock()
+	return len(fake.invokeHandlerArgsForCall)
 }
 
-func (fake *ChannelClient) ExecuteArgsForCall(i int) (channel.Request, []channel.RequestOption) {
-	fake.executeMutex.RLock()
-	defer fake.executeMutex.RUnlock()
-	return fake.executeArgsForCall[i].request, fake.executeArgsForCall[i].options
+func (fake *ChannelClient) InvokeHandlerArgsForCall(i int) (invoke.Handler, channel.Request, []channel.RequestOption) {
+	fake.invokeHandlerMutex.RLock()
+	defer fake.invokeHandlerMutex.RUnlock()
+	return fake.invokeHandlerArgsForCall[i].handler, fake.invokeHandlerArgsForCall[i].request, fake.invokeHandlerArgsForCall[i].options
 }
 
-func (fake *ChannelClient) ExecuteReturns(result1 channel.Response, result2 error) {
-	fake.ExecuteStub = nil
-	fake.executeReturns = struct {
+func (fake *ChannelClient) InvokeHandlerReturns(result1 channel.Response, result2 error) {
+	fake.InvokeHandlerStub = nil
+	fake.invokeHandlerReturns = struct {
 		result1 channel.Response
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *ChannelClient) ExecuteReturnsOnCall(i int, result1 channel.Response, result2 error) {
-	fake.ExecuteStub = nil
-	if fake.executeReturnsOnCall == nil {
-		fake.executeReturnsOnCall = make(map[int]struct {
+func (fake *ChannelClient) InvokeHandlerReturnsOnCall(i int, result1 channel.Response, result2 error) {
+	fake.InvokeHandlerStub = nil
+	if fake.invokeHandlerReturnsOnCall == nil {
+		fake.invokeHandlerReturnsOnCall = make(map[int]struct {
 			result1 channel.Response
 			result2 error
 		})
 	}
-	fake.executeReturnsOnCall[i] = struct {
+	fake.invokeHandlerReturnsOnCall[i] = struct {
 		result1 channel.Response
 		result2 error
 	}{result1, result2}
@@ -149,8 +152,8 @@ func (fake *ChannelClient) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.queryMutex.RLock()
 	defer fake.queryMutex.RUnlock()
-	fake.executeMutex.RLock()
-	defer fake.executeMutex.RUnlock()
+	fake.invokeHandlerMutex.RLock()
+	defer fake.invokeHandlerMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

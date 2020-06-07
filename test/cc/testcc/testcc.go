@@ -17,7 +17,6 @@ import (
 	ccapi "github.com/hyperledger/fabric/extensions/chaincode/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	configsvc "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/service"
-	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
 )
 
 var logger = flogging.MustGetLogger("testcc")
@@ -39,30 +38,26 @@ type configServiceProvider interface {
 	ForChannel(channelID string) config.Service
 }
 
-type txnServiceProvider interface {
-	ForChannel(channelID string) (api.Service, error)
-}
-
 type TestCC struct {
 	functionRegistry map[string]function
 	localMSPID       string
 	localPeerID      string
 	mutex            sync.RWMutex
 	configProvider   configServiceProvider
-	txnProvider      txnServiceProvider
 	config           map[config.Key]*config.Value
 }
 
 // New returns a new test chaincode
-func New(configServiceProvider configServiceProvider, peerConfig peerConfig, txnProvider txnServiceProvider) *TestCC {
+func New(configServiceProvider configServiceProvider, peerConfig peerConfig) *TestCC {
 	cc := &TestCC{
 		config:         make(map[config.Key]*config.Value),
 		localMSPID:     peerConfig.MSPID(),
 		localPeerID:    peerConfig.PeerID(),
 		configProvider: configServiceProvider,
-		txnProvider:    txnProvider,
 	}
+
 	cc.initFunctionRegistry()
+
 	return cc
 }
 
@@ -181,68 +176,6 @@ func (cc *TestCC) queryConfig(stub shim.ChaincodeStubInterface, args [][]byte) p
 	return shim.Success(resultBytes)
 }
 
-func (cc *TestCC) endorse(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
-	if len(args) < 1 {
-		return shim.Error("expecting chaincode name and optional args")
-	}
-
-	req := &api.Request{
-		ChaincodeID: string(args[0]),
-		Args:        args[1:],
-	}
-
-	channelID := stub.GetChannelID()
-
-	txnSvc, err := cc.txnProvider.ForChannel(channelID)
-	if err != nil {
-		logger.Errorf("Error getting transaction service for channel [%s]: %s", channelID, err)
-		return shim.Error(fmt.Sprintf("Error getting transaction service for channel [%s]: %s", channelID, err))
-	}
-
-	logger.Infof("Executing Endorse on channel [%s]...", channelID)
-
-	resp, err := txnSvc.Endorse(req)
-	if err != nil {
-		logger.Errorf("Error returned from Endorse: %s", err)
-		return shim.Error(fmt.Sprintf("Error returned from Endorse: %s", err))
-	}
-
-	logger.Infof("... Endorse succeeded on channel [%s]", channelID)
-
-	return shim.Success(resp.Payload)
-}
-
-func (cc *TestCC) endorseAndCommit(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
-	if len(args) < 1 {
-		return shim.Error("expecting chaincode name and optional args")
-	}
-
-	req := &api.Request{
-		ChaincodeID: string(args[0]),
-		Args:        args[1:],
-	}
-
-	// Perform the transaction in the background so as not to cause a deadlock in the current invocation
-	go func(channelID string, req *api.Request) {
-		txnSvc, err := cc.txnProvider.ForChannel(channelID)
-		if err != nil {
-			logger.Errorf("Error getting transaction service for channel [%s]: %s", channelID, err)
-			return
-		}
-
-		logger.Infof("Executing EndorseAndCommit on channel [%s]...", channelID)
-
-		if _, err := txnSvc.EndorseAndCommit(req); err != nil {
-			logger.Errorf("Error returned from EndorseAndCommit: %s", err)
-			return
-		}
-
-		logger.Infof("... EndorseAndCommit succeeded on channel [%s]", channelID)
-	}(stub.GetChannelID(), req)
-
-	return shim.Success(nil)
-}
-
 func (cc *TestCC) updateConfig(key *config.Key, value *config.Value) {
 	cc.mutex.Lock()
 	defer cc.mutex.Unlock()
@@ -266,8 +199,6 @@ func (cc *TestCC) initFunctionRegistry() {
 	cc.functionRegistry = make(map[string]function)
 	cc.functionRegistry["getconfig"] = cc.getConfig
 	cc.functionRegistry["queryconfig"] = cc.queryConfig
-	cc.functionRegistry["endorse"] = cc.endorse
-	cc.functionRegistry["endorseandcommit"] = cc.endorseAndCommit
 }
 
 // functionSet returns a string enumerating all available functions
