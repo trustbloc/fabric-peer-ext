@@ -10,4 +10,7 @@ defineSupportCode(function ({And, But, Given, Then, When}) {
     And(/^txn service is invoked on channel "([^"]*)" with chaincode "([^"]*)" with args "([^"]*)" on peers "([^"]*)"$/, function (arg1, arg2, arg3, arg4, callback) {
         callback.pending();
     });
+    And(/^txn service is invoked on channel "([^"]*)" with chaincode "([^"]*)" with args "([^"]*)" on peers "([^"]*)" then the error response should contain "([^"]*)"$/, function (arg1, arg2, arg3, arg4, arg5, callback) {
+        callback.pending();
+    });
 });

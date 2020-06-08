@@ -32,6 +32,25 @@ func NewTxnSteps(context *bddtests.BDDContext) *TxnSteps {
 }
 
 func (d *TxnSteps) queryTxnService(channelID, ccID, args, peerIDs string) error {
+	return d.doQueryTxnService(channelID, ccID, args, peerIDs)
+}
+
+func (d *TxnSteps) queryTxnServiceWithExpectedError(channelID, ccID, args, peerIDs, expectedError string) error {
+	err := d.doQueryTxnService(channelID, ccID, args, peerIDs)
+	if err == nil {
+		return errors.Errorf("expecting error [%s] but got none", expectedError)
+	}
+
+	if strings.Contains(err.Error(), expectedError) {
+		logger.Infof("Got error [%s] which was expected to contain [%s]", err, expectedError)
+
+		return nil
+	}
+
+	return errors.Errorf("expecting error to contain [%s] but got [%s]", expectedError, err.Error())
+}
+
+func (d *TxnSteps) doQueryTxnService(channelID, ccID, args, peerIDs string) error {
 	bddtests.ClearResponse()
 
 	if peerIDs == "" {
@@ -110,5 +129,7 @@ func (d *TxnSteps) queryTxnService(channelID, ccID, args, peerIDs string) error 
 func (d *TxnSteps) RegisterSteps(s *godog.Suite) {
 	s.BeforeScenario(d.BDDContext.BeforeScenario)
 	s.AfterScenario(d.BDDContext.AfterScenario)
+
 	s.Step(`^txn service is invoked on channel "([^"]*)" with chaincode "([^"]*)" with args "([^"]*)" on peers "([^"]*)"$`, d.queryTxnService)
+	s.Step(`^txn service is invoked on channel "([^"]*)" with chaincode "([^"]*)" with args "([^"]*)" on peers "([^"]*)" then the error response should contain "([^"]*)"$`, d.queryTxnServiceWithExpectedError)
 }

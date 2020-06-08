@@ -141,15 +141,32 @@ func (s *Service) Endorse(req *api.Request) (*channel.Response, error) {
 		fcn = string(req.Args[0])
 	}
 
-	resp, err := s.client().Query(channel.Request{
-		ChaincodeID:     req.ChaincodeID,
-		Fcn:             fcn,
-		Args:            req.Args[1:],
-		TransientMap:    req.TransientData,
-		InvocationChain: asInvocationChain(req.InvocationChain),
-	})
+	numRetries := 0
+	var lastErr error
+
+	resp, err := s.client().Query(
+		channel.Request{
+			ChaincodeID:     req.ChaincodeID,
+			Fcn:             fcn,
+			Args:            req.Args[1:],
+			TransientMap:    req.TransientData,
+			InvocationChain: asInvocationChain(req.InvocationChain),
+		},
+		channel.WithTargets(req.Targets...),
+		channel.WithTargetFilter(newTargetFilter(req.PeerFilter)),
+		channel.WithRetry(s.retryOpts),
+		channel.WithBeforeRetry(s.beforeRetryHandler(&numRetries, &lastErr)),
+	)
 	if err != nil {
+		if numRetries > 0 {
+			logger.Infof("[%s] Failed after %d retries. Last error: %s", s.channelID, numRetries, err)
+		}
+
 		return nil, err
+	}
+
+	if numRetries > 0 {
+		logger.Infof("[%s] Succeeded after %d retries. Last error: %s", s.channelID, numRetries, lastErr)
 	}
 
 	return &resp, nil
@@ -175,13 +192,9 @@ func (s *Service) EndorseAndCommit(req *api.Request) (*channel.Response, bool, e
 	resp, err := s.client().InvokeHandler(
 		h, asChannelRequest(req),
 		channel.WithTargets(req.Targets...),
+		channel.WithTargetFilter(newTargetFilter(req.PeerFilter)),
 		channel.WithRetry(s.retryOpts),
-		channel.WithBeforeRetry(func(err error) {
-			numRetries++
-			lastErr = err
-
-			logger.Infof("[%s] Retry #%d on error: %s", s.channelID, numRetries, err.Error())
-		}))
+		channel.WithBeforeRetry(s.beforeRetryHandler(&numRetries, &lastErr)))
 	if err != nil {
 		if numRetries > 0 {
 			logger.Infof("[%s] Failed after %d retries. Last error: %s", s.channelID, numRetries, err)
@@ -263,6 +276,15 @@ func (s *Service) compareAndSetTxID(txID string) bool {
 	return false
 }
 
+func (s *Service) beforeRetryHandler(numRetries *int, lastErr *error) retry.BeforeRetryHandler {
+	return func(err error) {
+		*numRetries++
+		*lastErr = err
+
+		logger.Infof("[%s] Retry #%d on error: %s", s.channelID, numRetries, err.Error())
+	}
+}
+
 func newRetryOpts(cfg *txnConfig) retry.Opts {
 	attempts := cfg.RetryAttempts
 	initialBackoff, err := time.ParseDuration(cfg.InitialBackoff)
@@ -298,6 +320,7 @@ func newRetryOpts(cfg *txnConfig) retry.Opts {
 		InitialBackoff: initialBackoff,
 		MaxBackoff:     maxBackoff,
 		BackoffFactor:  factor,
+		RetryableCodes: retry.ChannelClientRetryableCodes,
 	}
 }
 
@@ -336,4 +359,40 @@ type defaultClientProvider struct {
 
 func (p *defaultClientProvider) CreateClient(channelID, userName string, peerConfig api.PeerConfig, sdkCfgBytes []byte, format config.Format) (client.ChannelClient, error) {
 	return client.New(channelID, userName, peerConfig, sdkCfgBytes, format)
+}
+
+type peer struct {
+	endpoint string
+	mspID    string
+}
+
+func (p *peer) Endpoint() string {
+	return p.endpoint
+}
+
+func (p *peer) MSPID() string {
+	return p.mspID
+}
+
+func newPeer(mspID, endpoint string) *peer {
+	return &peer{
+		endpoint: endpoint,
+		mspID:    mspID,
+	}
+}
+
+type targetFilter struct {
+	filter api.PeerFilter
+}
+
+func (f *targetFilter) Accept(peer fab.Peer) bool {
+	return f.filter.Accept(newPeer(peer.MSPID(), peer.URL()))
+}
+
+func newTargetFilter(filter api.PeerFilter) fab.TargetFilter {
+	if filter == nil {
+		return nil
+	}
+
+	return &targetFilter{filter: filter}
 }

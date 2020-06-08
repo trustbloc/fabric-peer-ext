@@ -15,6 +15,7 @@ import (
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/retry"
+	sdkmocks "github.com/hyperledger/fabric-sdk-go/pkg/fab/mocks"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
@@ -93,6 +94,18 @@ func TestClient(t *testing.T) {
 		resp, err := s.Endorse(req)
 		require.EqualError(t, err, errExpected.Error())
 		require.Nil(t, resp)
+	})
+
+	t.Run("Endorse with peer filter -> error", func(t *testing.T) {
+		req := &api.Request{
+			Args:       [][]byte{[]byte("arg1")},
+			PeerFilter: &mockPeerFilter{},
+		}
+
+		cliReturned.QueryReturns(channel.Response{}, nil)
+		resp, err := s.Endorse(req)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
 	})
 
 	t.Run("EndorseAndCommit -> success", func(t *testing.T) {
@@ -220,6 +233,14 @@ func TestNewRetryOpts(t *testing.T) {
 	})
 }
 
+func TestPeerFilter(t *testing.T) {
+	f := newTargetFilter(&mockPeerFilter{})
+	require.False(t, f.Accept(&sdkmocks.MockPeer{MockMSP: msp1, MockURL: peer1}))
+
+	f = newTargetFilter(&mockPeerFilter{endpoint: peer1, mspID: msp1})
+	require.True(t, f.Accept(&sdkmocks.MockPeer{MockMSP: msp1, MockURL: peer1}))
+}
+
 type mockClosableClient struct {
 	txnmocks.TxnClient
 	closed bool
@@ -265,4 +286,14 @@ func (m *mockClientProvider) setError(err error) {
 	defer m.mutex.Unlock()
 
 	m.err = err
+}
+
+type mockPeerFilter struct {
+	endpoint string
+	mspID    string
+}
+
+func (f *mockPeerFilter) Accept(p api.Peer) bool {
+	logger.Infof("P [%s], [%s]", p.Endpoint(), p.MSPID())
+	return p.MSPID() == f.mspID && p.Endpoint() == f.endpoint
 }

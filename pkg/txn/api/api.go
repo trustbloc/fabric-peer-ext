@@ -39,6 +39,9 @@ type Request struct {
 
 	// IgnoreNameSpaces ignore these namespaces in the write set when CommitType is CommitOnWrite
 	IgnoreNameSpaces []Namespace
+
+	// PeerFilter filters out peers using application-specific logic (optional)
+	PeerFilter PeerFilter
 }
 
 // ChaincodeCall ...
@@ -89,4 +92,16 @@ func (t CommitType) String() string {
 type Namespace struct {
 	Name        string
 	Collections []string
+}
+
+// Peer provides basic information about a peer
+type Peer interface {
+	MSPID() string
+	Endpoint() string
+}
+
+// PeerFilter is applied to peers selected for endorsement and removes
+// those groups that don't pass the filter acceptance test
+type PeerFilter interface {
+	Accept(peer Peer) bool
 }

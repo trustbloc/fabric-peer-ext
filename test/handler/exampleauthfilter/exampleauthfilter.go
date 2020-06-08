@@ -20,6 +20,7 @@ import (
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/pkg/errors"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
 )
 
@@ -266,6 +267,8 @@ type endorsementRequest struct {
 	Args             []string        `json:"args"`
 	CommitType       string          `json:"commit_type"`
 	IgnoreNameSpaces []api.Namespace `json:"ignore_namespaces"`
+	PeerFilter       string          `json:"peer_filter"`
+	PeerFilterArgs   []string        `json:"peer_filter_args"`
 }
 
 func getEndorsementRequest(args [][]byte) (*api.Request, error) {
@@ -286,11 +289,18 @@ func getEndorsementRequest(args [][]byte) (*api.Request, error) {
 		return nil, err
 	}
 
+	var peerFilter api.PeerFilter
+	switch request.PeerFilter {
+	case "msp":
+		peerFilter = newMSPPeerFilter(request.PeerFilterArgs)
+	}
+
 	return &api.Request{
 		ChaincodeID:      request.ChaincodeID,
 		Args:             asByteArrays(request.Args),
 		CommitType:       commitType,
 		IgnoreNameSpaces: request.IgnoreNameSpaces,
+		PeerFilter:       peerFilter,
 	}, nil
 }
 
@@ -317,4 +327,30 @@ func asCommitType(t string) (api.CommitType, error) {
 	default:
 		return 0, errors.Errorf("invalid commit_type: [%s]", t)
 	}
+}
+
+type mspPeerFilter struct {
+	mspIDs []string
+}
+
+func newMSPPeerFilter(mspIDs []string) api.PeerFilter {
+	logger.Infof("[%s] Creating MSP filter that chooses peers in MSPs %s", mspIDs)
+
+	return &mspPeerFilter{
+		mspIDs: mspIDs,
+	}
+}
+
+func (f *mspPeerFilter) Accept(p api.Peer) bool {
+	for _, mspID := range f.mspIDs {
+		if p.MSPID() == mspID {
+			logger.Infof("Accepting peer [%s] since it is a member of %s", p.Endpoint(), f.mspIDs)
+
+			return true
+		}
+	}
+
+	logger.Infof("Not accepting peer [%s] since it is NOT a member of %s", p.Endpoint(), f.mspIDs)
+
+	return false
 }
