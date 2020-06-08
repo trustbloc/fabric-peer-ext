@@ -121,6 +121,15 @@ Feature: txn
     And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer1.org2.example.com"
     Then the JSON path "Payload" of the response equals "valueB"
 
+    # Peer filter
+    Given variable "endorseRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["get","keyA"],"peer_filter":"msp","peer_filter_args":["Org1MSP","Org2MSP"]}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer1.org1.example.com"
+    Then the JSON path "Payload" of the response equals "valueA"
+
+    # Should fail since the chaincode policy won't be satisfied if we're filtering out Org2MSP
+    Given variable "endorseRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["get","keyA"],"peer_filter":"msp","peer_filter_args":["Org1MSP"]}'
+    When txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer1.org1.example.com" then the error response should contain "no endorsement combination can be satisfied"
+
   @txn_s2
   Scenario: Configuration validation errors
     Given variable "org1ConfigUpdateInvalidTxn" is assigned config from file "./fixtures/config/fabric/org1-config-invalid-txn.json"
