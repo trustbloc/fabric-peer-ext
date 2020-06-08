@@ -14,7 +14,9 @@ import (
 	"time"
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
+	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/retry"
 	"github.com/stretchr/testify/require"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
@@ -94,18 +96,20 @@ func TestClient(t *testing.T) {
 	})
 
 	t.Run("EndorseAndCommit -> success", func(t *testing.T) {
-		cliReturned.ExecuteReturns(channel.Response{}, nil)
-		resp, err := s.EndorseAndCommit(req)
+		cliReturned.InvokeHandlerReturns(channel.Response{}, nil)
+		resp, committed, err := s.EndorseAndCommit(req)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
+		require.False(t, committed)
 	})
 
 	t.Run("EndorseAndCommit -> error", func(t *testing.T) {
 		errExpected := errors.New("injected query error")
-		cliReturned.ExecuteReturns(channel.Response{}, errExpected)
-		resp, err := s.EndorseAndCommit(req)
+		cliReturned.InvokeHandlerReturns(channel.Response{}, errExpected)
+		resp, committed, err := s.EndorseAndCommit(req)
 		require.EqualError(t, err, errExpected.Error())
 		require.Nil(t, resp)
+		require.False(t, committed)
 	})
 
 	t.Run("Config update", func(t *testing.T) {
@@ -189,6 +193,31 @@ func TestNew_Error(t *testing.T) {
 	s, err := newService("channel1", p)
 	require.EqualError(t, err, errExpected.Error())
 	require.Nil(t, s)
+}
+
+func TestNewRetryOpts(t *testing.T) {
+	t.Run("Valid", func(t *testing.T) {
+		cfg := &txnConfig{
+			RetryAttempts:  3,
+			InitialBackoff: "250ms",
+			MaxBackoff:     "5s",
+			BackoffFactor:  2.5,
+		}
+
+		opts := newRetryOpts(cfg)
+		require.Equal(t, cfg.RetryAttempts, opts.Attempts)
+		require.Equal(t, 250*time.Millisecond, opts.InitialBackoff)
+		require.Equal(t, 5*time.Second, opts.MaxBackoff)
+		require.Equal(t, cfg.BackoffFactor, opts.BackoffFactor)
+	})
+
+	t.Run("Default values", func(t *testing.T) {
+		opts := newRetryOpts(&txnConfig{})
+		require.Equal(t, retry.DefaultAttempts, opts.Attempts)
+		require.Equal(t, retry.DefaultInitialBackoff, opts.InitialBackoff)
+		require.Equal(t, retry.DefaultMaxBackoff, opts.MaxBackoff)
+		require.Equal(t, retry.DefaultBackoffFactor, opts.BackoffFactor)
+	})
 }
 
 type mockClosableClient struct {

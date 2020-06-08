@@ -15,6 +15,7 @@ type Service interface {
 	// Endorse collects endorsements according to chaincode policy
 	Endorse(req *Request) (resp *channel.Response, err error)
 
-	// EndorseAndCommit collects endorsements (according to chaincode policy) and sends the endorsements to the Orderer
-	EndorseAndCommit(req *Request) (resp *channel.Response, err error)
+	// EndorseAndCommit collects endorsements (according to chaincode policy) and sends the endorsements to the Orderer.
+	// Returns the response and true if the transaction was committed.
+	EndorseAndCommit(req *Request) (resp *channel.Response, committed bool, err error)
 }

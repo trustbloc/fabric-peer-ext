@@ -9,6 +9,7 @@ package txn
 import (
 	"encoding/json"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
@@ -60,6 +61,18 @@ func (v *configValidator) validateTXNConfig(kv *config.KeyValue) error {
 
 	if txnConfig.User == "" {
 		return errors.Errorf("field 'UserID' was not specified for TXN config %s", kv.Key)
+	}
+
+	if txnConfig.InitialBackoff != "" {
+		if _, err := time.ParseDuration(txnConfig.InitialBackoff); err != nil {
+			return errors.Errorf("invalid value for 'InitialBackoff' [%s]", txnConfig.InitialBackoff)
+		}
+	}
+
+	if txnConfig.MaxBackoff != "" {
+		if _, err := time.ParseDuration(txnConfig.MaxBackoff); err != nil {
+			return errors.Errorf("invalid value for 'MaxBackoff' [%s]", txnConfig.MaxBackoff)
+		}
 	}
 
 	return nil

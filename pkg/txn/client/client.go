@@ -8,6 +8,7 @@ package client
 
 import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
+	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/core"
 	fabapi "github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	sdkconfig "github.com/hyperledger/fabric-sdk-go/pkg/core/config"
@@ -15,6 +16,7 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/pkg/errors"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/reference"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
@@ -25,7 +27,7 @@ var logger = flogging.MustGetLogger("ext_txn")
 // ChannelClient defines functions to collect endorsements and send them to the orderer
 type ChannelClient interface {
 	Query(request channel.Request, options ...channel.RequestOption) (channel.Response, error)
-	Execute(request channel.Request, options ...channel.RequestOption) (channel.Response, error)
+	InvokeHandler(handler invoke.Handler, request channel.Request, options ...channel.RequestOption) (channel.Response, error)
 }
 
 // Client holds an SDK client instance
@@ -86,16 +88,15 @@ func (c *Client) Query(request channel.Request, options ...channel.RequestOption
 	return c.ChannelClient.Query(request, options...)
 }
 
-// Execute sends an endorsement proposal request to one or more peers (according to policy and options) and
-// then sends the proposal responses to the orderer.
-func (c *Client) Execute(request channel.Request, options ...channel.RequestOption) (channel.Response, error) {
+// InvokeHandler invokes the given handler chain.
+func (c *Client) InvokeHandler(handler invoke.Handler, request channel.Request, options ...channel.RequestOption) (channel.Response, error) {
 	_, err := c.refCount.Increment()
 	if err != nil {
 		return channel.Response{}, err
 	}
 	defer c.decrementCounter()
 
-	return c.ChannelClient.Execute(request, options...)
+	return c.ChannelClient.InvokeHandler(handler, request, options...)
 }
 
 // Close will close the SDK after all references have been released.

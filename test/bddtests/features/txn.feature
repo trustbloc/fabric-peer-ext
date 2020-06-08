@@ -29,8 +29,45 @@ Feature: txn
     And client invokes chaincode "configscc" with args "save,${org2Config}" on the "mychannel" channel
     And we wait 3 seconds
 
-    When client queries chaincode "testcc" with args "endorseandcommit,target_cc,put,key1,value1" on peers "peer0.org1.example.com" on the "mychannel" channel
-    And client queries chaincode "testcc" with args "endorseandcommit,target_cc,put,key2,value2" on peers "peer0.org2.example.com" on the "mychannel" channel
+    Given variable "endorseAndCommitRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["put","key1","value1"],"commit_type":"commit-on-write","ignore_namespaces":[{"Name":"target_cc"}]}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorseandcommit,${endorseAndCommitRequest}" on peers "peer0.org2.example.com"
+    Then the JSON path "Committed" of the boolean response equals "false"
+
+    Given variable "endorseAndCommitRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["put","key1","value1"],"commit_type":"commit-on-write"}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorseandcommit,${endorseAndCommitRequest}" on peers "peer0.org2.example.com"
+    Then the JSON path "Committed" of the boolean response equals "true"
+
+    Given variable "endorseAndCommitRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["put","key2","value2"],"commit_type":"no-commit"}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorseandcommit,${endorseAndCommitRequest}" on peers "peer0.org2.example.com"
+    Then the JSON path "Committed" of the boolean response equals "false"
+
+    Given variable "endorseAndCommitRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["get","key1"],"commit_type":"commit-on-write"}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorseandcommit,${endorseAndCommitRequest}" on peers "peer0.org2.example.com"
+    Then the JSON path "Committed" of the boolean response equals "false"
+
+    Given variable "endorseAndCommitRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["get","key1"],"commit_type":"commit"}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorseandcommit,${endorseAndCommitRequest}" on peers "peer0.org2.example.com"
+    Then the JSON path "Committed" of the boolean response equals "true"
+
+    Given variable "endorseRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["put","key3","value3"]}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer0.org2.example.com"
+    Then the JSON path "Committed" of the boolean response equals "false"
+
+    Then we wait 5 seconds
+
+    Then client queries chaincode "target_cc" with args "get,key1" on the "mychannel" channel
+    Then response from "target_cc" to client equal value "value1"
+
+    Then client queries chaincode "target_cc" with args "get,key2" on the "mychannel" channel
+    Then response from "target_cc" to client equal value ""
+
+    Then client queries chaincode "target_cc" with args "get,key3" on the "mychannel" channel
+    Then response from "target_cc" to client equal value ""
+
+    Given variable "endorseAndCommitRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["put","key2","value2"]}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorseandcommit,${endorseAndCommitRequest}" on peers "peer0.org2.example.com"
+    Then the JSON path "Committed" of the boolean response equals "true"
+
     Then we wait 5 seconds
 
     Then container "peer0.org2.example.com" is stopped
@@ -41,17 +78,22 @@ Feature: txn
 
     Then we wait 10 seconds
 
-    When client queries chaincode "testcc" with args "endorseandcommit,target_cc,put,key3,value3" on peers "peer1.org1.example.com" on the "mychannel" channel
+    Given variable "endorseAndCommitRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["put","key3","value3"]}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorseandcommit,${endorseAndCommitRequest}" on peers "peer1.org1.example.com"
+    Then the JSON path "Committed" of the boolean response equals "true"
     Then we wait 5 seconds
 
-    When client queries chaincode "testcc" with args "endorse,target_cc,get,key1" on peers "peer1.org2.example.com" on the "mychannel" channel
-    Then response from "testcc" to client equal value "value1"
+    Given variable "endorseRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["get","key1"]}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer1.org2.example.com"
+    Then the JSON path "Payload" of the response equals "value1"
 
-    When client queries chaincode "testcc" with args "endorse,target_cc,get,key2" on peers "peer0.org1.example.com" on the "mychannel" channel
-    Then response from "testcc" to client equal value "value2"
+    Given variable "endorseRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["get","key2"]}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer0.org1.example.com"
+    Then the JSON path "Payload" of the response equals "value2"
 
-    When client queries chaincode "testcc" with args "endorse,target_cc,get,key3" on peers "peer0.org2.example.com" on the "mychannel" channel
-    Then response from "testcc" to client equal value "value3"
+    Given variable "endorseRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["get","key3"]}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer0.org2.example.com"
+    Then the JSON path "Payload" of the response equals "value3"
 
     # SDK config update
     Given variable "org1ConfigUpdate" is assigned config from file "./fixtures/config/fabric/org1-config-update.json"
@@ -61,15 +103,23 @@ Feature: txn
     And client invokes chaincode "configscc" with args "save,${org2ConfigUpdate}" on the "mychannel" channel
     And we wait 5 seconds
 
-    When client queries chaincode "testcc" with args "endorseandcommit,target_cc,put,keyA,valueA" on peers "peer0.org1.example.com" on the "mychannel" channel
-    And client queries chaincode "testcc" with args "endorseandcommit,target_cc,put,keyB,valueB" on peers "peer0.org2.example.com" on the "mychannel" channel
+    Given variable "endorseAndCommitRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["put","keyA","valueA"]}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorseandcommit,${endorseAndCommitRequest}" on peers "peer0.org1.example.com"
+    Then the JSON path "Committed" of the boolean response equals "true"
+
+    Given variable "endorseAndCommitRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["put","keyB","valueB"]}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorseandcommit,${endorseAndCommitRequest}" on peers "peer0.org2.example.com"
+    Then the JSON path "Committed" of the boolean response equals "true"
+
     And we wait 5 seconds
 
-    When client queries chaincode "testcc" with args "endorse,target_cc,get,keyA" on peers "peer1.org1.example.com" on the "mychannel" channel
-    Then response from "testcc" to client equal value "valueA"
+    Given variable "endorseRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["get","keyA"]}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer1.org1.example.com"
+    Then the JSON path "Payload" of the response equals "valueA"
 
-    When client queries chaincode "testcc" with args "endorse,target_cc,get,keyB" on peers "peer1.org2.example.com" on the "mychannel" channel
-    Then response from "testcc" to client equal value "valueB"
+    Given variable "endorseRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["get","keyB"]}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer1.org2.example.com"
+    Then the JSON path "Payload" of the response equals "valueB"
 
   @txn_s2
   Scenario: Configuration validation errors

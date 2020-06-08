@@ -11,12 +11,14 @@ import (
 	"testing"
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
+	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/core"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 	"github.com/hyperledger/fabric/bccsp"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
 	clientmocks "github.com/trustbloc/fabric-peer-ext/pkg/txn/client/mocks"
@@ -187,7 +189,7 @@ func TestClient_Query(t *testing.T) {
 		require.NotNil(t, c)
 
 		req := channel.Request{}
-		_, err = c.Execute(req)
+		_, err = c.InvokeHandler(&mockHandler{}, req)
 		require.NoError(t, err)
 	})
 
@@ -198,7 +200,7 @@ func TestClient_Query(t *testing.T) {
 		c.Close()
 
 		req := channel.Request{}
-		_, err = c.Execute(req)
+		_, err = c.InvokeHandler(&mockHandler{}, req)
 		require.EqualError(t, err, "attempt to increment count on closed resource")
 	})
 
@@ -208,4 +210,10 @@ func TestClient_Query(t *testing.T) {
 		require.NotNil(t, c)
 		require.NotPanics(t, c.decrementCounter)
 	})
+}
+
+type mockHandler struct {
+}
+
+func (c *mockHandler) Handle(*invoke.RequestContext, *invoke.ClientContext) {
 }

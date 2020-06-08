@@ -33,6 +33,12 @@ type Request struct {
 	// The invoked chaincode (specified by ChaincodeID) may optionally be added to the invocation
 	// chain along with any collections, otherwise it may be omitted.
 	InvocationChain []*ChaincodeCall
+
+	// CommitType specifies how commits should be handled (default CommitOnWrite)
+	CommitType CommitType
+
+	// IgnoreNameSpaces ignore these namespaces in the write set when CommitType is CommitOnWrite
+	IgnoreNameSpaces []Namespace
 }
 
 // ChaincodeCall ...
@@ -48,4 +54,39 @@ type PeerConfig interface {
 	PeerAddress() string
 	MSPConfigPath() string
 	TLSCertPath() string
+}
+
+// CommitType specifies how commits should be handled
+type CommitType int
+
+const (
+	// CommitOnWrite indicates that the transaction should be committed only if
+	// the consumer chaincode produces a write-set
+	CommitOnWrite CommitType = iota
+
+	// Commit indicates that the transaction should be committed
+	Commit
+
+	// NoCommit indicates that the transaction should not be committed
+	NoCommit
+)
+
+// String returns the string value of CommitType
+func (t CommitType) String() string {
+	switch t {
+	case CommitOnWrite:
+		return "commitOnWrite"
+	case Commit:
+		return "commit"
+	case NoCommit:
+		return "noCommit"
+	default:
+		return "unknown"
+	}
+}
+
+// Namespace contains a chaincode name and an optional set of private data collections to ignore
+type Namespace struct {
+	Name        string
+	Collections []string
 }
