@@ -18,7 +18,9 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/status"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	fabApi "github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
+	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/pkg/errors"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/discovery"
 	grpcCodes "google.golang.org/grpc/codes"
 
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
@@ -42,12 +44,14 @@ type providers struct {
 	peerConfig     api.PeerConfig
 	configService  config.Service
 	clientProvider clientProvider
+	gossip         gossipapi.GossipService
 }
 
 // Service implements a Transaction service that gathers multiple endorsements (according to chaincode policy) and
 // (optionally) sends the transaction to the Orderer.
 type Service struct {
 	*providers
+	*discovery.Discovery
 	channelID       string
 	txnCfgKey       *config.Key
 	sdkCfgKey       *config.Key
@@ -67,6 +71,7 @@ func newService(channelID string, p *providers) (*Service, error) {
 		channelID: channelID,
 		txnCfgKey: config.NewPeerComponentKey(p.peerConfig.MSPID(), p.peerConfig.PeerID(), configApp, configVersion, generalConfigComponent, generalConfigVersion),
 		sdkCfgKey: config.NewPeerComponentKey(p.peerConfig.MSPID(), p.peerConfig.PeerID(), configApp, configVersion, sdkConfigComponent, sdkConfigVersion),
+		Discovery: discovery.New(channelID, p.gossip),
 	}
 
 	if err := s.load(); err != nil {
@@ -161,7 +166,7 @@ func (s *Service) Endorse(req *api.Request) (*channel.Response, error) {
 	resp, err := s.client().InvokeHandler(
 		h, asChannelRequest(req),
 		channel.WithTargets(req.Targets...),
-		channel.WithTargetFilter(newTargetFilter(req.PeerFilter)),
+		channel.WithTargetFilter(newTargetFilter(newEndorserFilter(s.Discovery, req.PeerFilter))),
 		channel.WithRetry(s.retryOpts),
 		channel.WithBeforeRetry(s.beforeRetryHandler(&numRetries, &lastErr)))
 	if err != nil {
@@ -206,7 +211,7 @@ func (s *Service) EndorseAndCommit(req *api.Request) (*channel.Response, bool, e
 	resp, err := s.client().InvokeHandler(
 		h, asChannelRequest(req),
 		channel.WithTargets(req.Targets...),
-		channel.WithTargetFilter(newTargetFilter(req.PeerFilter)),
+		channel.WithTargetFilter(newTargetFilter(newEndorserFilter(s.Discovery, req.PeerFilter))),
 		channel.WithRetry(s.retryOpts),
 		channel.WithBeforeRetry(s.beforeRetryHandler(&numRetries, &lastErr)))
 	if err != nil {
