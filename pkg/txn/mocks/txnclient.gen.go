@@ -6,24 +6,9 @@ import (
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
-	"github.com/trustbloc/fabric-peer-ext/pkg/txn/client"
 )
 
 type TxnClient struct {
-	QueryStub        func(request channel.Request, options ...channel.RequestOption) (channel.Response, error)
-	queryMutex       sync.RWMutex
-	queryArgsForCall []struct {
-		request channel.Request
-		options []channel.RequestOption
-	}
-	queryReturns struct {
-		result1 channel.Response
-		result2 error
-	}
-	queryReturnsOnCall map[int]struct {
-		result1 channel.Response
-		result2 error
-	}
 	InvokeHandlerStub        func(handler invoke.Handler, request channel.Request, options ...channel.RequestOption) (channel.Response, error)
 	invokeHandlerMutex       sync.RWMutex
 	invokeHandlerArgsForCall []struct {
@@ -39,60 +24,32 @@ type TxnClient struct {
 		result1 channel.Response
 		result2 error
 	}
+	ComputeTxnIDStub        func(nonce []byte) (string, error)
+	computeTxnIDMutex       sync.RWMutex
+	computeTxnIDArgsForCall []struct {
+		nonce []byte
+	}
+	computeTxnIDReturns struct {
+		result1 string
+		result2 error
+	}
+	computeTxnIDReturnsOnCall map[int]struct {
+		result1 string
+		result2 error
+	}
+	SigningIdentityStub        func() ([]byte, error)
+	signingIdentityMutex       sync.RWMutex
+	signingIdentityArgsForCall []struct{}
+	signingIdentityReturns     struct {
+		result1 []byte
+		result2 error
+	}
+	signingIdentityReturnsOnCall map[int]struct {
+		result1 []byte
+		result2 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
-}
-
-func (fake *TxnClient) Query(request channel.Request, options ...channel.RequestOption) (channel.Response, error) {
-	fake.queryMutex.Lock()
-	ret, specificReturn := fake.queryReturnsOnCall[len(fake.queryArgsForCall)]
-	fake.queryArgsForCall = append(fake.queryArgsForCall, struct {
-		request channel.Request
-		options []channel.RequestOption
-	}{request, options})
-	fake.recordInvocation("Query", []interface{}{request, options})
-	fake.queryMutex.Unlock()
-	if fake.QueryStub != nil {
-		return fake.QueryStub(request, options...)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fake.queryReturns.result1, fake.queryReturns.result2
-}
-
-func (fake *TxnClient) QueryCallCount() int {
-	fake.queryMutex.RLock()
-	defer fake.queryMutex.RUnlock()
-	return len(fake.queryArgsForCall)
-}
-
-func (fake *TxnClient) QueryArgsForCall(i int) (channel.Request, []channel.RequestOption) {
-	fake.queryMutex.RLock()
-	defer fake.queryMutex.RUnlock()
-	return fake.queryArgsForCall[i].request, fake.queryArgsForCall[i].options
-}
-
-func (fake *TxnClient) QueryReturns(result1 channel.Response, result2 error) {
-	fake.QueryStub = nil
-	fake.queryReturns = struct {
-		result1 channel.Response
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *TxnClient) QueryReturnsOnCall(i int, result1 channel.Response, result2 error) {
-	fake.QueryStub = nil
-	if fake.queryReturnsOnCall == nil {
-		fake.queryReturnsOnCall = make(map[int]struct {
-			result1 channel.Response
-			result2 error
-		})
-	}
-	fake.queryReturnsOnCall[i] = struct {
-		result1 channel.Response
-		result2 error
-	}{result1, result2}
 }
 
 func (fake *TxnClient) InvokeHandler(handler invoke.Handler, request channel.Request, options ...channel.RequestOption) (channel.Response, error) {
@@ -148,13 +105,114 @@ func (fake *TxnClient) InvokeHandlerReturnsOnCall(i int, result1 channel.Respons
 	}{result1, result2}
 }
 
+func (fake *TxnClient) ComputeTxnID(nonce []byte) (string, error) {
+	var nonceCopy []byte
+	if nonce != nil {
+		nonceCopy = make([]byte, len(nonce))
+		copy(nonceCopy, nonce)
+	}
+	fake.computeTxnIDMutex.Lock()
+	ret, specificReturn := fake.computeTxnIDReturnsOnCall[len(fake.computeTxnIDArgsForCall)]
+	fake.computeTxnIDArgsForCall = append(fake.computeTxnIDArgsForCall, struct {
+		nonce []byte
+	}{nonceCopy})
+	fake.recordInvocation("ComputeTxnID", []interface{}{nonceCopy})
+	fake.computeTxnIDMutex.Unlock()
+	if fake.ComputeTxnIDStub != nil {
+		return fake.ComputeTxnIDStub(nonce)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fake.computeTxnIDReturns.result1, fake.computeTxnIDReturns.result2
+}
+
+func (fake *TxnClient) ComputeTxnIDCallCount() int {
+	fake.computeTxnIDMutex.RLock()
+	defer fake.computeTxnIDMutex.RUnlock()
+	return len(fake.computeTxnIDArgsForCall)
+}
+
+func (fake *TxnClient) ComputeTxnIDArgsForCall(i int) []byte {
+	fake.computeTxnIDMutex.RLock()
+	defer fake.computeTxnIDMutex.RUnlock()
+	return fake.computeTxnIDArgsForCall[i].nonce
+}
+
+func (fake *TxnClient) ComputeTxnIDReturns(result1 string, result2 error) {
+	fake.ComputeTxnIDStub = nil
+	fake.computeTxnIDReturns = struct {
+		result1 string
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *TxnClient) ComputeTxnIDReturnsOnCall(i int, result1 string, result2 error) {
+	fake.ComputeTxnIDStub = nil
+	if fake.computeTxnIDReturnsOnCall == nil {
+		fake.computeTxnIDReturnsOnCall = make(map[int]struct {
+			result1 string
+			result2 error
+		})
+	}
+	fake.computeTxnIDReturnsOnCall[i] = struct {
+		result1 string
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *TxnClient) SigningIdentity() ([]byte, error) {
+	fake.signingIdentityMutex.Lock()
+	ret, specificReturn := fake.signingIdentityReturnsOnCall[len(fake.signingIdentityArgsForCall)]
+	fake.signingIdentityArgsForCall = append(fake.signingIdentityArgsForCall, struct{}{})
+	fake.recordInvocation("SigningIdentity", []interface{}{})
+	fake.signingIdentityMutex.Unlock()
+	if fake.SigningIdentityStub != nil {
+		return fake.SigningIdentityStub()
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fake.signingIdentityReturns.result1, fake.signingIdentityReturns.result2
+}
+
+func (fake *TxnClient) SigningIdentityCallCount() int {
+	fake.signingIdentityMutex.RLock()
+	defer fake.signingIdentityMutex.RUnlock()
+	return len(fake.signingIdentityArgsForCall)
+}
+
+func (fake *TxnClient) SigningIdentityReturns(result1 []byte, result2 error) {
+	fake.SigningIdentityStub = nil
+	fake.signingIdentityReturns = struct {
+		result1 []byte
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *TxnClient) SigningIdentityReturnsOnCall(i int, result1 []byte, result2 error) {
+	fake.SigningIdentityStub = nil
+	if fake.signingIdentityReturnsOnCall == nil {
+		fake.signingIdentityReturnsOnCall = make(map[int]struct {
+			result1 []byte
+			result2 error
+		})
+	}
+	fake.signingIdentityReturnsOnCall[i] = struct {
+		result1 []byte
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *TxnClient) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.queryMutex.RLock()
-	defer fake.queryMutex.RUnlock()
 	fake.invokeHandlerMutex.RLock()
 	defer fake.invokeHandlerMutex.RUnlock()
+	fake.computeTxnIDMutex.RLock()
+	defer fake.computeTxnIDMutex.RUnlock()
+	fake.signingIdentityMutex.RLock()
+	defer fake.signingIdentityMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
@@ -173,5 +231,3 @@ func (fake *TxnClient) recordInvocation(key string, args []interface{}) {
 	}
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
-
-var _ client.ChannelClient = new(TxnClient)

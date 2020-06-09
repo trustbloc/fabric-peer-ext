@@ -8,8 +8,10 @@ package exampleauthfilter
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
@@ -199,13 +201,19 @@ func (f *AuthFilter) endorse(channelID string, args [][]byte) pb.Response {
 
 	resp, err := txnSvc.Endorse(req)
 	if err != nil {
-		logger.Errorf("Error returned from Endorse: %s", err)
+		logger.Infof("[%s] Error returned from EndorseAndCommit: %s", channelID, err)
+
+		if errors.Cause(err) == api.ErrInvalidTxnID {
+			return f.newInvalidTxnResponse(txnSvc)
+		}
+
 		return shim.Error(fmt.Sprintf("Error returned from Endorse: %s", err))
 	}
 
 	logger.Infof("... Endorse succeeded on channel [%s]", channelID)
 
 	response := &response{
+		Status:  http.StatusOK,
 		Payload: string(resp.Payload),
 	}
 
@@ -233,12 +241,19 @@ func (f *AuthFilter) endorseAndCommit(channelID string, args [][]byte) pb.Respon
 
 	resp, committed, err := txnSvc.EndorseAndCommit(req)
 	if err != nil {
+		logger.Infof("[%s] Error returned from EndorseAndCommit: %s", channelID, err)
+
+		if errors.Cause(err) == api.ErrInvalidTxnID {
+			return f.newInvalidTxnResponse(txnSvc)
+		}
+
 		return shim.Error(fmt.Sprintf("error returned from EndorseAndCommit: %s", err))
 	}
 
 	logger.Infof("... EndorseAndCommit succeeded on channel [%s] - Transaction committed: %t", channelID, committed)
 
 	response := &response{
+		Status:    http.StatusOK,
 		Payload:   string(resp.Payload),
 		Committed: committed,
 	}
@@ -257,9 +272,35 @@ func (f *AuthFilter) initFunctionRegistry() {
 	f.functionRegistry["endorseandcommit"] = f.endorseAndCommit
 }
 
+func (f *AuthFilter) newInvalidTxnResponse(txnSvc api.Service) pb.Response {
+	// Send back the signing identity so that the client can formulate a proper TxnID
+	identity, err := txnSvc.SigningIdentity()
+	if err != nil {
+		logger.Errorf("Error getting signing identity: %s", err)
+
+		return shim.Error("could not get signing identity")
+	}
+
+	r := &response{
+		Status:  http.StatusBadRequest,
+		Payload: base64.URLEncoding.EncodeToString(identity),
+	}
+
+	respBytes, err := json.Marshal(r)
+	if err != nil {
+		logger.Errorf("Error marshalling response: %s", err)
+
+		return shim.Error(fmt.Sprintf("error marshalling response"))
+	}
+
+	return shim.Success(respBytes)
+}
+
 type response struct {
-	Payload   string
-	Committed bool
+	Status          int
+	Payload         string
+	Committed       bool
+	SigningIdentity string
 }
 
 type endorsementRequest struct {
@@ -269,6 +310,8 @@ type endorsementRequest struct {
 	IgnoreNameSpaces []api.Namespace `json:"ignore_namespaces"`
 	PeerFilter       string          `json:"peer_filter"`
 	PeerFilterArgs   []string        `json:"peer_filter_args"`
+	TransactionID    string          `json:"tx_id"`
+	Nonce            string          `json:"nonce"`
 }
 
 func getEndorsementRequest(args [][]byte) (*api.Request, error) {
@@ -295,12 +338,24 @@ func getEndorsementRequest(args [][]byte) (*api.Request, error) {
 		peerFilter = newMSPPeerFilter(request.PeerFilterArgs)
 	}
 
+	var nonce []byte
+
+	if request.Nonce != "" {
+		var err error
+		nonce, err = base64.URLEncoding.DecodeString(request.Nonce)
+		if err != nil {
+			return nil, errors.WithMessage(err, "invalid base64 URL encoded nonce")
+		}
+	}
+
 	return &api.Request{
 		ChaincodeID:      request.ChaincodeID,
 		Args:             asByteArrays(request.Args),
 		CommitType:       commitType,
 		IgnoreNameSpaces: request.IgnoreNameSpaces,
 		PeerFilter:       peerFilter,
+		TransactionID:    request.TransactionID,
+		Nonce:            nonce,
 	}, nil
 }
 

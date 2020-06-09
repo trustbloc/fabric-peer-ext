@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
+	commtls "github.com/hyperledger/fabric-sdk-go/pkg/core/config/comm/tls"
 )
 
 type EndpointConfig struct {
@@ -122,14 +123,14 @@ type EndpointConfig struct {
 	channelOrderersReturnsOnCall map[int]struct {
 		result1 []fab.OrdererConfig
 	}
-	TLSCACertPoolStub        func() fab.CertPool
+	TLSCACertPoolStub        func() commtls.CertPool
 	tLSCACertPoolMutex       sync.RWMutex
 	tLSCACertPoolArgsForCall []struct{}
 	tLSCACertPoolReturns     struct {
-		result1 fab.CertPool
+		result1 commtls.CertPool
 	}
 	tLSCACertPoolReturnsOnCall map[int]struct {
-		result1 fab.CertPool
+		result1 commtls.CertPool
 	}
 	TLSClientCertsStub        func() []tls.Certificate
 	tLSClientCertsMutex       sync.RWMutex
@@ -621,7 +622,7 @@ func (fake *EndpointConfig) ChannelOrderersReturnsOnCall(i int, result1 []fab.Or
 	}{result1}
 }
 
-func (fake *EndpointConfig) TLSCACertPool() fab.CertPool {
+func (fake *EndpointConfig) TLSCACertPool() commtls.CertPool {
 	fake.tLSCACertPoolMutex.Lock()
 	ret, specificReturn := fake.tLSCACertPoolReturnsOnCall[len(fake.tLSCACertPoolArgsForCall)]
 	fake.tLSCACertPoolArgsForCall = append(fake.tLSCACertPoolArgsForCall, struct{}{})
@@ -642,22 +643,22 @@ func (fake *EndpointConfig) TLSCACertPoolCallCount() int {
 	return len(fake.tLSCACertPoolArgsForCall)
 }
 
-func (fake *EndpointConfig) TLSCACertPoolReturns(result1 fab.CertPool) {
+func (fake *EndpointConfig) TLSCACertPoolReturns(result1 commtls.CertPool) {
 	fake.TLSCACertPoolStub = nil
 	fake.tLSCACertPoolReturns = struct {
-		result1 fab.CertPool
+		result1 commtls.CertPool
 	}{result1}
 }
 
-func (fake *EndpointConfig) TLSCACertPoolReturnsOnCall(i int, result1 fab.CertPool) {
+func (fake *EndpointConfig) TLSCACertPoolReturnsOnCall(i int, result1 commtls.CertPool) {
 	fake.TLSCACertPoolStub = nil
 	if fake.tLSCACertPoolReturnsOnCall == nil {
 		fake.tLSCACertPoolReturnsOnCall = make(map[int]struct {
-			result1 fab.CertPool
+			result1 commtls.CertPool
 		})
 	}
 	fake.tLSCACertPoolReturnsOnCall[i] = struct {
-		result1 fab.CertPool
+		result1 commtls.CertPool
 	}{result1}
 }
 

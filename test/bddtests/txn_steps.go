@@ -7,6 +7,9 @@ SPDX-License-Identifier: Apache-2.0
 package bddtests
 
 import (
+	"crypto"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -48,6 +51,12 @@ func (d *TxnSteps) queryTxnServiceWithExpectedError(channelID, ccID, args, peerI
 	}
 
 	return errors.Errorf("expecting error to contain [%s] but got [%s]", expectedError, err.Error())
+}
+
+func (d *TxnSteps) assignBase64URLEncodedValue(varName, value string) error {
+	bddtests.SetVar(varName, base64.URLEncoding.EncodeToString([]byte(value)))
+
+	return nil
 }
 
 func (d *TxnSteps) doQueryTxnService(channelID, ccID, args, peerIDs string) error {
@@ -115,6 +124,7 @@ func (d *TxnSteps) doQueryTxnService(channelID, ccID, args, peerIDs string) erro
 		channel.WithRetry(retryOpts),
 	)
 	if err != nil {
+		logger.Infof("Got error response: %s", resp.Payload)
 		return fmt.Errorf("QueryChaincode return error: %s", err)
 	}
 
@@ -125,6 +135,59 @@ func (d *TxnSteps) doQueryTxnService(channelID, ccID, args, peerIDs string) erro
 	return nil
 }
 
+func (d *TxnSteps) saveComputedTxnIDToVar(varName, identity, nonce string) error {
+	resolved, err := bddtests.ResolveVars(identity)
+	if err != nil {
+		return err
+	}
+
+	identity = resolved.(string)
+
+	resolved, err = bddtests.ResolveVars(nonce)
+	if err != nil {
+		return err
+	}
+
+	nonce = resolved.(string)
+
+	c, err := base64.URLEncoding.DecodeString(identity)
+	if err != nil {
+		return err
+	}
+
+	n, err := base64.URLEncoding.DecodeString(nonce)
+	if err != nil {
+		return err
+	}
+
+	txnID, err := computeTxnID(c, n)
+	if err != nil {
+		return err
+	}
+
+	bddtests.SetVar(varName, txnID)
+
+	return nil
+}
+
+func computeTxnID(creator, nonce []byte) (string, error) {
+	hash := crypto.SHA256.New()
+
+	b := append(nonce, creator...)
+
+	_, err := hash.Write(b)
+	if err != nil {
+		return "", errors.WithMessagef(err, "hashing of nonce and creator failed")
+	}
+
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+type creatorResponse struct {
+	// Identity is the base64-raw-URL-encoded identity of the peer
+	Identity string `json:"identity,omitempty"`
+}
+
 // RegisterSteps registers off-ledger steps
 func (d *TxnSteps) RegisterSteps(s *godog.Suite) {
 	s.BeforeScenario(d.BDDContext.BeforeScenario)
@@ -132,4 +195,6 @@ func (d *TxnSteps) RegisterSteps(s *godog.Suite) {
 
 	s.Step(`^txn service is invoked on channel "([^"]*)" with chaincode "([^"]*)" with args "([^"]*)" on peers "([^"]*)"$`, d.queryTxnService)
 	s.Step(`^txn service is invoked on channel "([^"]*)" with chaincode "([^"]*)" with args "([^"]*)" on peers "([^"]*)" then the error response should contain "([^"]*)"$`, d.queryTxnServiceWithExpectedError)
+	s.Step(`^variable "([^"]*)" is assigned the base64 URL-encoded value "([^"]*)"$`, d.assignBase64URLEncodedValue)
+	s.Step(`^variable "([^"]*)" is computed from the identity "([^"]*)" and nonce "([^"]*)"$`, d.saveComputedTxnIDToVar)
 }

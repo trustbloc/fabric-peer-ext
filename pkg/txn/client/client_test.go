@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package client
 
 import (
+	"crypto"
 	"io/ioutil"
 	"testing"
 
@@ -25,6 +26,8 @@ import (
 )
 
 //go:generate counterfeiter -o ./mocks/channelclient.gen.go --fake-name ChannelClient . ChannelClient
+//go:generate counterfeiter -o ./mocks/identityserializer.gen.go --fake-name IdentitySerializer . identitySerializer
+//go:generate counterfeiter -o ./mocks/cryptosuiteprovider.gen.go --fake-name CryptoSuiteProvider . cryptoSuiteProvider
 //go:generate counterfeiter -o ../../mocks/peerconfig.gen.go --fake-name PeerConfig ../api PeerConfig
 
 func TestNew(t *testing.T) {
@@ -48,9 +51,9 @@ func TestNew(t *testing.T) {
 	}
 	defer func() { newCryptoSuite = restoreNewCryptoSuite }()
 
-	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (client ChannelClient, err error) {
+	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, error) {
 		chClient := &clientmocks.ChannelClient{}
-		return chClient, nil
+		return chClient, nil, nil, nil
 	}
 
 	t.Run("success", func(t *testing.T) {
@@ -122,8 +125,8 @@ func TestNew(t *testing.T) {
 	t.Run("newChannelClient -> error", func(t *testing.T) {
 		errExpected := errors.New("injected channel client error")
 		restoreNewChannelClient := newChannelClient
-		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (client ChannelClient, err error) {
-			return nil, errExpected
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, error) {
+			return nil, nil, nil, errExpected
 		}
 		defer func() {
 			newChannelClient = restoreNewChannelClient
@@ -136,7 +139,7 @@ func TestNew(t *testing.T) {
 	})
 }
 
-func TestClient_Query(t *testing.T) {
+func TestClient_InvokeHandler(t *testing.T) {
 	peerCfg := &mocks.PeerConfig{}
 	peerCfg.TLSCertPathReturns("./testdata/tls.crt")
 	peerCfg.MSPIDReturns("Org1MSP")
@@ -157,33 +160,12 @@ func TestClient_Query(t *testing.T) {
 	}
 	defer func() { newCryptoSuite = restoreNewCryptoSuite }()
 
-	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (client ChannelClient, err error) {
+	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, error) {
 		chClient := &clientmocks.ChannelClient{}
-		return chClient, nil
+		return chClient, nil, nil, nil
 	}
 
-	t.Run("Query -> success", func(t *testing.T) {
-		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
-		require.NoError(t, err)
-		require.NotNil(t, c)
-
-		req := channel.Request{}
-		_, err = c.Query(req)
-		require.NoError(t, err)
-	})
-
-	t.Run("Query on closed client -> error", func(t *testing.T) {
-		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
-		require.NoError(t, err)
-		require.NotNil(t, c)
-		c.Close()
-
-		req := channel.Request{}
-		_, err = c.Query(req)
-		require.EqualError(t, err, "attempt to increment count on closed resource")
-	})
-
-	t.Run("Execute -> success", func(t *testing.T) {
+	t.Run("InvokeHandler -> success", func(t *testing.T) {
 		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
 		require.NoError(t, err)
 		require.NotNil(t, c)
@@ -193,7 +175,7 @@ func TestClient_Query(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("Execute on closed client -> error", func(t *testing.T) {
+	t.Run("InvokeHandler on closed client -> error", func(t *testing.T) {
 		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
 		require.NoError(t, err)
 		require.NotNil(t, c)
@@ -209,6 +191,142 @@ func TestClient_Query(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, c)
 		require.NotPanics(t, c.decrementCounter)
+	})
+}
+
+func TestClient_SigningIdentity(t *testing.T) {
+	peerCfg := &mocks.PeerConfig{}
+	peerCfg.TLSCertPathReturns("./testdata/tls.crt")
+	peerCfg.MSPIDReturns("Org1MSP")
+	peerCfg.PeerAddressReturns("peer0.org1.com:7051")
+
+	sdkCfgBytes, err := ioutil.ReadFile("./testdata/sdk-config.yaml")
+	require.NoError(t, err)
+
+	t.Run("SigningIdentity -> success", func(t *testing.T) {
+		serializedIdentity := []byte("serialized identity")
+
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, error) {
+			chClient := &clientmocks.ChannelClient{}
+			idSerializer := &clientmocks.IdentitySerializer{}
+			idSerializer.SerializeReturns(serializedIdentity, nil)
+			return chClient, idSerializer, nil, nil
+		}
+
+		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
+		require.NoError(t, err)
+		require.NotNil(t, c)
+
+		identity, err := c.SigningIdentity()
+		require.NoError(t, err)
+		require.Equal(t, serializedIdentity, identity)
+	})
+
+	t.Run("SigningIdentity -> error", func(t *testing.T) {
+		errExpected := errors.New("injected serializer error")
+
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, error) {
+			chClient := &clientmocks.ChannelClient{}
+			idSerializer := &clientmocks.IdentitySerializer{}
+			idSerializer.SerializeReturns(nil, errExpected)
+			return chClient, idSerializer, nil, nil
+		}
+
+		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
+		require.NoError(t, err)
+		require.NotNil(t, c)
+
+		identity, err := c.SigningIdentity()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+		require.Empty(t, identity)
+	})
+}
+
+func TestClient_ComputeTxnID(t *testing.T) {
+	peerCfg := &mocks.PeerConfig{}
+	peerCfg.TLSCertPathReturns("./testdata/tls.crt")
+	peerCfg.MSPIDReturns("Org1MSP")
+	peerCfg.PeerAddressReturns("peer0.org1.com:7051")
+
+	sdkCfgBytes, err := ioutil.ReadFile("./testdata/sdk-config.yaml")
+	require.NoError(t, err)
+
+	chClient := &clientmocks.ChannelClient{}
+	idSerializer := &clientmocks.IdentitySerializer{}
+
+	cs := &clientmocks.CryptoSuite{}
+
+	csp := &clientmocks.CryptoSuiteProvider{}
+	csp.CryptoSuiteReturns(cs)
+
+	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, error) {
+		return chClient, idSerializer, csp, nil
+	}
+
+	t.Run("ComputeTxn -> success", func(t *testing.T) {
+		serializedIdentity := []byte("serialized identity")
+
+		idSerializer.SerializeReturns(serializedIdentity, nil)
+		cs.GetHashReturns(crypto.SHA256.New(), nil)
+
+		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
+		require.NoError(t, err)
+		require.NotNil(t, c)
+
+		txnID, err := c.ComputeTxnID([]byte("nonce"))
+		require.NoError(t, err)
+		require.NotEmpty(t, txnID)
+	})
+
+	t.Run("Serialize -> error", func(t *testing.T) {
+		errExpected := errors.New("injected serializer error")
+		idSerializer.SerializeReturns(nil, errExpected)
+		cs.GetHashReturns(crypto.SHA256.New(), nil)
+
+		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
+		require.NoError(t, err)
+		require.NotNil(t, c)
+
+		txnID, err := c.ComputeTxnID([]byte("nonce"))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+		require.Empty(t, txnID)
+	})
+
+	t.Run("CryptoSuite -> error", func(t *testing.T) {
+		errExpected := errors.New("injected serializer error")
+		serializedIdentity := []byte("serialized identity")
+
+		idSerializer.SerializeReturns(serializedIdentity, nil)
+		cs.GetHashReturns(nil, errExpected)
+
+		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
+		require.NoError(t, err)
+		require.NotNil(t, c)
+
+		txnID, err := c.ComputeTxnID([]byte("nonce"))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+		require.Empty(t, txnID)
+	})
+
+	t.Run("HashWrite -> error", func(t *testing.T) {
+		errExpected := errors.New("injected hash write error")
+		idSerializer.SerializeReturns(nil, nil)
+
+		h := &clientmocks.Hash{}
+		h.WriteReturns(0, errExpected)
+		cs.GetHashReturns(h, nil)
+
+		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
+		require.NoError(t, err)
+		require.NotNil(t, c)
+
+		txnID, err := c.ComputeTxnID(nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+		require.Empty(t, txnID)
 	})
 }
 

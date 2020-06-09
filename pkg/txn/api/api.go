@@ -7,6 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package api
 
 import (
+	"errors"
+
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 )
 
@@ -42,6 +44,12 @@ type Request struct {
 
 	// PeerFilter filters out peers using application-specific logic (optional)
 	PeerFilter PeerFilter
+
+	//TransactionID txn id
+	TransactionID string
+
+	//Nonce nonce
+	Nonce []byte
 }
 
 // ChaincodeCall ...
@@ -105,3 +113,6 @@ type Peer interface {
 type PeerFilter interface {
 	Accept(peer Peer) bool
 }
+
+// ErrInvalidTxnID indicates that the transaction ID in the request is invalid
+var ErrInvalidTxnID = errors.New("transaction ID is invalid for the given nonce")
