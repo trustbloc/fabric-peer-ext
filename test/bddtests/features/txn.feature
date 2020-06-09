@@ -152,6 +152,22 @@ Feature: txn
     And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer1.org2.example.com"
     Then the JSON path "Payload" of the response equals "valueX"
 
+    # CommitEndorsements
+    Given variable "endorseRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["put","key1002","value1002"]}'
+    When txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer1.org2.example.com"
+    Then the JSON path "Committed" of the boolean response equals "false"
+    And the JSON path "EndorsementResponse" of the response is saved to variable "endorsementResponse"
+
+    Given variable "commitRequest" is assigned the JSON value '{"endorsement_response":"${endorsementResponse}"}'
+    When txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "commit,${commitRequest}" on peers "peer1.org2.example.com"
+    Then the JSON path "Committed" of the boolean response equals "true"
+
+    And we wait 5 seconds
+
+    Given variable "endorseRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["get","key1002"]}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer1.org2.example.com"
+    Then the JSON path "Payload" of the response equals "value1002"
+
   @txn_s2
   Scenario: Configuration validation errors
     Given variable "org1ConfigUpdateInvalidTxn" is assigned config from file "./fixtures/config/fabric/org1-config-invalid-txn.json"

@@ -11,12 +11,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hyperledger/fabric-protos-go/common"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/retry"
+	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/status"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	fabApi "github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	"github.com/pkg/errors"
+	grpcCodes "google.golang.org/grpc/codes"
 
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
@@ -45,13 +48,14 @@ type providers struct {
 // (optionally) sends the transaction to the Orderer.
 type Service struct {
 	*providers
-	channelID string
-	txnCfgKey *config.Key
-	sdkCfgKey *config.Key
-	cfgTxID   string
-	c         channelClient
-	mutex     sync.RWMutex
-	retryOpts retry.Opts
+	channelID       string
+	txnCfgKey       *config.Key
+	sdkCfgKey       *config.Key
+	cfgTxID         string
+	c               channelClient
+	mutex           sync.RWMutex
+	retryOpts       retry.Opts
+	commitRetryOpts retry.Opts
 }
 
 // New returns a new transaction service
@@ -131,6 +135,7 @@ func (s *Service) load() error {
 
 	s.c = c
 	s.retryOpts = newRetryOpts(txnCfg)
+	s.commitRetryOpts = newCommitRetryOpts(s.retryOpts)
 
 	return nil
 }
@@ -203,6 +208,38 @@ func (s *Service) EndorseAndCommit(req *api.Request) (*channel.Response, bool, e
 		channel.WithTargets(req.Targets...),
 		channel.WithTargetFilter(newTargetFilter(req.PeerFilter)),
 		channel.WithRetry(s.retryOpts),
+		channel.WithBeforeRetry(s.beforeRetryHandler(&numRetries, &lastErr)))
+	if err != nil {
+		if numRetries > 0 {
+			logger.Infof("[%s] Failed after %d retries. Last error: %s", s.channelID, numRetries, err)
+		}
+
+		return nil, false, err
+	}
+
+	if numRetries > 0 {
+		logger.Infof("[%s] Succeeded after %d retries. Last error: %s", s.channelID, numRetries, lastErr)
+	}
+
+	return &resp, checkForCommit.ShouldCommit, nil
+}
+
+// CommitEndorsements commits the provided endorsements.
+func (s *Service) CommitEndorsements(req *api.CommitRequest) (*channel.Response, bool, error) {
+	checkForCommit := handler.NewCheckForCommitHandler(req.IgnoreNameSpaces, req.CommitType,
+		invoke.NewCommitHandler(),
+	)
+
+	h := handler.NewPreEndorsedHandler(req.EndorsementResponse, checkForCommit)
+
+	numRetries := 0
+	var lastErr error
+
+	resp, err := s.client().InvokeHandler(
+		h,
+		// put dummy values for ChaincodeID and fcn because sdk requires them even if not used by the handler chain
+		channel.Request{ChaincodeID: "cc", Fcn: "fcn"},
+		channel.WithRetry(s.commitRetryOpts),
 		channel.WithBeforeRetry(s.beforeRetryHandler(&numRetries, &lastErr)))
 	if err != nil {
 		if numRetries > 0 {
@@ -377,6 +414,16 @@ func newRetryOpts(cfg *txnConfig) retry.Opts {
 	}
 }
 
+func newCommitRetryOpts(opts retry.Opts) retry.Opts {
+	opts.RetryableCodes = make(map[status.Group][]status.Code)
+
+	for key, value := range commitOnlyRetryableCodes {
+		opts.RetryableCodes[key] = value
+	}
+
+	return opts
+}
+
 func asInvocationChain(chain []*api.ChaincodeCall) []*fab.ChaincodeCall {
 	invocationChain := make([]*fab.ChaincodeCall, len(chain))
 	for i, call := range chain {
@@ -454,4 +501,20 @@ func newTargetFilter(filter api.PeerFilter) fab.TargetFilter {
 	}
 
 	return &targetFilter{filter: filter}
+}
+
+// commitOnlyRetryableCodes are the suggested codes for commit only
+var commitOnlyRetryableCodes = map[status.Group][]status.Code{
+	status.OrdererClientStatus: {
+		status.ConnectionFailed,
+	},
+	status.OrdererServerStatus: {
+		status.Code(common.Status_SERVICE_UNAVAILABLE),
+		status.Code(common.Status_INTERNAL_SERVER_ERROR),
+	},
+	// TODO: gRPC introduced retries in v1.8.0. This can be replaced with the
+	// gRPC fail fast option, once available
+	status.GRPCTransportStatus: {
+		status.Code(grpcCodes.Unavailable),
+	},
 }

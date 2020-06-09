@@ -19,6 +19,7 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/willf/bitset v1.1.10
 	go.uber.org/zap v1.10.0
+	google.golang.org/grpc v1.24.0
 )
 
 replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.4-0.20200604234820-c9c017a66039

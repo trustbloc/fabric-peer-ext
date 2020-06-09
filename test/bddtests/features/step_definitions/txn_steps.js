@@ -19,4 +19,7 @@ defineSupportCode(function ({And, But, Given, Then, When}) {
     And(/^variable "([^"]*)" is assigned the base64 URL-encoded value "([^"]*)"$/, function (arg1, arg2, callback) {
         callback.pending();
     });
+    And(/^the endorsement response is saved to variable "([^"]*)"$/, function (arg1, callback) {
+        callback.pending();
+    });
 });
