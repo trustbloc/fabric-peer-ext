@@ -9,10 +9,11 @@ package api
 import (
 	"errors"
 
+	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 )
 
-// Request contains the data required for endorsments
+// Request contains the data required for endorsements
 type Request struct {
 	// ChaincodeID identifies the chaincode to invoke
 	ChaincodeID string
@@ -50,6 +51,18 @@ type Request struct {
 
 	//Nonce nonce
 	Nonce []byte
+}
+
+// CommitRequest contains the endorsements to be committed along with options
+type CommitRequest struct {
+	// EndorsementResponse is the response received from an endorsement request
+	EndorsementResponse *channel.Response
+
+	// CommitType specifies how commits should be handled (default CommitOnWrite)
+	CommitType CommitType
+
+	// IgnoreNameSpaces ignore these namespaces in the write set when CommitType is CommitOnWrite
+	IgnoreNameSpaces []Namespace
 }
 
 // ChaincodeCall ...

@@ -17,6 +17,7 @@ import (
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	cb "github.com/hyperledger/fabric-protos-go/common"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric/common/flogging"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
@@ -212,9 +213,17 @@ func (f *AuthFilter) endorse(channelID string, args [][]byte) pb.Response {
 
 	logger.Infof("... Endorse succeeded on channel [%s]", channelID)
 
+	responseBytes, err := json.Marshal(resp)
+	if err != nil {
+		logger.Errorf("[%s] Error marshalling endorsement response: %s", channelID, err)
+
+		return shim.Error(fmt.Sprintf("error marshalling endorsement response: %s", err))
+	}
+
 	response := &response{
-		Status:  http.StatusOK,
-		Payload: string(resp.Payload),
+		Status:              http.StatusOK,
+		Payload:             string(resp.Payload),
+		EndorsementResponse: responseBytes,
 	}
 
 	respBytes, err := json.Marshal(response)
@@ -266,10 +275,48 @@ func (f *AuthFilter) endorseAndCommit(channelID string, args [][]byte) pb.Respon
 	return shim.Success(respBytes)
 }
 
+func (f *AuthFilter) commit(channelID string, args [][]byte) pb.Response {
+	req, err := getCommitRequest(args)
+	if err != nil {
+		logger.Errorf("Error getting endorsement request for channel [%s]: %s", channelID, err)
+		return shim.Error(err.Error())
+	}
+
+	txnSvc, err := f.txnProvider.ForChannel(channelID)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("error getting transaction service for channel [%s]: %s", channelID, err))
+	}
+
+	logger.Infof("Executing CommitEndorsements on channel [%s]...", channelID)
+
+	resp, committed, err := txnSvc.CommitEndorsements(req)
+	if err != nil {
+		logger.Infof("[%s] Error returned from CommitEndorsements: %s", channelID, err)
+
+		return shim.Error(fmt.Sprintf("error returned from CommitEndorsements: %s", err))
+	}
+
+	logger.Infof("... CommitEndorsements succeeded on channel [%s] - Transaction committed: %t", channelID, committed)
+
+	response := &response{
+		Status:    http.StatusOK,
+		Payload:   string(resp.Payload),
+		Committed: committed,
+	}
+
+	respBytes, err := json.Marshal(response)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("error marshalling response: %s", err))
+	}
+
+	return shim.Success(respBytes)
+}
+
 func (f *AuthFilter) initFunctionRegistry() {
 	f.functionRegistry = make(map[string]function)
 	f.functionRegistry["endorse"] = f.endorse
 	f.functionRegistry["endorseandcommit"] = f.endorseAndCommit
+	f.functionRegistry["commit"] = f.commit
 }
 
 func (f *AuthFilter) newInvalidTxnResponse(txnSvc api.Service) pb.Response {
@@ -297,10 +344,11 @@ func (f *AuthFilter) newInvalidTxnResponse(txnSvc api.Service) pb.Response {
 }
 
 type response struct {
-	Status          int
-	Payload         string
-	Committed       bool
-	SigningIdentity string
+	Status              int
+	Payload             string
+	Committed           bool
+	SigningIdentity     string
+	EndorsementResponse []byte
 }
 
 type endorsementRequest struct {
@@ -312,6 +360,12 @@ type endorsementRequest struct {
 	PeerFilterArgs   []string        `json:"peer_filter_args"`
 	TransactionID    string          `json:"tx_id"`
 	Nonce            string          `json:"nonce"`
+}
+
+type commitRequest struct {
+	CommitType          string          `json:"commit_type"`
+	IgnoreNameSpaces    []api.Namespace `json:"ignore_namespaces"`
+	EndorsementResponse []byte          `json:"endorsement_response"`
 }
 
 func getEndorsementRequest(args [][]byte) (*api.Request, error) {
@@ -356,6 +410,37 @@ func getEndorsementRequest(args [][]byte) (*api.Request, error) {
 		PeerFilter:       peerFilter,
 		TransactionID:    request.TransactionID,
 		Nonce:            nonce,
+	}, nil
+}
+
+func getCommitRequest(args [][]byte) (*api.CommitRequest, error) {
+	if len(args) < 1 {
+		return nil, errors.New("expecting commit request")
+	}
+
+	logger.Infof("Got commit request: %s", args[0])
+
+	request := commitRequest{}
+	err := json.Unmarshal(args[0], &request)
+	if err != nil {
+		return nil, errors.Errorf("error unmarshalling commit request: %s", err)
+	}
+
+	commitType, err := asCommitType(request.CommitType)
+	if err != nil {
+		return nil, err
+	}
+
+	endorsementResponse := &channel.Response{}
+	err = json.Unmarshal(request.EndorsementResponse, endorsementResponse)
+	if err != nil {
+		return nil, errors.Errorf("error unmarshalling endorsement response: %s", err)
+	}
+
+	return &api.CommitRequest{
+		EndorsementResponse: endorsementResponse,
+		CommitType:          commitType,
+		IgnoreNameSpaces:    request.IgnoreNameSpaces,
 	}, nil
 }
 

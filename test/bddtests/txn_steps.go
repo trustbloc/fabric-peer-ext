@@ -183,11 +183,6 @@ func computeTxnID(creator, nonce []byte) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-type creatorResponse struct {
-	// Identity is the base64-raw-URL-encoded identity of the peer
-	Identity string `json:"identity,omitempty"`
-}
-
 // RegisterSteps registers off-ledger steps
 func (d *TxnSteps) RegisterSteps(s *godog.Suite) {
 	s.BeforeScenario(d.BDDContext.BeforeScenario)

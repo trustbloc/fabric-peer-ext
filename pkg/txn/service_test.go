@@ -194,6 +194,15 @@ func TestClient(t *testing.T) {
 		require.Nil(t, resp)
 	})
 
+	t.Run("CommitEndorsements -> success", func(t *testing.T) {
+		req := &api.CommitRequest{}
+
+		cliReturned.InvokeHandlerReturns(channel.Response{}, nil)
+		resp, _, err := s.CommitEndorsements(req)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+	})
+
 	t.Run("SigningIdentity -> success", func(t *testing.T) {
 		identity := []byte("identity")
 		cliReturned.InvokeHandlerReturns(channel.Response{}, nil)

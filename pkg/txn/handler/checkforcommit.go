@@ -20,8 +20,8 @@ import (
 var logger = flogging.MustGetLogger("ext_txn")
 
 //NewCheckForCommitHandler returns a handler that check if there is need to commit
-func NewCheckForCommitHandler(rwSetIgnoreNameSpace []api.Namespace, commitType api.CommitType, next ...invoke.Handler) *CheckForCommitHandler {
-	return newCheckForCommitHandler(rwSetIgnoreNameSpace, commitType, proto.Unmarshal, next...)
+func NewCheckForCommitHandler(ignoreNameSpaces []api.Namespace, commitType api.CommitType, next ...invoke.Handler) *CheckForCommitHandler {
+	return newCheckForCommitHandler(ignoreNameSpaces, commitType, proto.Unmarshal, next...)
 }
 
 func newCheckForCommitHandler(rwSetIgnoreNameSpace []api.Namespace, commitType api.CommitType, protoUnmarshal func(buf []byte, pb proto.Message) error, next ...invoke.Handler) *CheckForCommitHandler {

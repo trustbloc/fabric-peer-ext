@@ -19,6 +19,10 @@ type Service interface {
 	// Returns the response and true if the transaction was committed.
 	EndorseAndCommit(req *Request) (resp *channel.Response, committed bool, err error)
 
+	// CommitEndorsements commits the provided endorsements. First the endorsements are verified for signature and policy,
+	// and then the endorsements are sent to the Orderer.
+	CommitEndorsements(req *CommitRequest) (*channel.Response, bool, error)
+
 	// SigningIdentity returns the serialized identity of the proposal signer
 	SigningIdentity() ([]byte, error)
 }
