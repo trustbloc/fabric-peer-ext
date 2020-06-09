@@ -18,4 +18,7 @@ type Service interface {
 	// EndorseAndCommit collects endorsements (according to chaincode policy) and sends the endorsements to the Orderer.
 	// Returns the response and true if the transaction was committed.
 	EndorseAndCommit(req *Request) (resp *channel.Response, committed bool, err error)
+
+	// SigningIdentity returns the serialized identity of the proposal signer
+	SigningIdentity() ([]byte, error)
 }

@@ -21,11 +21,10 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
-	"github.com/trustbloc/fabric-peer-ext/pkg/txn/client"
 	txnmocks "github.com/trustbloc/fabric-peer-ext/pkg/txn/mocks"
 )
 
-//go:generate counterfeiter -o ./mocks/txnclient.gen.go --fake-name TxnClient ./client ChannelClient
+//go:generate counterfeiter -o ./mocks/txnclient.gen.go --fake-name TxnClient . channelClient
 
 const (
 	msp1  = "Org1MSP"
@@ -82,7 +81,7 @@ func TestClient(t *testing.T) {
 	}
 
 	t.Run("Endorse -> success", func(t *testing.T) {
-		cliReturned.QueryReturns(channel.Response{}, nil)
+		cliReturned.InvokeHandlerReturns(channel.Response{}, nil)
 		resp, err := s.Endorse(req)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
@@ -90,19 +89,76 @@ func TestClient(t *testing.T) {
 
 	t.Run("Endorse -> error", func(t *testing.T) {
 		errExpected := errors.New("injected query error")
-		cliReturned.QueryReturns(channel.Response{}, errExpected)
+		cliReturned.InvokeHandlerReturns(channel.Response{}, errExpected)
 		resp, err := s.Endorse(req)
 		require.EqualError(t, err, errExpected.Error())
 		require.Nil(t, resp)
 	})
 
-	t.Run("Endorse with peer filter -> error", func(t *testing.T) {
+	t.Run("Endorse with peer filter -> success", func(t *testing.T) {
 		req := &api.Request{
 			Args:       [][]byte{[]byte("arg1")},
 			PeerFilter: &mockPeerFilter{},
 		}
 
-		cliReturned.QueryReturns(channel.Response{}, nil)
+		cliReturned.InvokeHandlerReturns(channel.Response{}, nil)
+		resp, err := s.Endorse(req)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+	})
+
+	t.Run("Endorse with TxnID - no nonce -> error", func(t *testing.T) {
+		req := &api.Request{
+			Args:          [][]byte{[]byte("arg1")},
+			TransactionID: "txn1",
+		}
+
+		cliReturned.InvokeHandlerReturns(channel.Response{}, nil)
+		resp, err := s.Endorse(req)
+		require.EqualError(t, err, "nonce must be provided if TransactionID is present")
+		require.Nil(t, resp)
+	})
+
+	t.Run("Endorse with nonce - no TxnID -> error", func(t *testing.T) {
+		req := &api.Request{
+			Args:  [][]byte{[]byte("arg1")},
+			Nonce: []byte("nonce1"),
+		}
+
+		cliReturned.InvokeHandlerReturns(channel.Response{}, nil)
+		resp, err := s.Endorse(req)
+		require.EqualError(t, err, "TransactionID must be provided if nonce is present")
+		require.Nil(t, resp)
+	})
+
+	t.Run("Endorse with invalid TxnID -> error", func(t *testing.T) {
+		req := &api.Request{
+			Args:          [][]byte{[]byte("arg1")},
+			TransactionID: "txn1",
+			Nonce:         []byte("nonce1"),
+		}
+
+		const txnIDExpected = "txn1234"
+		cliReturned.InvokeHandlerReturns(channel.Response{}, nil)
+		cliReturned.ComputeTxnIDReturns(txnIDExpected, nil)
+
+		resp, err := s.Endorse(req)
+		require.EqualError(t, err, "transaction ID is invalid for the given nonce")
+		require.Nil(t, resp)
+	})
+
+	t.Run("Endorse with valid TxnID -> success", func(t *testing.T) {
+		const txnID = "txn1234"
+
+		req := &api.Request{
+			Args:          [][]byte{[]byte("arg1")},
+			TransactionID: txnID,
+			Nonce:         []byte("nonce1"),
+		}
+
+		cliReturned.InvokeHandlerReturns(channel.Response{}, nil)
+		cliReturned.ComputeTxnIDReturns(txnID, nil)
+
 		resp, err := s.Endorse(req)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
@@ -116,13 +172,36 @@ func TestClient(t *testing.T) {
 		require.False(t, committed)
 	})
 
-	t.Run("EndorseAndCommit -> error", func(t *testing.T) {
+	t.Run("c -> error", func(t *testing.T) {
 		errExpected := errors.New("injected query error")
 		cliReturned.InvokeHandlerReturns(channel.Response{}, errExpected)
 		resp, committed, err := s.EndorseAndCommit(req)
 		require.EqualError(t, err, errExpected.Error())
 		require.Nil(t, resp)
 		require.False(t, committed)
+	})
+
+	t.Run("EndorseAndCommit with TxnID - no nonce -> error", func(t *testing.T) {
+		req := &api.Request{
+			Args:          [][]byte{[]byte("arg1")},
+			TransactionID: "txn1",
+		}
+
+		cliReturned.InvokeHandlerReturns(channel.Response{}, nil)
+		resp, committed, err := s.EndorseAndCommit(req)
+		require.EqualError(t, err, "nonce must be provided if TransactionID is present")
+		require.False(t, committed)
+		require.Nil(t, resp)
+	})
+
+	t.Run("SigningIdentity -> success", func(t *testing.T) {
+		identity := []byte("identity")
+		cliReturned.InvokeHandlerReturns(channel.Response{}, nil)
+		cliReturned.SigningIdentityReturns(identity, nil)
+
+		identity, err := s.SigningIdentity()
+		require.NoError(t, err)
+		require.NotEmpty(t, identity)
 	})
 
 	t.Run("Config update", func(t *testing.T) {
@@ -262,19 +341,19 @@ func (m *mockClosableClient) isClosed() bool {
 }
 
 type mockClientProvider struct {
-	cl    client.ChannelClient
+	cl    channelClient
 	err   error
 	mutex sync.RWMutex
 }
 
-func (m *mockClientProvider) CreateClient(channelID, userName string, peerConfig api.PeerConfig, sdkCfgBytes []byte, format config.Format) (client.ChannelClient, error) {
+func (m *mockClientProvider) CreateClient(channelID, userName string, peerConfig api.PeerConfig, sdkCfgBytes []byte, format config.Format) (channelClient, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
 	return m.cl, m.err
 }
 
-func (m *mockClientProvider) setClient(cl client.ChannelClient) {
+func (m *mockClientProvider) setClient(cl channelClient) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 

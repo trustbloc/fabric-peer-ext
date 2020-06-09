@@ -7,11 +7,15 @@ SPDX-License-Identifier: Apache-2.0
 package client
 
 import (
+	"encoding/hex"
+
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
+	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/context"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/core"
 	fabapi "github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	sdkconfig "github.com/hyperledger/fabric-sdk-go/pkg/core/config"
+	"github.com/hyperledger/fabric-sdk-go/pkg/core/cryptosuite"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fab"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 	"github.com/hyperledger/fabric/common/flogging"
@@ -26,13 +30,22 @@ var logger = flogging.MustGetLogger("ext_txn")
 
 // ChannelClient defines functions to collect endorsements and send them to the orderer
 type ChannelClient interface {
-	Query(request channel.Request, options ...channel.RequestOption) (channel.Response, error)
 	InvokeHandler(handler invoke.Handler, request channel.Request, options ...channel.RequestOption) (channel.Response, error)
+}
+
+type identitySerializer interface {
+	Serialize() ([]byte, error)
+}
+
+type cryptoSuiteProvider interface {
+	CryptoSuite() core.CryptoSuite
 }
 
 // Client holds an SDK client instance
 type Client struct {
 	ChannelClient
+	identitySerializer
+	cryptoSuiteProvider
 	refCount  *reference.Counter
 	channelID string
 	sdk       *fabsdk.FabricSDK
@@ -60,32 +73,22 @@ func New(channelID, userName string, peerConfig api.PeerConfig, sdkCfgBytes []by
 		return nil, err
 	}
 
-	chClient, err := newChannelClient(channelID, userName, org, sdk)
+	chClient, ids, csp, err := newChannelClient(channelID, userName, org, sdk)
 	if err != nil {
 		return nil, err
 	}
 
 	c := &Client{
-		ChannelClient: chClient,
-		channelID:     channelID,
-		sdk:           sdk,
+		ChannelClient:       chClient,
+		identitySerializer:  ids,
+		cryptoSuiteProvider: csp,
+		channelID:           channelID,
+		sdk:                 sdk,
 	}
 
 	c.refCount = reference.NewCounter(c.close)
 
 	return c, nil
-}
-
-// Query sends an endorsement proposal request to one or more peers (according to policy and options) but does not
-// send the proposal responses to the orderer.
-func (c *Client) Query(request channel.Request, options ...channel.RequestOption) (channel.Response, error) {
-	_, err := c.refCount.Increment()
-	if err != nil {
-		return channel.Response{}, err
-	}
-	defer c.decrementCounter()
-
-	return c.ChannelClient.Query(request, options...)
 }
 
 // InvokeHandler invokes the given handler chain.
@@ -97,6 +100,44 @@ func (c *Client) InvokeHandler(handler invoke.Handler, request channel.Request, 
 	defer c.decrementCounter()
 
 	return c.ChannelClient.InvokeHandler(handler, request, options...)
+}
+
+// ComputeTxnID returns a transaction ID computed using the given nonce and the identity in the channel context
+func (c *Client) ComputeTxnID(nonce []byte) (string, error) {
+	_, err := c.refCount.Increment()
+	if err != nil {
+		return "", err
+	}
+	defer c.decrementCounter()
+
+	creator, err := c.Serialize()
+	if err != nil {
+		return "", errors.WithMessagef(err, "error serializing identity")
+	}
+
+	hash, err := c.CryptoSuite().GetHash(cryptosuite.GetSHA256Opts())
+	if err != nil {
+		return "", errors.WithMessagef(err, "hash function creation failed")
+	}
+
+	b := append(nonce, creator...)
+
+	_, err = hash.Write(b)
+	if err != nil {
+		return "", errors.WithMessagef(err, "hashing of nonce and creator failed")
+	}
+
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+// SigningIdentity returns the serialized identity of the proposal signer
+func (c *Client) SigningIdentity() ([]byte, error) {
+	identity, err := c.Serialize()
+	if err != nil {
+		return nil, errors.WithMessagef(err, "error serializing identity")
+	}
+
+	return identity, nil
 }
 
 // Close will close the SDK after all references have been released.
@@ -163,6 +204,16 @@ var newSDK = func(channelID string, configProvider core.ConfigProvider, config f
 	return sdk, nil
 }
 
-var newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, error) {
-	return channel.New(sdk.ChannelContext(channelID, fabsdk.WithUser(userName), fabsdk.WithOrg(org)))
+var newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, error) {
+	ctx, err := sdk.ChannelContext(channelID, fabsdk.WithUser(userName), fabsdk.WithOrg(org))()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	client, err := channel.New(func() (context.Channel, error) { return ctx, nil })
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return client, ctx, ctx, nil
 }

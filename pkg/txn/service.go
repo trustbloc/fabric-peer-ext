@@ -15,6 +15,7 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/retry"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
+	fabApi "github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	"github.com/pkg/errors"
 
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
@@ -48,7 +49,7 @@ type Service struct {
 	txnCfgKey *config.Key
 	sdkCfgKey *config.Key
 	cfgTxID   string
-	c         client.ChannelClient
+	c         channelClient
 	mutex     sync.RWMutex
 	retryOpts retry.Opts
 }
@@ -136,27 +137,28 @@ func (s *Service) load() error {
 
 // Endorse collects endorsements according to chaincode policy
 func (s *Service) Endorse(req *api.Request) (*channel.Response, error) {
-	var fcn string
-	if len(req.Args) > 0 {
-		fcn = string(req.Args[0])
+	if err := s.validateTxnIDFromRequest(req); err != nil {
+		return nil, err
 	}
+
+	h := invoke.NewProposalProcessorHandler(
+		invoke.NewEndorsementHandlerWithOpts(
+			invoke.NewEndorsementValidationHandler(
+				invoke.NewSignatureValidationHandler(),
+			),
+			getTxnOptsProvider(req),
+		),
+	)
 
 	numRetries := 0
 	var lastErr error
 
-	resp, err := s.client().Query(
-		channel.Request{
-			ChaincodeID:     req.ChaincodeID,
-			Fcn:             fcn,
-			Args:            req.Args[1:],
-			TransientMap:    req.TransientData,
-			InvocationChain: asInvocationChain(req.InvocationChain),
-		},
+	resp, err := s.client().InvokeHandler(
+		h, asChannelRequest(req),
 		channel.WithTargets(req.Targets...),
 		channel.WithTargetFilter(newTargetFilter(req.PeerFilter)),
 		channel.WithRetry(s.retryOpts),
-		channel.WithBeforeRetry(s.beforeRetryHandler(&numRetries, &lastErr)),
-	)
+		channel.WithBeforeRetry(s.beforeRetryHandler(&numRetries, &lastErr)))
 	if err != nil {
 		if numRetries > 0 {
 			logger.Infof("[%s] Failed after %d retries. Last error: %s", s.channelID, numRetries, err)
@@ -174,15 +176,22 @@ func (s *Service) Endorse(req *api.Request) (*channel.Response, error) {
 
 // EndorseAndCommit collects endorsements (according to chaincode policy) and sends the endorsements to the Orderer
 func (s *Service) EndorseAndCommit(req *api.Request) (*channel.Response, bool, error) {
+	if err := s.validateTxnIDFromRequest(req); err != nil {
+		return nil, false, err
+	}
+
 	checkForCommit := handler.NewCheckForCommitHandler(req.IgnoreNameSpaces, req.CommitType,
 		invoke.NewCommitHandler(),
 	)
 
-	h := invoke.NewSelectAndEndorseHandler(
-		invoke.NewEndorsementValidationHandler(
-			invoke.NewSignatureValidationHandler(
-				checkForCommit,
+	h := invoke.NewProposalProcessorHandler(
+		invoke.NewEndorsementHandlerWithOpts(
+			invoke.NewEndorsementValidationHandler(
+				invoke.NewSignatureValidationHandler(
+					checkForCommit,
+				),
 			),
+			getTxnOptsProvider(req),
 		),
 	)
 
@@ -210,6 +219,11 @@ func (s *Service) EndorseAndCommit(req *api.Request) (*channel.Response, bool, e
 	return &resp, checkForCommit.ShouldCommit, nil
 }
 
+// SigningIdentity returns the serialized identity of the proposal signer
+func (s *Service) SigningIdentity() ([]byte, error) {
+	return s.client().SigningIdentity()
+}
+
 type closable interface {
 	Close()
 }
@@ -231,7 +245,7 @@ type txnConfig struct {
 	BackoffFactor  float64
 }
 
-func (s *Service) client() client.ChannelClient {
+func (s *Service) client() channelClient {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -282,6 +296,45 @@ func (s *Service) beforeRetryHandler(numRetries *int, lastErr *error) retry.Befo
 		*lastErr = err
 
 		logger.Infof("[%s] Retry #%d on error: %s", s.channelID, numRetries, err.Error())
+	}
+}
+
+func (s *Service) validateTxnIDFromRequest(req *api.Request) error {
+	if len(req.Nonce) == 0 && req.TransactionID == "" {
+		return nil
+	}
+
+	if req.TransactionID == "" && len(req.Nonce) > 0 {
+		return errors.New("TransactionID must be provided if nonce is present")
+	}
+
+	if req.TransactionID != "" && len(req.Nonce) == 0 {
+		return errors.New("nonce must be provided if TransactionID is present")
+	}
+
+	logger.Debugf("[%s] TransactionID [%s] and nonce were provided in the request. Validating...", s.channelID, req.TransactionID)
+
+	txnID, err := s.client().ComputeTxnID(req.Nonce)
+	if err != nil {
+		return err
+	}
+
+	if txnID != req.TransactionID {
+		logger.Debugf("[%s] Invalid TransactionID [%s] - expecting [%s]", s.channelID, req.TransactionID, txnID)
+
+		return api.ErrInvalidTxnID
+	}
+
+	return nil
+}
+
+func getTxnOptsProvider(req *api.Request) invoke.TxnHeaderOptsProvider {
+	if len(req.Nonce) == 0 {
+		return nil
+	}
+
+	return func() []fabApi.TxnHeaderOpt {
+		return []fabApi.TxnHeaderOpt{fabApi.WithNonce(req.Nonce)}
 	}
 }
 
@@ -350,14 +403,20 @@ func asChannelRequest(req *api.Request) channel.Request {
 	}
 }
 
+type channelClient interface {
+	client.ChannelClient
+	ComputeTxnID(nonce []byte) (string, error)
+	SigningIdentity() ([]byte, error)
+}
+
 type clientProvider interface {
-	CreateClient(channelID, userName string, peerConfig api.PeerConfig, sdkCfgBytes []byte, format config.Format) (client.ChannelClient, error)
+	CreateClient(channelID, userName string, peerConfig api.PeerConfig, sdkCfgBytes []byte, format config.Format) (channelClient, error)
 }
 
 type defaultClientProvider struct {
 }
 
-func (p *defaultClientProvider) CreateClient(channelID, userName string, peerConfig api.PeerConfig, sdkCfgBytes []byte, format config.Format) (client.ChannelClient, error) {
+func (p *defaultClientProvider) CreateClient(channelID, userName string, peerConfig api.PeerConfig, sdkCfgBytes []byte, format config.Format) (channelClient, error) {
 	return client.New(channelID, userName, peerConfig, sdkCfgBytes, format)
 }
 

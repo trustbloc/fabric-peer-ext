@@ -9,20 +9,6 @@ import (
 )
 
 type ChannelClient struct {
-	QueryStub        func(request channel.Request, options ...channel.RequestOption) (channel.Response, error)
-	queryMutex       sync.RWMutex
-	queryArgsForCall []struct {
-		request channel.Request
-		options []channel.RequestOption
-	}
-	queryReturns struct {
-		result1 channel.Response
-		result2 error
-	}
-	queryReturnsOnCall map[int]struct {
-		result1 channel.Response
-		result2 error
-	}
 	InvokeHandlerStub        func(handler invoke.Handler, request channel.Request, options ...channel.RequestOption) (channel.Response, error)
 	invokeHandlerMutex       sync.RWMutex
 	invokeHandlerArgsForCall []struct {
@@ -40,58 +26,6 @@ type ChannelClient struct {
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
-}
-
-func (fake *ChannelClient) Query(request channel.Request, options ...channel.RequestOption) (channel.Response, error) {
-	fake.queryMutex.Lock()
-	ret, specificReturn := fake.queryReturnsOnCall[len(fake.queryArgsForCall)]
-	fake.queryArgsForCall = append(fake.queryArgsForCall, struct {
-		request channel.Request
-		options []channel.RequestOption
-	}{request, options})
-	fake.recordInvocation("Query", []interface{}{request, options})
-	fake.queryMutex.Unlock()
-	if fake.QueryStub != nil {
-		return fake.QueryStub(request, options...)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fake.queryReturns.result1, fake.queryReturns.result2
-}
-
-func (fake *ChannelClient) QueryCallCount() int {
-	fake.queryMutex.RLock()
-	defer fake.queryMutex.RUnlock()
-	return len(fake.queryArgsForCall)
-}
-
-func (fake *ChannelClient) QueryArgsForCall(i int) (channel.Request, []channel.RequestOption) {
-	fake.queryMutex.RLock()
-	defer fake.queryMutex.RUnlock()
-	return fake.queryArgsForCall[i].request, fake.queryArgsForCall[i].options
-}
-
-func (fake *ChannelClient) QueryReturns(result1 channel.Response, result2 error) {
-	fake.QueryStub = nil
-	fake.queryReturns = struct {
-		result1 channel.Response
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *ChannelClient) QueryReturnsOnCall(i int, result1 channel.Response, result2 error) {
-	fake.QueryStub = nil
-	if fake.queryReturnsOnCall == nil {
-		fake.queryReturnsOnCall = make(map[int]struct {
-			result1 channel.Response
-			result2 error
-		})
-	}
-	fake.queryReturnsOnCall[i] = struct {
-		result1 channel.Response
-		result2 error
-	}{result1, result2}
 }
 
 func (fake *ChannelClient) InvokeHandler(handler invoke.Handler, request channel.Request, options ...channel.RequestOption) (channel.Response, error) {
@@ -150,8 +84,6 @@ func (fake *ChannelClient) InvokeHandlerReturnsOnCall(i int, result1 channel.Res
 func (fake *ChannelClient) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.queryMutex.RLock()
-	defer fake.queryMutex.RUnlock()
 	fake.invokeHandlerMutex.RLock()
 	defer fake.invokeHandlerMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

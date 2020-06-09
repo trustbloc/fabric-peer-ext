@@ -130,6 +130,28 @@ Feature: txn
     Given variable "endorseRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["get","keyA"],"peer_filter":"msp","peer_filter_args":["Org1MSP"]}'
     When txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer1.org1.example.com" then the error response should contain "no endorsement combination can be satisfied"
 
+    # Transaction ID is provided by the client
+    # - First send a request with an invalid TxnID since we don't know the identity of the peer in order to construct a valid one
+    Given variable "txIDNonce" is assigned the base64 URL-encoded value "txIDNonce1"
+    Given variable "endorseAndCommitRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["put","keyX","valueX"],"tx_id":"txID","nonce":"${txIDNonce}"}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorseandcommit,${endorseAndCommitRequest}" on peers "peer1.org1.example.com"
+    Then the JSON path "Status" of the numeric response equals "400"
+    Then the JSON path "Committed" of the boolean response equals "false"
+    And the JSON path "Payload" of the response is saved to variable "identity"
+
+    # - Now use the identity specified in the response to construct a valid TxnID
+    Given variable "txnID" is computed from the identity "${identity}" and nonce "${txIDNonce}"
+    Given variable "endorseAndCommitRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["put","keyX","valueX"],"tx_id":"${txnID}","nonce":"${txIDNonce}"}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorseandcommit,${endorseAndCommitRequest}" on peers "peer1.org1.example.com"
+    Then the JSON path "Status" of the numeric response equals "200"
+    Then the JSON path "Committed" of the boolean response equals "true"
+
+    And we wait 5 seconds
+
+    Given variable "endorseRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["get","keyX"]}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer1.org2.example.com"
+    Then the JSON path "Payload" of the response equals "valueX"
+
   @txn_s2
   Scenario: Configuration validation errors
     Given variable "org1ConfigUpdateInvalidTxn" is assigned config from file "./fixtures/config/fabric/org1-config-invalid-txn.json"
