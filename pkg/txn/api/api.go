@@ -51,6 +51,10 @@ type Request struct {
 
 	//Nonce nonce
 	Nonce []byte
+
+	// AsyncCommit, if true, indicates that we should NOT wait for a block commit event for the transaction
+	// before responding. If true, the commit request returns only after reciving a block with the transaction.
+	AsyncCommit bool
 }
 
 // CommitRequest contains the endorsements to be committed along with options
@@ -63,6 +67,10 @@ type CommitRequest struct {
 
 	// IgnoreNameSpaces ignore these namespaces in the write set when CommitType is CommitOnWrite
 	IgnoreNameSpaces []Namespace
+
+	// AsyncCommit, if true, indicates that we should NOT wait for a block commit event for the transaction
+	// before responding. If true, the commit request returns only after reciving a block with the transaction.
+	AsyncCommit bool
 }
 
 // ChaincodeCall ...

@@ -191,7 +191,7 @@ func (s *Service) EndorseAndCommit(req *api.Request) (*channel.Response, bool, e
 	}
 
 	checkForCommit := handler.NewCheckForCommitHandler(req.IgnoreNameSpaces, req.CommitType,
-		invoke.NewCommitHandler(),
+		handler.NewCommitHandler(req.AsyncCommit),
 	)
 
 	h := invoke.NewProposalProcessorHandler(
@@ -232,7 +232,7 @@ func (s *Service) EndorseAndCommit(req *api.Request) (*channel.Response, bool, e
 // CommitEndorsements commits the provided endorsements.
 func (s *Service) CommitEndorsements(req *api.CommitRequest) (*channel.Response, bool, error) {
 	checkForCommit := handler.NewCheckForCommitHandler(req.IgnoreNameSpaces, req.CommitType,
-		invoke.NewCommitHandler(),
+		handler.NewCommitHandler(req.AsyncCommit),
 	)
 
 	h := handler.NewPreEndorsedHandler(req.EndorsementResponse, checkForCommit)

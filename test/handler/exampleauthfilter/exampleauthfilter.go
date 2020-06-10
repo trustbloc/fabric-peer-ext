@@ -360,12 +360,14 @@ type endorsementRequest struct {
 	PeerFilterArgs   []string        `json:"peer_filter_args"`
 	TransactionID    string          `json:"tx_id"`
 	Nonce            string          `json:"nonce"`
+	AsyncCommit      bool            `json:"async_commit"`
 }
 
 type commitRequest struct {
 	CommitType          string          `json:"commit_type"`
 	IgnoreNameSpaces    []api.Namespace `json:"ignore_namespaces"`
 	EndorsementResponse []byte          `json:"endorsement_response"`
+	AsyncCommit         bool            `json:"async_commit"`
 }
 
 func getEndorsementRequest(args [][]byte) (*api.Request, error) {
@@ -410,6 +412,7 @@ func getEndorsementRequest(args [][]byte) (*api.Request, error) {
 		PeerFilter:       peerFilter,
 		TransactionID:    request.TransactionID,
 		Nonce:            nonce,
+		AsyncCommit:      request.AsyncCommit,
 	}, nil
 }
 
@@ -441,6 +444,7 @@ func getCommitRequest(args [][]byte) (*api.CommitRequest, error) {
 		EndorsementResponse: endorsementResponse,
 		CommitType:          commitType,
 		IgnoreNameSpaces:    request.IgnoreNameSpaces,
+		AsyncCommit:         request.AsyncCommit,
 	}, nil
 }
 
