@@ -6,6 +6,7 @@ import (
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
+	fabApi "github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 )
 
 type TxnClient struct {
@@ -46,6 +47,19 @@ type TxnClient struct {
 	}
 	signingIdentityReturnsOnCall map[int]struct {
 		result1 []byte
+		result2 error
+	}
+	GetPeerStub        func(endpoint string) (fabApi.Peer, error)
+	getPeerMutex       sync.RWMutex
+	getPeerArgsForCall []struct {
+		endpoint string
+	}
+	getPeerReturns struct {
+		result1 fabApi.Peer
+		result2 error
+	}
+	getPeerReturnsOnCall map[int]struct {
+		result1 fabApi.Peer
 		result2 error
 	}
 	invocations      map[string][][]interface{}
@@ -204,6 +218,57 @@ func (fake *TxnClient) SigningIdentityReturnsOnCall(i int, result1 []byte, resul
 	}{result1, result2}
 }
 
+func (fake *TxnClient) GetPeer(endpoint string) (fabApi.Peer, error) {
+	fake.getPeerMutex.Lock()
+	ret, specificReturn := fake.getPeerReturnsOnCall[len(fake.getPeerArgsForCall)]
+	fake.getPeerArgsForCall = append(fake.getPeerArgsForCall, struct {
+		endpoint string
+	}{endpoint})
+	fake.recordInvocation("GetPeer", []interface{}{endpoint})
+	fake.getPeerMutex.Unlock()
+	if fake.GetPeerStub != nil {
+		return fake.GetPeerStub(endpoint)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fake.getPeerReturns.result1, fake.getPeerReturns.result2
+}
+
+func (fake *TxnClient) GetPeerCallCount() int {
+	fake.getPeerMutex.RLock()
+	defer fake.getPeerMutex.RUnlock()
+	return len(fake.getPeerArgsForCall)
+}
+
+func (fake *TxnClient) GetPeerArgsForCall(i int) string {
+	fake.getPeerMutex.RLock()
+	defer fake.getPeerMutex.RUnlock()
+	return fake.getPeerArgsForCall[i].endpoint
+}
+
+func (fake *TxnClient) GetPeerReturns(result1 fabApi.Peer, result2 error) {
+	fake.GetPeerStub = nil
+	fake.getPeerReturns = struct {
+		result1 fabApi.Peer
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *TxnClient) GetPeerReturnsOnCall(i int, result1 fabApi.Peer, result2 error) {
+	fake.GetPeerStub = nil
+	if fake.getPeerReturnsOnCall == nil {
+		fake.getPeerReturnsOnCall = make(map[int]struct {
+			result1 fabApi.Peer
+			result2 error
+		})
+	}
+	fake.getPeerReturnsOnCall[i] = struct {
+		result1 fabApi.Peer
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *TxnClient) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -213,6 +278,8 @@ func (fake *TxnClient) Invocations() map[string][][]interface{} {
 	defer fake.computeTxnIDMutex.RUnlock()
 	fake.signingIdentityMutex.RLock()
 	defer fake.signingIdentityMutex.RUnlock()
+	fake.getPeerMutex.RLock()
+	defer fake.getPeerMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

@@ -151,14 +151,17 @@ func (s *Service) Endorse(req *api.Request) (*channel.Response, error) {
 		return nil, err
 	}
 
-	h := invoke.NewProposalProcessorHandler(
-		invoke.NewEndorsementHandlerWithOpts(
-			invoke.NewEndorsementValidationHandler(
-				invoke.NewSignatureValidationHandler(),
+	h := req.Handler
+	if h == nil {
+		h = invoke.NewProposalProcessorHandler(
+			invoke.NewEndorsementHandlerWithOpts(
+				invoke.NewEndorsementValidationHandler(
+					invoke.NewSignatureValidationHandler(),
+				),
+				getTxnOptsProvider(req),
 			),
-			getTxnOptsProvider(req),
-		),
-	)
+		)
+	}
 
 	numRetries := 0
 	var lastErr error
@@ -194,16 +197,19 @@ func (s *Service) EndorseAndCommit(req *api.Request) (*channel.Response, bool, e
 		handler.NewCommitHandler(req.AsyncCommit),
 	)
 
-	h := invoke.NewProposalProcessorHandler(
-		invoke.NewEndorsementHandlerWithOpts(
-			invoke.NewEndorsementValidationHandler(
-				invoke.NewSignatureValidationHandler(
-					checkForCommit,
+	h := req.Handler
+	if h == nil {
+		h = invoke.NewProposalProcessorHandler(
+			invoke.NewEndorsementHandlerWithOpts(
+				invoke.NewEndorsementValidationHandler(
+					invoke.NewSignatureValidationHandler(
+						checkForCommit,
+					),
 				),
+				getTxnOptsProvider(req),
 			),
-			getTxnOptsProvider(req),
-		),
-	)
+		)
+	}
 
 	numRetries := 0
 	var lastErr error
@@ -235,7 +241,10 @@ func (s *Service) CommitEndorsements(req *api.CommitRequest) (*channel.Response,
 		handler.NewCommitHandler(req.AsyncCommit),
 	)
 
-	h := handler.NewPreEndorsedHandler(req.EndorsementResponse, checkForCommit)
+	h := req.Handler
+	if h == nil {
+		h = handler.NewPreEndorsedHandler(req.EndorsementResponse, checkForCommit)
+	}
 
 	numRetries := 0
 	var lastErr error
@@ -264,6 +273,11 @@ func (s *Service) CommitEndorsements(req *api.CommitRequest) (*channel.Response,
 // SigningIdentity returns the serialized identity of the proposal signer
 func (s *Service) SigningIdentity() ([]byte, error) {
 	return s.client().SigningIdentity()
+}
+
+// GetPeer returns the peer for the given endpoint
+func (s *Service) GetPeer(endpoint string) (fab.Peer, error) {
+	return s.client().GetPeer(endpoint)
 }
 
 type closable interface {
@@ -469,6 +483,7 @@ type channelClient interface {
 	client.ChannelClient
 	ComputeTxnID(nonce []byte) (string, error)
 	SigningIdentity() ([]byte, error)
+	GetPeer(endpoint string) (fab.Peer, error)
 }
 
 type clientProvider interface {

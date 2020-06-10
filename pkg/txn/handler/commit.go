@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// The commit handler commits the endorsement responses to the Orderer and aoptionally waits for a block
+// Commit is a handler that commits the endorsement responses to the Orderer and aoptionally waits for a block
 // event that indicates the status of the transaction.
 type Commit struct {
 	next        invoke.Handler

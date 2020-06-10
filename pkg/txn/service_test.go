@@ -214,6 +214,12 @@ func TestClient(t *testing.T) {
 		require.NotEmpty(t, identity)
 	})
 
+	t.Run("GetPeer -> success", func(t *testing.T) {
+		peer, err := s.GetPeer("peer1:7051")
+		require.NoError(t, err)
+		require.Nil(t, peer)
+	})
+
 	t.Run("Config update", func(t *testing.T) {
 		clUpdated1 := &mockClosableClient{}
 		clientProvider.setClient(clUpdated1)
@@ -266,6 +272,16 @@ func TestClient(t *testing.T) {
 		time.Sleep(500 * time.Millisecond)
 
 		require.Equal(t, origClient, s.client(), "expecting original client to still be used")
+	})
+
+	t.Run("BeforeRetryHandler", func(t *testing.T) {
+		errExpected := errors.New("injected error")
+
+		numRetries := 1
+		var err error
+		s.beforeRetryHandler(&numRetries, &err)(errExpected)
+		require.EqualError(t, err, errExpected.Error())
+		require.Equal(t, 2, numRetries)
 	})
 }
 
