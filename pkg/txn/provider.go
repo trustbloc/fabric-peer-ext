@@ -9,6 +9,7 @@ package txn
 import (
 	"github.com/bluele/gcache"
 	"github.com/hyperledger/fabric/common/flogging"
+	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
 )
@@ -28,14 +29,18 @@ type configValidatorRegistry interface {
 	Register(v config.Validator)
 }
 
-// NewProvider returns a new transaction service provider
-func NewProvider(configProvider configServiceProvider, peerConfig api.PeerConfig, validatorRegistry configValidatorRegistry) *Provider {
-	validatorRegistry.Register(newConfigValidator())
-
-	return newProvider(configProvider, peerConfig, &defaultClientProvider{})
+type gossipProvider interface {
+	GetGossipService() gossipapi.GossipService
 }
 
-func newProvider(configProvider configServiceProvider, peerConfig api.PeerConfig, clientProvider clientProvider) *Provider {
+// NewProvider returns a new transaction service provider
+func NewProvider(configProvider configServiceProvider, peerConfig api.PeerConfig, validatorRegistry configValidatorRegistry, gossipProvider gossipProvider) *Provider {
+	validatorRegistry.Register(newConfigValidator())
+
+	return newProvider(configProvider, peerConfig, gossipProvider, &defaultClientProvider{})
+}
+
+func newProvider(configProvider configServiceProvider, peerConfig api.PeerConfig, gossipProvider gossipProvider, clientProvider clientProvider) *Provider {
 	logger.Info("Creating transaction service provider")
 
 	return &Provider{
@@ -47,6 +52,7 @@ func newProvider(configProvider configServiceProvider, peerConfig api.PeerConfig
 					peerConfig:     peerConfig,
 					configService:  configProvider.ForChannel(channelID),
 					clientProvider: clientProvider,
+					gossip:         gossipProvider.GetGossipService(),
 				})
 		}).Build(),
 	}

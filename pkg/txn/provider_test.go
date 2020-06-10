@@ -23,7 +23,7 @@ import (
 //go:generate counterfeiter -o ./mocks/configvalidatorregistry.gen.go --fake-name ConfigValidatorRegistry . configValidatorRegistry
 
 func TestNewProvider(t *testing.T) {
-	require.NotNil(t, NewProvider(&txnmocks.ConfigServiceProvider{}, &mocks.PeerConfig{}, &txnmocks.ConfigValidatorRegistry{}))
+	require.NotNil(t, NewProvider(&txnmocks.ConfigServiceProvider{}, &mocks.PeerConfig{}, &txnmocks.ConfigValidatorRegistry{}, &mocks.GossipProvider{}))
 }
 
 func TestProvider(t *testing.T) {
@@ -46,7 +46,7 @@ func TestProvider(t *testing.T) {
 	}, nil)
 	csp.ForChannelReturns(cs)
 
-	p := newProvider(csp, &mocks.PeerConfig{}, &mockClientProvider{cl: &txnmocks.TxnClient{}})
+	p := newProvider(csp, &mocks.PeerConfig{}, &mocks.GossipProvider{}, &mockClientProvider{cl: &txnmocks.TxnClient{}})
 	require.NotNil(t, p)
 
 	s, err := p.ForChannel("channel1")
