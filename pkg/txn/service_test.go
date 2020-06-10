@@ -15,6 +15,7 @@ import (
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/retry"
+	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/status"
 	sdkmocks "github.com/hyperledger/fabric-sdk-go/pkg/fab/mocks"
 	"github.com/stretchr/testify/require"
 
@@ -299,10 +300,12 @@ func TestNew_Error(t *testing.T) {
 func TestNewRetryOpts(t *testing.T) {
 	t.Run("Valid", func(t *testing.T) {
 		cfg := &txnConfig{
+			User:           "",
 			RetryAttempts:  3,
 			InitialBackoff: "250ms",
 			MaxBackoff:     "5s",
 			BackoffFactor:  2.5,
+			RetryableCodes: []int{500, 501},
 		}
 
 		opts := newRetryOpts(cfg)
@@ -310,6 +313,11 @@ func TestNewRetryOpts(t *testing.T) {
 		require.Equal(t, 250*time.Millisecond, opts.InitialBackoff)
 		require.Equal(t, 5*time.Second, opts.MaxBackoff)
 		require.Equal(t, cfg.BackoffFactor, opts.BackoffFactor)
+
+		codes := opts.RetryableCodes[status.ChaincodeStatus]
+		require.Len(t, codes, 2)
+		require.Equal(t, status.Code(500), codes[0])
+		require.Equal(t, status.Code(501), codes[1])
 	})
 
 	t.Run("Default values", func(t *testing.T) {

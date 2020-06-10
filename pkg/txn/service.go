@@ -285,6 +285,7 @@ type txnConfig struct {
 	InitialBackoff string
 	MaxBackoff     string
 	BackoffFactor  float64
+	RetryableCodes []int
 }
 
 func (s *Service) client() channelClient {
@@ -410,12 +411,21 @@ func newRetryOpts(cfg *txnConfig) retry.Opts {
 		factor = retry.DefaultBackoffFactor
 	}
 
+	retryableCodes := make(map[status.Group][]status.Code)
+	for key, value := range retry.ChannelClientRetryableCodes {
+		retryableCodes[key] = value
+	}
+
+	for _, code := range cfg.RetryableCodes {
+		retryableCodes[status.ChaincodeStatus] = append(retryableCodes[status.ChaincodeStatus], status.Code(code))
+	}
+
 	return retry.Opts{
 		Attempts:       attempts,
 		InitialBackoff: initialBackoff,
 		MaxBackoff:     maxBackoff,
 		BackoffFactor:  factor,
-		RetryableCodes: retry.ChannelClientRetryableCodes,
+		RetryableCodes: retryableCodes,
 	}
 }
 
