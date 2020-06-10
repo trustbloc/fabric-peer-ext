@@ -162,11 +162,20 @@ Feature: txn
     When txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "commit,${commitRequest}" on peers "peer1.org2.example.com"
     Then the JSON path "Committed" of the boolean response equals "true"
 
+    # Async commit
+    Given variable "endorseAndCommitRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["put","key1100","value1100"],"async_commit":true}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorseandcommit,${endorseAndCommitRequest}" on peers "peer0.org2.example.com"
+    Then the JSON path "Committed" of the boolean response equals "true"
+
     And we wait 5 seconds
 
     Given variable "endorseRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["get","key1002"]}'
     And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer1.org2.example.com"
     Then the JSON path "Payload" of the response equals "value1002"
+
+    Given variable "endorseRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["get","key1100"]}'
+    And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer1.org2.example.com"
+    Then the JSON path "Payload" of the response equals "value1100"
 
   @txn_s2
   Scenario: Configuration validation errors
