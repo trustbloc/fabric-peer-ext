@@ -15,6 +15,8 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/core"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
+	mocks2 "github.com/hyperledger/fabric-sdk-go/pkg/fab/events/client/mocks"
+	mocks3 "github.com/hyperledger/fabric-sdk-go/pkg/fab/mocks"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 	"github.com/hyperledger/fabric/bccsp"
 	"github.com/pkg/errors"
@@ -51,9 +53,9 @@ func TestNew(t *testing.T) {
 	}
 	defer func() { newCryptoSuite = restoreNewCryptoSuite }()
 
-	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, error) {
+	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
 		chClient := &clientmocks.ChannelClient{}
-		return chClient, nil, nil, nil
+		return chClient, nil, nil, nil, nil
 	}
 
 	t.Run("success", func(t *testing.T) {
@@ -125,8 +127,8 @@ func TestNew(t *testing.T) {
 	t.Run("newChannelClient -> error", func(t *testing.T) {
 		errExpected := errors.New("injected channel client error")
 		restoreNewChannelClient := newChannelClient
-		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, error) {
-			return nil, nil, nil, errExpected
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
+			return nil, nil, nil, nil, errExpected
 		}
 		defer func() {
 			newChannelClient = restoreNewChannelClient
@@ -160,9 +162,9 @@ func TestClient_InvokeHandler(t *testing.T) {
 	}
 	defer func() { newCryptoSuite = restoreNewCryptoSuite }()
 
-	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, error) {
+	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
 		chClient := &clientmocks.ChannelClient{}
-		return chClient, nil, nil, nil
+		return chClient, nil, nil, nil, nil
 	}
 
 	t.Run("InvokeHandler -> success", func(t *testing.T) {
@@ -206,11 +208,11 @@ func TestClient_SigningIdentity(t *testing.T) {
 	t.Run("SigningIdentity -> success", func(t *testing.T) {
 		serializedIdentity := []byte("serialized identity")
 
-		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, error) {
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
 			chClient := &clientmocks.ChannelClient{}
 			idSerializer := &clientmocks.IdentitySerializer{}
 			idSerializer.SerializeReturns(serializedIdentity, nil)
-			return chClient, idSerializer, nil, nil
+			return chClient, idSerializer, nil, nil, nil
 		}
 
 		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
@@ -225,11 +227,11 @@ func TestClient_SigningIdentity(t *testing.T) {
 	t.Run("SigningIdentity -> error", func(t *testing.T) {
 		errExpected := errors.New("injected serializer error")
 
-		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, error) {
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
 			chClient := &clientmocks.ChannelClient{}
 			idSerializer := &clientmocks.IdentitySerializer{}
 			idSerializer.SerializeReturns(nil, errExpected)
-			return chClient, idSerializer, nil, nil
+			return chClient, idSerializer, nil, nil, nil
 		}
 
 		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
@@ -260,8 +262,8 @@ func TestClient_ComputeTxnID(t *testing.T) {
 	csp := &clientmocks.CryptoSuiteProvider{}
 	csp.CryptoSuiteReturns(cs)
 
-	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, error) {
-		return chClient, idSerializer, csp, nil
+	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
+		return chClient, idSerializer, csp, nil, nil
 	}
 
 	t.Run("ComputeTxn -> success", func(t *testing.T) {
@@ -326,6 +328,78 @@ func TestClient_ComputeTxnID(t *testing.T) {
 		txnID, err := c.ComputeTxnID(nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
+		require.Empty(t, txnID)
+	})
+}
+
+func TestClient_GetPeer(t *testing.T) {
+	peerCfg := &mocks.PeerConfig{}
+	peerCfg.TLSCertPathReturns("./testdata/tls.crt")
+	peerCfg.MSPIDReturns("Org1MSP")
+	peerCfg.PeerAddressReturns("peer0.org1.com:7051")
+
+	sdkCfgBytes, err := ioutil.ReadFile("./testdata/sdk-config.yaml")
+	require.NoError(t, err)
+
+	chClient := &clientmocks.ChannelClient{}
+
+	t.Run("By endpoint", func(t *testing.T) {
+		const p1Endpoint = "peer1:7051"
+
+		peer1 := mocks3.NewMockPeer("peer1", p1Endpoint)
+		discovery := mocks2.NewDiscoveryService(peer1)
+
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
+			return chClient, nil, nil, discovery, nil
+		}
+
+		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
+		require.NoError(t, err)
+		require.NotNil(t, c)
+
+		peer, err := c.GetPeer(p1Endpoint)
+		require.NoError(t, err)
+		require.NotNil(t, peer)
+		require.Equal(t, "peer1:7051", peer.URL())
+	})
+
+	t.Run("By URL", func(t *testing.T) {
+		const p1Endpoint = "peer1:7051"
+		const p1URL = "grpc://peer1:7051"
+
+		peer1 := mocks3.NewMockPeer("peer1", p1URL)
+		discovery := mocks2.NewDiscoveryService(peer1)
+
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
+			return chClient, nil, nil, discovery, nil
+		}
+
+		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
+		require.NoError(t, err)
+		require.NotNil(t, c)
+
+		peer, err := c.GetPeer(p1Endpoint)
+		require.NoError(t, err)
+		require.NotNil(t, peer)
+	})
+
+	t.Run("Peer not found", func(t *testing.T) {
+		const p1Endpoint = "peer1:7051"
+
+		peer1 := mocks3.NewMockPeer("peer1", p1Endpoint)
+		discovery := mocks2.NewDiscoveryService(peer1)
+
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
+			return chClient, nil, nil, discovery, nil
+		}
+
+		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
+		require.NoError(t, err)
+		require.NotNil(t, c)
+
+		txnID, err := c.GetPeer("peer2:7051")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not found")
 		require.Empty(t, txnID)
 	})
 }

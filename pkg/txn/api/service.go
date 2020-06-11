@@ -8,6 +8,7 @@ package api
 
 import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
+	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 )
 
 // Service provides functions to collect endorsements and send endorsements to the Orderer
@@ -25,4 +26,7 @@ type Service interface {
 
 	// SigningIdentity returns the serialized identity of the proposal signer
 	SigningIdentity() ([]byte, error)
+
+	// GetPeer returns the peer for the given endpoint
+	GetPeer(endpoint string) (fab.Peer, error)
 }

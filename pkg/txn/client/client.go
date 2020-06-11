@@ -8,6 +8,7 @@ package client
 
 import (
 	"encoding/hex"
+	"strings"
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
@@ -46,6 +47,8 @@ type Client struct {
 	ChannelClient
 	identitySerializer
 	cryptoSuiteProvider
+	api.PeerConfig
+	fabapi.DiscoveryService
 	refCount  *reference.Counter
 	channelID string
 	sdk       *fabsdk.FabricSDK
@@ -73,7 +76,7 @@ func New(channelID, userName string, peerConfig api.PeerConfig, sdkCfgBytes []by
 		return nil, err
 	}
 
-	chClient, ids, csp, err := newChannelClient(channelID, userName, org, sdk)
+	chClient, ids, csp, discovery, err := newChannelClient(channelID, userName, org, sdk)
 	if err != nil {
 		return nil, err
 	}
@@ -82,8 +85,10 @@ func New(channelID, userName string, peerConfig api.PeerConfig, sdkCfgBytes []by
 		ChannelClient:       chClient,
 		identitySerializer:  ids,
 		cryptoSuiteProvider: csp,
+		PeerConfig:          peerConfig,
 		channelID:           channelID,
 		sdk:                 sdk,
+		DiscoveryService:    discovery,
 	}
 
 	c.refCount = reference.NewCounter(c.close)
@@ -138,6 +143,36 @@ func (c *Client) SigningIdentity() ([]byte, error) {
 	}
 
 	return identity, nil
+}
+
+// GetPeer returns the peer matching the given endpoint
+func (c *Client) GetPeer(endpoint string) (fabapi.Peer, error) {
+	logger.Debugf("[%s] Finding peer through discovery for URL [%s]", c.channelID, endpoint)
+
+	peers, err := c.GetPeers()
+	if err != nil {
+		return nil, errors.WithMessagef(err, "Failed to get peers from discovery service")
+	}
+
+	logger.Debugf("[%d] Found %d peers through discovery", c.channelID, len(peers))
+
+	for _, peer := range peers {
+		peerURL := peer.URL()
+
+		if strings.EqualFold(endpoint, peerURL) {
+			logger.Debugf("[%s] Selecting discovered peer [%s]", c.channelID, peer.URL())
+			return peer, nil
+		} else if strings.Contains(peerURL, "://") {
+			if strings.EqualFold(endpoint, strings.Split(peerURL, "://")[1]) {
+				logger.Debugf("[%s] Selecting discovered peer [%s]", c.channelID, peer.URL())
+				return peer, nil
+			}
+		}
+		logger.Debugf("[%s] Discovered peer[%s] did not match selected peer [%s]", c.channelID, peer.URL(), endpoint)
+	}
+
+	logger.Debugf("[%s] Failed to get matching discovered peer for given URL [%s]", c.channelID, endpoint)
+	return nil, errors.Errorf("peer [%s] not found", endpoint)
 }
 
 // Close will close the SDK after all references have been released.
@@ -204,16 +239,21 @@ var newSDK = func(channelID string, configProvider core.ConfigProvider, config f
 	return sdk, nil
 }
 
-var newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, error) {
+var newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fabapi.DiscoveryService, error) {
 	ctx, err := sdk.ChannelContext(channelID, fabsdk.WithUser(userName), fabsdk.WithOrg(org))()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	client, err := channel.New(func() (context.Channel, error) { return ctx, nil })
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
-	return client, ctx, ctx, nil
+	discovery, err := ctx.ChannelService().Discovery()
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	return client, ctx, ctx, discovery, nil
 }

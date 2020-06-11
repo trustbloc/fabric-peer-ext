@@ -10,6 +10,7 @@ import (
 	"errors"
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
+	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 )
 
@@ -55,6 +56,9 @@ type Request struct {
 	// AsyncCommit, if true, indicates that we should NOT wait for a block commit event for the transaction
 	// before responding. If true, the commit request returns only after reciving a block with the transaction.
 	AsyncCommit bool
+
+	// Handler is a custom invocation handler. If nil then the default handler is used
+	Handler invoke.Handler
 }
 
 // CommitRequest contains the endorsements to be committed along with options
@@ -71,6 +75,9 @@ type CommitRequest struct {
 	// AsyncCommit, if true, indicates that we should NOT wait for a block commit event for the transaction
 	// before responding. If true, the commit request returns only after reciving a block with the transaction.
 	AsyncCommit bool
+
+	// Handler is a custom invocation handler. If nil then the default handler is used
+	Handler invoke.Handler
 }
 
 // ChaincodeCall ...
