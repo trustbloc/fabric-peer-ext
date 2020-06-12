@@ -4,6 +4,7 @@ package mocks
 import (
 	"sync"
 
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
 	fabApi "github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
@@ -61,6 +62,17 @@ type TxnClient struct {
 	getPeerReturnsOnCall map[int]struct {
 		result1 fabApi.Peer
 		result2 error
+	}
+	VerifyProposalSignatureStub        func(signedProposal *pb.SignedProposal) error
+	verifyProposalSignatureMutex       sync.RWMutex
+	verifyProposalSignatureArgsForCall []struct {
+		signedProposal *pb.SignedProposal
+	}
+	verifyProposalSignatureReturns struct {
+		result1 error
+	}
+	verifyProposalSignatureReturnsOnCall map[int]struct {
+		result1 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
@@ -269,6 +281,54 @@ func (fake *TxnClient) GetPeerReturnsOnCall(i int, result1 fabApi.Peer, result2 
 	}{result1, result2}
 }
 
+func (fake *TxnClient) VerifyProposalSignature(signedProposal *pb.SignedProposal) error {
+	fake.verifyProposalSignatureMutex.Lock()
+	ret, specificReturn := fake.verifyProposalSignatureReturnsOnCall[len(fake.verifyProposalSignatureArgsForCall)]
+	fake.verifyProposalSignatureArgsForCall = append(fake.verifyProposalSignatureArgsForCall, struct {
+		signedProposal *pb.SignedProposal
+	}{signedProposal})
+	fake.recordInvocation("VerifyProposalSignature", []interface{}{signedProposal})
+	fake.verifyProposalSignatureMutex.Unlock()
+	if fake.VerifyProposalSignatureStub != nil {
+		return fake.VerifyProposalSignatureStub(signedProposal)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.verifyProposalSignatureReturns.result1
+}
+
+func (fake *TxnClient) VerifyProposalSignatureCallCount() int {
+	fake.verifyProposalSignatureMutex.RLock()
+	defer fake.verifyProposalSignatureMutex.RUnlock()
+	return len(fake.verifyProposalSignatureArgsForCall)
+}
+
+func (fake *TxnClient) VerifyProposalSignatureArgsForCall(i int) *pb.SignedProposal {
+	fake.verifyProposalSignatureMutex.RLock()
+	defer fake.verifyProposalSignatureMutex.RUnlock()
+	return fake.verifyProposalSignatureArgsForCall[i].signedProposal
+}
+
+func (fake *TxnClient) VerifyProposalSignatureReturns(result1 error) {
+	fake.VerifyProposalSignatureStub = nil
+	fake.verifyProposalSignatureReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *TxnClient) VerifyProposalSignatureReturnsOnCall(i int, result1 error) {
+	fake.VerifyProposalSignatureStub = nil
+	if fake.verifyProposalSignatureReturnsOnCall == nil {
+		fake.verifyProposalSignatureReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.verifyProposalSignatureReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *TxnClient) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -280,6 +340,8 @@ func (fake *TxnClient) Invocations() map[string][][]interface{} {
 	defer fake.signingIdentityMutex.RUnlock()
 	fake.getPeerMutex.RLock()
 	defer fake.getPeerMutex.RUnlock()
+	fake.verifyProposalSignatureMutex.RLock()
+	defer fake.verifyProposalSignatureMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

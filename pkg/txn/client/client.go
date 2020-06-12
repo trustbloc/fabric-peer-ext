@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"strings"
 
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/context"
@@ -20,6 +21,7 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/fab"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 	"github.com/hyperledger/fabric/common/flogging"
+	"github.com/hyperledger/fabric/protoutil"
 	"github.com/pkg/errors"
 
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/reference"
@@ -42,13 +44,18 @@ type cryptoSuiteProvider interface {
 	CryptoSuite() core.CryptoSuite
 }
 
-// Client holds an SDK client instance
-type Client struct {
+type channelProviders struct {
 	ChannelClient
 	identitySerializer
 	cryptoSuiteProvider
-	api.PeerConfig
 	fabapi.DiscoveryService
+	fabapi.ChannelMembership
+}
+
+// Client holds an SDK client instance
+type Client struct {
+	api.PeerConfig
+	*channelProviders
 	refCount  *reference.Counter
 	channelID string
 	sdk       *fabsdk.FabricSDK
@@ -76,19 +83,16 @@ func New(channelID, userName string, peerConfig api.PeerConfig, sdkCfgBytes []by
 		return nil, err
 	}
 
-	chClient, ids, csp, discovery, err := newChannelClient(channelID, userName, org, sdk)
+	chProviders, err := newChannelClient(channelID, userName, org, sdk)
 	if err != nil {
 		return nil, err
 	}
 
 	c := &Client{
-		ChannelClient:       chClient,
-		identitySerializer:  ids,
-		cryptoSuiteProvider: csp,
-		PeerConfig:          peerConfig,
-		channelID:           channelID,
-		sdk:                 sdk,
-		DiscoveryService:    discovery,
+		channelProviders: chProviders,
+		PeerConfig:       peerConfig,
+		channelID:        channelID,
+		sdk:              sdk,
 	}
 
 	c.refCount = reference.NewCounter(c.close)
@@ -175,6 +179,32 @@ func (c *Client) GetPeer(endpoint string) (fabapi.Peer, error) {
 	return nil, errors.Errorf("peer [%s] not found", endpoint)
 }
 
+// VerifyProposalSignature verifies that the signed proposal is valid
+func (c *Client) VerifyProposalSignature(signedProposal *pb.SignedProposal) error {
+	creatorBytes, err := getCreatorFromSignedProposal(signedProposal)
+	if err != nil {
+		return errors.WithMessage(err, "GetCreatorFromSignedProposal return error")
+	}
+
+	logger.Debugf("checkSignatureFromCreator info: creator is %s", creatorBytes)
+
+	// ensure that creator is a valid certificate
+	err = c.ChannelMembership.Validate(creatorBytes)
+	if err != nil {
+		return errors.WithMessage(err, "creator certificate is not valid")
+	}
+
+	// validate the signature
+	err = c.ChannelMembership.Verify(creatorBytes, signedProposal.ProposalBytes, signedProposal.Signature)
+	if err != nil {
+		return errors.WithMessage(err, "The creator's signature over the proposal is not valid")
+	}
+
+	logger.Debug("The signed proposal is valid")
+
+	return nil
+}
+
 // Close will close the SDK after all references have been released.
 func (c *Client) Close() {
 	c.refCount.Close()
@@ -225,6 +255,40 @@ func GetEndpointConfig(configBytes []byte, format config.Format) (core.ConfigPro
 	return configProvider, endpointConfig, nil
 }
 
+func getCreatorFromSignedProposal(signedProposal *pb.SignedProposal) ([]byte, error) {
+	// check ProposalBytes if nil
+	if signedProposal.ProposalBytes == nil {
+		return nil, errors.New("ProposalBytes is nil in SignedProposal")
+	}
+
+	proposal, err := protoutil.UnmarshalProposal(signedProposal.ProposalBytes)
+	if err != nil {
+		return nil, errors.WithMessage(err, "Unmarshal ProposalBytes error")
+	}
+
+	// check proposal.Header if nil
+	if proposal.Header == nil {
+		return nil, errors.New("Header is nil in Proposal")
+	}
+
+	proposalHeader, err := protoutil.UnmarshalHeader(proposal.Header)
+	if err != nil {
+		return nil, errors.WithMessage(err, "Unmarshal HeaderBytes error")
+	}
+
+	// check proposalHeader.SignatureHeader if nil
+	if proposalHeader.SignatureHeader == nil {
+		return nil, errors.New("signatureHeader is nil in proposalHeader")
+	}
+
+	signatureHeader, err := protoutil.UnmarshalSignatureHeader(proposalHeader.SignatureHeader)
+	if err != nil {
+		return nil, errors.WithMessage(err, "Unmarshal SignatureHeader error")
+	}
+
+	return signatureHeader.Creator, nil
+}
+
 var newSDK = func(channelID string, configProvider core.ConfigProvider, config fabapi.EndpointConfig, peerCfg api.PeerConfig) (*fabsdk.FabricSDK, error) {
 	sdk, err := fabsdk.New(
 		configProvider,
@@ -239,21 +303,32 @@ var newSDK = func(channelID string, configProvider core.ConfigProvider, config f
 	return sdk, nil
 }
 
-var newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fabapi.DiscoveryService, error) {
+var newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (*channelProviders, error) {
 	ctx, err := sdk.ChannelContext(channelID, fabsdk.WithUser(userName), fabsdk.WithOrg(org))()
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, err
 	}
 
 	client, err := channel.New(func() (context.Channel, error) { return ctx, nil })
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, err
 	}
 
 	discovery, err := ctx.ChannelService().Discovery()
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, err
 	}
 
-	return client, ctx, ctx, discovery, nil
+	membership, err := ctx.ChannelService().Membership()
+	if err != nil {
+		return nil, err
+	}
+
+	return &channelProviders{
+		ChannelClient:       client,
+		identitySerializer:  ctx,
+		cryptoSuiteProvider: ctx,
+		DiscoveryService:    discovery,
+		ChannelMembership:   membership,
+	}, nil
 }

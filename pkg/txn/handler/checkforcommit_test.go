@@ -10,8 +10,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/gogo/protobuf/proto"
-	protobuf "github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
@@ -578,7 +577,7 @@ func TestNewCheckForCommitHandler(t *testing.T) {
 
 	t.Run("Unmarshal error", func(t *testing.T) {
 		errExpected := errors.New("injected unmarshal error")
-		h := newCheckForCommitHandler(nil, api.CommitOnWrite, func(buf []byte, pb protobuf.Message) error {
+		h := newCheckForCommitHandler(nil, api.CommitOnWrite, func(buf []byte, pb proto.Message) error {
 			return errExpected
 		})
 		require.NotNil(t, h)

@@ -11,12 +11,14 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
+	cb "github.com/hyperledger/fabric-protos-go/common"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/core"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
-	mocks2 "github.com/hyperledger/fabric-sdk-go/pkg/fab/events/client/mocks"
-	mocks3 "github.com/hyperledger/fabric-sdk-go/pkg/fab/mocks"
+	sdkmocks "github.com/hyperledger/fabric-sdk-go/pkg/fab/mocks"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 	"github.com/hyperledger/fabric/bccsp"
 	"github.com/pkg/errors"
@@ -31,6 +33,7 @@ import (
 //go:generate counterfeiter -o ./mocks/identityserializer.gen.go --fake-name IdentitySerializer . identitySerializer
 //go:generate counterfeiter -o ./mocks/cryptosuiteprovider.gen.go --fake-name CryptoSuiteProvider . cryptoSuiteProvider
 //go:generate counterfeiter -o ../../mocks/peerconfig.gen.go --fake-name PeerConfig ../api PeerConfig
+//go:generate counterfeiter -o ./mocks/discoveryservice.gen.go --fake-name DiscoveryService github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab.DiscoveryService
 
 func TestNew(t *testing.T) {
 	peerCfg := &mocks.PeerConfig{}
@@ -53,9 +56,8 @@ func TestNew(t *testing.T) {
 	}
 	defer func() { newCryptoSuite = restoreNewCryptoSuite }()
 
-	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
-		chClient := &clientmocks.ChannelClient{}
-		return chClient, nil, nil, nil, nil
+	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (*channelProviders, error) {
+		return &channelProviders{ChannelClient: &clientmocks.ChannelClient{}}, nil
 	}
 
 	t.Run("success", func(t *testing.T) {
@@ -127,8 +129,8 @@ func TestNew(t *testing.T) {
 	t.Run("newChannelClient -> error", func(t *testing.T) {
 		errExpected := errors.New("injected channel client error")
 		restoreNewChannelClient := newChannelClient
-		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
-			return nil, nil, nil, nil, errExpected
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (*channelProviders, error) {
+			return nil, errExpected
 		}
 		defer func() {
 			newChannelClient = restoreNewChannelClient
@@ -162,9 +164,8 @@ func TestClient_InvokeHandler(t *testing.T) {
 	}
 	defer func() { newCryptoSuite = restoreNewCryptoSuite }()
 
-	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
-		chClient := &clientmocks.ChannelClient{}
-		return chClient, nil, nil, nil, nil
+	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (*channelProviders, error) {
+		return &channelProviders{ChannelClient: &clientmocks.ChannelClient{}}, nil
 	}
 
 	t.Run("InvokeHandler -> success", func(t *testing.T) {
@@ -208,11 +209,10 @@ func TestClient_SigningIdentity(t *testing.T) {
 	t.Run("SigningIdentity -> success", func(t *testing.T) {
 		serializedIdentity := []byte("serialized identity")
 
-		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
-			chClient := &clientmocks.ChannelClient{}
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (*channelProviders, error) {
 			idSerializer := &clientmocks.IdentitySerializer{}
 			idSerializer.SerializeReturns(serializedIdentity, nil)
-			return chClient, idSerializer, nil, nil, nil
+			return &channelProviders{ChannelClient: &clientmocks.ChannelClient{}, identitySerializer: idSerializer}, nil
 		}
 
 		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
@@ -227,11 +227,10 @@ func TestClient_SigningIdentity(t *testing.T) {
 	t.Run("SigningIdentity -> error", func(t *testing.T) {
 		errExpected := errors.New("injected serializer error")
 
-		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
-			chClient := &clientmocks.ChannelClient{}
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (*channelProviders, error) {
 			idSerializer := &clientmocks.IdentitySerializer{}
 			idSerializer.SerializeReturns(nil, errExpected)
-			return chClient, idSerializer, nil, nil, nil
+			return &channelProviders{ChannelClient: &clientmocks.ChannelClient{}, identitySerializer: idSerializer}, nil
 		}
 
 		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
@@ -262,8 +261,8 @@ func TestClient_ComputeTxnID(t *testing.T) {
 	csp := &clientmocks.CryptoSuiteProvider{}
 	csp.CryptoSuiteReturns(cs)
 
-	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
-		return chClient, idSerializer, csp, nil, nil
+	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (*channelProviders, error) {
+		return &channelProviders{ChannelClient: chClient, identitySerializer: idSerializer, cryptoSuiteProvider: csp}, nil
 	}
 
 	t.Run("ComputeTxn -> success", func(t *testing.T) {
@@ -346,11 +345,12 @@ func TestClient_GetPeer(t *testing.T) {
 	t.Run("By endpoint", func(t *testing.T) {
 		const p1Endpoint = "peer1:7051"
 
-		peer1 := mocks3.NewMockPeer("peer1", p1Endpoint)
-		discovery := mocks2.NewDiscoveryService(peer1)
+		peer1 := sdkmocks.NewMockPeer("peer1", p1Endpoint)
+		discovery := &clientmocks.DiscoveryService{}
+		discovery.GetPeersReturns([]fab.Peer{peer1}, nil)
 
-		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
-			return chClient, nil, nil, discovery, nil
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (*channelProviders, error) {
+			return &channelProviders{ChannelClient: chClient, DiscoveryService: discovery}, nil
 		}
 
 		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
@@ -367,11 +367,12 @@ func TestClient_GetPeer(t *testing.T) {
 		const p1Endpoint = "peer1:7051"
 		const p1URL = "grpc://peer1:7051"
 
-		peer1 := mocks3.NewMockPeer("peer1", p1URL)
-		discovery := mocks2.NewDiscoveryService(peer1)
+		peer1 := sdkmocks.NewMockPeer("peer1", p1URL)
+		discovery := &clientmocks.DiscoveryService{}
+		discovery.GetPeersReturns([]fab.Peer{peer1}, nil)
 
-		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
-			return chClient, nil, nil, discovery, nil
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (*channelProviders, error) {
+			return &channelProviders{ChannelClient: chClient, DiscoveryService: discovery}, nil
 		}
 
 		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
@@ -386,11 +387,12 @@ func TestClient_GetPeer(t *testing.T) {
 	t.Run("Peer not found", func(t *testing.T) {
 		const p1Endpoint = "peer1:7051"
 
-		peer1 := mocks3.NewMockPeer("peer1", p1Endpoint)
-		discovery := mocks2.NewDiscoveryService(peer1)
+		peer1 := sdkmocks.NewMockPeer("peer1", p1Endpoint)
+		discovery := &clientmocks.DiscoveryService{}
+		discovery.GetPeersReturns([]fab.Peer{peer1}, nil)
 
-		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (ChannelClient, identitySerializer, cryptoSuiteProvider, fab.DiscoveryService, error) {
-			return chClient, nil, nil, discovery, nil
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (*channelProviders, error) {
+			return &channelProviders{ChannelClient: chClient, DiscoveryService: discovery}, nil
 		}
 
 		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
@@ -401,6 +403,177 @@ func TestClient_GetPeer(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "not found")
 		require.Empty(t, txnID)
+	})
+
+	t.Run("Discovery error", func(t *testing.T) {
+		errExpected := errors.New("injected Discovery error")
+		discovery := &clientmocks.DiscoveryService{}
+		discovery.GetPeersReturns(nil, errExpected)
+
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (*channelProviders, error) {
+			return &channelProviders{ChannelClient: chClient, DiscoveryService: discovery}, nil
+		}
+
+		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
+		require.NoError(t, err)
+		require.NotNil(t, c)
+
+		txnID, err := c.GetPeer("peer2:7051")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "injected Discovery error")
+		require.Empty(t, txnID)
+	})
+}
+
+func TestClient_VerifyProposalSignature(t *testing.T) {
+	peerCfg := &mocks.PeerConfig{}
+	peerCfg.TLSCertPathReturns("./testdata/tls.crt")
+	peerCfg.MSPIDReturns("Org1MSP")
+	peerCfg.PeerAddressReturns("peer0.org1.com:7051")
+
+	sdkCfgBytes, err := ioutil.ReadFile("./testdata/sdk-config.yaml")
+	require.NoError(t, err)
+
+	newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (*channelProviders, error) {
+		return &channelProviders{ChannelClient: &clientmocks.ChannelClient{}, ChannelMembership: sdkmocks.NewMockMembership()}, nil
+	}
+
+	c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
+	require.NoError(t, err)
+	require.NotNil(t, c)
+
+	t.Run("Nil proposal bytes -> error", func(t *testing.T) {
+		err = c.VerifyProposalSignature(&pb.SignedProposal{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "ProposalBytes is nil in SignedProposal")
+	})
+
+	t.Run("Proposal unmarshal -> error", func(t *testing.T) {
+		err = c.VerifyProposalSignature(&pb.SignedProposal{ProposalBytes: []byte("ppp")})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "error unmarshaling Proposal")
+	})
+
+	t.Run("Nil proposal header -> error", func(t *testing.T) {
+		proposalBytes, err := proto.Marshal(&pb.Proposal{})
+		require.NoError(t, err)
+
+		err = c.VerifyProposalSignature(&pb.SignedProposal{ProposalBytes: proposalBytes})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Header is nil in Proposal")
+	})
+
+	t.Run("Proposal header unmarshal -> error", func(t *testing.T) {
+		proposalBytes, err := proto.Marshal(&pb.Proposal{Header: []byte("hhh")})
+		require.NoError(t, err)
+
+		err = c.VerifyProposalSignature(&pb.SignedProposal{ProposalBytes: proposalBytes})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "error unmarshaling Header")
+	})
+
+	t.Run("Nil signature header -> error", func(t *testing.T) {
+		headerBytes, err := proto.Marshal(&cb.Header{ChannelHeader: []byte("ccc")})
+		require.NoError(t, err)
+
+		proposalBytes, err := proto.Marshal(&pb.Proposal{Header: headerBytes})
+		require.NoError(t, err)
+
+		err = c.VerifyProposalSignature(&pb.SignedProposal{ProposalBytes: proposalBytes})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "signatureHeader is nil in proposalHeader")
+	})
+
+	t.Run("Signature unmarshal -> error", func(t *testing.T) {
+		headerBytes, err := proto.Marshal(&cb.Header{SignatureHeader: []byte("sss")})
+		require.NoError(t, err)
+
+		proposalBytes, err := proto.Marshal(&pb.Proposal{Header: headerBytes})
+		require.NoError(t, err)
+
+		err = c.VerifyProposalSignature(&pb.SignedProposal{ProposalBytes: proposalBytes})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "error unmarshaling SignatureHeader")
+	})
+
+	t.Run("Signature unmarshal -> error", func(t *testing.T) {
+		headerBytes, err := proto.Marshal(&cb.Header{SignatureHeader: []byte("sss")})
+		require.NoError(t, err)
+
+		proposalBytes, err := proto.Marshal(&pb.Proposal{Header: headerBytes})
+		require.NoError(t, err)
+
+		err = c.VerifyProposalSignature(&pb.SignedProposal{ProposalBytes: proposalBytes})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "error unmarshaling SignatureHeader")
+	})
+
+	t.Run("Invalid creator certificate -> error", func(t *testing.T) {
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (*channelProviders, error) {
+			return &channelProviders{ChannelClient: &clientmocks.ChannelClient{}, ChannelMembership: &sdkmocks.MockMembership{ValidateErr: errors.New("injected validation error")}}, nil
+		}
+
+		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
+		require.NoError(t, err)
+		require.NotNil(t, c)
+
+		signatureBytes, err := proto.Marshal(&cb.SignatureHeader{Creator: []byte("ccc"), Nonce: []byte("nnn")})
+		require.NoError(t, err)
+
+		headerBytes, err := proto.Marshal(&cb.Header{SignatureHeader: signatureBytes})
+		require.NoError(t, err)
+
+		proposalBytes, err := proto.Marshal(&pb.Proposal{Header: headerBytes})
+		require.NoError(t, err)
+
+		err = c.VerifyProposalSignature(&pb.SignedProposal{ProposalBytes: proposalBytes})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "creator certificate is not valid")
+	})
+
+	t.Run("Signature not valid -> error", func(t *testing.T) {
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (*channelProviders, error) {
+			return &channelProviders{ChannelClient: &clientmocks.ChannelClient{}, ChannelMembership: &sdkmocks.MockMembership{VerifyErr: errors.New("injected verification error")}}, nil
+		}
+
+		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
+		require.NoError(t, err)
+		require.NotNil(t, c)
+
+		signatureBytes, err := proto.Marshal(&cb.SignatureHeader{Creator: []byte("ccc"), Nonce: []byte("nnn")})
+		require.NoError(t, err)
+
+		headerBytes, err := proto.Marshal(&cb.Header{SignatureHeader: signatureBytes})
+		require.NoError(t, err)
+
+		proposalBytes, err := proto.Marshal(&pb.Proposal{Header: headerBytes})
+		require.NoError(t, err)
+
+		err = c.VerifyProposalSignature(&pb.SignedProposal{ProposalBytes: proposalBytes})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "The creator's signature over the proposal is not valid")
+	})
+
+	t.Run("Signature valid -> success", func(t *testing.T) {
+		newChannelClient = func(channelID, userName, org string, sdk *fabsdk.FabricSDK) (*channelProviders, error) {
+			return &channelProviders{ChannelClient: &clientmocks.ChannelClient{}, ChannelMembership: &sdkmocks.MockMembership{}}, nil
+		}
+
+		c, err := New("channel1", "User1", peerCfg, sdkCfgBytes, "YAML")
+		require.NoError(t, err)
+		require.NotNil(t, c)
+
+		signatureBytes, err := proto.Marshal(&cb.SignatureHeader{Creator: []byte("ccc"), Nonce: []byte("nnn")})
+		require.NoError(t, err)
+
+		headerBytes, err := proto.Marshal(&cb.Header{SignatureHeader: signatureBytes})
+		require.NoError(t, err)
+
+		proposalBytes, err := proto.Marshal(&pb.Proposal{Header: headerBytes})
+		require.NoError(t, err)
+
+		err = c.VerifyProposalSignature(&pb.SignedProposal{ProposalBytes: proposalBytes})
+		require.NoError(t, err)
 	})
 }
 

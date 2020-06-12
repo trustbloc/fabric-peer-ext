@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/retry"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/status"
@@ -218,6 +219,10 @@ func TestClient(t *testing.T) {
 		peer, err := s.GetPeer("peer1:7051")
 		require.NoError(t, err)
 		require.Nil(t, peer)
+	})
+
+	t.Run("VerifyProposalSignature -> success", func(t *testing.T) {
+		require.NoError(t, s.VerifyProposalSignature(&pb.SignedProposal{}))
 	})
 
 	t.Run("Config update", func(t *testing.T) {
