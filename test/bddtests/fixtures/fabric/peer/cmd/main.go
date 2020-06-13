@@ -14,13 +14,14 @@ import (
 	"github.com/hyperledger/fabric/peer/node"
 	viper "github.com/spf13/viper2015"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/scc"
 	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/ucc"
 	"github.com/trustbloc/fabric-peer-ext/pkg/handler/authfilter"
 	extpeer "github.com/trustbloc/fabric-peer-ext/pkg/peer"
 	"github.com/trustbloc/fabric-peer-ext/test/cc/examplecc"
 	"github.com/trustbloc/fabric-peer-ext/test/cc/hellocc"
 	"github.com/trustbloc/fabric-peer-ext/test/cc/inprocucc"
-	"github.com/trustbloc/fabric-peer-ext/test/cc/testcc"
+	"github.com/trustbloc/fabric-peer-ext/test/cc/testscc"
 	"github.com/trustbloc/fabric-peer-ext/test/handler/exampleauthfilter"
 )
 
@@ -45,9 +46,11 @@ func main() {
 
 	authfilter.Register(exampleauthfilter.New)
 
-	logger.Infof("Registering in-process user chaincodes for BDD tests...")
+	logger.Infof("Registering in-process system chaincodes for BDD tests...")
 
-	ucc.Register(testcc.New)
+	scc.Register(testscc.New)
+
+	logger.Infof("Registering in-process user chaincodes for BDD tests...")
 
 	ucc.Register(inprocucc.NewV1)
 	ucc.Register(inprocucc.NewV1_1)
