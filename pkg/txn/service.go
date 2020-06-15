@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hyperledger/fabric-protos-go/common"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/retry"
@@ -280,6 +281,11 @@ func (s *Service) GetPeer(endpoint string) (fab.Peer, error) {
 	return s.client().GetPeer(endpoint)
 }
 
+// VerifyProposalSignature verifies that the signed proposal is valid
+func (s *Service) VerifyProposalSignature(signedProposal *pb.SignedProposal) error {
+	return s.client().VerifyProposalSignature(signedProposal)
+}
+
 type closable interface {
 	Close()
 }
@@ -484,6 +490,7 @@ type channelClient interface {
 	ComputeTxnID(nonce []byte) (string, error)
 	SigningIdentity() ([]byte, error)
 	GetPeer(endpoint string) (fab.Peer, error)
+	VerifyProposalSignature(signedProposal *pb.SignedProposal) error
 }
 
 type clientProvider interface {

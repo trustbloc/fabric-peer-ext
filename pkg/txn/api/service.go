@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package api
 
 import (
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 )
@@ -29,4 +30,7 @@ type Service interface {
 
 	// GetPeer returns the peer for the given endpoint
 	GetPeer(endpoint string) (fab.Peer, error)
+
+	// VerifyProposalSignature verifies that the signed proposal is valid
+	VerifyProposalSignature(signedProposal *pb.SignedProposal) error
 }
