@@ -22,4 +22,16 @@ defineSupportCode(function ({And, But, Given, Then, When}) {
     And(/^the endorsement response is saved to variable "([^"]*)"$/, function (arg1, callback) {
         callback.pending();
     });
+    And(/^a signed proposal is created for chaincode "([^"]*)" with args "([^"]*)" with org "([^"]*)" on channel "([^"]*)" and is saved to variable "([^"]*)"$/, function (arg1, arg2, arg3, arg4, arg5, callback) {
+        callback.pending();
+    });
+    And(/^a signed proposal with an invalid signature is created for chaincode "([^"]*)" with args "([^"]*)" with org "([^"]*)" on channel "([^"]*)" and is saved to variable "([^"]*)"$/, function (arg1, arg2, arg3, arg4, arg5, callback) {
+        callback.pending();
+    });
+    And(/^the signed proposal "([^"]*)" is sent to peers "([^"]*)" and the responses are saved to variable "([^"]*)"$/, function (arg1, arg2, arg3, callback) {
+        callback.pending();
+    });
+    And(/^the signed proposal "([^"]*)" is sent to peers "([^"]*)" and the invalid responses are saved to variable "([^"]*)"$/, function (arg1, arg2, arg3, callback) {
+        callback.pending();
+    });
 });

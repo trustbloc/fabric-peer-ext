@@ -29,6 +29,14 @@ import (
 
 var logger = flogging.MustGetLogger("ext_example_authfilter")
 
+const (
+	endorseFunc                   = "endorse"
+	endorseAndCommitFunc          = "endorseandcommit"
+	commitFunc                    = "commit"
+	verifyProposalSignatureFunc   = "verifyProposalSignature"
+	validateProposalResponsesFunc = "validateProposalResponses"
+)
+
 type gossipProvider interface {
 	GetGossipService() gossipapi.GossipService
 }
@@ -312,11 +320,74 @@ func (f *AuthFilter) commit(channelID string, args [][]byte) pb.Response {
 	return shim.Success(respBytes)
 }
 
+func (f *AuthFilter) verifyProposalSignature(channelID string, args [][]byte) pb.Response {
+	logger.Infof("[%s] Verifying proposal signature. Signed proposal: %s", channelID, args[0])
+
+	signedProposal := &pb.SignedProposal{}
+	if err := json.Unmarshal(args[0], signedProposal); err != nil {
+		return shim.Error(fmt.Sprintf("Failed Unmarshal signedProposal: %s", err))
+	}
+
+	svc, err := f.txnProvider.ForChannel(channelID)
+	if err != nil {
+		logger.Errorf("Error getting transaction service for channel [%s]: %s", channelID, err)
+		return shim.Error(fmt.Sprintf("Error getting transaction service for channel [%s]: %s", channelID, err))
+	}
+
+	err = svc.VerifyProposalSignature(signedProposal)
+	if err != nil {
+		logger.Infof("[%s] Failed to verify proposal signature", channelID)
+		return shim.Error(fmt.Sprintf("VerifyProposalSignature returned error: %s", err))
+	}
+
+	logger.Infof("[%s] Successfully verified proposal signature", channelID)
+
+	return shim.Success(nil)
+}
+
+func (f *AuthFilter) validateProposalResponses(channelID string, args [][]byte) pb.Response {
+	if len(args) != 2 {
+		return shim.Error("Expecting args: signed proposal bytes and proposal responses bytes")
+	}
+
+	signedProposal := &pb.SignedProposal{}
+	if err := json.Unmarshal(args[0], signedProposal); err != nil {
+		return shim.Error(fmt.Sprintf("Failed to unmarshal signed proposal: %s", err))
+	}
+
+	var proposalResponses []*pb.ProposalResponse
+	if err := json.Unmarshal(args[1], &proposalResponses); err != nil {
+		return shim.Error(fmt.Sprintf("Failed to unmarshal proposal responses: %s", err))
+	}
+
+	svc, err := f.txnProvider.ForChannel(channelID)
+	if err != nil {
+		logger.Errorf("Error getting transaction service for channel [%s]: %s", channelID, err)
+		return shim.Error(fmt.Sprintf("Error getting transaction service for channel [%s]: %s", channelID, err))
+	}
+
+	code, err := svc.ValidateProposalResponses(signedProposal, proposalResponses)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("ValidateProposalResponses returned error: %s", err))
+	}
+
+	codeBytes, err := json.Marshal(code)
+	if err != nil {
+		panic(err)
+	}
+
+	logger.Infof("[%s] Successfully validated proposal responses", channelID)
+
+	return shim.Success(codeBytes)
+}
+
 func (f *AuthFilter) initFunctionRegistry() {
 	f.functionRegistry = make(map[string]function)
-	f.functionRegistry["endorse"] = f.endorse
-	f.functionRegistry["endorseandcommit"] = f.endorseAndCommit
-	f.functionRegistry["commit"] = f.commit
+	f.functionRegistry[endorseFunc] = f.endorse
+	f.functionRegistry[endorseAndCommitFunc] = f.endorseAndCommit
+	f.functionRegistry[commitFunc] = f.commit
+	f.functionRegistry[verifyProposalSignatureFunc] = f.verifyProposalSignature
+	f.functionRegistry[validateProposalResponsesFunc] = f.validateProposalResponses
 }
 
 func (f *AuthFilter) newInvalidTxnResponse(txnSvc api.Service) pb.Response {
