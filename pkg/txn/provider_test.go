@@ -21,9 +21,10 @@ import (
 //go:generate counterfeiter -o ./mocks/peerconfig.gen.go --fake-name PeerConfig ./api PeerConfig
 //go:generate counterfeiter -o ./mocks/configservice.gen.go --fake-name ConfigService ../config/ledgerconfig/config Service
 //go:generate counterfeiter -o ./mocks/configvalidatorregistry.gen.go --fake-name ConfigValidatorRegistry . configValidatorRegistry
+//go:generate counterfeiter -o ./mocks/proprespvalidatorprovider.gen.go --fake-name ProposalResponseValidatorProvider . proposalResponseValidatorProvider
 
 func TestNewProvider(t *testing.T) {
-	require.NotNil(t, NewProvider(&txnmocks.ConfigServiceProvider{}, &mocks.PeerConfig{}, &txnmocks.ConfigValidatorRegistry{}, &mocks.GossipProvider{}))
+	require.NotNil(t, NewProvider(&txnmocks.ConfigServiceProvider{}, &mocks.PeerConfig{}, &txnmocks.ConfigValidatorRegistry{}, &mocks.GossipProvider{}, &txnmocks.ProposalResponseValidatorProvider{}))
 }
 
 func TestProvider(t *testing.T) {
@@ -46,7 +47,7 @@ func TestProvider(t *testing.T) {
 	}, nil)
 	csp.ForChannelReturns(cs)
 
-	p := newProvider(csp, &mocks.PeerConfig{}, &mocks.GossipProvider{}, &mockClientProvider{cl: &txnmocks.TxnClient{}})
+	p := newProvider(csp, &mocks.PeerConfig{}, &mocks.GossipProvider{}, &txnmocks.ProposalResponseValidatorProvider{}, &mockClientProvider{cl: &txnmocks.TxnClient{}})
 	require.NotNil(t, p)
 
 	s, err := p.ForChannel("channel1")

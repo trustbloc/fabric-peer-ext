@@ -42,10 +42,11 @@ const (
 )
 
 type providers struct {
-	peerConfig     api.PeerConfig
-	configService  config.Service
-	clientProvider clientProvider
-	gossip         gossipapi.GossipService
+	peerConfig                api.PeerConfig
+	configService             config.Service
+	clientProvider            clientProvider
+	gossip                    gossipapi.GossipService
+	proposalResponseValidator api.ProposalResponseValidator
 }
 
 // Service implements a Transaction service that gathers multiple endorsements (according to chaincode policy) and
@@ -284,6 +285,11 @@ func (s *Service) GetPeer(endpoint string) (fab.Peer, error) {
 // VerifyProposalSignature verifies that the signed proposal is valid
 func (s *Service) VerifyProposalSignature(signedProposal *pb.SignedProposal) error {
 	return s.client().VerifyProposalSignature(signedProposal)
+}
+
+// ValidateProposalResponses validates the given proposal responses
+func (s *Service) ValidateProposalResponses(signedProposal *pb.SignedProposal, proposalResponses []*pb.ProposalResponse) (pb.TxValidationCode, error) {
+	return s.proposalResponseValidator.Validate(signedProposal, proposalResponses)
 }
 
 type closable interface {

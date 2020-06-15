@@ -33,14 +33,18 @@ type gossipProvider interface {
 	GetGossipService() gossipapi.GossipService
 }
 
-// NewProvider returns a new transaction service provider
-func NewProvider(configProvider configServiceProvider, peerConfig api.PeerConfig, validatorRegistry configValidatorRegistry, gossipProvider gossipProvider) *Provider {
-	validatorRegistry.Register(newConfigValidator())
-
-	return newProvider(configProvider, peerConfig, gossipProvider, &defaultClientProvider{})
+type proposalResponseValidatorProvider interface {
+	ValidatorForChannel(channelID string) api.ProposalResponseValidator
 }
 
-func newProvider(configProvider configServiceProvider, peerConfig api.PeerConfig, gossipProvider gossipProvider, clientProvider clientProvider) *Provider {
+// NewProvider returns a new transaction service provider
+func NewProvider(configProvider configServiceProvider, peerConfig api.PeerConfig, validatorRegistry configValidatorRegistry, gossipProvider gossipProvider, validatorProvider proposalResponseValidatorProvider) *Provider {
+	validatorRegistry.Register(newConfigValidator())
+
+	return newProvider(configProvider, peerConfig, gossipProvider, validatorProvider, &defaultClientProvider{})
+}
+
+func newProvider(configProvider configServiceProvider, peerConfig api.PeerConfig, gossipProvider gossipProvider, validatorProvider proposalResponseValidatorProvider, clientProvider clientProvider) *Provider {
 	logger.Info("Creating transaction service provider")
 
 	return &Provider{
@@ -49,10 +53,11 @@ func newProvider(configProvider configServiceProvider, peerConfig api.PeerConfig
 
 			return newService(channelID,
 				&providers{
-					peerConfig:     peerConfig,
-					configService:  configProvider.ForChannel(channelID),
-					clientProvider: clientProvider,
-					gossip:         gossipProvider.GetGossipService(),
+					peerConfig:                peerConfig,
+					configService:             configProvider.ForChannel(channelID),
+					clientProvider:            clientProvider,
+					gossip:                    gossipProvider.GetGossipService(),
+					proposalResponseValidator: validatorProvider.ValidatorForChannel(channelID),
 				})
 		}).Build(),
 	}

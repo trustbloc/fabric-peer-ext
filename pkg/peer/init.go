@@ -24,6 +24,7 @@ import (
 	gossipstate "github.com/trustbloc/fabric-peer-ext/pkg/gossip/state"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn"
+	"github.com/trustbloc/fabric-peer-ext/pkg/txn/proprespvalidator"
 )
 
 // Initialize initializes the peer
@@ -51,6 +52,7 @@ func registerResources() {
 	resource.Register(txn.NewProvider)
 	resource.Register(dissemination.LocalMSPProvider.Initialize)
 	resource.Register(appdata.NewHandlerRegistry)
+	resource.Register(proprespvalidator.New)
 }
 
 func registerChaincodes() {

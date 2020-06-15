@@ -51,6 +51,15 @@ func (b *ReadWriteSetBuilder) Build() *rwset.TxReadWriteSet {
 	return txRWSet
 }
 
+// BuildBytes builds the read-write set bytes
+func (b *ReadWriteSetBuilder) BuildBytes() []byte {
+	bytes, err := proto.Marshal(b.Build())
+	if err != nil {
+		panic(err.Error())
+	}
+	return bytes
+}
+
 // PvtReadWriteSetBuilder is a utility that builds a TxPvtReadWriteSetWithConfigInfo for unit testing
 type PvtReadWriteSetBuilder struct {
 	namespaces []*NamespaceBuilder
