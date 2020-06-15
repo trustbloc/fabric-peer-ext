@@ -27,6 +27,7 @@ import (
 )
 
 //go:generate counterfeiter -o ./mocks/txnclient.gen.go --fake-name TxnClient . channelClient
+//go:generate counterfeiter -o ./mocks/proprespvalidator.gen.go --fake-name ProposalResponseValidator ./api ProposalResponseValidator
 
 const (
 	msp1  = "Org1MSP"
@@ -65,7 +66,7 @@ func TestClient(t *testing.T) {
 	cliReturned := &mockClosableClient{}
 	clientProvider := &mockClientProvider{cl: cliReturned}
 
-	p := &providers{peerConfig: peerCfg, configService: cs, clientProvider: clientProvider}
+	p := &providers{peerConfig: peerCfg, configService: cs, clientProvider: clientProvider, proposalResponseValidator: &txnmocks.ProposalResponseValidator{}}
 	s, err := newService("channel1", p)
 	require.NoError(t, err)
 	require.NotNil(t, s)
@@ -223,6 +224,12 @@ func TestClient(t *testing.T) {
 
 	t.Run("VerifyProposalSignature -> success", func(t *testing.T) {
 		require.NoError(t, s.VerifyProposalSignature(&pb.SignedProposal{}))
+	})
+
+	t.Run("VerifyProposalSignature -> success", func(t *testing.T) {
+		code, err := s.ValidateProposalResponses(&pb.SignedProposal{}, []*pb.ProposalResponse{})
+		require.NoError(t, err)
+		require.Equal(t, pb.TxValidationCode_VALID, code)
 	})
 
 	t.Run("Config update", func(t *testing.T) {

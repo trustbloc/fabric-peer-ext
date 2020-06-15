@@ -47,7 +47,7 @@ jobs:
     condition: eq(variables['test-type'],'fabric-unit-test') # Run only if test-type is 'fabric-unit-test'
     pool:
       vmImage: ubuntu-16.04
-    timeoutInMinutes: 120
+    timeoutInMinutes: 60
     steps:
     - template: azp-dependencies.yml
     - checkout: self

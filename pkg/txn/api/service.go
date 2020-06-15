@@ -33,4 +33,7 @@ type Service interface {
 
 	// VerifyProposalSignature verifies that the signed proposal is valid
 	VerifyProposalSignature(signedProposal *pb.SignedProposal) error
+
+	// ValidateProposalResponses validates the given proposal responses
+	ValidateProposalResponses(signedProposal *pb.SignedProposal, proposalResponses []*pb.ProposalResponse) (pb.TxValidationCode, error)
 }
