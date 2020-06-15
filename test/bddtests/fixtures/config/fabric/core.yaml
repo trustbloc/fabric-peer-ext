@@ -567,7 +567,6 @@ chaincode:
         escc: enable
         vscc: enable
         qscc: enable
-        configscc: enable
         testscc: enable
 
     # System chaincode plugins:

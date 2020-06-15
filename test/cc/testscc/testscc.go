@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package testcc
+package testscc
 
 import (
 	"encoding/json"
@@ -14,16 +14,15 @@ import (
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
-	ccapi "github.com/hyperledger/fabric/extensions/chaincode/api"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	configsvc "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/service"
 )
 
-var logger = flogging.MustGetLogger("testcc")
+var logger = flogging.MustGetLogger("testscc")
 
 const (
-	ccName       = "testcc"
-	ccVersion    = "v1"
+	ccName       = "testscc"
 	generalMSPID = "general"
 )
 
@@ -38,7 +37,8 @@ type configServiceProvider interface {
 	ForChannel(channelID string) config.Service
 }
 
-type TestCC struct {
+// TestSCC is a sample in-process system chaincode
+type TestSCC struct {
 	functionRegistry map[string]function
 	localMSPID       string
 	localPeerID      string
@@ -48,8 +48,10 @@ type TestCC struct {
 }
 
 // New returns a new test chaincode
-func New(configServiceProvider configServiceProvider, peerConfig peerConfig) *TestCC {
-	cc := &TestCC{
+func New(configServiceProvider configServiceProvider, peerConfig peerConfig) *TestSCC {
+	logger.Info("Creating TestSCC")
+
+	cc := &TestSCC{
 		config:         make(map[config.Key]*config.Value),
 		localMSPID:     peerConfig.MSPID(),
 		localPeerID:    peerConfig.PeerID(),
@@ -62,25 +64,22 @@ func New(configServiceProvider configServiceProvider, peerConfig peerConfig) *Te
 }
 
 // Name returns the name of this chaincode
-func (cc *TestCC) Name() string { return ccName }
-
-// Version returns the version of this chaincode
-func (cc *TestCC) Version() string { return ccVersion }
+func (cc *TestSCC) Name() string { return ccName }
 
 // Chaincode returns the chaincode implementation
-func (cc *TestCC) Chaincode() shim.Chaincode { return cc }
-
-// GetDBArtifacts returns DB artifacts. For this chaincode there are no artifacts.
-func (cc *TestCC) GetDBArtifacts([]string) map[string]*ccapi.DBArtifacts { return nil }
+func (cc *TestSCC) Chaincode() shim.Chaincode { return cc }
 
 // Init will be deprecated in a future Fabric release
-func (cc *TestCC) Init(stub shim.ChaincodeStubInterface) pb.Response {
+func (cc *TestSCC) Init(stub shim.ChaincodeStubInterface) pb.Response {
+	logger.Infof("[%s] Initializing TestSCC", stub.GetChannelID())
+
 	return shim.Success(nil)
 }
 
 // ChannelJoined is called when the peer joins a channel
-func (cc *TestCC) ChannelJoined(channelID string) {
+func (cc *TestSCC) ChannelJoined(channelID string) {
 	logger.Infof("[%s] Registering for config update events for local MSP [%s] and local peer [%s] and app [%s]", channelID, cc.localMSPID, cc.localPeerID, ccName)
+
 	cc.configProvider.ForChannel(channelID).AddUpdateHandler(func(kv *config.KeyValue) {
 		if kv.MspID == cc.localMSPID && kv.PeerID == cc.localPeerID {
 			cc.updateConfig(kv.Key, kv.Value)
@@ -89,7 +88,9 @@ func (cc *TestCC) ChannelJoined(channelID string) {
 }
 
 // Invoke invokes the config SCC
-func (cc *TestCC) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
+func (cc *TestSCC) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
+	logger.Infof("[%s] Got Invoke request with args %s", stub.GetChannelID(), stub.GetArgs())
+
 	args := stub.GetArgs()
 	if len(args) == 0 {
 		return shim.Error(fmt.Sprintf("Function not provided. Expecting one of [%s]", cc.functionSet()))
@@ -110,7 +111,7 @@ func (cc *TestCC) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 // getConfig returns the config for the given key from the local cache if it's targeted for the local peer.
 // If a request is made for data owned by another MSP and/or peer then an empty value is returned.
 // If a request is made for the "general" MSP then the config is retrieved from the config service.
-func (cc *TestCC) getConfig(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
+func (cc *TestSCC) getConfig(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
 	if len(args) < 1 {
 		return shim.Error("expecting config key")
 	}
@@ -149,7 +150,7 @@ func (cc *TestCC) getConfig(stub shim.ChaincodeStubInterface, args [][]byte) pb.
 	return shim.Success(nil)
 }
 
-func (cc *TestCC) queryConfig(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
+func (cc *TestSCC) queryConfig(stub shim.ChaincodeStubInterface, args [][]byte) pb.Response {
 	if len(args) < 1 {
 		return shim.Error("expecting config criteria")
 	}
@@ -176,7 +177,7 @@ func (cc *TestCC) queryConfig(stub shim.ChaincodeStubInterface, args [][]byte) p
 	return shim.Success(resultBytes)
 }
 
-func (cc *TestCC) updateConfig(key *config.Key, value *config.Value) {
+func (cc *TestSCC) updateConfig(key *config.Key, value *config.Value) {
 	cc.mutex.Lock()
 	defer cc.mutex.Unlock()
 
@@ -189,20 +190,20 @@ func (cc *TestCC) updateConfig(key *config.Key, value *config.Value) {
 	}
 }
 
-func (cc *TestCC) getComponentConfig(key *config.Key) *config.Value {
+func (cc *TestSCC) getComponentConfig(key *config.Key) *config.Value {
 	cc.mutex.RLock()
 	defer cc.mutex.RUnlock()
 	return cc.config[*key]
 }
 
-func (cc *TestCC) initFunctionRegistry() {
+func (cc *TestSCC) initFunctionRegistry() {
 	cc.functionRegistry = make(map[string]function)
 	cc.functionRegistry["getconfig"] = cc.getConfig
 	cc.functionRegistry["queryconfig"] = cc.queryConfig
 }
 
 // functionSet returns a string enumerating all available functions
-func (cc *TestCC) functionSet() string {
+func (cc *TestSCC) functionSet() string {
 	var functionNames string
 	for name := range cc.functionRegistry {
 		if functionNames != "" {

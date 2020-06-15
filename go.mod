@@ -5,8 +5,10 @@
 module github.com/trustbloc/fabric-peer-ext
 
 require (
+	github.com/Microsoft/hcsshim v0.8.9 // indirect
 	github.com/bluele/gcache v0.0.0-20190301044115-79ae3b2d8680
 	github.com/btcsuite/btcutil v0.0.0-20170419141449-a5ecb5d9547a
+	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.3.2
 	github.com/hyperledger/fabric v2.0.0+incompatible
@@ -22,7 +24,7 @@ require (
 	google.golang.org/grpc v1.24.0
 )
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.4-0.20200604234820-c9c017a66039
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.4-0.20200613145354-867c36a7b973
 
 replace github.com/hyperledger/fabric/extensions => ./mod/peer
 
