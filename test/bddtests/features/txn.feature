@@ -19,15 +19,15 @@ Feature: txn
     # We need to wait a while so that all of the peers' channel membership is Gossip'ed to all other peers.
     Then we wait 20 seconds
 
-  @txn_s1
-  Scenario: Endorsements using TXN service
     Given variable "org1Config" is assigned config from file "./fixtures/config/fabric/org1-config.json"
     And variable "org2Config" is assigned config from file "./fixtures/config/fabric/org2-config.json"
 
     When client invokes chaincode "configscc" with args "save,${org1Config}" on the "mychannel" channel
     And client invokes chaincode "configscc" with args "save,${org2Config}" on the "mychannel" channel
-    And we wait 3 seconds
+    And we wait 5 seconds
 
+  @txn_s1
+  Scenario: Endorsements using TXN service
     Given variable "endorseAndCommitRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["put","key1","value1"],"commit_type":"commit-on-write","ignore_namespaces":[{"Name":"target_cc"}]}'
     And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorseandcommit,${endorseAndCommitRequest}" on peers "peer0.org2.example.com"
     Then the JSON path "Committed" of the boolean response equals "false"
@@ -175,6 +175,22 @@ Feature: txn
     Given variable "endorseRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["get","key1100"]}'
     And txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "endorse,${endorseRequest}" on peers "peer1.org2.example.com"
     Then the JSON path "Payload" of the response equals "value1100"
+
+    # verifyProposalSignature
+    Given a signed proposal is created for chaincode "target_cc" with args "put,key1003,value1003" with org "peerorg1" on channel "mychannel" and is saved to variable "signedProposal"
+    Then txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "verifyProposalSignature,${signedProposal}" on peers "peer1.org2.example.com"
+
+    Given a signed proposal with an invalid signature is created for chaincode "target_cc" with args "put,key1004,value1004" with org "peerorg1" on channel "mychannel" and is saved to variable "signedProposal"
+    Then txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "verifyProposalSignature,${signedProposal}" on peers "peer1.org2.example.com" then the error response should contain "The creator's signature over the proposal is not valid"
+
+    # validateProposalResponses
+    Given a signed proposal is created for chaincode "target_cc" with args "put,key1005,value1005" with org "peerorg1" on channel "mychannel" and is saved to variable "signedProposal"
+    Then the signed proposal "${signedProposal}" is sent to peers "peer0.org1.example.com,peer0.org2.example.com" and the responses are saved to variable "proposalResponses"
+    Then txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "validateProposalResponses,${signedProposal},${proposalResponses}" on peers "peer1.org2.example.com"
+
+    Given a signed proposal is created for chaincode "target_cc" with args "put,key1006,value1006" with org "peerorg1" on channel "mychannel" and is saved to variable "signedProposal"
+    Then the signed proposal "${signedProposal}" is sent to peers "peer0.org1.example.com,peer0.org2.example.com" and the invalid responses are saved to variable "proposalResponses"
+    Then txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "validateProposalResponses,${signedProposal},${proposalResponses}" on peers "peer1.org2.example.com" then the error response should contain "the creator's signature over the proposal response is not valid"
 
   @txn_s2
   Scenario: Configuration validation errors
