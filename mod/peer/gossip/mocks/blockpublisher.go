@@ -45,6 +45,16 @@ func (m *BlockPublisher) AddReadHandler(handler api.ReadHandler) {
 	// Not implemented
 }
 
+// AddCollHashWriteHandler adds a handler for KV collection hash writes
+func (m *BlockPublisher) AddCollHashWriteHandler(handler api.CollHashWriteHandler) {
+	// Not implemented
+}
+
+// AddCollHashReadHandler adds a handler for KV collection hash reads
+func (m *BlockPublisher) AddCollHashReadHandler(handler api.CollHashReadHandler) {
+	// Not implemented
+}
+
 // AddCCEventHandler adds a handler for chaincode events
 func (m *BlockPublisher) AddCCEventHandler(handler api.ChaincodeEventHandler) {
 	// Not implemented

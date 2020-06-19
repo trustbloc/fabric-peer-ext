@@ -17,6 +17,7 @@ import (
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/pkg/errors"
+
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/blockvisitor"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
@@ -86,14 +87,16 @@ func (p *Provider) Close() {
 type Publisher struct {
 	*blockvisitor.Visitor
 	*channels
-	writeHandlers        []api.WriteHandler
-	readHandlers         []api.ReadHandler
-	lsccWriteHandlers    []api.LSCCWriteHandler
-	ccEventHandlers      []api.ChaincodeEventHandler
-	configUpdateHandlers []api.ConfigUpdateHandler
-	mutex                sync.RWMutex
-	doneChan             chan struct{}
-	closed               uint32
+	writeHandlers         []api.WriteHandler
+	readHandlers          []api.ReadHandler
+	collHashWriteHandlers []api.CollHashWriteHandler
+	collHashReadHandlers  []api.CollHashReadHandler
+	lsccWriteHandlers     []api.LSCCWriteHandler
+	ccEventHandlers       []api.ChaincodeEventHandler
+	configUpdateHandlers  []api.ConfigUpdateHandler
+	mutex                 sync.RWMutex
+	doneChan              chan struct{}
+	closed                uint32
 }
 
 // New returns a new block Publisher for the given channel
@@ -108,6 +111,8 @@ func New(channelID string) *Publisher {
 			blockvisitor.WithCCEventHandler(channels.sendCCEvent),
 			blockvisitor.WithReadHandler(channels.sendRead),
 			blockvisitor.WithWriteHandler(channels.sendWrite),
+			blockvisitor.WithCollHashReadHandler(channels.sendCollHashRead),
+			blockvisitor.WithCollHashWriteHandler(channels.sendCollHashWrite),
 			blockvisitor.WithLSCCWriteHandler(channels.sendLSCCWrite),
 			blockvisitor.WithConfigUpdateHandler(channels.sendConfigUpdate),
 		),
@@ -154,6 +159,24 @@ func (p *Publisher) AddReadHandler(handler api.ReadHandler) {
 	p.readHandlers = append(p.readHandlers, handler)
 }
 
+// AddCollHashWriteHandler adds a new handler for KV collection hash writes
+func (p *Publisher) AddCollHashWriteHandler(handler api.CollHashWriteHandler) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	logger.Debugf("[%s] Adding collection hash write handler", p.ChannelID())
+	p.collHashWriteHandlers = append(p.collHashWriteHandlers, handler)
+}
+
+// AddCollHashReadHandler adds a new handler for KV collection hash reads
+func (p *Publisher) AddCollHashReadHandler(handler api.CollHashReadHandler) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	logger.Debugf("[%s] Adding collection hash read handler", p.ChannelID())
+	p.collHashReadHandlers = append(p.collHashReadHandlers, handler)
+}
+
 // AddCCEventHandler adds a new handler for chaincode events
 func (p *Publisher) AddCCEventHandler(handler api.ChaincodeEventHandler) {
 	p.mutex.Lock()
@@ -193,6 +216,10 @@ func (p *Publisher) listen() {
 			p.handleWrite(w)
 		case r := <-p.rChan:
 			p.handleRead(r)
+		case w := <-p.wCollHashChan:
+			p.handleCollHashWrite(w)
+		case r := <-p.rCollHashChan:
+			p.handleCollHashRead(r)
 		case lscc := <-p.lsccChan:
 			p.handleLSCCWrite(lscc)
 		case ccEvt := <-p.ccEvtChan:
@@ -220,6 +247,24 @@ func (p *Publisher) handleWrite(w *blockvisitor.Write) {
 	for _, handleWrite := range p.getWriteHandlers() {
 		if err := handleWrite(api.TxMetadata{BlockNum: w.BlockNum, ChannelID: p.ChannelID(), TxID: w.TxID, TxNum: w.TxNum}, w.Namespace, w.Write); err != nil {
 			logger.Warningf("[%s] Error returned from KV Write handler: %s", p.ChannelID(), err)
+		}
+	}
+}
+
+func (p *Publisher) handleCollHashRead(r *blockvisitor.CollHashRead) {
+	logger.Debugf("[%s] Handling collection hash read: [%s]", p.ChannelID(), r)
+	for _, handleRead := range p.getCollHashReadHandlers() {
+		if err := handleRead(api.TxMetadata{BlockNum: r.BlockNum, ChannelID: p.ChannelID(), TxID: r.TxID, TxNum: r.TxNum}, r.Namespace, r.Collection, r.Read); err != nil {
+			logger.Warningf("[%s] Error returned from KV collection hash Read handler: %s", p.ChannelID(), err)
+		}
+	}
+}
+
+func (p *Publisher) handleCollHashWrite(w *blockvisitor.CollHashWrite) {
+	logger.Debugf("[%s] Handling collection hash write: [%s]", p.ChannelID(), w)
+	for _, handleWrite := range p.getCollHashWriteHandlers() {
+		if err := handleWrite(api.TxMetadata{BlockNum: w.BlockNum, ChannelID: p.ChannelID(), TxID: w.TxID, TxNum: w.TxNum}, w.Namespace, w.Collection, w.Write); err != nil {
+			logger.Warningf("[%s] Error returned from KV collection hash Write handler: %s", p.ChannelID(), err)
 		}
 	}
 }
@@ -257,51 +302,57 @@ func (p *Publisher) getReadHandlers() []api.ReadHandler {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 
-	handlers := make([]api.ReadHandler, len(p.readHandlers))
-	copy(handlers, p.readHandlers)
-	return handlers
+	return p.readHandlers
 }
 
 func (p *Publisher) getWriteHandlers() []api.WriteHandler {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 
-	handlers := make([]api.WriteHandler, len(p.writeHandlers))
-	copy(handlers, p.writeHandlers)
-	return handlers
+	return p.writeHandlers
+}
+
+func (p *Publisher) getCollHashReadHandlers() []api.CollHashReadHandler {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	return p.collHashReadHandlers
+}
+
+func (p *Publisher) getCollHashWriteHandlers() []api.CollHashWriteHandler {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	return p.collHashWriteHandlers
 }
 
 func (p *Publisher) getLSCCWriteHandlers() []api.LSCCWriteHandler {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 
-	handlers := make([]api.LSCCWriteHandler, len(p.lsccWriteHandlers))
-	copy(handlers, p.lsccWriteHandlers)
-	return handlers
+	return p.lsccWriteHandlers
 }
 
 func (p *Publisher) getCCEventHandlers() []api.ChaincodeEventHandler {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 
-	handlers := make([]api.ChaincodeEventHandler, len(p.ccEventHandlers))
-	copy(handlers, p.ccEventHandlers)
-	return handlers
+	return p.ccEventHandlers
 }
 
 func (p *Publisher) getConfigUpdateHandlers() []api.ConfigUpdateHandler {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 
-	handlers := make([]api.ConfigUpdateHandler, len(p.configUpdateHandlers))
-	copy(handlers, p.configUpdateHandlers)
-	return handlers
+	return p.configUpdateHandlers
 }
 
 type channels struct {
 	blockChan        chan *cb.Block
 	wChan            chan *blockvisitor.Write
 	rChan            chan *blockvisitor.Read
+	wCollHashChan    chan *blockvisitor.CollHashWrite
+	rCollHashChan    chan *blockvisitor.CollHashRead
 	lsccChan         chan *blockvisitor.LSCCWrite
 	ccEvtChan        chan *blockvisitor.CCEvent
 	configUpdateChan chan *blockvisitor.ConfigUpdate
@@ -312,6 +363,8 @@ func newChannels(bufferSize int) *channels {
 		blockChan:        make(chan *cb.Block, bufferSize),
 		wChan:            make(chan *blockvisitor.Write, bufferSize),
 		rChan:            make(chan *blockvisitor.Read, bufferSize),
+		wCollHashChan:    make(chan *blockvisitor.CollHashWrite, bufferSize),
+		rCollHashChan:    make(chan *blockvisitor.CollHashRead, bufferSize),
 		lsccChan:         make(chan *blockvisitor.LSCCWrite, bufferSize),
 		ccEvtChan:        make(chan *blockvisitor.CCEvent, bufferSize),
 		configUpdateChan: make(chan *blockvisitor.ConfigUpdate, bufferSize),
@@ -325,6 +378,16 @@ func (c *channels) sendRead(r *blockvisitor.Read) error {
 
 func (c *channels) sendWrite(w *blockvisitor.Write) error {
 	c.wChan <- w
+	return nil
+}
+
+func (c *channels) sendCollHashRead(r *blockvisitor.CollHashRead) error {
+	c.rCollHashChan <- r
+	return nil
+}
+
+func (c *channels) sendCollHashWrite(w *blockvisitor.CollHashWrite) error {
+	c.wCollHashChan <- w
 	return nil
 }
 

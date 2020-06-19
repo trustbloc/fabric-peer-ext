@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/blockvisitor"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
@@ -44,6 +45,11 @@ const (
 	key3 = "key3"
 
 	ccEvent1 = "ccevent1"
+)
+
+var (
+	hashedKey1   = []byte(key1)
+	hashedValue1 = []byte("value1")
 )
 
 func TestProvider(t *testing.T) {
@@ -114,6 +120,8 @@ func TestPublisher_PublishEndorsementEvents(t *testing.T) {
 	handler1 := mocks.NewMockBlockHandler()
 	p.AddReadHandler(handler1.HandleRead)
 	p.AddWriteHandler(handler1.HandleWrite)
+	p.AddCollHashReadHandler(handler1.HandleCollHashRead)
+	p.AddCollHashWriteHandler(handler1.HandleCollHashWrite)
 
 	handler2 := mocks.NewMockBlockHandler()
 	p.AddReadHandler(handler2.HandleRead)
@@ -138,9 +146,10 @@ func TestPublisher_PublishEndorsementEvents(t *testing.T) {
 	cc2_1 := tb2.ChaincodeAction(ccID1).
 		Write(key2, value2)
 	cc2_1.Collection(coll1).
-		Write(key1, value2)
+		HashedRead(hashedKey1, v1).
+		HashedWrite(hashedKey1, hashedValue1)
 	cc2_1.Collection(coll2).
-		Delete(key1)
+		Delete(hashedKey1)
 
 	// This transaction should not be published
 	tb3 := b.Transaction(txID3, pb.TxValidationCode_MVCC_READ_CONFLICT)
@@ -174,7 +183,9 @@ func TestPublisher_PublishEndorsementEvents(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	assert.Equal(t, 2, handler1.NumReads())
-	assert.Equal(t, 5, handler1.NumWrites())
+	assert.Equal(t, 3, handler1.NumWrites())
+	assert.Equal(t, 1, handler1.NumCollHashReads())
+	assert.Equal(t, 2, handler1.NumCollHashWrites())
 	assert.Equal(t, 0, handler1.NumCCEvents())
 	assert.Equal(t, 0, handler1.NumCCUpgradeEvents())
 
@@ -359,9 +370,10 @@ func TestPublisher_Error(t *testing.T) {
 	cc2_1 := tb2.ChaincodeAction(ccID1).
 		Write(key2, value2)
 	cc2_1.Collection(coll1).
-		Write(key1, value2)
+		HashedRead(hashedKey1, v1).
+		HashedWrite(hashedKey1, hashedValue1)
 	cc2_1.Collection(coll2).
-		Delete(key1)
+		Delete(hashedKey1)
 
 	lceBytes, err := proto.Marshal(&pb.LifecycleEvent{ChaincodeName: ccID2})
 	require.NoError(t, err)
@@ -380,7 +392,7 @@ func TestPublisher_Error(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	assert.Equal(t, 2, handler1.NumReads())
-	assert.Equal(t, 5, handler1.NumWrites())
+	assert.Equal(t, 3, handler1.NumWrites())
 	assert.Equal(t, 3, handler1.NumCCEvents())
 	assert.Equal(t, 1, handler1.NumCCUpgradeEvents())
 
