@@ -201,12 +201,11 @@ func (b *TxBuilder) ChaincodeAction(ccID string) *ChaincodeActionBuilder {
 
 // ChaincodeActionBuilder builds a mock Chaincode Action
 type ChaincodeActionBuilder struct {
-	ccID         string
-	txID         string
-	response     *pb.Response
-	ccEvent      *pb.ChaincodeEvent
-	nsRWSet      *NamespaceRWSetBuilder
-	collNSRWSets []*NamespaceRWSetBuilder
+	ccID     string
+	txID     string
+	response *pb.Response
+	ccEvent  *pb.ChaincodeEvent
+	nsRWSet  *NamespaceRWSetBuilder
 }
 
 // NewChaincodeActionBuilder returns a new ChaincodeActionBuilder
@@ -235,9 +234,6 @@ func (b *ChaincodeActionBuilder) Build() []byte {
 
 	txRWSet := &rwsetutil.TxRwSet{}
 	txRWSet.NsRwSets = append(txRWSet.NsRwSets, b.nsRWSet.Build())
-	for _, collRWSet := range b.collNSRWSets {
-		txRWSet.NsRwSets = append(txRWSet.NsRwSets, collRWSet.Build())
-	}
 
 	nsRWSetBytes, err := txRWSet.ToProtoBytes()
 	if err != nil {
@@ -299,17 +295,16 @@ func (b *ChaincodeActionBuilder) ChaincodeEvent(eventName string, payload []byte
 }
 
 // Collection starts a new collection read/write set
-func (b *ChaincodeActionBuilder) Collection(coll string) *NamespaceRWSetBuilder {
-	nsRWSetBuilder := NewNamespaceRWSetBuilder(b.ccID + "~" + coll)
-	b.collNSRWSets = append(b.collNSRWSets, nsRWSetBuilder)
-	return nsRWSetBuilder
+func (b *ChaincodeActionBuilder) Collection(coll string) *CollHashedRWSetBuilder {
+	return b.nsRWSet.Collection(coll)
 }
 
 // NamespaceRWSetBuilder builds a mock read/write set for a given namespace
 type NamespaceRWSetBuilder struct {
-	namespace string
-	reads     []*kvrwset.KVRead
-	writes    []*kvrwset.KVWrite
+	namespace               string
+	reads                   []*kvrwset.KVRead
+	writes                  []*kvrwset.KVWrite
+	collHashedRWSetBuilders []*CollHashedRWSetBuilder
 }
 
 // NewNamespaceRWSetBuilder returns a new namespace read/write set builder
@@ -321,12 +316,18 @@ func NewNamespaceRWSetBuilder(ns string) *NamespaceRWSetBuilder {
 
 // Build builds a namespace read/write set
 func (b *NamespaceRWSetBuilder) Build() *rwsetutil.NsRwSet {
+	collHashedRWSets := make([]*rwsetutil.CollHashedRwSet, len(b.collHashedRWSetBuilders))
+	for i, rwset := range b.collHashedRWSetBuilders {
+		collHashedRWSets[i] = rwset.Build()
+	}
+
 	return &rwsetutil.NsRwSet{
 		NameSpace: b.namespace,
 		KvRwSet: &kvrwset.KVRWSet{
 			Reads:  b.reads,
 			Writes: b.writes,
 		},
+		CollHashedRwSets: collHashedRWSets,
 	}
 }
 
@@ -352,6 +353,65 @@ func (b *NamespaceRWSetBuilder) Write(key string, value []byte) *NamespaceRWSetB
 func (b *NamespaceRWSetBuilder) Delete(key string) *NamespaceRWSetBuilder {
 	b.writes = append(b.writes, &kvrwset.KVWrite{
 		Key:      key,
+		IsDelete: true,
+	})
+	return b
+}
+
+// Collection starts a new collection hashed read/write set
+func (b *NamespaceRWSetBuilder) Collection(coll string) *CollHashedRWSetBuilder {
+	collHashedRWSetBuilder := NewCollHashedRWSetBuilder(coll)
+	b.collHashedRWSetBuilders = append(b.collHashedRWSetBuilders, collHashedRWSetBuilder)
+	return collHashedRWSetBuilder
+}
+
+// CollHashedRWSetBuilder builds a mock read/write set for a given collection
+type CollHashedRWSetBuilder struct {
+	collection string
+	reads      []*kvrwset.KVReadHash
+	writes     []*kvrwset.KVWriteHash
+}
+
+// NewCollHashedRWSetBuilder returns a new collection hashed read/write set builder
+func NewCollHashedRWSetBuilder(coll string) *CollHashedRWSetBuilder {
+	return &CollHashedRWSetBuilder{
+		collection: coll,
+	}
+}
+
+// Build builds a namespace read/write set
+func (b *CollHashedRWSetBuilder) Build() *rwsetutil.CollHashedRwSet {
+	return &rwsetutil.CollHashedRwSet{
+		CollectionName: b.collection,
+		HashedRwSet: &kvrwset.HashedRWSet{
+			HashedReads:  b.reads,
+			HashedWrites: b.writes,
+		},
+	}
+}
+
+// HashedRead adds a KV hashed read to the hashed read/write set
+func (b *CollHashedRWSetBuilder) HashedRead(keyHash []byte, version *kvrwset.Version) *CollHashedRWSetBuilder {
+	b.reads = append(b.reads, &kvrwset.KVReadHash{
+		KeyHash: keyHash,
+		Version: version,
+	})
+	return b
+}
+
+// HashedWrite adds a KV hashed write to the hashed read/write set
+func (b *CollHashedRWSetBuilder) HashedWrite(keyHash, valueHash []byte) *CollHashedRWSetBuilder {
+	b.writes = append(b.writes, &kvrwset.KVWriteHash{
+		KeyHash:   keyHash,
+		ValueHash: valueHash,
+	})
+	return b
+}
+
+// Delete adds a KV hashed write (with delete=true) to the hashed read/write set
+func (b *CollHashedRWSetBuilder) Delete(keyHash []byte) *CollHashedRWSetBuilder {
+	b.writes = append(b.writes, &kvrwset.KVWriteHash{
+		KeyHash:  keyHash,
 		IsDelete: true,
 	})
 	return b

@@ -23,6 +23,12 @@ const (
 	// WriteHandlerErr indicates that the write handler returned an error
 	WriteHandlerErr Category = "WRITE_HANDLER_ERROR"
 
+	// CollHashReadHandlerErr indicates that the collection hash read handler returned an error
+	CollHashReadHandlerErr Category = "COLL_HASH_READ_HANDLER_ERROR"
+
+	// CollHashWriteHandlerErr indicates that the collection hash write handler returned an error
+	CollHashWriteHandlerErr Category = "COLL_HASH_WRITE_HANDLER_ERROR"
+
 	// LSCCWriteHandlerErr indicates that the LSCC write handler returned an error
 	LSCCWriteHandlerErr Category = "LSCCWRITE_HANDLER_ERROR"
 
@@ -35,16 +41,18 @@ const (
 
 // Context holds the context at the time of a Visitor error
 type Context struct {
-	Category     Category
-	ChannelID    string
-	BlockNum     uint64
-	TxNum        uint64
-	TxID         string
-	Read         *Read
-	Write        *Write
-	CCEvent      *CCEvent
-	LSCCWrite    *LSCCWrite
-	ConfigUpdate *ConfigUpdate
+	Category      Category
+	ChannelID     string
+	BlockNum      uint64
+	TxNum         uint64
+	TxID          string
+	Read          *Read
+	Write         *Write
+	CollHashRead  *CollHashRead
+	CollHashWrite *CollHashWrite
+	CCEvent       *CCEvent
+	LSCCWrite     *LSCCWrite
+	ConfigUpdate  *ConfigUpdate
 }
 
 func newContext(category Category, channelID string, blockNum uint64, opts ...ctxOpt) *Context {
@@ -115,6 +123,18 @@ func withRead(r *Read) ctxOpt {
 func withWrite(w *Write) ctxOpt {
 	return func(ctx *Context) {
 		ctx.Write = w
+	}
+}
+
+func withCollHashRead(r *CollHashRead) ctxOpt {
+	return func(ctx *Context) {
+		ctx.CollHashRead = r
+	}
+}
+
+func withCollHashWrite(w *CollHashWrite) ctxOpt {
+	return func(ctx *Context) {
+		ctx.CollHashWrite = w
 	}
 }
 

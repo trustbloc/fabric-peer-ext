@@ -19,6 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
@@ -44,6 +45,11 @@ const (
 	ccEvent1 = "ccevent1"
 )
 
+var (
+	hashedKey1   = []byte(key1)
+	hashedValue1 = []byte("value1")
+)
+
 func TestVisitor_HandleEndorsementEvents(t *testing.T) {
 	block := mockBlockWithTransactions(t)
 	t.Run("No handlers", func(t *testing.T) {
@@ -56,6 +62,8 @@ func TestVisitor_HandleEndorsementEvents(t *testing.T) {
 		var ccEvents []*CCEvent
 		var reads []*Read
 		var writes []*Write
+		var collHashReads []*CollHashRead
+		var collHashWrites []*CollHashWrite
 		var lsccWrites []*LSCCWrite
 
 		p := New(channelID,
@@ -69,6 +77,14 @@ func TestVisitor_HandleEndorsementEvents(t *testing.T) {
 			}),
 			WithWriteHandler(func(write *Write) error {
 				writes = append(writes, write)
+				return nil
+			}),
+			WithCollHashReadHandler(func(read *CollHashRead) error {
+				collHashReads = append(collHashReads, read)
+				return nil
+			}),
+			WithCollHashWriteHandler(func(write *CollHashWrite) error {
+				collHashWrites = append(collHashWrites, write)
 				return nil
 			}),
 			WithLSCCWriteHandler(func(lsccWrite *LSCCWrite) error {
@@ -94,17 +110,23 @@ func TestVisitor_HandleEndorsementEvents(t *testing.T) {
 		assert.Equal(t, uint64(0), reads[1].TxNum)
 		assert.Equal(t, txID1, reads[1].TxID)
 
-		require.Len(t, writes, 5)
+		require.Len(t, writes, 3)
 		assert.Equal(t, uint64(0), writes[0].TxNum)
 		assert.Equal(t, txID1, writes[0].TxID)
 		assert.Equal(t, uint64(0), writes[1].TxNum)
 		assert.Equal(t, txID1, writes[1].TxID)
 		assert.Equal(t, uint64(1), writes[2].TxNum)
 		assert.Equal(t, txID2, writes[2].TxID)
-		assert.Equal(t, uint64(1), writes[3].TxNum)
-		assert.Equal(t, txID2, writes[3].TxID)
-		assert.Equal(t, uint64(1), writes[4].TxNum)
-		assert.Equal(t, txID2, writes[4].TxID)
+
+		require.Len(t, collHashReads, 1)
+		assert.Equal(t, uint64(0), reads[0].TxNum)
+		assert.Equal(t, txID1, reads[0].TxID)
+
+		require.Len(t, collHashWrites, 2)
+		assert.Equal(t, uint64(0), writes[0].TxNum)
+		assert.Equal(t, txID1, writes[0].TxID)
+		assert.Equal(t, uint64(0), writes[1].TxNum)
+		assert.Equal(t, txID1, writes[1].TxID)
 
 		require.Len(t, lsccWrites, 2)
 		assert.Equal(t, uint64(3), lsccWrites[0].TxNum)
@@ -206,6 +228,72 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 					return err
 				}),
 				WithWriteHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+
+			err := p.Visit(block)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errExpected.Error())
+		})
+	})
+
+	t.Run("With CollHashReadHandler error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected coll hash read handler error")
+		handler := func(*CollHashRead) error { return errExpected }
+
+		t.Run("Ignore", func(t *testing.T) {
+			p := New(channelID,
+				WithCollHashReadHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+			require.NoError(t, p.Visit(block))
+		})
+
+		t.Run("Halt", func(t *testing.T) {
+			p := New(channelID,
+				WithErrorHandler(func(err error, ctx *Context) error {
+					require.Equal(t, CollHashReadHandlerErr, ctx.Category)
+					require.Equal(t, channelID, ctx.ChannelID)
+					require.NotNil(t, ctx.CollHashRead)
+
+					return err
+				}),
+				WithCollHashReadHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+
+			err := p.Visit(block)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errExpected.Error())
+		})
+	})
+
+	t.Run("With CollHashWriteHandler error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected coll hash write handler error")
+		handler := func(*CollHashWrite) error { return errExpected }
+
+		t.Run("Ignore", func(t *testing.T) {
+			p := New(channelID,
+				WithCollHashWriteHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+			require.NoError(t, p.Visit(block))
+		})
+
+		t.Run("Halt", func(t *testing.T) {
+			p := New(channelID,
+				WithErrorHandler(func(err error, ctx *Context) error {
+					require.Equal(t, CollHashWriteHandlerErr, ctx.Category)
+					require.Equal(t, channelID, ctx.ChannelID)
+					require.NotNil(t, ctx.CollHashWrite)
+
+					return err
+				}),
+				WithCollHashWriteHandler(handler),
 			)
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())
@@ -573,7 +661,7 @@ func TestVisitor_NoStopOnError(t *testing.T) {
 
 	require.NoError(t, p.Visit(mockBlockWithTransactions(t)))
 	assert.Equal(t, 2, numReads)
-	assert.Equal(t, 5, numWrites)
+	assert.Equal(t, 3, numWrites)
 	assert.Equal(t, 2, numCCEvents)
 	assert.EqualValues(t, 1101, p.LedgerHeight())
 }
@@ -655,9 +743,10 @@ func mockBlockWithTransactions(t *testing.T) *cb.Block {
 	cc2_1 := tb2.ChaincodeAction(ccID1).
 		Write(key2, value2)
 	cc2_1.Collection(coll1).
-		Write(key1, value2)
+		HashedRead(hashedKey1, v1).
+		HashedWrite(hashedKey1, hashedValue1)
 	cc2_1.Collection(coll2).
-		Delete(key1)
+		Delete(hashedKey1)
 
 	// This transaction should not be published
 	tb3 := b.Transaction(txID3, pb.TxValidationCode_MVCC_READ_CONFLICT)

@@ -13,12 +13,14 @@ import (
 
 // MockBlockPublisher is a mock block publisher
 type MockBlockPublisher struct {
-	HandleUpgrade      gossipapi.ChaincodeUpgradeHandler
-	HandleConfigUpdate gossipapi.ConfigUpdateHandler
-	HandleWrite        gossipapi.WriteHandler
-	HandleRead         gossipapi.ReadHandler
-	HandleLSCCWrite    gossipapi.LSCCWriteHandler
-	HandleCCEvent      gossipapi.ChaincodeEventHandler
+	HandleUpgrade       gossipapi.ChaincodeUpgradeHandler
+	HandleConfigUpdate  gossipapi.ConfigUpdateHandler
+	HandleWrite         gossipapi.WriteHandler
+	HandleRead          gossipapi.ReadHandler
+	HandleCollHashWrite gossipapi.CollHashWriteHandler
+	HandleCollHashRead  gossipapi.CollHashReadHandler
+	HandleLSCCWrite     gossipapi.LSCCWriteHandler
+	HandleCCEvent       gossipapi.ChaincodeEventHandler
 }
 
 // NewBlockPublisher returns a mock block publisher
@@ -44,6 +46,16 @@ func (m *MockBlockPublisher) AddWriteHandler(handler gossipapi.WriteHandler) {
 // AddReadHandler adds a read handler
 func (m *MockBlockPublisher) AddReadHandler(handler gossipapi.ReadHandler) {
 	m.HandleRead = handler
+}
+
+// AddCollHashWriteHandler adds a collection hash write handler
+func (m *MockBlockPublisher) AddCollHashWriteHandler(handler gossipapi.CollHashWriteHandler) {
+	m.HandleCollHashWrite = handler
+}
+
+// AddCollHashReadHandler adds a read handler
+func (m *MockBlockPublisher) AddCollHashReadHandler(handler gossipapi.CollHashReadHandler) {
+	m.HandleCollHashRead = handler
 }
 
 // AddLSCCWriteHandler adds a write handler

@@ -50,6 +50,26 @@ type Read struct {
 	Read      *kvrwset.KVRead
 }
 
+// CollHashWrite contains all information related to a KV collection hash write on the block
+type CollHashWrite struct {
+	BlockNum   uint64
+	TxID       string
+	TxNum      uint64
+	Namespace  string
+	Collection string
+	Write      *kvrwset.KVWriteHash
+}
+
+// CollHashRead contains all information related to a KV collection hash read on the block
+type CollHashRead struct {
+	BlockNum   uint64
+	TxID       string
+	TxNum      uint64
+	Namespace  string
+	Collection string
+	Read       *kvrwset.KVReadHash
+}
+
 // LSCCWrite contains all information related to an LSCC write on the block
 type LSCCWrite struct {
 	BlockNum uint64
@@ -83,6 +103,12 @@ type ReadHandler func(read *Read) error
 // WriteHandler publishes KV write events
 type WriteHandler func(write *Write) error
 
+// CollHashReadHandler publishes KV collection hash read events
+type CollHashReadHandler func(read *CollHashRead) error
+
+// CollHashWriteHandler publishes KV collection hash write events
+type CollHashWriteHandler func(write *CollHashWrite) error
+
 // LSCCWriteHandler publishes LSCC write events
 type LSCCWriteHandler func(lsccWrite *LSCCWrite) error
 
@@ -91,11 +117,13 @@ type ConfigUpdateHandler func(update *ConfigUpdate) error
 
 // Handlers contains the full set of handlers
 type Handlers struct {
-	HandleCCEvent      CCEventHandler
-	HandleRead         ReadHandler
-	HandleWrite        WriteHandler
-	HandleLSCCWrite    LSCCWriteHandler
-	HandleConfigUpdate ConfigUpdateHandler
+	HandleCCEvent       CCEventHandler
+	HandleRead          ReadHandler
+	HandleWrite         WriteHandler
+	HandleCollHashRead  CollHashReadHandler
+	HandleCollHashWrite CollHashWriteHandler
+	HandleLSCCWrite     LSCCWriteHandler
+	HandleConfigUpdate  ConfigUpdateHandler
 }
 
 // ErrorHandler allows clients to handle errors
@@ -136,6 +164,20 @@ func WithReadHandler(handler ReadHandler) Opt {
 func WithWriteHandler(handler WriteHandler) Opt {
 	return func(options *Options) {
 		options.HandleWrite = handler
+	}
+}
+
+// WithCollHashReadHandler sets the collection hash read handler
+func WithCollHashReadHandler(handler CollHashReadHandler) Opt {
+	return func(options *Options) {
+		options.HandleCollHashRead = handler
+	}
+}
+
+// WithCollHashWriteHandler sets the collection hash write handler
+func WithCollHashWriteHandler(handler CollHashWriteHandler) Opt {
+	return func(options *Options) {
+		options.HandleCollHashWrite = handler
 	}
 }
 
@@ -481,7 +523,17 @@ func (p *txEvent) visitNsReadWriteSet(nsRWSet *rwsetutil.NsRwSet) error {
 		return p.publishLSCCWrite(nsRWSet.KvRwSet.Writes)
 	}
 
-	return p.publishWrites(nsRWSet.NameSpace, nsRWSet.KvRwSet.Writes)
+	err = p.publishWrites(nsRWSet.NameSpace, nsRWSet.KvRwSet.Writes)
+	if err != nil && haltOnError(err) {
+		return err
+	}
+
+	err = p.visitCollHashRWSets(nsRWSet.NameSpace, nsRWSet.CollHashedRwSets)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // publishLSCCWrite publishes an LSCC Write Event which is a result of a chaincode instantiate/upgrade.
@@ -519,22 +571,62 @@ func (p *txEvent) publishLSCCWrite(writes []*kvrwset.KVWrite) error {
 	return nil
 }
 
-func (p *txEvent) publishReads(ns string, reads []*kvrwset.KVRead) error {
-	for _, r := range reads {
-		read := &Read{
-			BlockNum:  p.blockNum,
-			TxID:      p.txID,
-			TxNum:     p.txNum,
-			Namespace: ns,
-			Read:      r,
+func (p *txEvent) visitCollHashRWSets(nameSpace string, collHashedRwSets []*rwsetutil.CollHashedRwSet) error {
+	for _, collRwSet := range collHashedRwSets {
+		err := p.publishCollHashReads(nameSpace, collRwSet.CollectionName, collRwSet.HashedRwSet.HashedReads)
+		if err != nil && haltOnError(err) {
+			return err
 		}
 
-		if err := p.HandleRead(read); err != nil {
-			if e := p.HandleError(err, p.newContext(ReadHandlerErr, withRead(read))); e != nil {
+		err = p.publishCollHashWrites(nameSpace, collRwSet.CollectionName, collRwSet.HashedRwSet.HashedWrites)
+		if err != nil && haltOnError(err) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *txEvent) publishCollHashReads(ns, coll string, reads []*kvrwset.KVReadHash) error {
+	for _, r := range reads {
+		read := &CollHashRead{
+			BlockNum:   p.blockNum,
+			TxID:       p.txID,
+			TxNum:      p.txNum,
+			Namespace:  ns,
+			Collection: coll,
+			Read:       r,
+		}
+
+		if err := p.HandleCollHashRead(read); err != nil {
+			if e := p.HandleError(err, p.newContext(CollHashReadHandlerErr, withCollHashRead(read))); e != nil {
 				return newVisitorError(e)
 			}
 
-			logger.Warningf("[%s] Error checking read %+v", p.channelID, r, err)
+			logger.Warningf("[%s] Error checking collection hash read %+v", p.channelID, r, err)
+		}
+	}
+
+	return nil
+}
+
+func (p *txEvent) publishCollHashWrites(ns, coll string, reads []*kvrwset.KVWriteHash) error {
+	for _, w := range reads {
+		write := &CollHashWrite{
+			BlockNum:   p.blockNum,
+			TxID:       p.txID,
+			TxNum:      p.txNum,
+			Namespace:  ns,
+			Collection: coll,
+			Write:      w,
+		}
+
+		if err := p.HandleCollHashWrite(write); err != nil {
+			if e := p.HandleError(err, p.newContext(CollHashWriteHandlerErr, withCollHashWrite(write))); e != nil {
+				return newVisitorError(e)
+			}
+
+			logger.Warningf("[%s] Error checking collection hash write %+v", p.channelID, w, err)
 		}
 	}
 
@@ -557,6 +649,28 @@ func (p *txEvent) publishWrites(ns string, writes []*kvrwset.KVWrite) error {
 			}
 		}
 	}
+	return nil
+}
+
+func (p *txEvent) publishReads(ns string, reads []*kvrwset.KVRead) error {
+	for _, r := range reads {
+		read := &Read{
+			BlockNum:  p.blockNum,
+			TxID:      p.txID,
+			TxNum:     p.txNum,
+			Namespace: ns,
+			Read:      r,
+		}
+
+		if err := p.HandleRead(read); err != nil {
+			if e := p.HandleError(err, p.newContext(ReadHandlerErr, withRead(read))); e != nil {
+				return newVisitorError(e)
+			}
+
+			logger.Warningf("[%s] Error checking read %+v", p.channelID, r, err)
+		}
+	}
+
 	return nil
 }
 
@@ -650,11 +764,13 @@ func getCCInfo(writes []*kvrwset.KVWrite) (string, *ccprovider.ChaincodeData, *p
 
 func noopHandlers() *Handlers {
 	return &Handlers{
-		HandleCCEvent:      func(*CCEvent) error { return nil },
-		HandleRead:         func(*Read) error { return nil },
-		HandleWrite:        func(*Write) error { return nil },
-		HandleLSCCWrite:    func(*LSCCWrite) error { return nil },
-		HandleConfigUpdate: func(*ConfigUpdate) error { return nil },
+		HandleCCEvent:       func(*CCEvent) error { return nil },
+		HandleRead:          func(*Read) error { return nil },
+		HandleWrite:         func(*Write) error { return nil },
+		HandleCollHashRead:  func(*CollHashRead) error { return nil },
+		HandleCollHashWrite: func(*CollHashWrite) error { return nil },
+		HandleLSCCWrite:     func(*LSCCWrite) error { return nil },
+		HandleConfigUpdate:  func(*ConfigUpdate) error { return nil },
 	}
 }
 

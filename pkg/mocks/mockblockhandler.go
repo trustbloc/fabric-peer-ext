@@ -20,6 +20,8 @@ import (
 type MockBlockHandler struct {
 	numReads           int32
 	numWrites          int32
+	numCollHashReads   int32
+	numCollHashWrites  int32
 	numCCEvents        int32
 	numCCUpgradeEvents int32
 	numConfigUpdates   int32
@@ -46,6 +48,16 @@ func (m *MockBlockHandler) NumReads() int {
 // NumWrites returns the number of writes handled
 func (m *MockBlockHandler) NumWrites() int {
 	return int(atomic.LoadInt32(&m.numWrites))
+}
+
+// NumCollHashReads returns the number of collection hash reads handled
+func (m *MockBlockHandler) NumCollHashReads() int {
+	return int(atomic.LoadInt32(&m.numCollHashReads))
+}
+
+// NumCollHashWrites returns the number of collection hash writes handled
+func (m *MockBlockHandler) NumCollHashWrites() int {
+	return int(atomic.LoadInt32(&m.numCollHashWrites))
 }
 
 // NumLSCCWrites returns the number of LSCC writes handled
@@ -77,6 +89,18 @@ func (m *MockBlockHandler) HandleRead(txMetadata api.TxMetadata, namespace strin
 // HandleWrite handles a write event by incrementing the write counter
 func (m *MockBlockHandler) HandleWrite(txMetadata api.TxMetadata, namespace string, kvWrite *kvrwset.KVWrite) error {
 	atomic.AddInt32(&m.numWrites, 1)
+	return m.err
+}
+
+// HandleCollHashRead handles a collection hash read event by incrementing the read counter
+func (m *MockBlockHandler) HandleCollHashRead(txMetadata api.TxMetadata, namespace, collection string, kvRead *kvrwset.KVReadHash) error {
+	atomic.AddInt32(&m.numCollHashReads, 1)
+	return m.err
+}
+
+// HandleCollHashWrite handles a collection hash write event by incrementing the write counter
+func (m *MockBlockHandler) HandleCollHashWrite(txMetadata api.TxMetadata, namespace, collection string, kvWrite *kvrwset.KVWriteHash) error {
+	atomic.AddInt32(&m.numCollHashWrites, 1)
 	return m.err
 }
 
