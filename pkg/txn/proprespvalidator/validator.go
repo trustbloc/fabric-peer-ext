@@ -243,6 +243,10 @@ func getCCSpec(signedProp *pb.SignedProposal) (*pb.ChaincodeSpec, error) {
 		return nil, errors.WithMessage(err, "failed to get chaincode invocation spec")
 	}
 
+	if cis.ChaincodeSpec == nil {
+		return nil, errors.New("chaincode spec is nil")
+	}
+
 	return cis.ChaincodeSpec, nil
 }
 
