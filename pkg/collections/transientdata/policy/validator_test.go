@@ -12,7 +12,7 @@ import (
 
 	"github.com/hyperledger/fabric-protos-go/common"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
-	"github.com/hyperledger/fabric/common/cauthdsl"
+	"github.com/hyperledger/fabric/common/policydsl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,13 +23,13 @@ func TestValidateConfig(t *testing.T) {
 	var signers = [][]byte{[]byte("signer0"), []byte("signer1")}
 
 	t.Run("transient collection -> success", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		err := ValidateConfig(createTransientCollectionConfig(coll1, policyEnvelope, 1, 2, "1m"))
 		assert.NoError(t, err)
 	})
 
 	t.Run("transient collection req == 0 -> error", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		err := ValidateConfig(createTransientCollectionConfig(coll1, policyEnvelope, 0, 2, "1m"))
 		require.Error(t, err)
 		expectedErr := "required peer count must be greater than 0"
@@ -37,7 +37,7 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	t.Run("transient collection req > max -> error", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		err := ValidateConfig(createTransientCollectionConfig(coll1, policyEnvelope, 3, 2, "1m"))
 		require.Error(t, err)
 		expectedErr := "maximum peer count (2) must be greater than or equal to required peer count (3)"
@@ -45,7 +45,7 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	t.Run("transient collection no time-to-live -> error", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		err := ValidateConfig(createTransientCollectionConfig(coll1, policyEnvelope, 1, 2, ""))
 		require.Error(t, err)
 		expectedErr := "time to live must be specified"
@@ -53,7 +53,7 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	t.Run("transient collection invalid time-to-live -> error", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		err := ValidateConfig(createTransientCollectionConfig(coll1, policyEnvelope, 1, 2, "1k"))
 		require.Error(t, err)
 		expectedErr := "invalid time format for time to live"
@@ -61,7 +61,7 @@ func TestValidateConfig(t *testing.T) {
 	})
 
 	t.Run("transient collection with blocks-to-live -> error", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		config := createTransientCollectionConfig(coll1, policyEnvelope, 1, 2, "1m")
 		config.BlockToLive = 100
 		err := ValidateConfig(config)

@@ -17,7 +17,6 @@ import (
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/util/retry"
 	"github.com/hyperledger/fabric/core/aclmgmt"
-	"github.com/hyperledger/fabric/core/committer/txvalidator/plugin"
 	"github.com/hyperledger/fabric/core/committer/txvalidator/v20/plugindispatcher"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/ledgermgmt"
@@ -25,7 +24,7 @@ import (
 	"github.com/hyperledger/fabric/core/policy"
 	"github.com/hyperledger/fabric/core/scc/cscc"
 	"github.com/pkg/errors"
-	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
@@ -34,7 +33,6 @@ var logger = flogging.MustGetLogger("ext_cscc")
 const maxAttempts = 10
 
 type channelInitializer func(cid string,
-	pm plugin.Mapper,
 	deployedCCInfoProvider ledger.DeployedChaincodeInfoProvider,
 	lr plugindispatcher.LifecycleResources,
 	nr plugindispatcher.CollectionAndLifecycleResources,
@@ -59,7 +57,6 @@ func New(
 
 	pc.PeerConfiger = cscc.New(aclProvider, deployedCCInfoProvider, lr, nr, policyChecker, p, bccsp, joinChannelHandler)
 	pc.handleInitializeChannel = pc.initializeChannel
-	resource.Register(pc.Initialize)
 	return pc
 }
 
@@ -67,21 +64,13 @@ func New(
 type PeerConfiger struct {
 	*cscc.PeerConfiger
 	p                       *peer.Peer
-	pm                      plugin.Mapper
 	handleJoinChannel       cscc.HandleJoinChannel
 	handleInitializeChannel channelInitializer
 }
 
-// Initialize is called on startup by the resource manager
-func (c *PeerConfiger) Initialize(pm plugin.Mapper) *PeerConfiger {
-	logger.Infof("Initializing peer configer")
-	c.pm = pm
-	return c
-}
-
 func (c *PeerConfiger) joinChain(
 	channelID string,
-	block *common.Block,
+	_ *common.Block,
 	deployedCCInfoProvider ledger.DeployedChaincodeInfoProvider,
 	lr plugindispatcher.LifecycleResources,
 	nr plugindispatcher.CollectionAndLifecycleResources,
@@ -101,7 +90,7 @@ func (c *PeerConfiger) joinChain(
 func (c *PeerConfiger) initializeChannelWithRetry(cid string, deployedCCInfoProvider ledger.DeployedChaincodeInfoProvider, lr plugindispatcher.LifecycleResources, nr plugindispatcher.CollectionAndLifecycleResources) error {
 	_, err := retry.Invoke(
 		func() (interface{}, error) {
-			return nil, c.handleInitializeChannel(cid, c.pm, deployedCCInfoProvider, lr, nr)
+			return nil, c.handleInitializeChannel(cid, deployedCCInfoProvider, lr, nr)
 		},
 		retry.WithMaxAttempts(maxAttempts),
 		retry.WithBeforeRetry(func(err error, attempt int, backoff time.Duration) bool {
@@ -113,12 +102,11 @@ func (c *PeerConfiger) initializeChannelWithRetry(cid string, deployedCCInfoProv
 }
 
 func (c *PeerConfiger) initializeChannel(cid string,
-	pm plugin.Mapper,
 	deployedCCInfoProvider ledger.DeployedChaincodeInfoProvider,
 	lr plugindispatcher.LifecycleResources,
 	nr plugindispatcher.CollectionAndLifecycleResources,
 ) error {
-	err := c.p.InitializeChannel(cid, c.pm, deployedCCInfoProvider, lr, nr)
+	err := c.p.InitializeChannel(cid, deployedCCInfoProvider, lr, nr)
 	if err == nil {
 		return nil
 	}

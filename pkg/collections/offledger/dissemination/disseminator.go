@@ -51,11 +51,11 @@ func (d *Disseminator) resolvePeersForDissemination() discovery.PeerGroup {
 
 	logger.Debugf("[%s] Getting %d random peer(s) with the 'committer' role for dissemination from orgs %s", d.ChannelID(), maxPeerCount, orgs)
 
-	committers := getRandomPeers(d.getPeersWithRole(roles.CommitterRole, orgs).Remote(), maxPeerCount)
+	committers := getRandomPeers(d.getPeersWithRole(roles.CommitterRole, keys(orgs)).Remote(), maxPeerCount)
 
 	if len(committers) < maxPeerCount {
 		logger.Debugf("[%s] MaximumPeerCount in collection policy is %d and we only have %d peer(s) with the 'committer' role. Adding some endorsers too...", d.ChannelID(), maxPeerCount, len(committers))
-		for _, peer := range d.getPeersWithRole(roles.EndorserRole, orgs).Remote().Shuffle() {
+		for _, peer := range d.getPeersWithRole(roles.EndorserRole, keys(orgs)).Remote().Shuffle() {
 			if len(committers) >= maxPeerCount {
 				// We have enough peers
 				break
@@ -102,7 +102,7 @@ func (d *Disseminator) ResolvePeersForRetrieval(includePeer PeerFilter) discover
 }
 
 func (d *Disseminator) resolveOrgsForRetrieval() []string {
-	orgs := d.policy.MemberOrgs()
+	orgs := keys(d.policy.MemberOrgs())
 
 	logger.Debugf("[%s] Member orgs: %s", d.ChannelID(), orgs)
 
@@ -186,4 +186,13 @@ func getRandomPeers(peers discovery.PeerGroup, maxPeers int) discovery.PeerGroup
 		result = append(result, peers[index])
 	}
 	return result
+}
+
+func keys(m map[string]struct{}) []string {
+	var orgs []string
+	for org := range m {
+		orgs = append(orgs, org)
+	}
+
+	return orgs
 }

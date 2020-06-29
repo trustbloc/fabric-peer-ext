@@ -127,7 +127,7 @@ func (d *Disseminator) getEndorsers(mspIDs ...string) discovery.PeerGroup {
 }
 
 func (d *Disseminator) chooseOrgs(h uint32) []string {
-	memberOrgs := d.policy.MemberOrgs()
+	memberOrgs := keys(d.policy.MemberOrgs())
 	numOrgs := min(d.policy.MaximumPeerCount(), len(memberOrgs))
 
 	// Copy and sort the orgs
@@ -166,4 +166,13 @@ func contains(strs []string, str string) bool {
 		}
 	}
 	return false
+}
+
+func keys(m map[string]struct{}) []string {
+	var orgs []string
+	for org := range m {
+		orgs = append(orgs, org)
+	}
+
+	return orgs
 }

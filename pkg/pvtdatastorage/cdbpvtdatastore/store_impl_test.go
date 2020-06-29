@@ -570,14 +570,6 @@ func testWaitForPurgerRoutineToFinish(s pvtdatastorage.Store) {
 	s.(*store).purgerLock.Unlock()
 }
 
-func TestEmptyStore(t *testing.T) {
-	env := NewTestStoreEnv(t, "testemptystore", nil, couchDBConfig)
-	defer env.Cleanup("testemptystore")
-	req := require.New(t)
-	store := env.TestStore
-	testEmpty(true, req, store)
-}
-
 func TestEndorserRole(t *testing.T) {
 	btlPolicy := btltestutil.SampleBTLPolicy(
 		map[[2]string]uint64{
@@ -1208,50 +1200,6 @@ func TestStoreState(t *testing.T) {
 	req.True(ok)
 }
 
-func TestInitLastCommittedBlock(t *testing.T) {
-	t.Run("test error from lookupLastBlock", func(t *testing.T) {
-		ledgerId := "ledger"
-		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
-		defer env.Cleanup(ledgerId)
-		s := env.TestStore.(*store)
-		s.db = mockCouchDB{readDocErr: fmt.Errorf("readDoc error")}
-		s.isEmpty = true
-		err := s.InitLastCommittedBlock(0)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "lookupLastBlock failed")
-	})
-
-	t.Run("test error from batchUpdateDocuments", func(t *testing.T) {
-		ledgerId := "ledger"
-		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
-		defer env.Cleanup(ledgerId)
-		s := env.TestStore.(*store)
-		s.db = mockCouchDB{batchUpdateDocumentsErr: fmt.Errorf("batchUpdateDocuments error")}
-		s.isEmpty = true
-		err := s.InitLastCommittedBlock(0)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "BatchUpdateDocuments failed")
-	})
-
-	env := NewTestStoreEnv(t, "teststorestate", nil, couchDBConfig)
-	defer env.Cleanup("teststorestate")
-	req := require.New(t)
-	store := env.TestStore
-	existingLastBlockNum := uint64(25)
-	req.NoError(store.InitLastCommittedBlock(existingLastBlockNum))
-
-	testEmpty(false, req, store)
-	testLastCommittedBlockHeight(existingLastBlockNum+1, req, store)
-
-	env.CloseAndReopen()
-	testEmpty(false, req, store)
-	testLastCommittedBlockHeight(existingLastBlockNum+1, req, store)
-
-	err := store.InitLastCommittedBlock(30)
-	_, ok := err.(*pvtdatastorage.ErrIllegalCall)
-	req.True(ok)
-}
-
 func TestCollElgEnabled(t *testing.T) {
 	testCollElgEnabled(t)
 	defaultValBatchSize := xtestutil.TestLedgerConf().PrivateDataConfig.MaxBatchSize
@@ -1445,12 +1393,6 @@ func testDataKeyExists(t *testing.T, s pvtdatastorage.Store, dataKey *common.Dat
 	dataKeyBytes := common.EncodeDataKey(dataKey)
 	_, exists := r.Data[hex.EncodeToString(dataKeyBytes)]
 	return exists
-}
-
-func testEmpty(expectedEmpty bool, req *require.Assertions, store pvtdatastorage.Store) {
-	isEmpty, err := store.IsEmpty()
-	req.NoError(err)
-	req.Equal(expectedEmpty, isEmpty)
 }
 
 func produceSamplePvtdata(t *testing.T, txNum uint64, nsColls []string) *ledger.TxPvtData {

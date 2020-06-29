@@ -97,13 +97,6 @@ func TestV11RetrievePvtdata(t *testing.T) {
 	})
 }
 
-func TestEmptyStore(t *testing.T) {
-	env := NewTestStoreEnv(t, "testemptystore", nil)
-	req := require.New(t)
-	store := env.TestStore
-	testEmpty(true, req, store)
-}
-
 func TestStoreBasicCommitAndRetrieval(t *testing.T) {
 	btlPolicy := btltestutil.SampleBTLPolicy(
 		map[[2]string]uint64{
@@ -209,39 +202,6 @@ func TestStoreState(t *testing.T) {
 
 	_, ok := store.Commit(2, testData, nil).(*pvtdatastorage.ErrIllegalCall)
 	req.True(ok)
-}
-
-func TestInitLastCommittedBlock(t *testing.T) {
-	env := NewTestStoreEnv(t, "teststorestate", nil)
-	req := require.New(t)
-	store := env.TestStore
-
-	testLastCommittedBlockHeight(0, req, store)
-	existingLastBlockNum := uint64(25)
-	req.NoError(store.InitLastCommittedBlock(existingLastBlockNum))
-
-	testEmpty(false, req, store)
-	testLastCommittedBlockHeight(existingLastBlockNum+1, req, store)
-
-	env.CloseAndReopen()
-	testEmpty(false, req, store)
-	testLastCommittedBlockHeight(existingLastBlockNum+1, req, store)
-
-	err := store.InitLastCommittedBlock(30)
-	_, ok := err.(*pvtdatastorage.ErrIllegalCall)
-	req.True(ok)
-}
-
-func testLastCommittedBlockHeight(expectedBlockHt uint64, req *require.Assertions, store pvtdatastorage.Store) {
-	blkHt, err := store.LastCommittedBlockHeight()
-	req.NoError(err)
-	req.Equal(expectedBlockHt, blkHt)
-}
-
-func testEmpty(expectedEmpty bool, req *require.Assertions, store pvtdatastorage.Store) {
-	isEmpty, err := store.IsEmpty()
-	req.NoError(err)
-	req.Equal(expectedEmpty, isEmpty)
 }
 
 func produceSamplePvtdata(t *testing.T, txNum uint64, nsColls []string) *ledger.TxPvtData {

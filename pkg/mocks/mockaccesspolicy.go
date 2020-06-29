@@ -44,8 +44,13 @@ func (m *MockAccessPolicy) MaximumPeerCount() int {
 
 // MemberOrgs returns the collection's members as MSP IDs. This serves as
 // a human-readable way of quickly identifying who is part of a collection.
-func (m *MockAccessPolicy) MemberOrgs() []string {
-	return m.Orgs
+func (m *MockAccessPolicy) MemberOrgs() map[string]struct{} {
+	orgMap := make(map[string]struct{})
+	for _, org := range m.Orgs {
+		orgMap[org] = struct{}{}
+	}
+
+	return orgMap
 }
 
 // IsMemberOnlyRead returns a true if only collection members can read

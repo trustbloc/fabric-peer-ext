@@ -12,6 +12,7 @@ import (
 	"github.com/hyperledger/fabric/common/flogging"
 	ccapi "github.com/hyperledger/fabric/extensions/chaincode/api"
 	"github.com/hyperledger/fabric/peer/node"
+	"github.com/spf13/cobra"
 	viper "github.com/spf13/viper2015"
 
 	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/scc"
@@ -77,7 +78,7 @@ func setup() {
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)
 
-	node.InitCmd(nil, nil)
+	node.InitCmd(&cobra.Command{}, nil)
 }
 
 func startPeer() error {

@@ -23,7 +23,16 @@ func TestResolver(t *testing.T) {
 	p := NewResolver(org1, policy)
 	require.NotNil(t, p)
 
-	orgs := p.MemberOrgs()
+	orgs := keys(p.MemberOrgs())
 	require.Len(t, orgs, 1)
 	require.Equal(t, org1, orgs[0])
+}
+
+func keys(m map[string]struct{}) []string {
+	var orgs []string
+	for org := range m {
+		orgs = append(orgs, org)
+	}
+
+	return orgs
 }

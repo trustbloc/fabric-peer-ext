@@ -369,7 +369,7 @@ func (s *store) isAuthorized(ns string, config *pb.StaticCollectionConfig) (bool
 		logger.Errorf("[%s] Error getting local MSP ID: %s", s.channelID, err)
 		return false, err
 	}
-	for _, mspID := range policy.MemberOrgs() {
+	for mspID := range policy.MemberOrgs() {
 		if mspID == localMSPID {
 			return true, nil
 		}
