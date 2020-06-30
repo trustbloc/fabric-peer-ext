@@ -15,16 +15,15 @@ import (
 
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/common"
-	"github.com/hyperledger/fabric/core/committer/txvalidator/plugin"
 	"github.com/hyperledger/fabric/core/committer/txvalidator/v20/plugindispatcher"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/ledgermgmt"
 	"github.com/hyperledger/fabric/core/ledger/ledgermgmt/ledgermgmttest"
 	"github.com/hyperledger/fabric/core/peer"
 	"github.com/hyperledger/fabric/extensions/testutil"
-	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
-
 	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
 const (
@@ -58,12 +57,10 @@ func TestJoinChainHandler(t *testing.T) {
 
 	p := New(nil, nil, nil, nil, nil, nil, nil)
 	require.NotNil(t, p)
-	p.Initialize(nil)
 
 	t.Run("Success", func(t *testing.T) {
 		initChannelInvoked := false
 		p.handleInitializeChannel = func(cid string,
-			pm plugin.Mapper,
 			deployedCCInfoProvider ledger.DeployedChaincodeInfoProvider,
 			lr plugindispatcher.LifecycleResources,
 			nr plugindispatcher.CollectionAndLifecycleResources,
@@ -80,7 +77,6 @@ func TestJoinChainHandler(t *testing.T) {
 	t.Run("Error", func(t *testing.T) {
 		errExpected := errors.New("injected error")
 		p.handleInitializeChannel = func(cid string,
-			pm plugin.Mapper,
 			deployedCCInfoProvider ledger.DeployedChaincodeInfoProvider,
 			lr plugindispatcher.LifecycleResources,
 			nr plugindispatcher.CollectionAndLifecycleResources,

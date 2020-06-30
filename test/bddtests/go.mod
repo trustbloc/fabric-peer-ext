@@ -15,6 +15,6 @@ require (
 	github.com/trustbloc/fabric-peer-test-common v0.1.3
 )
 
-replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.1.4-0.20200529174943-b277c62ed131
+replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.1.4-0.20200626180529-18936b36feca
 
 go 1.13

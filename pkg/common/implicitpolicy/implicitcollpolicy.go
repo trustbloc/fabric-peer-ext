@@ -32,17 +32,17 @@ func NewResolver(localMSP string, policy privdata.CollectionAccessPolicy) *Resol
 
 // MemberOrgs returns the collection's members as MSP IDs. If any of the orgs is set to 'IMPLICIT-ORG' then it
 // is replaced with the ID of the local MSP.
-func (p *Resolver) MemberOrgs() []string {
+func (p *Resolver) MemberOrgs() map[string]struct{} {
 	memberOrgs := p.CollectionAccessPolicy.MemberOrgs()
 
-	orgs := make([]string, len(memberOrgs))
+	orgs := make(map[string]struct{})
 
-	for i, org := range memberOrgs {
+	for org := range memberOrgs {
 		if org == ImplicitOrg {
 			org = p.localMSP
 		}
 
-		orgs[i] = org
+		orgs[org] = struct{}{}
 	}
 
 	return orgs

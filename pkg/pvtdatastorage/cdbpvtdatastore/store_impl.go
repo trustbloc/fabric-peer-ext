@@ -471,11 +471,6 @@ func (s *store) LastCommittedBlockHeight() (uint64, error) {
 	return s.lastCommittedBlock + 1, nil
 }
 
-// IsEmpty implements the function in the interface `Store`
-func (s *store) IsEmpty() (bool, error) {
-	return s.isEmpty, nil
-}
-
 // Shutdown implements the function in the interface `Store`
 func (s *store) Shutdown() {
 	// do nothing
@@ -602,31 +597,6 @@ func (s *store) checkIsExpired(dataKey *common.DataKey, filter ledger.PvtNsCollF
 		return true, nil
 	}
 	return false, nil
-}
-
-// InitLastCommittedBlock implements the function in the interface `Store`
-func (s *store) InitLastCommittedBlock(blockNum uint64) error {
-	if !s.isEmpty {
-		return pvtdatastorage.NewErrIllegalCall("The private data store is not empty. InitLastCommittedBlock() function call is not allowed")
-	}
-	s.isEmpty = false
-	s.lastCommittedBlock = blockNum
-
-	_, rev, err := lookupLastBlock(s.db)
-	if err != nil {
-		return errors.WithMessage(err, "lookupLastBlock failed")
-	}
-	lastCommittedBlockDoc, err := createLastCommittedBlockDoc(s.lastCommittedBlock, rev)
-	if err != nil {
-		return err
-	}
-	_, err = s.db.BatchUpdateDocuments([]*couchdb.CouchDoc{lastCommittedBlockDoc})
-	if err != nil {
-		return errors.WithMessage(err, "BatchUpdateDocuments failed")
-	}
-
-	logger.Debugf("InitLastCommittedBlock set to block [%d]", blockNum)
-	return nil
 }
 
 //GetMissingPvtDataInfoForMostRecentBlocks implements the function in the interface `Store`

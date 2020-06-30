@@ -21,7 +21,7 @@ import (
 	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-protos-go/transientstore"
-	"github.com/hyperledger/fabric/common/cauthdsl"
+	"github.com/hyperledger/fabric/common/policydsl"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/util"
 	origts "github.com/hyperledger/fabric/core/transientstore"
@@ -642,7 +642,7 @@ func createCollectionConfig(collectionName string, signaturePolicyEnvelope *comm
 
 func sampleCollectionConfigPackage(colName string) *pb.CollectionConfig {
 	var signers = [][]byte{[]byte("signer0"), []byte("signer1")}
-	policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+	policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 
 	var requiredPeerCount, maximumPeerCount int32
 	requiredPeerCount = 1

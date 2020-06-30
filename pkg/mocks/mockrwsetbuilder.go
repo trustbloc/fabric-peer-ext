@@ -12,7 +12,7 @@ import (
 	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-protos-go/transientstore"
-	"github.com/hyperledger/fabric/common/cauthdsl"
+	"github.com/hyperledger/fabric/common/policydsl"
 )
 
 // ReadWriteSetBuilder is a utility that builds a TxReadWriteSet for unit testing
@@ -329,7 +329,7 @@ func (c *CollectionBuilder) buildReadWriteSet() []byte {
 }
 
 func (c *CollectionBuilder) buildConfig() *peer.CollectionConfig {
-	signaturePolicyEnvelope, err := cauthdsl.FromString(c.policy)
+	signaturePolicyEnvelope, err := policydsl.FromString(c.policy)
 	if err != nil {
 		panic(err.Error())
 	}

@@ -474,7 +474,7 @@ func (r *retriever) isAuthorized(ns, coll string) (bool, error) {
 		return false, errors.WithMessagef(err, "unable to get local MSP ID")
 	}
 
-	for _, mspID := range policy.MemberOrgs() {
+	for mspID := range policy.MemberOrgs() {
 		if mspID == localMSPID {
 			return true, nil
 		}

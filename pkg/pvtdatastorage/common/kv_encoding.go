@@ -8,13 +8,13 @@ package common
 
 import (
 	"bytes"
+	"encoding/binary"
 	"math"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/version"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
-	"github.com/hyperledger/fabric/core/ledger/util"
 	"github.com/pkg/errors"
 	"github.com/willf/bitset"
 )
@@ -91,7 +91,7 @@ func DecodeDataValue(datavalueBytes []byte) (*rwset.CollectionPvtReadWriteSet, e
 
 func EncodeMissingDataKey(key *MissingDataKey) []byte {
 	if key.IsEligible {
-		keyBytes := append(eligibleMissingDataKeyPrefix, util.EncodeReverseOrderVarUint64(key.BlkNum)...)
+		keyBytes := append(eligibleMissingDataKeyPrefix, encodeReverseOrderVarUint64(key.BlkNum)...)
 		keyBytes = append(keyBytes, []byte(key.Ns)...)
 		keyBytes = append(keyBytes, nilByte)
 		return append(keyBytes, []byte(key.Coll)...)
@@ -101,13 +101,13 @@ func EncodeMissingDataKey(key *MissingDataKey) []byte {
 	keyBytes = append(keyBytes, nilByte)
 	keyBytes = append(keyBytes, []byte(key.Coll)...)
 	keyBytes = append(keyBytes, nilByte)
-	return append(keyBytes, []byte(util.EncodeReverseOrderVarUint64(key.BlkNum))...)
+	return append(keyBytes, []byte(encodeReverseOrderVarUint64(key.BlkNum))...)
 }
 
 func decodeMissingDataKey(keyBytes []byte) *MissingDataKey {
 	key := &MissingDataKey{NsCollBlk: NsCollBlk{}}
 	if keyBytes[0] == eligibleMissingDataKeyPrefix[0] {
-		blkNum, numBytesConsumed := util.DecodeReverseOrderVarUint64(keyBytes[1:])
+		blkNum, numBytesConsumed := decodeReverseOrderVarUint64(keyBytes[1:])
 
 		splittedKey := bytes.Split(keyBytes[numBytesConsumed+1:], []byte{nilByte})
 		key.Ns = string(splittedKey[0])
@@ -120,7 +120,7 @@ func decodeMissingDataKey(keyBytes []byte) *MissingDataKey {
 	splittedKey := bytes.SplitN(keyBytes[1:], []byte{nilByte}, 3) //encoded bytes for blknum may contain empty bytes
 	key.Ns = string(splittedKey[0])
 	key.Coll = string(splittedKey[1])
-	key.BlkNum, _ = util.DecodeReverseOrderVarUint64(splittedKey[2])
+	key.BlkNum, _ = decodeReverseOrderVarUint64(splittedKey[2])
 	key.IsEligible = false
 	return key
 }
@@ -138,11 +138,11 @@ func DecodeMissingDataValue(bitmapBytes []byte) (*bitset.BitSet, error) {
 }
 
 func encodeCollElgKey(blkNum uint64) []byte {
-	return append(collElgKeyPrefix, util.EncodeReverseOrderVarUint64(blkNum)...)
+	return append(collElgKeyPrefix, encodeReverseOrderVarUint64(blkNum)...)
 }
 
 func decodeCollElgKey(b []byte) uint64 {
-	blkNum, _ := util.DecodeReverseOrderVarUint64(b[1:])
+	blkNum, _ := decodeReverseOrderVarUint64(b[1:])
 	return blkNum
 }
 
@@ -175,8 +175,8 @@ func createRangeScanKeysForIneligibleMissingData(maxBlkNum uint64, ns, coll stri
 }
 
 func createRangeScanKeysForEligibleMissingDataEntries(blkNum uint64) (startKey, endKey []byte) {
-	startKey = append(eligibleMissingDataKeyPrefix, util.EncodeReverseOrderVarUint64(blkNum)...)
-	endKey = append(eligibleMissingDataKeyPrefix, util.EncodeReverseOrderVarUint64(0)...)
+	startKey = append(eligibleMissingDataKeyPrefix, encodeReverseOrderVarUint64(blkNum)...)
+	endKey = append(eligibleMissingDataKeyPrefix, encodeReverseOrderVarUint64(0)...)
 
 	return startKey, endKey
 }
@@ -193,7 +193,44 @@ func datakeyRange(blockNum uint64) (startKey, endKey []byte) {
 }
 
 func eligibleMissingdatakeyRange(blkNum uint64) (startKey, endKey []byte) {
-	startKey = append(eligibleMissingDataKeyPrefix, util.EncodeReverseOrderVarUint64(blkNum)...)
-	endKey = append(eligibleMissingDataKeyPrefix, util.EncodeReverseOrderVarUint64(blkNum-1)...)
+	startKey = append(eligibleMissingDataKeyPrefix, encodeReverseOrderVarUint64(blkNum)...)
+	endKey = append(eligibleMissingDataKeyPrefix, encodeReverseOrderVarUint64(blkNum-1)...)
 	return
+}
+
+// encodeReverseOrderVarUint64 returns a byte-representation for a uint64 number such that
+// the number is first subtracted from MaxUint64 and then all the leading 0xff bytes
+// are trimmed and replaced by the number of such trimmed bytes. This helps in reducing the size.
+// In the byte order comparison this encoding ensures that EncodeReverseOrderVarUint64(A) > EncodeReverseOrderVarUint64(B),
+// If B > A
+func encodeReverseOrderVarUint64(number uint64) []byte {
+	bytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(bytes, math.MaxUint64-number)
+	numFFBytes := 0
+	for _, b := range bytes {
+		if b != 0xff {
+			break
+		}
+		numFFBytes++
+	}
+	size := 8 - numFFBytes
+	encodedBytes := make([]byte, size+1)
+	encodedBytes[0] = proto.EncodeVarint(uint64(numFFBytes))[0]
+	copy(encodedBytes[1:], bytes[numFFBytes:])
+	return encodedBytes
+}
+
+// decodeReverseOrderVarUint64 decodes the number from the bytes obtained from function 'EncodeReverseOrderVarUint64'.
+// Also, returns the number of bytes that are consumed in the process
+func decodeReverseOrderVarUint64(bytes []byte) (uint64, int) {
+	s, _ := proto.DecodeVarint(bytes)
+	numFFBytes := int(s)
+	decodedBytes := make([]byte, 8)
+	realBytesNum := 8 - numFFBytes
+	copy(decodedBytes[numFFBytes:], bytes[1:realBytesNum+1])
+	numBytesConsumed := realBytesNum + 1
+	for i := 0; i < numFFBytes; i++ {
+		decodedBytes[i] = 0xff
+	}
+	return (math.MaxUint64 - binary.BigEndian.Uint64(decodedBytes)), numBytesConsumed
 }

@@ -12,7 +12,7 @@ import (
 
 	"github.com/hyperledger/fabric-protos-go/common"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
-	"github.com/hyperledger/fabric/common/cauthdsl"
+	"github.com/hyperledger/fabric/common/policydsl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,21 +25,21 @@ func TestValidateTransientDataCollectionConfig(t *testing.T) {
 	v := NewValidator()
 
 	t.Run("No collection type -> success", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		collConfig := createStaticCollectionConfig(coll1, policyEnvelope, 1, 2, 1000)
 		err := v.Validate(collConfig)
 		assert.NoError(t, err)
 	})
 
 	t.Run("Private collection type -> success", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		collConfig := createPrivateCollectionConfig(coll1, policyEnvelope, 1, 2, 1000)
 		err := v.Validate(collConfig)
 		assert.NoError(t, err)
 	})
 
 	t.Run("Transient collection -> success", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		err := v.Validate(createTransientCollectionConfig(coll1, policyEnvelope, 1, 2, "1m"))
 		assert.NoError(t, err)
 	})
@@ -53,13 +53,13 @@ func TestValidateOffLedgerCollectionConfig(t *testing.T) {
 	v := NewValidator()
 
 	t.Run("Off-Ledger collection -> success", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		err := v.Validate(createOffLedgerCollectionConfig(coll1, policyEnvelope, 1, 2, "1m"))
 		assert.NoError(t, err)
 	})
 
 	t.Run("transient collection req > max -> error", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		err := v.Validate(createTransientCollectionConfig(coll1, policyEnvelope, 3, 2, "1m"))
 		require.Error(t, err)
 		expectedErr := "maximum peer count (2) must be greater than or equal to required peer count (3)"
@@ -67,13 +67,13 @@ func TestValidateOffLedgerCollectionConfig(t *testing.T) {
 	})
 
 	t.Run("Off-Ledger no time-to-live -> success", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		err := v.Validate(createOffLedgerCollectionConfig(coll1, policyEnvelope, 1, 2, ""))
 		require.NoError(t, err)
 	})
 
 	t.Run("Off-Ledger invalid time-to-live -> error", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		err := v.Validate(createOffLedgerCollectionConfig(coll1, policyEnvelope, 1, 2, "1k"))
 		require.Error(t, err)
 		expectedErr := "invalid time format for time to live"
@@ -81,7 +81,7 @@ func TestValidateOffLedgerCollectionConfig(t *testing.T) {
 	})
 
 	t.Run("Off-Ledger with blocks-to-live -> error", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		config := createTransientCollectionConfig(coll1, policyEnvelope, 1, 2, "1m")
 		config.GetStaticCollectionConfig().BlockToLive = 100
 		err := v.Validate(config)
@@ -99,13 +99,13 @@ func TestValidateDCASCollectionConfig(t *testing.T) {
 	v := NewValidator()
 
 	t.Run("DCAS collection -> success", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		err := v.Validate(createDCASCollectionConfig(coll1, policyEnvelope, 1, 2, "1m"))
 		assert.NoError(t, err)
 	})
 
 	t.Run("transient collection req > max -> error", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		err := v.Validate(createTransientCollectionConfig(coll1, policyEnvelope, 3, 2, "1m"))
 		require.Error(t, err)
 		expectedErr := "maximum peer count (2) must be greater than or equal to required peer count (3)"
@@ -113,13 +113,13 @@ func TestValidateDCASCollectionConfig(t *testing.T) {
 	})
 
 	t.Run("DCAS no time-to-live -> success", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		err := v.Validate(createDCASCollectionConfig(coll1, policyEnvelope, 1, 2, ""))
 		require.NoError(t, err)
 	})
 
 	t.Run("DCAS invalid time-to-live -> error", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		err := v.Validate(createDCASCollectionConfig(coll1, policyEnvelope, 1, 2, "1k"))
 		require.Error(t, err)
 		expectedErr := "invalid time format for time to live"
@@ -127,7 +127,7 @@ func TestValidateDCASCollectionConfig(t *testing.T) {
 	})
 
 	t.Run("DCAS with blocks-to-live -> error", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		config := createTransientCollectionConfig(coll1, policyEnvelope, 1, 2, "1m")
 		config.GetStaticCollectionConfig().BlockToLive = 100
 		err := v.Validate(config)
@@ -145,7 +145,7 @@ func TestValidateNewCollectionConfigAgainstOld(t *testing.T) {
 	v := NewValidator()
 
 	t.Run("updated -> success", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		oldCollConfig := createTransientCollectionConfig(coll1, policyEnvelope, 1, 2, "10m")
 		newCollConfig := createTransientCollectionConfig(coll1, policyEnvelope, 2, 3, "20m")
 		err := v.ValidateNewCollectionConfigsAgainstOld([]*pb.CollectionConfig{newCollConfig}, []*pb.CollectionConfig{oldCollConfig})
@@ -153,7 +153,7 @@ func TestValidateNewCollectionConfigAgainstOld(t *testing.T) {
 	})
 
 	t.Run("private collection updated to transient -> error", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		oldCollConfig := createStaticCollectionConfig(coll1, policyEnvelope, 1, 2, 1000)
 		newCollConfig := createTransientCollectionConfig(coll1, policyEnvelope, 1, 2, "10m")
 		err := v.ValidateNewCollectionConfigsAgainstOld([]*pb.CollectionConfig{newCollConfig}, []*pb.CollectionConfig{oldCollConfig})
@@ -161,7 +161,7 @@ func TestValidateNewCollectionConfigAgainstOld(t *testing.T) {
 	})
 
 	t.Run("private collection updated to off-ledger -> error", func(t *testing.T) {
-		policyEnvelope := cauthdsl.Envelope(cauthdsl.Or(cauthdsl.SignedBy(0), cauthdsl.SignedBy(1)), signers)
+		policyEnvelope := policydsl.Envelope(policydsl.Or(policydsl.SignedBy(0), policydsl.SignedBy(1)), signers)
 		oldCollConfig := createStaticCollectionConfig(coll1, policyEnvelope, 1, 2, 1000)
 		newCollConfig := createOffLedgerCollectionConfig(coll1, policyEnvelope, 1, 2, "10m")
 		err := v.ValidateNewCollectionConfigsAgainstOld([]*pb.CollectionConfig{newCollConfig}, []*pb.CollectionConfig{oldCollConfig})

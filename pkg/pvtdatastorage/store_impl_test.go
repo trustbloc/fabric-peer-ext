@@ -112,42 +112,6 @@ func TestOpenStore(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "openStore error")
 	})
-
-	t.Run("test error from cacheProvider OpenStore", func(t *testing.T) {
-		removeStorePath()
-		conf := testutil.TestPrivateDataConf()
-		testStoreProvider, err := NewProvider(conf, testutil.TestLedgerConf())
-		require.NoError(t, err)
-		testStoreProvider.storageProvider = &mockProvider{}
-		testStoreProvider.cacheProvider = &mockProvider{openStoreErr: fmt.Errorf("openStore error")}
-		_, err = testStoreProvider.OpenStore("")
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "openStore error")
-	})
-
-}
-
-func TestNewPvtDataStore(t *testing.T) {
-	t.Run("test error from pvtDataDBStore IsEmpty", func(t *testing.T) {
-		_, err := newPvtDataStore(&mockStore{isEmptyErr: fmt.Errorf("isEmpty error")}, &mockStore{})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "isEmpty error")
-
-	})
-
-	t.Run("test error from pvtDataDBStore LastCommittedBlockHeight", func(t *testing.T) {
-		_, err := newPvtDataStore(&mockStore{isEmptyValue: false, lastCommittedBlockHeightErr: fmt.Errorf("lastCommittedBlockHeight error")}, &mockStore{})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "lastCommittedBlockHeight error")
-	})
-
-	t.Run("test error from cachePvtDataStore InitLastCommittedBlock", func(t *testing.T) {
-		_, err := newPvtDataStore(&mockStore{isEmptyValue: false, lastCommittedBlockHeightValue: 1},
-			&mockStore{initLastCommittedBlockErr: fmt.Errorf("initLastCommittedBlock error")})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "initLastCommittedBlock error")
-	})
-
 }
 
 func TestCommit(t *testing.T) {
@@ -250,13 +214,6 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 	destroy()
 	os.Exit(code)
-}
-
-func TestEmptyStore(t *testing.T) {
-	env := NewTestStoreEnv(t, "testempty", nil, couchDBConfig)
-	req := require.New(t)
-	store := env.TestStore
-	testEmpty(true, req, store)
 }
 
 func TestStoreBasicCommitAndRetrieval(t *testing.T) {
@@ -367,35 +324,10 @@ func TestStoreState(t *testing.T) {
 	req.True(ok)
 }
 
-func TestInitLastCommittedBlock(t *testing.T) {
-	env := NewTestStoreEnv(t, "testinitlastcommittedblock", nil, couchDBConfig)
-	req := require.New(t)
-	store := env.TestStore
-	existingLastBlockNum := uint64(25)
-	req.NoError(store.InitLastCommittedBlock(existingLastBlockNum))
-
-	testEmpty(false, req, store)
-	testLastCommittedBlockHeight(existingLastBlockNum+1, req, store)
-
-	env.CloseAndReopen()
-	testEmpty(false, req, store)
-	testLastCommittedBlockHeight(existingLastBlockNum+1, req, store)
-
-	err := store.InitLastCommittedBlock(30)
-	_, ok := err.(*pvtdatastorage.ErrIllegalCall)
-	req.True(ok)
-}
-
 func testLastCommittedBlockHeight(expectedBlockHt uint64, req *require.Assertions, store pvtdatastorage.Store) {
 	blkHt, err := store.LastCommittedBlockHeight()
 	req.NoError(err)
 	req.Equal(expectedBlockHt, blkHt)
-}
-
-func testEmpty(expectedEmpty bool, req *require.Assertions, store pvtdatastorage.Store) {
-	isEmpty, err := store.IsEmpty()
-	req.NoError(err)
-	req.Equal(expectedEmpty, isEmpty)
 }
 
 func produceSamplePvtdata(t *testing.T, txNum uint64, nsColls []string) *ledger.TxPvtData {

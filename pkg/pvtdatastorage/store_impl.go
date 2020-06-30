@@ -14,13 +14,17 @@ import (
 	cdbpvtdatastore "github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/cdbpvtdatastore"
 )
 
+type cacheProvider interface {
+	Create(ledgerID string, lastCommittedBlockNum uint64) pvtdatastorage.Store
+}
+
 //////// Provider functions  /////////////
 //////////////////////////////////////////
 
 // PvtDataProvider encapsulates the storage and cache providers in addition to the missing data index provider
 type PvtDataProvider struct {
 	storageProvider pvtdatastorage.Provider
-	cacheProvider   pvtdatastorage.Provider
+	cacheProvider   cacheProvider
 }
 
 // NewProvider creates a new PvtDataStoreProvider that combines a cache provider and a backing storage provider
@@ -46,19 +50,20 @@ func (c *PvtDataProvider) OpenStore(ledgerID string) (pvtdatastorage.Store, erro
 	if err != nil {
 		return nil, err
 	}
-	cachePvtDataStore, err := c.cacheProvider.OpenStore(ledgerID)
+
+	lastCommittedBlockHeight, err := pvtDataStore.LastCommittedBlockHeight()
 	if err != nil {
 		return nil, err
 	}
 
-	return newPvtDataStore(pvtDataStore, cachePvtDataStore)
+	cachePvtDataStore := c.cacheProvider.Create(ledgerID, lastCommittedBlockHeight-1)
+
+	return newPvtDataStore(pvtDataStore, cachePvtDataStore), nil
 }
 
 // Close cleans up the Provider
 func (c *PvtDataProvider) Close() {
 	c.storageProvider.Close()
-	c.cacheProvider.Close()
-
 }
 
 type pvtDataStore struct {
@@ -66,27 +71,11 @@ type pvtDataStore struct {
 	cachePvtDataStore pvtdatastorage.Store
 }
 
-func newPvtDataStore(pvtDataDBStore pvtdatastorage.Store, cachePvtDataStore pvtdatastorage.Store) (*pvtDataStore, error) {
-	isEmpty, err := pvtDataDBStore.IsEmpty()
-	if err != nil {
-		return nil, err
-	}
-	// InitLastCommittedBlock for cache if pvtdata storage not empty
-	if !isEmpty {
-		lastCommittedBlockHeight, err := pvtDataDBStore.LastCommittedBlockHeight()
-		if err != nil {
-			return nil, err
-		}
-		err = cachePvtDataStore.InitLastCommittedBlock(lastCommittedBlockHeight - 1)
-		if err != nil {
-			return nil, err
-		}
-	}
-	c := pvtDataStore{
+func newPvtDataStore(pvtDataDBStore pvtdatastorage.Store, cachePvtDataStore pvtdatastorage.Store) *pvtDataStore {
+	return &pvtDataStore{
 		pvtDataDBStore:    pvtDataDBStore,
 		cachePvtDataStore: cachePvtDataStore,
 	}
-	return &c, nil
 }
 
 //////// store functions  ////////////////
@@ -107,17 +96,6 @@ func (c *pvtDataStore) Commit(blockNum uint64, pvtData []*ledger.TxPvtData, pvtM
 	return c.pvtDataDBStore.Commit(blockNum, pvtData, pvtMissingDataMap)
 }
 
-//InitLastCommittedBlock initialize last committed block
-func (c *pvtDataStore) InitLastCommittedBlock(blockNum uint64) error {
-	// InitLastCommittedBlock data in cache
-	err := c.cachePvtDataStore.InitLastCommittedBlock(blockNum)
-	if err != nil {
-		return err
-	}
-	// InitLastCommittedBlock data in storage
-	return c.pvtDataDBStore.InitLastCommittedBlock(blockNum)
-}
-
 //GetPvtDataByBlockNum implements the function in the interface `Store`
 func (c *pvtDataStore) GetPvtDataByBlockNum(blockNum uint64, filter ledger.PvtNsCollFilter) ([]*ledger.TxPvtData, error) {
 	result, err := c.cachePvtDataStore.GetPvtDataByBlockNum(blockNum, filter)
@@ -135,11 +113,6 @@ func (c *pvtDataStore) GetPvtDataByBlockNum(blockNum uint64, filter ledger.PvtNs
 //LastCommittedBlockHeight implements the function in the interface `Store`
 func (c *pvtDataStore) LastCommittedBlockHeight() (uint64, error) {
 	return c.pvtDataDBStore.LastCommittedBlockHeight()
-}
-
-//IsEmpty implements the function in the interface `Store`
-func (c *pvtDataStore) IsEmpty() (bool, error) {
-	return c.pvtDataDBStore.IsEmpty()
 }
 
 //Shutdown implements the function in the interface `Store`

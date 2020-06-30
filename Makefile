@@ -25,7 +25,7 @@ ARCH=$(shell go env GOARCH)
 # Tool commands (overridable)
 DOCKER_CMD ?= docker
 GO_CMD     ?= go
-ALPINE_VER ?= 3.10
+ALPINE_VER ?= 3.11
 GO_TAGS    ?=
 GOPROXY    ?= "https://proxy.golang.org"
 

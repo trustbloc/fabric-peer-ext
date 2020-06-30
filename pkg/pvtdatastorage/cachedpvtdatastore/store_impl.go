@@ -24,7 +24,8 @@ import (
 
 var logger = flogging.MustGetLogger("cachedpvtdatastore")
 
-type provider struct {
+// Provider creates in-memory private data stores
+type Provider struct {
 }
 
 type store struct {
@@ -43,27 +44,23 @@ type pendingPvtData struct {
 //////// Provider functions  /////////////
 //////////////////////////////////////////
 
-// NewProvider instantiates a private data storage provider backed by cache
-func NewProvider() pvtdatastorage.Provider {
-	logger.Debugf("constructing cached private data storage provider")
-	return &provider{}
+// NewProvider instantiates a private data storage Provider backed by cache
+func NewProvider() *Provider {
+	logger.Debugf("constructing cached private data storage Provider")
+	return &Provider{}
 }
 
-// OpenStore returns a handle to a store
-func (p *provider) OpenStore(ledgerid string) (pvtdatastorage.Store, error) {
-	s := &store{cache: gcache.New(config.GetPvtDataCacheSize()).ARC().Build(), ledgerid: ledgerid,
-		isEmpty:            true,
-		lastCommittedBlock: 0,
+// Create creates a new cache store
+func (p *Provider) Create(ledgerID string, lastCommittedBlockNum uint64) pvtdatastorage.Store {
+	s := &store{cache: gcache.New(config.GetPvtDataCacheSize()).ARC().Build(), ledgerid: ledgerID,
+		lastCommittedBlock: lastCommittedBlockNum,
+		isEmpty:            lastCommittedBlockNum == 0,
 	}
 
 	logger.Debugf("Pvtdata cache store opened. Initial state: isEmpty [%t], lastCommittedBlock [%d]",
 		s.isEmpty, s.lastCommittedBlock)
 
-	return s, nil
-}
-
-// Close closes the store
-func (p *provider) Close() {
+	return s
 }
 
 //////// store functions  ////////////////
@@ -169,23 +166,6 @@ func (s *store) LastCommittedBlockHeight() (uint64, error) {
 		return 0, nil
 	}
 	return s.lastCommittedBlock + 1, nil
-}
-
-// IsEmpty implements the function in the interface `Store`
-func (s *store) IsEmpty() (bool, error) {
-	return s.isEmpty, nil
-}
-
-// InitLastCommittedBlock implements the function in the interface `Store`
-func (s *store) InitLastCommittedBlock(blockNum uint64) error {
-	if !s.isEmpty {
-		return pvtdatastorage.NewErrIllegalCall("The private data store is not empty. InitLastCommittedBlock() function call is not allowed")
-	}
-	s.isEmpty = false
-	s.lastCommittedBlock = blockNum
-
-	logger.Debugf("InitLastCommittedBlock set to block [%d]", blockNum)
-	return nil
 }
 
 // Shutdown implements the function in the interface `Store`

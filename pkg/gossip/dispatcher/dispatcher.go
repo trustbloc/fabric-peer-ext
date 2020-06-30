@@ -239,7 +239,7 @@ func (s *Dispatcher) isAuthorized(mspID string, ns, coll string) (bool, error) {
 		return false, errors.WithMessagef(err, "unable to get policy for collection [%s:%s]", ns, coll)
 	}
 
-	for _, memberMSPID := range policy.MemberOrgs() {
+	for memberMSPID := range policy.MemberOrgs() {
 		if memberMSPID == mspID {
 			return true, nil
 		}

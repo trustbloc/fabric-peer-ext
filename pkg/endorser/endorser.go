@@ -36,6 +36,10 @@ func (f *CollRWSetFilter) Initialize(configProvider collcommon.CollectionConfigP
 // Filter filters out all off-ledger (including transient data) read-write sets from the simulation results
 // so that they won't be included in the block.
 func (f *CollRWSetFilter) Filter(channelID string, pubSimulationResults *rwset.TxReadWriteSet) (*rwset.TxReadWriteSet, error) {
+	if pubSimulationResults == nil {
+		return nil, nil
+	}
+
 	endorserLogger.Debugf("Filtering off-ledger collection types...")
 	filteredResults := &rwset.TxReadWriteSet{
 		DataModel: pubSimulationResults.DataModel,

@@ -8,7 +8,7 @@ package mocks
 
 import (
 	"github.com/golang/protobuf/proto"
-	"github.com/hyperledger/fabric/common/cauthdsl"
+	"github.com/hyperledger/fabric/common/policydsl"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
 )
 
@@ -58,7 +58,7 @@ func (b *ChaincodeDataBuilder) Build() *ccprovider.ChaincodeData {
 	}
 
 	if b.policy != "" {
-		policyEnv, err := cauthdsl.FromString(b.policy)
+		policyEnv, err := policydsl.FromString(b.policy)
 		if err != nil {
 			panic(err.Error())
 		}
