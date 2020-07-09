@@ -9,24 +9,25 @@ package cdbblkstorage
 import (
 	"errors"
 	"fmt"
+	"hash"
 	"os"
 	"testing"
 
-	"github.com/hyperledger/fabric/common/metrics/disabled"
-	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
-	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/fabric-peer-ext/pkg/blkstorage/cdbblkstorage/mocks"
-	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
-
 	"github.com/golang/protobuf/proto"
-
 	"github.com/hyperledger/fabric-protos-go/common"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/ledger/blkstorage"
 	"github.com/hyperledger/fabric/common/ledger/testutil"
-	"github.com/hyperledger/fabric/core/ledger/util"
+	"github.com/hyperledger/fabric/common/metrics/disabled"
+	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
+	"github.com/hyperledger/fabric/extensions/ledger/api"
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/blkstorage/cdbblkstorage/mocks"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/txflags"
+	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 	xtestutil "github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
 
@@ -58,10 +59,10 @@ func TestMultipleBlockStores(t *testing.T) {
 	defer env.Cleanup()
 
 	provider := env.provider
-	store1, _ := provider.OpenBlockStore("ledger1")
+	store1, _ := provider.Open("ledger1")
 	defer store1.Shutdown()
 
-	store2, _ := provider.CreateBlockStore("ledger2")
+	store2, _ := provider.Open("ledger2")
 	defer store2.Shutdown()
 
 	blocks1 := testutil.ConstructTestBlocks(t, 5)
@@ -81,7 +82,7 @@ func TestMultipleBlockStores(t *testing.T) {
 	checkWithWrongInputs(t, store2, 10)
 }
 
-func checkBlocks(t *testing.T, expectedBlocks []*common.Block, store blkstorage.BlockStore) {
+func checkBlocks(t *testing.T, expectedBlocks []*common.Block, store api.BlockStore) {
 	bcInfo, _ := store.GetBlockchainInfo()
 	assert.Equal(t, uint64(len(expectedBlocks)), bcInfo.Height)
 	assert.Equal(t, protoutil.BlockHeaderHash(expectedBlocks[len(expectedBlocks)-1].GetHeader()), bcInfo.CurrentBlockHash)
@@ -94,7 +95,7 @@ func checkBlocks(t *testing.T, expectedBlocks []*common.Block, store blkstorage.
 
 	for blockNum := 0; blockNum < len(expectedBlocks); blockNum++ {
 		block := expectedBlocks[blockNum]
-		flags := util.TxValidationFlags(block.Metadata.Metadata[common.BlockMetadataIndex_TRANSACTIONS_FILTER])
+		flags := txflags.ValidationFlags(block.Metadata.Metadata[common.BlockMetadataIndex_TRANSACTIONS_FILTER])
 		retrievedBlock, _ := store.RetrieveBlockByNumber(uint64(blockNum))
 		assert.True(t, proto.Equal(block, retrievedBlock))
 
@@ -123,7 +124,7 @@ func checkBlocks(t *testing.T, expectedBlocks []*common.Block, store blkstorage.
 	}
 }
 
-func checkWithWrongInputs(t *testing.T, store blkstorage.BlockStore, numBlocks int) {
+func checkWithWrongInputs(t *testing.T, store api.BlockStore, numBlocks int) {
 	block, err := store.RetrieveBlockByHash([]byte("non-existent-hash"))
 	assert.Nil(t, block)
 	assert.Equal(t, blkstorage.ErrNotFoundInIndex, err)
@@ -151,14 +152,14 @@ func TestBlockStoreProvider(t *testing.T) {
 	const numStores = 10
 
 	provider := env.provider
-	var stores []blkstorage.BlockStore
+	var stores []api.BlockStore
 	var allLedgerIDs []string
 	for i := 0; i < numStores; i++ {
 		allLedgerIDs = append(allLedgerIDs, constructLedgerid(i))
 	}
 
 	for _, id := range allLedgerIDs {
-		store, _ := provider.OpenBlockStore(id)
+		store, _ := provider.Open(id)
 		defer store.Shutdown()
 		stores = append(stores, store)
 	}
@@ -172,7 +173,26 @@ func TestBlockStoreProvider(t *testing.T) {
 	exists, err := provider.Exists(constructLedgerid(numStores + 1))
 	assert.NoError(t, err)
 	assert.Equal(t, false, exists)
+}
 
+// Tests must be created for the following once the functions are implemented
+func TestProviderUnimplemented(t *testing.T) {
+	env := newTestEnv(t)
+	defer env.Cleanup()
+
+	provider := env.provider
+	store, _ := provider.Open("testLedger-2")
+	defer store.Shutdown()
+
+	require.PanicsWithValue(t, "not implemented", func() { provider.BootstrapFromSnapshottedTxIDs("", &api.SnapshotInfo{}) })
+
+	require.PanicsWithValue(t, "not implemented", func() {
+		provider.ExportTxIds("", func() (hash.Hash, error) {
+			return nil, nil
+		})
+	})
+
+	require.PanicsWithValue(t, "not implemented", func() { provider.Remove("") })
 }
 
 func TestBlockStoreAsCommitter(t *testing.T) {
@@ -200,7 +220,7 @@ func TestBlockStoreAsCommitter(t *testing.T) {
 
 	//create block store as committer
 	provider := env.provider
-	store, err := provider.OpenBlockStore(ledgerID)
+	store, err := provider.Open(ledgerID)
 	assert.NoError(t, err)
 	defer store.Shutdown()
 
@@ -264,7 +284,7 @@ func TestBlockStoreAsEndorser(t *testing.T) {
 
 	//create block store as endorser
 	provider := env.provider
-	store, err := provider.OpenBlockStore(ledgerID)
+	store, err := provider.Open(ledgerID)
 	assert.EqualError(t, err, fmt.Sprintf("DB not found: [%s]", couchdb.ConstructBlockchainDBName(ledgerID, blockStoreName)))
 	assert.Nil(t, store)
 
@@ -273,7 +293,7 @@ func TestBlockStoreAsEndorser(t *testing.T) {
 	assert.NoError(t, err)
 
 	//expect error for missing db index
-	store, err = provider.OpenBlockStore(ledgerID)
+	store, err = provider.Open(ledgerID)
 	assert.EqualError(t, err, fmt.Sprintf("DB index not found: [%s]", couchdb.ConstructBlockchainDBName(ledgerID, blockStoreName)))
 	assert.Nil(t, store)
 
@@ -282,7 +302,7 @@ func TestBlockStoreAsEndorser(t *testing.T) {
 	assert.NoError(t, err)
 
 	//expect error for missing txn store
-	store, err = provider.OpenBlockStore(ledgerID)
+	store, err = provider.Open(ledgerID)
 	assert.EqualError(t, err, fmt.Sprintf("DB not found: [%s]", couchdb.ConstructBlockchainDBName(ledgerID, txnStoreName)))
 	assert.Nil(t, store)
 
@@ -291,7 +311,7 @@ func TestBlockStoreAsEndorser(t *testing.T) {
 	assert.NoError(t, err)
 
 	//open store should be successful
-	store, err = provider.OpenBlockStore(ledgerID)
+	store, err = provider.Open(ledgerID)
 	assert.NoError(t, err)
 	assert.NotNil(t, store)
 	defer store.Shutdown()

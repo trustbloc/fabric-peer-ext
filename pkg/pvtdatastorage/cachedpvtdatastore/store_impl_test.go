@@ -61,12 +61,6 @@ func TestProcessCollsEligibilityEnabled(t *testing.T) {
 	require.Contains(t, err.Error(), "not supported")
 }
 
-func TestShutdown(t *testing.T) {
-	env := NewTestStoreEnv(t, "ledger", nil)
-	store := env.TestStore
-	store.Shutdown()
-}
-
 func TestGetPvtDataByBlockNum(t *testing.T) {
 	env := NewTestStoreEnv(t, "ledger", nil)
 	cacheStore := env.TestStore

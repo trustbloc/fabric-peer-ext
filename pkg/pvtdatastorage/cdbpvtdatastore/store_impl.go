@@ -19,10 +19,12 @@ import (
 	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
 	"github.com/hyperledger/fabric/common/metrics/disabled"
 	"github.com/hyperledger/fabric/core/ledger"
+	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
-	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	xstorageapi "github.com/hyperledger/fabric/extensions/storage/api"
 	"github.com/pkg/errors"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 	"github.com/willf/bitset"
@@ -39,8 +41,9 @@ type dbHandle interface {
 	WriteBatch(batch *leveldbhelper.UpdateBatch, sync bool) error
 	Delete(key []byte, sync bool) error
 	Get(key []byte) ([]byte, error)
-	GetIterator(startKey []byte, endKey []byte) *leveldbhelper.Iterator
+	GetIterator(startKey []byte, endKey []byte) (*leveldbhelper.Iterator, error)
 	Put(key []byte, value []byte, sync bool) error
+	NewUpdateBatch() *leveldbhelper.UpdateBatch
 }
 
 type provider struct {
@@ -88,14 +91,14 @@ type lastUpdatedOldBlocksList []uint64
 //////////////////////////////////////////
 
 // NewProvider instantiates a private data storage provider backed by CouchDB
-func NewProvider(conf *pvtdatastorage.PrivateDataConfig, ledgerconfig *ledger.Config) (pvtdatastorage.Provider, error) {
+func NewProvider(conf *pvtdatastorage.PrivateDataConfig, ledgerconfig *ledger.Config) (xstorageapi.PrivateDataProvider, error) {
 	logger.Debugf("constructing CouchDB private data storage provider")
 	couchDBConfig := ledgerconfig.StateDBConfig.CouchDB
 
 	return newProviderWithDBDef(couchDBConfig, conf, ledgerconfig)
 }
 
-func newProviderWithDBDef(couchDBConfig *couchdb.Config, conf *pvtdatastorage.PrivateDataConfig, ledgerconfig *ledger.Config) (pvtdatastorage.Provider, error) {
+func newProviderWithDBDef(couchDBConfig *ledger.CouchDBConfig, conf *pvtdatastorage.PrivateDataConfig, ledgerconfig *ledger.Config) (xstorageapi.PrivateDataProvider, error) {
 	couchInstance, err := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {
 		return nil, errors.WithMessage(err, "obtaining CouchDB instance failed")
@@ -116,7 +119,7 @@ func newProviderWithDBDef(couchDBConfig *couchdb.Config, conf *pvtdatastorage.Pr
 }
 
 // OpenStore returns a handle to a store
-func (p *provider) OpenStore(ledgerid string) (pvtdatastorage.Store, error) {
+func (p *provider) OpenStore(ledgerid string) (xstorageapi.PrivateDataStore, error) {
 	// Create couchdb
 	pvtDataStoreDBName := couchdb.ConstructBlockchainDBName(strings.ToLower(ledgerid), pvtDataStoreName)
 	if roles.IsCommitter() {
@@ -287,7 +290,7 @@ func (s *store) prepareMissingKeys(pvtDataDoc *couchdb.CouchDoc, storeEntries *c
 }
 
 func (s *store) updateMissingKeys(pendingPvtData *pendingPvtData) error {
-	batch := leveldbhelper.NewUpdateBatch()
+	batch := s.missingKeysIndexDB.NewUpdateBatch()
 	if len(pendingPvtData.MissingDataEntries) > 0 {
 		for missingDataKey, missingDataValue := range pendingPvtData.MissingDataEntries {
 			batch.Put([]byte(missingDataKey), []byte(missingDataValue))
@@ -329,7 +332,7 @@ func (s *store) CommitPvtDataOfOldBlocks(blocksPvtData map[uint64][]*ledger.TxPv
 		stateDB may not be in sync with the pvtStore`)
 	}
 
-	batch := leveldbhelper.NewUpdateBatch()
+	batch := s.missingKeysIndexDB.NewUpdateBatch()
 	docs := make([]*couchdb.CouchDoc, 0)
 	// create a list of blocks' pvtData which are being stored. If this list is
 	// found during the recovery, the stateDB may not be in sync with the pvtData
@@ -720,7 +723,7 @@ func (s *store) purgeExpiredData(maxBlkNum uint64) error {
 }
 
 func (s *store) prepareExpiredData(pvtData []*blockPvtDataResponse, maxBlkNum uint64) ([]*couchdb.CouchDoc, *leveldbhelper.UpdateBatch, error) {
-	batch := leveldbhelper.NewUpdateBatch()
+	batch := s.missingKeysIndexDB.NewUpdateBatch()
 	var docs []*couchdb.CouchDoc
 	for _, data := range pvtData {
 		doc, err := s.getExpiredDataDoc(data, batch, maxBlkNum)

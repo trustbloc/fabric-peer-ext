@@ -25,7 +25,7 @@ ARCH=$(shell go env GOARCH)
 # Tool commands (overridable)
 DOCKER_CMD ?= docker
 GO_CMD     ?= go
-ALPINE_VER ?= 3.11
+ALPINE_VER ?= 3.12
 GO_TAGS    ?=
 GOPROXY    ?= "https://proxy.golang.org"
 
@@ -111,7 +111,7 @@ version:
 	@scripts/check_version.sh
 
 docker-thirdparty:
-	@docker pull couchdb:2.3
+	@docker pull couchdb:3.1
 
 build-cc:
 	@echo "Building cc"

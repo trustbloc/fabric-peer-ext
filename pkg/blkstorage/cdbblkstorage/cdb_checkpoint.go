@@ -12,7 +12,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/common/util/retry"
-	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/pkg/errors"
 	viper "github.com/spf13/viper2015"
 )

@@ -7,6 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package peer
 
 import (
+	storagecouchdb "github.com/hyperledger/fabric/extensions/storage/couchdb"
+
 	"github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configcc"
 	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/ucc"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/client"
@@ -16,6 +18,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/storeprovider"
 	tretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/retriever"
 	tdatastore "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider"
+	extcouchdb "github.com/trustbloc/fabric-peer-ext/pkg/common/couchdb"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/dbname"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
 	cfgservice "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/service"
@@ -53,6 +56,8 @@ func registerResources() {
 	resource.Register(dissemination.LocalMSPProvider.Initialize)
 	resource.Register(appdata.NewHandlerRegistry)
 	resource.Register(proprespvalidator.New)
+	resource.Register(extcouchdb.NewReadOnlyProvider)
+	resource.Register(storagecouchdb.NewHandler)
 }
 
 func registerChaincodes() {

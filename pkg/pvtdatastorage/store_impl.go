@@ -10,12 +10,14 @@ import (
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
+
+	xstorageapi "github.com/hyperledger/fabric/extensions/storage/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/cachedpvtdatastore"
 	cdbpvtdatastore "github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/cdbpvtdatastore"
 )
 
 type cacheProvider interface {
-	Create(ledgerID string, lastCommittedBlockNum uint64) pvtdatastorage.Store
+	Create(ledgerID string, lastCommittedBlockNum uint64) xstorageapi.PrivateDataStore
 }
 
 //////// Provider functions  /////////////
@@ -23,7 +25,7 @@ type cacheProvider interface {
 
 // PvtDataProvider encapsulates the storage and cache providers in addition to the missing data index provider
 type PvtDataProvider struct {
-	storageProvider pvtdatastorage.Provider
+	storageProvider xstorageapi.PrivateDataProvider
 	cacheProvider   cacheProvider
 }
 
@@ -45,7 +47,7 @@ func NewProvider(conf *pvtdatastorage.PrivateDataConfig, ledgerconfig *ledger.Co
 }
 
 // OpenStore creates a pvt data store instance for the given ledger ID
-func (c *PvtDataProvider) OpenStore(ledgerID string) (pvtdatastorage.Store, error) {
+func (c *PvtDataProvider) OpenStore(ledgerID string) (xstorageapi.PrivateDataStore, error) {
 	pvtDataStore, err := c.storageProvider.OpenStore(ledgerID)
 	if err != nil {
 		return nil, err
@@ -67,11 +69,11 @@ func (c *PvtDataProvider) Close() {
 }
 
 type pvtDataStore struct {
-	pvtDataDBStore    pvtdatastorage.Store
-	cachePvtDataStore pvtdatastorage.Store
+	pvtDataDBStore    xstorageapi.PrivateDataStore
+	cachePvtDataStore xstorageapi.PrivateDataStore
 }
 
-func newPvtDataStore(pvtDataDBStore pvtdatastorage.Store, cachePvtDataStore pvtdatastorage.Store) *pvtDataStore {
+func newPvtDataStore(pvtDataDBStore xstorageapi.PrivateDataStore, cachePvtDataStore xstorageapi.PrivateDataStore) *pvtDataStore {
 	return &pvtDataStore{
 		pvtDataDBStore:    pvtDataDBStore,
 		cachePvtDataStore: cachePvtDataStore,
@@ -113,12 +115,6 @@ func (c *pvtDataStore) GetPvtDataByBlockNum(blockNum uint64, filter ledger.PvtNs
 //LastCommittedBlockHeight implements the function in the interface `Store`
 func (c *pvtDataStore) LastCommittedBlockHeight() (uint64, error) {
 	return c.pvtDataDBStore.LastCommittedBlockHeight()
-}
-
-//Shutdown implements the function in the interface `Store`
-func (c *pvtDataStore) Shutdown() {
-	c.cachePvtDataStore.Shutdown()
-	c.pvtDataDBStore.Shutdown()
 }
 
 //GetMissingPvtDataInfoForMostRecentBlocks implements the function in the interface `Store`

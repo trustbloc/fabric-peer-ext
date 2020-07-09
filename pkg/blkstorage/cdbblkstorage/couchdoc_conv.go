@@ -16,10 +16,10 @@ import (
 	"github.com/hyperledger/fabric-protos-go/common"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/ledger/blkstorage"
-	ledgerUtil "github.com/hyperledger/fabric/core/ledger/util"
-	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/pkg/errors"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/txflags"
 )
 
 // block document
@@ -108,7 +108,7 @@ func blockToTxnCouchDocs(block *common.Block, attachTxn bool) ([]*couchdb.CouchD
 	blockData := block.GetData()
 
 	blockMetadata := block.GetMetadata()
-	txValidationFlags := ledgerUtil.TxValidationFlags(blockMetadata.GetMetadata()[common.BlockMetadataIndex_TRANSACTIONS_FILTER])
+	txValidationFlags := txflags.ValidationFlags(blockMetadata.GetMetadata()[common.BlockMetadataIndex_TRANSACTIONS_FILTER])
 
 	txnDocs := make([]*couchdb.CouchDoc, 0)
 

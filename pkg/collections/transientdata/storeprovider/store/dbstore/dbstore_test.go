@@ -232,6 +232,10 @@ func (m *mockLevelDBHandle) WriteBatch(batch *leveldbhelper.UpdateBatch, sync bo
 	panic("not implemented")
 }
 
-func (m *mockLevelDBHandle) GetIterator(startKey []byte, endKey []byte) *leveldbhelper.Iterator {
+func (m *mockLevelDBHandle) GetIterator(startKey []byte, endKey []byte) (*leveldbhelper.Iterator, error) {
+	panic("not implemented")
+}
+
+func (m *mockLevelDBHandle) NewUpdateBatch() *leveldbhelper.UpdateBatch {
 	panic("not implemented")
 }

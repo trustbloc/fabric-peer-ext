@@ -17,8 +17,8 @@ import (
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	cutil "github.com/hyperledger/fabric/common/util"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
-	ledger_util "github.com/hyperledger/fabric/core/ledger/util"
 	"github.com/hyperledger/fabric/protoutil"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/txflags"
 )
 
 // BlockBuilder builds a mock Block
@@ -61,7 +61,7 @@ func (b *BlockBuilder) Build() *cb.Block {
 			block.Data.Data = append(block.Data.Data, txBytes)
 			txValidationCodes = append(txValidationCodes, uint8(txValidationCode))
 		}
-		txsfltr := ledger_util.NewTxValidationFlags(len(block.Data.Data))
+		txsfltr := txflags.New(len(block.Data.Data))
 		for i := 0; i < len(block.Data.Data); i++ {
 			txsfltr[i] = txValidationCodes[i]
 		}

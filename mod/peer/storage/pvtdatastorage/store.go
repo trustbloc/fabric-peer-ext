@@ -9,10 +9,11 @@ package pvtdatastorage
 import (
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
-	s "github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage"
+	xstorageapi "github.com/hyperledger/fabric/extensions/storage/api"
+	xpvtdatastorage "github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage"
 )
 
 // NewProvider instantiates a StoreProvider
-func NewProvider(conf *pvtdatastorage.PrivateDataConfig, ledgerconfig *ledger.Config) (pvtdatastorage.Provider, error) {
-	return s.NewProvider(conf, ledgerconfig)
+func NewProvider(conf *pvtdatastorage.PrivateDataConfig, ledgerconfig *ledger.Config) (xstorageapi.PrivateDataProvider, error) {
+	return xpvtdatastorage.NewProvider(conf, ledgerconfig)
 }

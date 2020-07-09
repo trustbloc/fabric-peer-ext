@@ -12,7 +12,6 @@ import (
 	proto "github.com/hyperledger/fabric-protos-go/gossip"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
-	ledgerUtil "github.com/hyperledger/fabric/core/ledger/util"
 	common2 "github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/gossip/discovery"
 	"github.com/hyperledger/fabric/gossip/protoext"
@@ -22,6 +21,8 @@ import (
 	"github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
 	"github.com/hyperledger/fabric/extensions/roles"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/txflags"
 )
 
 var logger = flogging.MustGetLogger("ext_gossip_state")
@@ -260,7 +261,7 @@ func isBlockValidated(block *common.Block) bool {
 		return false
 	}
 
-	txValidationFlags := ledgerUtil.TxValidationFlags(blockMetadata.GetMetadata()[common.BlockMetadataIndex_TRANSACTIONS_FILTER])
+	txValidationFlags := txflags.ValidationFlags(blockMetadata.GetMetadata()[common.BlockMetadataIndex_TRANSACTIONS_FILTER])
 	flagsLen := len(txValidationFlags)
 
 	if envelopesLen != flagsLen {

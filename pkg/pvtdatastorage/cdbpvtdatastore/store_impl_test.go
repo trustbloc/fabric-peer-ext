@@ -20,12 +20,15 @@ import (
 	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
+	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	btltestutil "github.com/hyperledger/fabric/core/ledger/pvtdatapolicy/testutil"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
-	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	xstorageapi "github.com/hyperledger/fabric/extensions/storage/api"
 	"github.com/hyperledger/fabric/extensions/testutil"
 	viper "github.com/spf13/viper2015"
 	"github.com/stretchr/testify/require"
+	"github.com/syndtr/goleveldb/leveldb"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 	xtestutil "github.com/trustbloc/fabric-peer-ext/pkg/testutil"
@@ -36,7 +39,7 @@ import (
 // 1- setup couchdb
 // 2- add TestLookupLastBlock unit test
 
-var couchDBConfig *couchdb.Config
+var couchDBConfig *ledger.CouchDBConfig
 
 func TestMain(m *testing.M) {
 	//setup extension test environment
@@ -358,7 +361,7 @@ func TestRetrieveBlockPvtData(t *testing.T) {
 }
 
 func TestNewProviderWithDBDef(t *testing.T) {
-	_, err := newProviderWithDBDef(&couchdb.Config{Address: "123"}, nil, nil)
+	_, err := newProviderWithDBDef(&ledger.CouchDBConfig{Address: "123"}, nil, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "obtaining CouchDB instance failed")
 }
@@ -564,7 +567,7 @@ func TestStorePurge(t *testing.T) {
 
 }
 
-func testWaitForPurgerRoutineToFinish(s pvtdatastorage.Store) {
+func testWaitForPurgerRoutineToFinish(s xstorageapi.PrivateDataStore) {
 	time.Sleep(1 * time.Second)
 	s.(*store).purgerLock.Lock()
 	s.(*store).purgerLock.Unlock()
@@ -1172,7 +1175,7 @@ func TestLookupLastBlock(t *testing.T) {
 
 }
 
-func checkLastCommittedBlock(t *testing.T, s pvtdatastorage.Store, expectedLastCommittedBlock uint64) {
+func checkLastCommittedBlock(t *testing.T, s xstorageapi.PrivateDataStore, expectedLastCommittedBlock uint64) {
 	lastCommitBlock, _, err := lookupLastBlock(s.(*store).db)
 	require.NoError(t, err)
 	require.Equal(t, expectedLastCommittedBlock, lastCommitBlock)
@@ -1374,20 +1377,20 @@ func testCollElgEnabled(t *testing.T) {
 	req.Equal(expectedMissingPvtDataInfo, missingPvtDataInfo)
 }
 
-func testMissingDataKeyExists(t *testing.T, s pvtdatastorage.Store, missingDataKey *common.MissingDataKey) bool {
+func testMissingDataKeyExists(t *testing.T, s xstorageapi.PrivateDataStore, missingDataKey *common.MissingDataKey) bool {
 	dataKeyBytes := common.EncodeMissingDataKey(missingDataKey)
 	val, err := s.(*store).missingKeysIndexDB.Get(dataKeyBytes)
 	require.NoError(t, err)
 	return len(val) != 0
 }
 
-func testLastCommittedBlockHeight(expectedBlockHt uint64, req *require.Assertions, store pvtdatastorage.Store) {
+func testLastCommittedBlockHeight(expectedBlockHt uint64, req *require.Assertions, store xstorageapi.PrivateDataStore) {
 	blkHt, err := store.LastCommittedBlockHeight()
 	req.NoError(err)
 	req.Equal(expectedBlockHt, blkHt)
 }
 
-func testDataKeyExists(t *testing.T, s pvtdatastorage.Store, dataKey *common.DataKey) bool {
+func testDataKeyExists(t *testing.T, s xstorageapi.PrivateDataStore, dataKey *common.DataKey) bool {
 	r, err := retrieveBlockPvtData(s.(*store).db, blockNumberToKey(dataKey.BlkNum))
 	require.NoError(t, err)
 	dataKeyBytes := common.EncodeDataKey(dataKey)
@@ -1408,7 +1411,7 @@ func produceSamplePvtdata(t *testing.T, txNum uint64, nsColls []string) *ledger.
 	return &ledger.TxPvtData{SeqInBlock: txNum, WriteSet: simRes.PvtSimulationResults}
 }
 
-func testutilWaitForCollElgProcToFinish(s pvtdatastorage.Store) {
+func testutilWaitForCollElgProcToFinish(s xstorageapi.PrivateDataStore) {
 	s.(*store).collElgProc.WaitForDone()
 }
 
@@ -1472,9 +1475,15 @@ func (m mockDBHandler) Get(key []byte) ([]byte, error) {
 	}
 	return nil, nil
 }
-func (m mockDBHandler) GetIterator(startKey []byte, endKey []byte) *leveldbhelper.Iterator {
-	return nil
+func (m mockDBHandler) GetIterator(startKey []byte, endKey []byte) (*leveldbhelper.Iterator, error) {
+	return nil, nil
 }
 func (m mockDBHandler) Put(key []byte, value []byte, sync bool) error {
 	return m.putErr
+}
+
+func (m mockDBHandler) NewUpdateBatch() *leveldbhelper.UpdateBatch {
+	return &leveldbhelper.UpdateBatch{
+		Batch: &leveldb.Batch{},
+	}
 }

@@ -13,9 +13,9 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
-	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/version"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 	"github.com/pkg/errors"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/version"
 	"github.com/willf/bitset"
 )
 

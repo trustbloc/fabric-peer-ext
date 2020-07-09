@@ -18,21 +18,22 @@ import (
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
 	btltestutil "github.com/hyperledger/fabric/core/ledger/pvtdatapolicy/testutil"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
-	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	xstorageapi "github.com/hyperledger/fabric/extensions/storage/api"
 	"github.com/hyperledger/fabric/extensions/testutil"
 	viper "github.com/spf13/viper2015"
 	"github.com/stretchr/testify/require"
+
 	xtestutil "github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
 
-var couchDBConfig *couchdb.Config
+var couchDBConfig *ledger.CouchDBConfig
 
 type mockProvider struct {
-	openStoreValue pvtdatastorage.Store
+	openStoreValue xstorageapi.PrivateDataStore
 	openStoreErr   error
 }
 
-func (m mockProvider) OpenStore(id string) (pvtdatastorage.Store, error) {
+func (m mockProvider) OpenStore(id string) (xstorageapi.PrivateDataStore, error) {
 	return m.openStoreValue, m.openStoreErr
 }
 
@@ -133,8 +134,6 @@ func TestShutdown(t *testing.T) {
 	s := store.(*pvtDataStore)
 	s.cachePvtDataStore = &mockStore{}
 	s.pvtDataDBStore = &mockStore{}
-	s.Shutdown()
-
 }
 
 func TestGetMissingPvtDataInfoForMostRecentBlocks(t *testing.T) {

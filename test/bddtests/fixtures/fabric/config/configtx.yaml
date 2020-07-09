@@ -216,11 +216,52 @@ Orderer: &OrdererDefaults
     # network. When set to 0, this implies no maximum number of channels.
     MaxChannels: 0
 
-    Kafka:
-        # Brokers: A list of Kafka brokers to which the orderer connects
-        # NOTE: Use IP:port notation
-        Brokers:
-            - 127.0.0.1:9092
+    # EtcdRaft defines configuration which must be set when the "etcdraft"
+    # orderertype is chosen.
+    EtcdRaft:
+        # The set of Raft replicas for this network. For the etcd/raft-based
+        # implementation, we expect every replica to also be an OSN. Therefore,
+        # a subset of the host:port items enumerated in this list should be
+        # replicated under the Orderer.Addresses key above.
+        Consenters:
+            - Host: raft0.example.com
+              Port: 7050
+              ClientTLSCert: path/to/ClientTLSCert0
+              ServerTLSCert: path/to/ServerTLSCert0
+            - Host: raft1.example.com
+              Port: 7050
+              ClientTLSCert: path/to/ClientTLSCert1
+              ServerTLSCert: path/to/ServerTLSCert1
+            - Host: raft2.example.com
+              Port: 7050
+              ClientTLSCert: path/to/ClientTLSCert2
+              ServerTLSCert: path/to/ServerTLSCert2
+
+        # Options to be specified for all the etcd/raft nodes. The values here
+        # are the defaults for all new channels and can be modified on a
+        # per-channel basis via configuration updates.
+        Options:
+            # TickInterval is the time interval between two Node.Tick invocations.
+            TickInterval: 500ms
+
+            # ElectionTick is the number of Node.Tick invocations that must pass
+            # between elections. That is, if a follower does not receive any
+            # message from the leader of current term before ElectionTick has
+            # elapsed, it will become candidate and start an election.
+            # ElectionTick must be greater than HeartbeatTick.
+            ElectionTick: 10
+
+            # HeartbeatTick is the number of Node.Tick invocations that must
+            # pass between heartbeats. That is, a leader sends heartbeat
+            # messages to maintain its leadership every HeartbeatTick ticks.
+            HeartbeatTick: 1
+
+            # MaxInflightBlocks limits the max number of in-flight append messages
+            # during optimistic replication phase.
+            MaxInflightBlocks: 5
+
+            # SnapshotIntervalSize defines number of bytes per which a snapshot is taken
+            SnapshotIntervalSize: 16 MB
 
     # Organizations is the list of orgs which are defined as participants on
     # the orderer side of the network
@@ -262,16 +303,19 @@ Orderer: &OrdererDefaults
 ################################################################################
 Application: &ApplicationDefaults
     ACLs: &ACLsDefault
-        #This section provides defaults for policies for various resources
-        #in the system. These "resources" could be functions on system chaincodes
-        #(e.g., "GetBlockByNumber" on the "qscc" system chaincode) or other resources
-        #(e.g.,who can receive Block events). This section does NOT specify the resource's
-        #definition or API, but just the ACL policy for it.
+        # This section provides defaults for policies for various resources
+        # in the system. These "resources" could be functions on system chaincodes
+        # (e.g., "GetBlockByNumber" on the "qscc" system chaincode) or other resources
+        # (e.g.,who can receive Block events). This section does NOT specify the resource's
+        # definition or API, but just the ACL policy for it.
         #
-        #User's can override these defaults with their own policy mapping by defining the
-        #mapping under ACLs in their channel definition
+        # Users can override these defaults with their own policy mapping by defining the
+        # mapping under ACLs in their channel definition
 
         #---New Lifecycle System Chaincode (_lifecycle) function to policy mapping for access control--#
+
+        # ACL policy for _lifecycle's "CheckCommitReadiness" function
+        _lifecycle/CheckCommitReadiness: /Channel/Application/Writers
 
         # ACL policy for _lifecycle's "CommitChaincodeDefinition" function
         _lifecycle/CommitChaincodeDefinition: /Channel/Application/Writers
@@ -279,62 +323,65 @@ Application: &ApplicationDefaults
         # ACL policy for _lifecycle's "QueryChaincodeDefinition" function
         _lifecycle/QueryChaincodeDefinition: /Channel/Application/Readers
 
-        # ACL policy for _lifecycle's "QueryNamespaceDefinitions" function
-        _lifecycle/QueryNamespaceDefinitions: /Channel/Application/Readers
+        # ACL policy for _lifecycle's "QueryChaincodeDefinitions" function
+        _lifecycle/QueryChaincodeDefinitions: /Channel/Application/Readers
 
         #---Lifecycle System Chaincode (lscc) function to policy mapping for access control---#
 
-        #ACL policy for lscc's "getid" function
+        # ACL policy for lscc's "getid" function
         lscc/ChaincodeExists: /Channel/Application/Readers
 
-        #ACL policy for lscc's "getdepspec" function
+        # ACL policy for lscc's "getdepspec" function
         lscc/GetDeploymentSpec: /Channel/Application/Readers
 
-        #ACL policy for lscc's "getccdata" function
+        # ACL policy for lscc's "getccdata" function
         lscc/GetChaincodeData: /Channel/Application/Readers
+
+        # ACL Policy for lscc's "getchaincodes" function
+        lscc/GetInstantiatedChaincodes: /Channel/Application/Readers
 
         #---Query System Chaincode (qscc) function to policy mapping for access control---#
 
-        #ACL policy for qscc's "GetChainInfo" function
+        # ACL policy for qscc's "GetChainInfo" function
         qscc/GetChainInfo: /Channel/Application/Readers
 
-        #ACL policy for qscc's "GetBlockByNumber" function
+        # ACL policy for qscc's "GetBlockByNumber" function
         qscc/GetBlockByNumber: /Channel/Application/Readers
 
-        #ACL policy for qscc's  "GetBlockByHash" function
+        # ACL policy for qscc's  "GetBlockByHash" function
         qscc/GetBlockByHash: /Channel/Application/Readers
 
-        #ACL policy for qscc's "GetTransactionByID" function
+        # ACL policy for qscc's "GetTransactionByID" function
         qscc/GetTransactionByID: /Channel/Application/Readers
 
-        #ACL policy for qscc's "GetBlockByTxID" function
+        # ACL policy for qscc's "GetBlockByTxID" function
         qscc/GetBlockByTxID: /Channel/Application/Readers
 
         #---Configuration System Chaincode (cscc) function to policy mapping for access control---#
 
-        #ACL policy for cscc's "GetConfigBlock" function
+        # ACL policy for cscc's "GetConfigBlock" function
         cscc/GetConfigBlock: /Channel/Application/Readers
 
-        #ACL policy for cscc's "GetConfigTree" function
+        # ACL policy for cscc's "GetConfigTree" function
         cscc/GetConfigTree: /Channel/Application/Readers
 
-        #ACL policy for cscc's "SimulateConfigTreeUpdate" function
-        cscc/SimulateConfigTreeUpdate: /Channel/Application/Writers
+        # ACL policy for cscc's "SimulateConfigTreeUpdate" function
+        cscc/SimulateConfigTreeUpdate: /Channel/Application/Readers
 
         #---Miscellanesous peer function to policy mapping for access control---#
 
-        #ACL policy for invoking chaincodes on peer
-        peer/Proposal: /Channel/Application/Writers
+        # ACL policy for invoking chaincodes on peer
+        peer/Propose: /Channel/Application/Writers
 
-        #ACL policy for chaincode to chaincode invocation
+        # ACL policy for chaincode to chaincode invocation
         peer/ChaincodeToChaincode: /Channel/Application/Readers
 
         #---Events resource to policy mapping for access control###---#
 
-        #ACL policy for sending block events
+        # ACL policy for sending block events
         event/Block: /Channel/Application/Readers
 
-        #ACL policy for sending filtered block events
+        # ACL policy for sending filtered block events
         event/FilteredBlock: /Channel/Application/Readers
 
     # Organizations is the list of orgs which are defined as participants on

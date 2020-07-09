@@ -29,7 +29,7 @@ func TestBlocksItr(t *testing.T) {
 	const startBlk = 3
 
 	provider := env.provider
-	store, _ := provider.OpenBlockStore("ledger-1")
+	store, _ := provider.Open("ledger-1")
 	defer store.Shutdown()
 	cdbstore := store.(*cdbBlockStore)
 
@@ -67,7 +67,7 @@ func TestBlocksItrBlockingNext(t *testing.T) {
 	const numberOfBlks = 10
 
 	provider := env.provider
-	store, _ := provider.OpenBlockStore("testLedger")
+	store, _ := provider.Open("testLedger")
 	defer store.Shutdown()
 	cdbstore := store.(*cdbBlockStore)
 
@@ -95,7 +95,7 @@ func TestRaceToDeadlock(t *testing.T) {
 	const numberOfBlks = 5
 
 	provider := env.provider
-	store, _ := provider.OpenBlockStore("testLedger")
+	store, _ := provider.Open("testLedger")
 	defer store.Shutdown()
 
 	blocks := testutil.ConstructTestBlocks(t, numberOfBlks)
@@ -131,7 +131,7 @@ func TestBlockItrCloseWithoutRetrieve(t *testing.T) {
 	const numberOfBlks = 5
 
 	provider := env.provider
-	store, _ := provider.OpenBlockStore("testLedger")
+	store, _ := provider.Open("testLedger")
 	defer store.Shutdown()
 
 	blocks := testutil.ConstructTestBlocks(t, numberOfBlks)
@@ -151,7 +151,7 @@ func TestCloseMultipleItrsWaitForFutureBlock(t *testing.T) {
 	const numberOfBlks = 10
 
 	provider := env.provider
-	store, _ := provider.OpenBlockStore("testLedger-2")
+	store, _ := provider.Open("testLedger-2")
 	defer store.Shutdown()
 
 	blocks := testutil.ConstructTestBlocks(t, numberOfBlks)

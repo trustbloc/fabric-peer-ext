@@ -34,7 +34,7 @@ func newDBStore(db *leveldbhelper.DBHandle, dbName string) *store {
 
 // AddKey add cache key to db
 func (s *store) Put(keyVal ...*api.KeyValue) error {
-	batch := leveldbhelper.NewUpdateBatch()
+	batch := s.db.NewUpdateBatch()
 	for _, kv := range keyVal {
 		err := s.addToBatch(batch, kv)
 		if err != nil {
@@ -105,19 +105,23 @@ func (s *store) Query(query string) ([]*api.KeyValue, error) {
 
 // DeleteExpiredKeys delete expired keys from db
 func (s *store) DeleteExpiredKeys() error {
-	dbBatch := leveldbhelper.NewUpdateBatch()
-	itr := s.db.GetIterator(nil, []byte(fmt.Sprintf("%d%s", time.Now().UTC().UnixNano(), compositeKeySep)))
+	dbBatch := s.db.NewUpdateBatch()
+	itr, err := s.db.GetIterator(nil, []byte(fmt.Sprintf("%d%s", time.Now().UTC().UnixNano(), compositeKeySep)))
+	if err != nil {
+		return err
+	}
+
 	for itr.Next() {
 		key := string(itr.Key())
 		dbBatch.Delete([]byte(key))
 		dbBatch.Delete([]byte(key[strings.Index(key, compositeKeySep)+1:]))
 	}
+
 	if dbBatch.Len() > 0 {
 		err := s.db.WriteBatch(dbBatch, true)
 		if err != nil {
-			return errors.Errorf("failed to delete keys %s in db %s", dbBatch.KVs, err.Error())
+			return errors.Errorf("failed to delete keys in db %s", err.Error())
 		}
-		logger.Debugf("delete expired keys %s from db", dbBatch.KVs)
 	}
 
 	return nil

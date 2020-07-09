@@ -17,9 +17,10 @@ import (
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
-	ledgerutil "github.com/hyperledger/fabric/core/ledger/util"
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/pkg/errors"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/txflags"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/util"
 )
 
@@ -312,7 +313,7 @@ func (p *blockEvent) visitEnvelope(txNum uint64, envelope *cb.Envelope) error {
 }
 
 func (p *blockEvent) visitTx(txNum uint64, payload *cb.Payload, chdr *cb.ChannelHeader) error {
-	txFilter := ledgerutil.TxValidationFlags(p.block.Metadata.Metadata[cb.BlockMetadataIndex_TRANSACTIONS_FILTER])
+	txFilter := txflags.ValidationFlags(p.block.Metadata.Metadata[cb.BlockMetadataIndex_TRANSACTIONS_FILTER])
 	code := txFilter.Flag(int(txNum))
 	if code != pb.TxValidationCode_VALID {
 		logger.Debugf("[%s] Transaction at index %d in block %d is not valid. Status code: %s", p.channelID, txNum, p.block.Header.Number, code)

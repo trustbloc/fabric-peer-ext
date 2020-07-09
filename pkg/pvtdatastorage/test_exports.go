@@ -12,25 +12,27 @@ import (
 	"testing"
 
 	"github.com/hyperledger/fabric/common/metrics/disabled"
+	"github.com/hyperledger/fabric/core/ledger"
+	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
-	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
-	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	xstorageapi "github.com/hyperledger/fabric/extensions/storage/api"
 	"github.com/stretchr/testify/require"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
 
 // StoreEnv provides the  store env for testing
 type StoreEnv struct {
 	t                 testing.TB
-	TestStoreProvider pvtdatastorage.Provider
-	TestStore         pvtdatastorage.Store
+	TestStoreProvider xstorageapi.PrivateDataProvider
+	TestStore         xstorageapi.PrivateDataStore
 	ledgerid          string
 	btlPolicy         pvtdatapolicy.BTLPolicy
-	couchDBConfig     *couchdb.Config
+	couchDBConfig     *ledger.CouchDBConfig
 }
 
 // NewTestStoreEnv construct a StoreEnv for testing
-func NewTestStoreEnv(t *testing.T, ledgerid string, btlPolicy pvtdatapolicy.BTLPolicy, couchDBConfig *couchdb.Config) *StoreEnv {
+func NewTestStoreEnv(t *testing.T, ledgerid string, btlPolicy pvtdatapolicy.BTLPolicy, couchDBConfig *ledger.CouchDBConfig) *StoreEnv {
 	removeStorePath()
 	req := require.New(t)
 	conf := testutil.TestPrivateDataConf()
@@ -70,7 +72,6 @@ func (env *StoreEnv) Cleanup(ledgerid string) {
 	if _, err := db.DropDatabase(); err != nil {
 		panic(err.Error())
 	}
-	env.TestStore.Shutdown()
 
 	removeStorePath()
 }

@@ -17,10 +17,11 @@ import (
 	"github.com/hyperledger/fabric/common/metrics/disabled"
 	coreconfig "github.com/hyperledger/fabric/core/config"
 	"github.com/hyperledger/fabric/core/ledger"
+	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
-	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/hyperledger/fabric/integration/runner"
 	viper "github.com/spf13/viper2015"
+
 	clientmocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/client/mocks"
 	olretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/mocks"
 	storemocks "github.com/trustbloc/fabric-peer-ext/pkg/collections/storeprovider/mocks"
@@ -34,7 +35,7 @@ import (
 var logger = flogging.MustGetLogger("testutil")
 
 //SetupExtTestEnv creates new couchdb instance for test
-//returns couchdbd address, cleanup and stop function handle.
+//returns couchdb address, cleanup and stop function handle.
 func SetupExtTestEnv() (addr string, cleanup func(string), stop func()) {
 	externalCouch, set := os.LookupEnv("COUCHDB_ADDR")
 	if set {
@@ -42,7 +43,7 @@ func SetupExtTestEnv() (addr string, cleanup func(string), stop func()) {
 	}
 
 	couchDB := &runner.CouchDB{}
-	couchDB.Image = "couchdb:2.3"
+
 	if err := couchDB.Start(); err != nil {
 		panic(fmt.Errorf("failed to start couchDB: %s", err))
 	}
@@ -131,8 +132,8 @@ func updateConfig(couchAddress string) {
 	viper.Set("ledger.state.couchDBConfig.couchDBAddress", couchAddress)
 	// Replace with correct username/password such as
 	// admin/admin if user security is enabled on couchdb.
-	viper.Set("ledger.state.couchDBConfig.username", "")
-	viper.Set("ledger.state.couchDBConfig.password", "")
+	viper.Set("ledger.state.couchDBConfig.username", "admin")
+	viper.Set("ledger.state.couchDBConfig.password", "adminpw")
 	viper.Set("ledger.state.couchDBConfig.maxRetries", 1)
 	viper.Set("ledger.state.couchDBConfig.maxRetriesOnStartup", 1)
 	viper.Set("ledger.state.couchDBConfig.requestTimeout", time.Second*35)
@@ -162,7 +163,7 @@ func TestLedgerConf() *ledger.Config {
 		StateDBConfig: &ledger.StateDBConfig{
 			StateDatabase: viper.GetString("ledger.state.stateDatabase"),
 			//LevelDBPath:   filepath.Join(rootFSPath, "stateLeveldb"),
-			CouchDB: &couchdb.Config{},
+			CouchDB: &ledger.CouchDBConfig{},
 		},
 		PrivateDataConfig: &ledger.PrivateDataConfig{},
 		HistoryDBConfig: &ledger.HistoryDBConfig{
@@ -170,7 +171,7 @@ func TestLedgerConf() *ledger.Config {
 		},
 	}
 
-	conf.StateDBConfig.CouchDB = &couchdb.Config{
+	conf.StateDBConfig.CouchDB = &ledger.CouchDBConfig{
 		Address:                 viper.GetString("ledger.state.couchDBConfig.couchDBAddress"),
 		Username:                viper.GetString("ledger.state.couchDBConfig.username"),
 		Password:                viper.GetString("ledger.state.couchDBConfig.password"),
