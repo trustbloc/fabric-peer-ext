@@ -215,6 +215,16 @@ func (m *QueryExecutor) GetPrivateDataMetadata(namespace, collection, key string
 	panic("not implemented")
 }
 
+// GetStateRangeScanIteratorWithPagination is not currently implemented and will panic if called
+func (m *QueryExecutor) GetStateRangeScanIteratorWithPagination(namespace string, startKey, endKey string, pageSize int32) (ledger.QueryResultsIterator, error) {
+	panic("not implemented")
+}
+
+// ExecuteQueryWithPagination is not currently implemented and will panic if called
+func (m *QueryExecutor) ExecuteQueryWithPagination(namespace, query, bookmark string, pageSize int32) (ledger.QueryResultsIterator, error) {
+	panic("not implemented")
+}
+
 func privateNamespace(namespace, collection string) string {
 	return namespace + "$" + collection
 }

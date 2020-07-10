@@ -7,111 +7,50 @@ SPDX-License-Identifier: Apache-2.0
 package couchdb
 
 import (
-	"os"
 	"testing"
 
+	storageapi "github.com/hyperledger/fabric/extensions/storage/api"
+	"github.com/hyperledger/fabric/extensions/storage/couchdb/mocks"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
-
-	"github.com/hyperledger/fabric/common/metrics/disabled"
-	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
-	xtestutil "github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
 
-var cdbInstance *couchdb.CouchInstance
+//go:generate counterfeiter -o ./mocks/couchdbprovider.gen.go --fake-name CouchDBProvider . couchDBProvider
+//go:generate counterfeiter -o ./mocks/couchdatabase.gen.go --fake-name CouchDatabase ../api CouchDatabase
 
-func TestMain(m *testing.M) {
+var _ = roles.GetRoles()
 
-	//setup extension test environment
-	_, _, destroy := xtestutil.SetupExtTestEnv()
+func TestHandler(t *testing.T) {
+	defaultDB := &mocks.CouchDatabase{}
+	extDB := &mocks.CouchDatabase{}
 
-	couchDBConfig := xtestutil.TestLedgerConf().StateDBConfig.CouchDB
-	var err error
-	cdbInstance, err = couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
-	if err != nil {
-		panic(err.Error())
+	cdbProvider := &mocks.CouchDBProvider{}
+	cdbProvider.CreateCouchDBReturns(extDB, nil)
+
+	h := NewHandler(cdbProvider)
+	require.NotNil(t, h)
+	require.NotNil(t, handler)
+
+	defaultHandler := func(couchInstance storageapi.CouchInstance, dbName string) (storageapi.CouchDatabase, error) {
+		return defaultDB, nil
 	}
 
-	code := m.Run()
+	t.Run("As committer", func(t *testing.T) {
+		createDB := HandleCreateCouchDatabase(defaultHandler)
+		require.NotNil(t, createDB)
+		db, err := createDB(nil, "")
+		require.NoError(t, err)
+		require.True(t, db == defaultDB)
+	})
 
-	destroy()
+	t.Run("As non-committer", func(t *testing.T) {
+		roles.SetRoles(map[roles.Role]struct{}{"endorser": {}})
+		defer roles.SetRoles(nil)
 
-	os.Exit(code)
-}
-
-func TestCreateCouchDatabaseHandleByCommitter(t *testing.T) {
-
-	sampleDB := &couchdb.CouchDatabase{DBName: "sample-test-run-db"}
-	handle := func(couchInstance *couchdb.CouchInstance, dbName string) (*couchdb.CouchDatabase, error) {
-		return sampleDB, nil
-	}
-
-	//make sure roles is committer not endorser
-	if roles.IsEndorser() {
-		rolesValue := make(map[roles.Role]struct{})
-		rolesValue[roles.CommitterRole] = struct{}{}
-		roles.SetRoles(rolesValue)
-		defer func() { roles.SetRoles(nil) }()
-	}
-	require.True(t, roles.IsCommitter())
-	require.False(t, roles.IsEndorser())
-
-	db, err := HandleCreateCouchDatabase(handle)(nil, "")
-	require.Equal(t, sampleDB, db)
-	require.NoError(t, err)
-
-}
-
-func TestCreateCouchDatabaseByCommitter(t *testing.T) {
-
-	const dbName = "sampledb-test-c"
-
-	//make sure roles is committer not endorser
-	if roles.IsEndorser() {
-		rolesValue := make(map[roles.Role]struct{})
-		rolesValue[roles.CommitterRole] = struct{}{}
-		roles.SetRoles(rolesValue)
-		defer func() { roles.SetRoles(nil) }()
-	}
-	require.True(t, roles.IsCommitter())
-	require.False(t, roles.IsEndorser())
-
-	db, err := HandleCreateCouchDatabase(couchdb.CreateCouchDatabase)(cdbInstance, dbName)
-	require.NoError(t, err)
-	require.NotNil(t, db)
-	require.Equal(t, dbName, db.DBName)
-
-}
-
-func TestCreateCouchDatabaseByEndorser(t *testing.T) {
-
-	const dbName = "sampledb-test-e"
-
-	//make sure roles is committer not endorser
-	if roles.IsCommitter() {
-		rolesValue := make(map[roles.Role]struct{})
-		rolesValue[roles.EndorserRole] = struct{}{}
-		roles.SetRoles(rolesValue)
-		defer func() { roles.SetRoles(nil) }()
-	}
-	require.False(t, roles.IsCommitter())
-	require.True(t, roles.IsEndorser())
-
-	//for non committer, db is returned only if it already exists
-	db, err := HandleCreateCouchDatabase(couchdb.CreateCouchDatabase)(cdbInstance, dbName)
-	require.Error(t, err)
-	require.Nil(t, db)
-	require.Contains(t, err.Error(), "DB not found")
-
-	//create db manually
-	db, err = couchdb.CreateCouchDatabase(cdbInstance, dbName)
-	require.NoError(t, err)
-	require.NotNil(t, db)
-
-	//now try again when couchdb with given db name already exists
-	edb, err := HandleCreateCouchDatabase(couchdb.CreateCouchDatabase)(cdbInstance, dbName)
-	require.NoError(t, err)
-	require.NotNil(t, db)
-	require.Equal(t, db, edb)
-
+		createDB := HandleCreateCouchDatabase(defaultHandler)
+		require.NotNil(t, createDB)
+		db, err := createDB(nil, "")
+		require.NoError(t, err)
+		require.True(t, db == extDB)
+	})
 }

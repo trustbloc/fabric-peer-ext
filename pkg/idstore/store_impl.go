@@ -16,8 +16,9 @@ import (
 	"github.com/hyperledger/fabric/common/metrics/disabled"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/msgs"
-	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/pkg/errors"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
@@ -267,7 +268,7 @@ func (s *Store) UpdateLedgerStatus(ledgerID string, newStatus msgs.Status) error
 // GetFormat returns the format of the database
 func (s *Store) GetFormat() ([]byte, error) {
 	// TODO: Should read format from meta data. For now return a hard-coded format.
-	return []byte(dataformat.Version20), nil
+	return []byte(dataformat.CurrentFormat), nil
 }
 
 // UpgradeFormat upgrades the database format
@@ -309,4 +310,44 @@ func (s *Store) GetGenesisBlock(ledgerID string) (*common.Block, error) {
 
 //Close the store
 func (s *Store) Close() {
+}
+
+// CheckUpgradeEligibility checks if the format is eligible to upgrade.
+// It returns true if the format is eligible to upgrade to the current format.
+// It returns false if either the format is the current format or the db is empty.
+// Otherwise, an ErrFormatMismatch is returned.
+func (s *Store) CheckUpgradeEligibility() (bool, error) {
+	panic("not implemented")
+}
+
+// Get is used only for testing
+func (s *Store) Get(key []byte) ([]byte, error) {
+	doc, _, err := s.db.ReadDoc(string(key))
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range doc.Attachments {
+		if v.Name == blockAttachmentName {
+			return v.AttachmentBytes, nil
+		}
+	}
+	return nil, nil
+}
+
+// Put is used only for testing
+func (s *Store) Put(key, value []byte) error {
+	jsonMap := make(jsonValue)
+
+	jsonMap[idField] = key
+
+	jsonBytes, err := jsonMap.toBytes()
+	if err != nil {
+		return err
+	}
+
+	rev, err := s.db.SaveDoc(string(key), s.couchMetadataRev, &couchdb.CouchDoc{JSONValue: jsonBytes})
+
+	s.couchMetadataRev = rev
+
+	return err
 }

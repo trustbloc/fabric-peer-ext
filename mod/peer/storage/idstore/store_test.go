@@ -17,7 +17,7 @@ func TestOpenIDStore(t *testing.T) {
 	_, _, destroy := testutil.SetupExtTestEnv()
 	defer destroy()
 
-	s, err := OpenIDStore("", testutil.TestLedgerConf())
+	s, err := OpenIDStore("", testutil.TestLedgerConf(), nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, s)
 }

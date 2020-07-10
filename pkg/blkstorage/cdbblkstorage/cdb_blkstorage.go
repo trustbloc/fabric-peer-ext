@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/hyperledger/fabric/common/ledger/snapshot"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 
 	"github.com/hyperledger/fabric/protoutil"
@@ -22,7 +23,7 @@ import (
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/ledger"
 	"github.com/hyperledger/fabric/common/ledger/blkstorage"
-	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/pkg/errors"
 )
 
@@ -356,6 +357,14 @@ func (s *cdbBlockStore) RetrieveTxValidationCodeByTxID(txID string) (peer.TxVali
 	}
 
 	return peer.TxValidationCode(txnValidationCode), nil
+}
+
+// ExportTxIds creates two files in the specified dir and returns a map that contains
+// the mapping between the names of the files and their hashes.
+// Technically, the TxIDs appear in the sort order of radix-sort/shortlex. However,
+// since practically all the TxIDs are of same length, so the sort order would be the lexical sort order
+func (s *cdbBlockStore) ExportTxIds(dir string, newHashFunc snapshot.NewHashFunc) (map[string][]byte, error) {
+	panic("not implemented")
 }
 
 // Shutdown closes the storage instance

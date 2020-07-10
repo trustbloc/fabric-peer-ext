@@ -10,7 +10,8 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
 	"github.com/hyperledger/fabric/core/ledger"
-	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/version"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/version"
 )
 
 // todo add pinning script to include copied code into this file, original file from fabric is found in fabric/core/ledger/pvtdatastorage/v11.go

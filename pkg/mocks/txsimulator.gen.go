@@ -81,19 +81,19 @@ type TxSimulator struct {
 		result1 [][]byte
 		result2 error
 	}
-	GetStateRangeScanIteratorWithMetadataStub        func(namespace string, startKey, endKey string, metadata map[string]interface{}) (ledger.QueryResultsIterator, error)
-	getStateRangeScanIteratorWithMetadataMutex       sync.RWMutex
-	getStateRangeScanIteratorWithMetadataArgsForCall []struct {
+	GetStateRangeScanIteratorWithPaginationStub        func(namespace string, startKey, endKey string, pageSize int32) (ledger.QueryResultsIterator, error)
+	getStateRangeScanIteratorWithPaginationMutex       sync.RWMutex
+	getStateRangeScanIteratorWithPaginationArgsForCall []struct {
 		namespace string
 		startKey  string
 		endKey    string
-		metadata  map[string]interface{}
+		pageSize  int32
 	}
-	getStateRangeScanIteratorWithMetadataReturns struct {
+	getStateRangeScanIteratorWithPaginationReturns struct {
 		result1 ledger.QueryResultsIterator
 		result2 error
 	}
-	getStateRangeScanIteratorWithMetadataReturnsOnCall map[int]struct {
+	getStateRangeScanIteratorWithPaginationReturnsOnCall map[int]struct {
 		result1 ledger.QueryResultsIterator
 		result2 error
 	}
@@ -111,18 +111,19 @@ type TxSimulator struct {
 		result1 commonledger.ResultsIterator
 		result2 error
 	}
-	ExecuteQueryWithMetadataStub        func(namespace, query string, metadata map[string]interface{}) (ledger.QueryResultsIterator, error)
-	executeQueryWithMetadataMutex       sync.RWMutex
-	executeQueryWithMetadataArgsForCall []struct {
+	ExecuteQueryWithPaginationStub        func(namespace, query, bookmark string, pageSize int32) (ledger.QueryResultsIterator, error)
+	executeQueryWithPaginationMutex       sync.RWMutex
+	executeQueryWithPaginationArgsForCall []struct {
 		namespace string
 		query     string
-		metadata  map[string]interface{}
+		bookmark  string
+		pageSize  int32
 	}
-	executeQueryWithMetadataReturns struct {
+	executeQueryWithPaginationReturns struct {
 		result1 ledger.QueryResultsIterator
 		result2 error
 	}
-	executeQueryWithMetadataReturnsOnCall map[int]struct {
+	executeQueryWithPaginationReturnsOnCall map[int]struct {
 		result1 ledger.QueryResultsIterator
 		result2 error
 	}
@@ -642,55 +643,55 @@ func (fake *TxSimulator) GetStateMultipleKeysReturnsOnCall(i int, result1 [][]by
 	}{result1, result2}
 }
 
-func (fake *TxSimulator) GetStateRangeScanIteratorWithMetadata(namespace string, startKey string, endKey string, metadata map[string]interface{}) (ledger.QueryResultsIterator, error) {
-	fake.getStateRangeScanIteratorWithMetadataMutex.Lock()
-	ret, specificReturn := fake.getStateRangeScanIteratorWithMetadataReturnsOnCall[len(fake.getStateRangeScanIteratorWithMetadataArgsForCall)]
-	fake.getStateRangeScanIteratorWithMetadataArgsForCall = append(fake.getStateRangeScanIteratorWithMetadataArgsForCall, struct {
+func (fake *TxSimulator) GetStateRangeScanIteratorWithPagination(namespace string, startKey string, endKey string, pageSize int32) (ledger.QueryResultsIterator, error) {
+	fake.getStateRangeScanIteratorWithPaginationMutex.Lock()
+	ret, specificReturn := fake.getStateRangeScanIteratorWithPaginationReturnsOnCall[len(fake.getStateRangeScanIteratorWithPaginationArgsForCall)]
+	fake.getStateRangeScanIteratorWithPaginationArgsForCall = append(fake.getStateRangeScanIteratorWithPaginationArgsForCall, struct {
 		namespace string
 		startKey  string
 		endKey    string
-		metadata  map[string]interface{}
-	}{namespace, startKey, endKey, metadata})
-	fake.recordInvocation("GetStateRangeScanIteratorWithMetadata", []interface{}{namespace, startKey, endKey, metadata})
-	fake.getStateRangeScanIteratorWithMetadataMutex.Unlock()
-	if fake.GetStateRangeScanIteratorWithMetadataStub != nil {
-		return fake.GetStateRangeScanIteratorWithMetadataStub(namespace, startKey, endKey, metadata)
+		pageSize  int32
+	}{namespace, startKey, endKey, pageSize})
+	fake.recordInvocation("GetStateRangeScanIteratorWithPagination", []interface{}{namespace, startKey, endKey, pageSize})
+	fake.getStateRangeScanIteratorWithPaginationMutex.Unlock()
+	if fake.GetStateRangeScanIteratorWithPaginationStub != nil {
+		return fake.GetStateRangeScanIteratorWithPaginationStub(namespace, startKey, endKey, pageSize)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.getStateRangeScanIteratorWithMetadataReturns.result1, fake.getStateRangeScanIteratorWithMetadataReturns.result2
+	return fake.getStateRangeScanIteratorWithPaginationReturns.result1, fake.getStateRangeScanIteratorWithPaginationReturns.result2
 }
 
-func (fake *TxSimulator) GetStateRangeScanIteratorWithMetadataCallCount() int {
-	fake.getStateRangeScanIteratorWithMetadataMutex.RLock()
-	defer fake.getStateRangeScanIteratorWithMetadataMutex.RUnlock()
-	return len(fake.getStateRangeScanIteratorWithMetadataArgsForCall)
+func (fake *TxSimulator) GetStateRangeScanIteratorWithPaginationCallCount() int {
+	fake.getStateRangeScanIteratorWithPaginationMutex.RLock()
+	defer fake.getStateRangeScanIteratorWithPaginationMutex.RUnlock()
+	return len(fake.getStateRangeScanIteratorWithPaginationArgsForCall)
 }
 
-func (fake *TxSimulator) GetStateRangeScanIteratorWithMetadataArgsForCall(i int) (string, string, string, map[string]interface{}) {
-	fake.getStateRangeScanIteratorWithMetadataMutex.RLock()
-	defer fake.getStateRangeScanIteratorWithMetadataMutex.RUnlock()
-	return fake.getStateRangeScanIteratorWithMetadataArgsForCall[i].namespace, fake.getStateRangeScanIteratorWithMetadataArgsForCall[i].startKey, fake.getStateRangeScanIteratorWithMetadataArgsForCall[i].endKey, fake.getStateRangeScanIteratorWithMetadataArgsForCall[i].metadata
+func (fake *TxSimulator) GetStateRangeScanIteratorWithPaginationArgsForCall(i int) (string, string, string, int32) {
+	fake.getStateRangeScanIteratorWithPaginationMutex.RLock()
+	defer fake.getStateRangeScanIteratorWithPaginationMutex.RUnlock()
+	return fake.getStateRangeScanIteratorWithPaginationArgsForCall[i].namespace, fake.getStateRangeScanIteratorWithPaginationArgsForCall[i].startKey, fake.getStateRangeScanIteratorWithPaginationArgsForCall[i].endKey, fake.getStateRangeScanIteratorWithPaginationArgsForCall[i].pageSize
 }
 
-func (fake *TxSimulator) GetStateRangeScanIteratorWithMetadataReturns(result1 ledger.QueryResultsIterator, result2 error) {
-	fake.GetStateRangeScanIteratorWithMetadataStub = nil
-	fake.getStateRangeScanIteratorWithMetadataReturns = struct {
+func (fake *TxSimulator) GetStateRangeScanIteratorWithPaginationReturns(result1 ledger.QueryResultsIterator, result2 error) {
+	fake.GetStateRangeScanIteratorWithPaginationStub = nil
+	fake.getStateRangeScanIteratorWithPaginationReturns = struct {
 		result1 ledger.QueryResultsIterator
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *TxSimulator) GetStateRangeScanIteratorWithMetadataReturnsOnCall(i int, result1 ledger.QueryResultsIterator, result2 error) {
-	fake.GetStateRangeScanIteratorWithMetadataStub = nil
-	if fake.getStateRangeScanIteratorWithMetadataReturnsOnCall == nil {
-		fake.getStateRangeScanIteratorWithMetadataReturnsOnCall = make(map[int]struct {
+func (fake *TxSimulator) GetStateRangeScanIteratorWithPaginationReturnsOnCall(i int, result1 ledger.QueryResultsIterator, result2 error) {
+	fake.GetStateRangeScanIteratorWithPaginationStub = nil
+	if fake.getStateRangeScanIteratorWithPaginationReturnsOnCall == nil {
+		fake.getStateRangeScanIteratorWithPaginationReturnsOnCall = make(map[int]struct {
 			result1 ledger.QueryResultsIterator
 			result2 error
 		})
 	}
-	fake.getStateRangeScanIteratorWithMetadataReturnsOnCall[i] = struct {
+	fake.getStateRangeScanIteratorWithPaginationReturnsOnCall[i] = struct {
 		result1 ledger.QueryResultsIterator
 		result2 error
 	}{result1, result2}
@@ -748,54 +749,55 @@ func (fake *TxSimulator) ExecuteQueryReturnsOnCall(i int, result1 commonledger.R
 	}{result1, result2}
 }
 
-func (fake *TxSimulator) ExecuteQueryWithMetadata(namespace string, query string, metadata map[string]interface{}) (ledger.QueryResultsIterator, error) {
-	fake.executeQueryWithMetadataMutex.Lock()
-	ret, specificReturn := fake.executeQueryWithMetadataReturnsOnCall[len(fake.executeQueryWithMetadataArgsForCall)]
-	fake.executeQueryWithMetadataArgsForCall = append(fake.executeQueryWithMetadataArgsForCall, struct {
+func (fake *TxSimulator) ExecuteQueryWithPagination(namespace string, query string, bookmark string, pageSize int32) (ledger.QueryResultsIterator, error) {
+	fake.executeQueryWithPaginationMutex.Lock()
+	ret, specificReturn := fake.executeQueryWithPaginationReturnsOnCall[len(fake.executeQueryWithPaginationArgsForCall)]
+	fake.executeQueryWithPaginationArgsForCall = append(fake.executeQueryWithPaginationArgsForCall, struct {
 		namespace string
 		query     string
-		metadata  map[string]interface{}
-	}{namespace, query, metadata})
-	fake.recordInvocation("ExecuteQueryWithMetadata", []interface{}{namespace, query, metadata})
-	fake.executeQueryWithMetadataMutex.Unlock()
-	if fake.ExecuteQueryWithMetadataStub != nil {
-		return fake.ExecuteQueryWithMetadataStub(namespace, query, metadata)
+		bookmark  string
+		pageSize  int32
+	}{namespace, query, bookmark, pageSize})
+	fake.recordInvocation("ExecuteQueryWithPagination", []interface{}{namespace, query, bookmark, pageSize})
+	fake.executeQueryWithPaginationMutex.Unlock()
+	if fake.ExecuteQueryWithPaginationStub != nil {
+		return fake.ExecuteQueryWithPaginationStub(namespace, query, bookmark, pageSize)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.executeQueryWithMetadataReturns.result1, fake.executeQueryWithMetadataReturns.result2
+	return fake.executeQueryWithPaginationReturns.result1, fake.executeQueryWithPaginationReturns.result2
 }
 
-func (fake *TxSimulator) ExecuteQueryWithMetadataCallCount() int {
-	fake.executeQueryWithMetadataMutex.RLock()
-	defer fake.executeQueryWithMetadataMutex.RUnlock()
-	return len(fake.executeQueryWithMetadataArgsForCall)
+func (fake *TxSimulator) ExecuteQueryWithPaginationCallCount() int {
+	fake.executeQueryWithPaginationMutex.RLock()
+	defer fake.executeQueryWithPaginationMutex.RUnlock()
+	return len(fake.executeQueryWithPaginationArgsForCall)
 }
 
-func (fake *TxSimulator) ExecuteQueryWithMetadataArgsForCall(i int) (string, string, map[string]interface{}) {
-	fake.executeQueryWithMetadataMutex.RLock()
-	defer fake.executeQueryWithMetadataMutex.RUnlock()
-	return fake.executeQueryWithMetadataArgsForCall[i].namespace, fake.executeQueryWithMetadataArgsForCall[i].query, fake.executeQueryWithMetadataArgsForCall[i].metadata
+func (fake *TxSimulator) ExecuteQueryWithPaginationArgsForCall(i int) (string, string, string, int32) {
+	fake.executeQueryWithPaginationMutex.RLock()
+	defer fake.executeQueryWithPaginationMutex.RUnlock()
+	return fake.executeQueryWithPaginationArgsForCall[i].namespace, fake.executeQueryWithPaginationArgsForCall[i].query, fake.executeQueryWithPaginationArgsForCall[i].bookmark, fake.executeQueryWithPaginationArgsForCall[i].pageSize
 }
 
-func (fake *TxSimulator) ExecuteQueryWithMetadataReturns(result1 ledger.QueryResultsIterator, result2 error) {
-	fake.ExecuteQueryWithMetadataStub = nil
-	fake.executeQueryWithMetadataReturns = struct {
+func (fake *TxSimulator) ExecuteQueryWithPaginationReturns(result1 ledger.QueryResultsIterator, result2 error) {
+	fake.ExecuteQueryWithPaginationStub = nil
+	fake.executeQueryWithPaginationReturns = struct {
 		result1 ledger.QueryResultsIterator
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *TxSimulator) ExecuteQueryWithMetadataReturnsOnCall(i int, result1 ledger.QueryResultsIterator, result2 error) {
-	fake.ExecuteQueryWithMetadataStub = nil
-	if fake.executeQueryWithMetadataReturnsOnCall == nil {
-		fake.executeQueryWithMetadataReturnsOnCall = make(map[int]struct {
+func (fake *TxSimulator) ExecuteQueryWithPaginationReturnsOnCall(i int, result1 ledger.QueryResultsIterator, result2 error) {
+	fake.ExecuteQueryWithPaginationStub = nil
+	if fake.executeQueryWithPaginationReturnsOnCall == nil {
+		fake.executeQueryWithPaginationReturnsOnCall = make(map[int]struct {
 			result1 ledger.QueryResultsIterator
 			result2 error
 		})
 	}
-	fake.executeQueryWithMetadataReturnsOnCall[i] = struct {
+	fake.executeQueryWithPaginationReturnsOnCall[i] = struct {
 		result1 ledger.QueryResultsIterator
 		result2 error
 	}{result1, result2}
@@ -1759,12 +1761,12 @@ func (fake *TxSimulator) Invocations() map[string][][]interface{} {
 	defer fake.getStateMetadataMutex.RUnlock()
 	fake.getStateMultipleKeysMutex.RLock()
 	defer fake.getStateMultipleKeysMutex.RUnlock()
-	fake.getStateRangeScanIteratorWithMetadataMutex.RLock()
-	defer fake.getStateRangeScanIteratorWithMetadataMutex.RUnlock()
+	fake.getStateRangeScanIteratorWithPaginationMutex.RLock()
+	defer fake.getStateRangeScanIteratorWithPaginationMutex.RUnlock()
 	fake.executeQueryMutex.RLock()
 	defer fake.executeQueryMutex.RUnlock()
-	fake.executeQueryWithMetadataMutex.RLock()
-	defer fake.executeQueryWithMetadataMutex.RUnlock()
+	fake.executeQueryWithPaginationMutex.RLock()
+	defer fake.executeQueryWithPaginationMutex.RUnlock()
 	fake.getPrivateDataMutex.RLock()
 	defer fake.getPrivateDataMutex.RUnlock()
 	fake.getPrivateDataMetadataMutex.RLock()

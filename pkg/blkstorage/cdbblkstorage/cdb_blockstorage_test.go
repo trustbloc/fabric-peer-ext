@@ -8,6 +8,7 @@ package cdbblkstorage
 
 import (
 	"errors"
+	"hash"
 	"testing"
 
 	"github.com/hyperledger/fabric/common/ledger/testutil"
@@ -22,7 +23,7 @@ func TestWrongBlockNumber(t *testing.T) {
 	defer env.Cleanup()
 
 	provider := env.provider
-	store, _ := provider.OpenBlockStore("testLedger-1")
+	store, _ := provider.Open("testLedger-1")
 	defer store.Shutdown()
 
 	blocks := testutil.ConstructTestBlocks(t, 5)
@@ -39,7 +40,7 @@ func TestCheckpointBlock(t *testing.T) {
 	defer env.Cleanup()
 
 	provider := env.provider
-	store, _ := provider.OpenBlockStore("testLedger-2")
+	store, _ := provider.Open("testLedger-2")
 	defer store.Shutdown()
 
 	blocks := testutil.ConstructTestBlocks(t, 1)
@@ -54,7 +55,7 @@ func TestCheckpointBlockFailure(t *testing.T) {
 	defer env.Cleanup()
 
 	provider := env.provider
-	store, _ := provider.OpenBlockStore("testLedger-2")
+	store, _ := provider.Open("testLedger-2")
 	defer store.Shutdown()
 
 	blocks := testutil.ConstructTestBlocks(t, 1)
@@ -65,4 +66,20 @@ func TestCheckpointBlockFailure(t *testing.T) {
 	store.(*cdbBlockStore).cp.db = db
 	err := store.CheckpointBlock(blocks[0])
 	require.Error(t, err, "adding cpInfo to couchDB failed")
+}
+
+// Tests must be created for the following once the functions are implemented
+func TestStoreUnimplemented(t *testing.T) {
+	env := newTestEnv(t)
+	defer env.Cleanup()
+
+	provider := env.provider
+	store, _ := provider.Open("testLedger-2")
+	defer store.Shutdown()
+
+	require.PanicsWithValue(t, "not implemented", func() {
+		store.ExportTxIds("", func() (hash.Hash, error) {
+			return nil, nil
+		})
+	})
 }

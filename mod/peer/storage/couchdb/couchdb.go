@@ -8,40 +8,45 @@ package couchdb
 
 import (
 	"github.com/hyperledger/fabric/common/flogging"
-	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/hyperledger/fabric/extensions/roles"
-	"github.com/pkg/errors"
+	storageapi "github.com/hyperledger/fabric/extensions/storage/api"
 )
 
-var logger = flogging.MustGetLogger("extension-couchdb")
+var logger = flogging.MustGetLogger("ext_couchdb")
 
-//CreateCouchDatabase is a handle function type for create couch db
-type CreateCouchDatabase func(couchInstance *couchdb.CouchInstance, dbName string) (*couchdb.CouchDatabase, error)
+var handler *Handler
 
-//HandleCreateCouchDatabase can be used to extend create couch db feature
-func HandleCreateCouchDatabase(handle CreateCouchDatabase) CreateCouchDatabase {
-	if roles.IsCommitter() {
-		return handle
-	}
-	logger.Debugf("Not a committer, getting couchdb instance of existing db")
-	return createCouchDatabase
+// Handler is responsible for creating a CouchDB. If the peer has the committer role
+// then it simply defers to the default handler, otherwise it creates a client that connects
+// to an existing CouchDB.
+type Handler struct {
+	provider readOnlyCouchDBProvider
 }
 
-//createCouchDatabase returns db instance of existing db with given name
-func createCouchDatabase(couchInstance *couchdb.CouchInstance, dbName string) (*couchdb.CouchDatabase, error) {
-	db, err := couchdb.NewCouchDatabase(couchInstance, dbName)
-	if err != nil {
-		return nil, err
+type readOnlyCouchDBProvider interface {
+	ConnectToCouchDB(ci storageapi.CouchInstance, dbName string) (storageapi.CouchDatabase, error)
+}
+
+// NewHandler returns a new Handler
+func NewHandler(couchDBProvider readOnlyCouchDBProvider) *Handler {
+	logger.Info("Creating CouchDB handler")
+
+	handler = &Handler{provider: couchDBProvider}
+
+	return handler
+}
+
+// CreateCouchDatabase is a handle function type for create couch db
+type CreateCouchDatabase func(couchInstance storageapi.CouchInstance, dbName string) (storageapi.CouchDatabase, error)
+
+// HandleCreateCouchDatabase can be used to extend create couch db feature
+func HandleCreateCouchDatabase(handle CreateCouchDatabase) CreateCouchDatabase {
+	if roles.IsCommitter() {
+		logger.Info("This peer is a committer. Returning default handler")
+		return handle
 	}
 
-	dbExists, err := db.ExistsWithRetry()
-	if err != nil {
-		return nil, err
-	}
+	logger.Infof("Not a committer, getting couchdb handler of existing db")
 
-	if !dbExists {
-		return nil, errors.Errorf("DB not found: [%s]", db.DBName)
-	}
-
-	return db, nil
+	return handler.provider.ConnectToCouchDB
 }

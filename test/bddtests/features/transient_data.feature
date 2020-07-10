@@ -17,10 +17,13 @@ Feature:
     And transient collection config "tdata_coll2" is defined for collection "collection2" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=10m
     And collection config "coll3" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and blocksToLive=1000
 
+    # Wait for channel membership to be Gossip'ed to all other peers.
+    Then we wait 10 seconds
+
     # Start out with a chaincode that just has one static collection
     And "test" chaincode "tdata_examplecc" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "coll3"
 
-    # We need to wait a while so that all of the peers' channel membership is Gossip'ed to all other peers.
+    # Wait for instantiated chaincodes to be Gossip'ed to all other peers.
     Then we wait 20 seconds
 
     # Prove that the transient data collection1 is not there

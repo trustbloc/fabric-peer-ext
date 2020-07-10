@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/hyperledger/fabric/core/ledger"
-	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
 	"github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
 
@@ -19,11 +18,11 @@ type StoreEnv struct {
 	t             testing.TB
 	TestStore     *Store
 	ledgerid      string
-	couchDBConfig *couchdb.Config
+	couchDBConfig *ledger.CouchDBConfig
 }
 
 // NewTestStoreEnv construct a StoreEnv for testing
-func NewTestStoreEnv(t *testing.T, ledgerid string, couchDBConfig *couchdb.Config) *StoreEnv {
+func NewTestStoreEnv(t *testing.T, ledgerid string, couchDBConfig *ledger.CouchDBConfig) *StoreEnv {
 	testStore, err := openIDStore(testutil.TestLedgerConf())
 	if err != nil {
 		panic(err.Error())

@@ -13,7 +13,8 @@ import (
 
 	"github.com/hyperledger/fabric/common/metrics/disabled"
 	coreconfig "github.com/hyperledger/fabric/core/config"
-	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	"github.com/hyperledger/fabric/core/ledger"
+	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	viper "github.com/spf13/viper2015"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
@@ -181,7 +182,7 @@ func dbName(channelID, ns, coll string) string {
 // CollectionDataStoreFactory(https://github.com/trustbloc/fabric-mod/blob/f195099d41db44623724131f2f487474707e84f2/core/peer/peer.go#L471).
 // More over this is using state couchdb configurations. Need to have configs specific to feature/functionality(blockstorage/offledger).
 // Created an issue https://github.com/trustbloc/fabric-peer-ext/issues/149. Also, added this as private function to avoid access from external packages.
-func getCouchDBConfig() *couchdb.Config {
+func getCouchDBConfig() *ledger.CouchDBConfig {
 	// set defaults
 	warmAfterNBlocks := 1
 	if viper.IsSet("ledger.state.couchDBConfig.warmIndexesAfterNBlocks") {
@@ -197,7 +198,7 @@ func getCouchDBConfig() *couchdb.Config {
 	}
 	rootFSPath := filepath.Join(coreconfig.GetPath("peer.fileSystemPath"), "ledgersData")
 
-	return &couchdb.Config{
+	return &ledger.CouchDBConfig{
 		Address:                 viper.GetString("ledger.state.couchDBConfig.couchDBAddress"),
 		Username:                viper.GetString("ledger.state.couchDBConfig.username"),
 		Password:                viper.GetString("ledger.state.couchDBConfig.password"),

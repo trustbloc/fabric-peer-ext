@@ -5,6 +5,8 @@
 module github.com/trustbloc/fabric-peer-ext/test/bddtests/fixtures/fabric/peer/cmd
 
 require (
+	github.com/Microsoft/hcsshim v0.8.9 // indirect
+	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/hyperledger/fabric v2.0.0+incompatible
 	github.com/hyperledger/fabric/extensions v0.0.0
 	github.com/prometheus/procfs v0.0.5 // indirect
@@ -13,7 +15,7 @@ require (
 	github.com/trustbloc/fabric-peer-ext v0.0.0
 )
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.4-0.20200629203602-cc9afeb43c24
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.4-0.20200710155719-162fb2a8b03f
 
 replace github.com/hyperledger/fabric/extensions => ../../../../../../mod/peer
 
@@ -23,4 +25,4 @@ replace github.com/spf13/viper2015 => github.com/spf13/viper v0.0.0-201509081224
 
 replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.1.4-0.20200626180529-18936b36feca
 
-go 1.13
+go 1.14

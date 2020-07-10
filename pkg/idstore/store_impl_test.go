@@ -17,14 +17,14 @@ import (
 	"github.com/hyperledger/fabric/common/ledger/dataformat"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/msgs"
-	"github.com/hyperledger/fabric/core/ledger/util/couchdb"
+	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/hyperledger/fabric/extensions/testutil"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 	xtestutil "github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
 
-var couchDBConfig *couchdb.Config
+var couchDBConfig *ledger.CouchDBConfig
 
 func TestMain(m *testing.M) {
 	//setup extension test environment
@@ -83,10 +83,9 @@ func TestNewCommitterStore(t *testing.T) {
 
 func TestCreateCouchInstance(t *testing.T) {
 	t.Run("test error from CreateCouchInstance", func(t *testing.T) {
-		_, err := createCouchInstance(&ledger.Config{StateDBConfig: &ledger.StateDBConfig{CouchDB: &couchdb.Config{}}})
+		_, err := createCouchInstance(&ledger.Config{StateDBConfig: &ledger.StateDBConfig{CouchDB: &ledger.CouchDBConfig{}}})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "obtaining CouchDB instance failed")
-
 	})
 }
 
@@ -367,7 +366,7 @@ func TestLedgerID(t *testing.T) {
 
 		f, err := store.GetFormat()
 		req.NoError(err)
-		req.Equal([]byte(dataformat.Version20), f)
+		req.Equal([]byte(dataformat.CurrentFormat), f)
 	})
 
 	t.Run("panic on unimplemented functions", func(t *testing.T) {

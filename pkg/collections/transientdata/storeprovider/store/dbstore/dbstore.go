@@ -27,7 +27,8 @@ type dbHandle interface {
 	Put(key []byte, value []byte, sync bool) error
 	Delete(key []byte, sync bool) error
 	WriteBatch(batch *leveldbhelper.UpdateBatch, sync bool) error
-	GetIterator(startKey []byte, endKey []byte) *leveldbhelper.Iterator
+	GetIterator(startKey []byte, endKey []byte) (*leveldbhelper.Iterator, error)
+	NewUpdateBatch() *leveldbhelper.UpdateBatch
 }
 
 // DBStore holds the db handle and the db name
@@ -83,19 +84,26 @@ func (s *DBStore) GetKey(key api.Key) (*api.Value, error) {
 
 // DeleteExpiredKeys delete expired keys from db
 func (s *DBStore) DeleteExpiredKeys() error {
-	dbBatch := leveldbhelper.NewUpdateBatch()
-	itr := s.db.GetIterator(nil, []byte(fmt.Sprintf("%d%s", time.Now().UTC().UnixNano(), compositeKeySep)))
+	dbBatch := s.db.NewUpdateBatch()
+	itr, err := s.db.GetIterator(nil, []byte(fmt.Sprintf("%d%s", time.Now().UTC().UnixNano(), compositeKeySep)))
+	if err != nil {
+		return err
+	}
+
+	var keys []string
 	for itr.Next() {
 		key := string(itr.Key())
+		keys = append(keys, key)
+
 		dbBatch.Delete([]byte(key))
 		dbBatch.Delete([]byte(key[strings.Index(key, compositeKeySep)+1:]))
 	}
 	if dbBatch.Len() > 0 {
 		err := s.db.WriteBatch(dbBatch, true)
 		if err != nil {
-			return errors.Errorf("failed to delete transient data keys %s in db %s", dbBatch.KVs, err.Error())
+			return errors.Errorf("failed to delete transient data keys %s in db %s", keys, err.Error())
 		}
-		logger.Debugf("delete expired keys %s from db", dbBatch.KVs)
+		logger.Debugf("delete expired keys %s from db", keys)
 	}
 
 	return nil

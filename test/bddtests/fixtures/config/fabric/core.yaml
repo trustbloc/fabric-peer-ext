@@ -43,10 +43,6 @@ peer:
     # This case is useful for docker containers.
     addressAutoDetect: false
 
-    # Setting for runtime.GOMAXPROCS(n). If n < 1, it does not change the
-    # current setting
-    gomaxprocs: -1
-
     # Keepalive settings for peer server and clients
     keepalive:
         # Interval is the duration after which if the server does not see
@@ -204,6 +200,22 @@ peer:
             reconcileSleepInterval: 1m
             # reconciliationEnabled is a flag that indicates whether private data reconciliation is enable or not.
             reconciliationEnabled: true
+            # skipPullingInvalidTransactionsDuringCommit is a flag that indicates whether pulling of invalid
+            # transaction's private data from other peers need to be skipped during the commit time and pulled
+            # only through reconciler.
+            skipPullingInvalidTransactionsDuringCommit: false
+            # implicitCollectionDisseminationPolicy specifies the dissemination  policy for the peer's own implicit collection.
+            # When a peer endorses a proposal that writes to its own implicit collection, below values override the default values
+            # for disseminating private data.
+            # Note that it is applicable to all channels the peer has joined. The implication is that requiredPeerCount has to
+            # be smaller than the number of peers in a channel that has the lowest numbers of peers from the organization.
+            implicitCollectionDisseminationPolicy:
+                # requiredPeerCount defines the minimum number of eligible peers to which the peer must successfully
+                # disseminate private data for its own implicit collection during endorsement. Default value is 0.
+                requiredPeerCount: 0
+                # maxPeerCount defines the maximum number of eligible peers to which the peer will attempt to
+                # disseminate private data for its own implicit collection during endorsement. Default value is 1.
+                maxPeerCount: 1
 
         # Gossip state transfer related configuration
         state:
@@ -224,7 +236,7 @@ peer:
             # which captures blocks and takes care to deliver them in order
             # down to the ledger layer. The actually buffer size is bounded between
             # 0 and 2*blockBufferSize, each channel maintains its own buffer
-            blockBufferSize: 100
+            blockBufferSize: 20
             # maxRetries maximum number of re-tries to ask
             # for single state transfer request
             maxRetries: 3
@@ -297,8 +309,6 @@ peer:
             Pin:
             Hash:
             Security:
-            FileKeyStore:
-                KeyStore:
 
     # Path on the file system where peer will find MSP local configurations
     mspConfigPath: msp
@@ -329,6 +339,16 @@ peer:
         # It sets the delivery service maximal delay between consecutive retries
         reConnectBackoffThreshold: 3600s
 
+        # A list of orderer endpoint addresses which should be overridden
+        # when found in channel configurations.
+        addressOverrides:
+        #  - from:
+        #    to:
+        #    caCertsFile:
+        #  - from:
+        #    to:
+        #    caCertsFile:
+
     # Type for the local MSP - by default it's of type bccsp
     localMspType: bccsp
 
@@ -337,16 +357,6 @@ peer:
     profile:
         enabled:     false
         listenAddress: 0.0.0.0:6060
-
-    # The admin service is used for administrative operations such as
-    # control over logger levels, etc.
-    # Only peer administrators can use the service.
-    adminService:
-        # The interface and port on which the admin server will listen on.
-        # If this is commented out, or the port number is equal to the port
-        # of the peer listen address - the admin service is attached to the
-        # peer's service (defaults to 7051).
-        #listenAddress: 0.0.0.0:7055
 
     # Handlers defines custom handlers that can filter and mutate
     # objects passing within the peer, such as:
@@ -426,10 +436,15 @@ peer:
 
     # Limits is used to configure some internal resource limits.
     limits:
-      # Concurrency limits the number of concurrently running system chaincode requests.
-      # This option is only supported for qscc at this time.
-      concurrency:
-        qscc: 5000
+        # Concurrency limits the number of concurrently running requests to a service on each peer.
+        # Currently this option is only applied to endorser service and deliver service.
+        # When the property is missing or the value is 0, the concurrency limit is disabled for the service.
+        concurrency:
+            # endorserService limits concurrent requests to endorser service that handles chaincode deployment, query and invocation,
+            # including both user chaincodes and system chaincodes.
+            endorserService: 2500
+            # deliverService limits concurrent event listeners registered to deliver service for blocks and transaction events.
+            deliverService: 2500
 
 ###############################################################################
 #
@@ -473,7 +488,7 @@ vm:
         hostConfig:
             NetworkMode: host
             Dns:
-               # - 192.168.0.1
+            # - 192.168.0.1
             LogConfig:
                 Type: json-file
                 Config:
@@ -532,7 +547,7 @@ chaincode:
     installTimeout: 300s
 
     # Timeout duration for starting up a container and waiting for Register
-    # to come through. 1sec should be plenty for chaincode unit tests
+    # to come through.
     startuptimeout: 300s
 
     # Timeout duration for Invoke and Init calls to prevent runaway.
@@ -551,7 +566,7 @@ chaincode:
     # In net mode, peer will run chaincode in a docker container.
     mode: net
 
-    # keepalive in seconds. In situations where the communiction goes through a
+    # keepalive in seconds. In situations where the communication goes through a
     # proxy that does not support keep-alive, this parameter will maintain connection
     # between peer and chaincode.
     # A value <= 0 turns keepalive off
@@ -569,26 +584,14 @@ chaincode:
         qscc: enable
         testscc: enable
 
-    # System chaincode plugins:
-    # System chaincodes can be loaded as shared objects compiled as Go plugins.
-    # See examples/plugins/scc for an example.
-    # Plugins must be white listed in the chaincode.system section above.
-    systemPlugins:
-      # example configuration:
-      # - enabled: true
-      #   name: myscc
-      #   path: /opt/lib/myscc.so
-      #   invokableExternal: true
-      #   invokableCC2CC: true
-
     # Logging section for the chaincode container
     logging:
-      # Default level for all loggers within the chaincode container
-      level:  info
-      # Override default level for the 'shim' logger
-      shim:   warning
-      # Format for the chaincode container logs
-      format: '%{color}%{time:2006-01-02 15:04:05.000 MST} [%{module}] %{shortfunc} -> %{level:.4s} %{id:03x}%{color:reset} %{message}'
+        # Default level for all loggers within the chaincode container
+        level:  info
+        # Override default level for the 'shim' logger
+        shim:   warning
+        # Format for the chaincode container logs
+        format: '%{color}%{time:2006-01-02 15:04:05.000 MST} [%{module}] %{shortfunc} -> %{level:.4s} %{id:03x}%{color:reset} %{message}'
 
 ###############################################################################
 #
@@ -645,13 +648,18 @@ ledger:
        # This is optional.  Creating the global changes database will require
        # additional system resources to track changes and maintain the database
        createGlobalChangesDB: false
+       # CacheSize denotes the maximum mega bytes (MB) to be allocated for the in-memory state
+       # cache. Note that CacheSize needs to be a multiple of 32 MB. If it is not a multiple
+       # of 32 MB, the peer would round the size to the next multiple of 32 MB.
+       # To disable the cache, 0 MB needs to be assigned to the cacheSize.
+       cacheSize: 0
 
   history:
     # enableHistoryDatabase - options are true or false
     # Indicates if the history of key updates should be stored.
     # All history 'index' will be stored in goleveldb, regardless if using
     # CouchDB or alternate database for the state.
-    enableHistoryDatabase: true
+    enableHistoryDatabase: false
 
   pvtdataStore:
     # the maximum db batch size for converting

@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
-	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
+	xstorageapi "github.com/hyperledger/fabric/extensions/storage/api"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +18,7 @@ import (
 type StoreEnv struct {
 	t                 testing.TB
 	TestStoreProvider *Provider
-	TestStore         pvtdatastorage.Store
+	TestStore         xstorageapi.PrivateDataStore
 	ledgerid          string
 	btlPolicy         pvtdatapolicy.BTLPolicy
 }

@@ -25,7 +25,8 @@ import (
 type dbHandle interface {
 	Get(key []byte) ([]byte, error)
 	WriteBatch(batch *leveldbhelper.UpdateBatch, sync bool) error
-	GetIterator(startKey []byte, endKey []byte) *leveldbhelper.Iterator
+	GetIterator(startKey []byte, endKey []byte) (*leveldbhelper.Iterator, error)
+	NewUpdateBatch() *leveldbhelper.UpdateBatch
 }
 
 type DataEntry struct {
@@ -308,7 +309,7 @@ func GetLastUpdatedOldBlocksList(missingKeysIndexDB dbHandle) ([]uint64, error) 
 }
 
 func ResetLastUpdatedOldBlocksList(missingKeysIndexDB dbHandle) error {
-	batch := leveldbhelper.NewUpdateBatch()
+	batch := missingKeysIndexDB.NewUpdateBatch()
 	batch.Delete(LastUpdatedOldBlocksKey)
 	if err := missingKeysIndexDB.WriteBatch(batch, true); err != nil {
 		return err
@@ -334,7 +335,10 @@ func GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int, lastCommittedBlk uin
 	lastCommittedBlock := atomic.LoadUint64(&lastCommittedBlk)
 
 	startKey, endKey := createRangeScanKeysForEligibleMissingDataEntries(lastCommittedBlock)
-	dbItr := missingKeysIndexDB.GetIterator(startKey, endKey)
+	dbItr, err := missingKeysIndexDB.GetIterator(startKey, endKey)
+	if err != nil {
+		return nil, err
+	}
 	defer dbItr.Release()
 
 	for dbItr.Next() {
@@ -401,7 +405,7 @@ func ProcessCollsEligibilityEnabled(committingBlk uint64, nsCollMap map[string][
 	if err != nil {
 		return err
 	}
-	batch := leveldbhelper.NewUpdateBatch()
+	batch := missingKeysIndexDB.NewUpdateBatch()
 	batch.Put(key, val)
 	if err = missingKeysIndexDB.WriteBatch(batch, true); err != nil {
 		return err

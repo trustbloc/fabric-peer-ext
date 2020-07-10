@@ -67,7 +67,11 @@ func (c *CollElgProc) LaunchCollElgProc() {
 	maxBatchSize := c.ledgerconfig.PrivateDataConfig.MaxBatchSize
 	batchesInterval := c.ledgerconfig.PrivateDataConfig.BatchesInterval
 	go func() {
-		c.processCollElgEvents(maxBatchSize, batchesInterval) // process collection eligibility events when store is opened - in case there is an unprocessed events from previous run
+		if err := c.processCollElgEvents(maxBatchSize, batchesInterval); err != nil {
+			// process collection eligibility events when store is opened -
+			// in case there is an unprocessed events from previous run
+			logger.Errorf("Failed to process collection eligibility events: %s", err)
+		}
 		for {
 			logger.Debugf("Waiting for collection eligibility event")
 			c.waitForNotification()
@@ -77,14 +81,17 @@ func (c *CollElgProc) LaunchCollElgProc() {
 	}()
 }
 
-func (c *CollElgProc) processCollElgEvents(maxBatchSize, batchesInterval int) {
+func (c *CollElgProc) processCollElgEvents(maxBatchSize, batchesInterval int) error {
 	logger.Debugf("Starting to process collection eligibility events")
 	c.purgerLock.Lock()
 	defer c.purgerLock.Unlock()
 	collElgStartKey, collElgEndKey := createRangeScanKeysForCollElg()
-	eventItr := c.db.GetIterator(collElgStartKey, collElgEndKey)
+	eventItr, err := c.db.GetIterator(collElgStartKey, collElgEndKey)
+	if err != nil {
+		return err
+	}
 	defer eventItr.Release()
-	batch := leveldbhelper.NewUpdateBatch()
+	batch := c.db.NewUpdateBatch()
 	totalEntriesConverted := 0
 
 	for eventItr.Next() {
@@ -101,7 +108,10 @@ func (c *CollElgProc) processCollElgEvents(maxBatchSize, batchesInterval int) {
 			for _, coll = range colls.Entries {
 				logger.Infof("Converting missing data entries from ineligible to eligible for [ns=%s, coll=%s]", ns, coll)
 				startKey, endKey := createRangeScanKeysForIneligibleMissingData(blkNum, ns, coll)
-				collItr := c.db.GetIterator(startKey, endKey)
+				collItr, err := c.db.GetIterator(startKey, endKey)
+				if err != nil {
+					return err
+				}
 				collEntriesConverted := 0
 
 				for collItr.Next() { // each entry
@@ -117,7 +127,7 @@ func (c *CollElgProc) processCollElgEvents(maxBatchSize, batchesInterval int) {
 						if err := c.db.WriteBatch(batch, true); err != nil {
 							logger.Error(err.Error())
 						}
-						batch = leveldbhelper.NewUpdateBatch()
+						batch = c.db.NewUpdateBatch()
 						sleepTime := time.Duration(batchesInterval)
 						logger.Infof("Going to sleep for %d milliseconds between batches. Entries for [ns=%s, coll=%s] converted so far = %d",
 							sleepTime, ns, coll, collEntriesConverted)
@@ -139,4 +149,5 @@ func (c *CollElgProc) processCollElgEvents(maxBatchSize, batchesInterval int) {
 		logger.Error(err.Error())
 	}
 	logger.Debugf("Converted [%d] inelligible mising data entries to elligible", totalEntriesConverted)
+	return nil
 }

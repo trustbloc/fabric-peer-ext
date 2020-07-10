@@ -4,7 +4,7 @@
 
 module github.com/trustbloc/fabric-peer-ext/mod/peer
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.4-0.20200629203602-cc9afeb43c24
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.4-0.20200710155719-162fb2a8b03f
 
 replace github.com/hyperledger/fabric/extensions => ./
 
@@ -18,7 +18,7 @@ require (
 	github.com/golang/protobuf v1.3.3
 	github.com/hyperledger/fabric v2.0.0+incompatible
 	github.com/hyperledger/fabric-chaincode-go v0.0.0-20200128192331-2d899240a7ed
-	github.com/hyperledger/fabric-protos-go v0.0.0-20200326212758-d7d9b8e1fcde
+	github.com/hyperledger/fabric-protos-go v0.0.0-20200506201313-25f6564b9ac4
 	github.com/hyperledger/fabric/extensions v0.0.0
 	github.com/magiconair/properties v1.8.1
 	github.com/pkg/errors v0.8.1
@@ -27,4 +27,4 @@ require (
 	github.com/trustbloc/fabric-peer-ext v0.0.0
 )
 
-go 1.13
+go 1.14

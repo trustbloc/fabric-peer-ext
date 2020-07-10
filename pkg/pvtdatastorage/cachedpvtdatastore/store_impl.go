@@ -9,14 +9,14 @@ package cachedpvtdatastore
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/bluele/gcache"
-
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
+	xstorageapi "github.com/hyperledger/fabric/extensions/storage/api"
+	"github.com/pkg/errors"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
@@ -51,7 +51,7 @@ func NewProvider() *Provider {
 }
 
 // Create creates a new cache store
-func (p *Provider) Create(ledgerID string, lastCommittedBlockNum uint64) pvtdatastorage.Store {
+func (p *Provider) Create(ledgerID string, lastCommittedBlockNum uint64) xstorageapi.PrivateDataStore {
 	s := &store{cache: gcache.New(config.GetPvtDataCacheSize()).ARC().Build(), ledgerid: ledgerID,
 		lastCommittedBlock: lastCommittedBlockNum,
 		isEmpty:            lastCommittedBlockNum == 0,
@@ -166,11 +166,6 @@ func (s *store) LastCommittedBlockHeight() (uint64, error) {
 		return 0, nil
 	}
 	return s.lastCommittedBlock + 1, nil
-}
-
-// Shutdown implements the function in the interface `Store`
-func (s *store) Shutdown() {
-	// do nothing
 }
 
 func v11RetrievePvtdata(dataEntries []*common.DataEntry, filter ledger.PvtNsCollFilter) ([]*ledger.TxPvtData, error) {

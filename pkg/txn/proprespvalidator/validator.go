@@ -28,7 +28,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-var logger = logging.NewLogger("txdelegationfilter")
+var logger = logging.NewLogger("ext_txn")
 
 const (
 	errDuplicateIdentity = "Endorsement policy evaluation failure might be caused by duplicated identities"
