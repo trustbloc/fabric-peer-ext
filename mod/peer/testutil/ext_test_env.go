@@ -40,3 +40,15 @@ func TestLedgerConf() *ledger.Config {
 func TestPrivateDataConf() *pvtdatastorage.PrivateDataConfig {
 	return testutil.TestPrivateDataConf()
 }
+
+// IsExt indicates whether or not the extensions module has been overridden
+func IsExt() bool {
+	return true
+}
+
+// SkipExt skips the unit test for extensions
+func SkipExt(t *testing.T, msg string) {
+	if IsExt() {
+		t.Skip(msg)
+	}
+}
