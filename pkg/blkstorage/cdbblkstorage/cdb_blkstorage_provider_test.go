@@ -9,7 +9,6 @@ package cdbblkstorage
 import (
 	"errors"
 	"fmt"
-	"hash"
 	"os"
 	"testing"
 
@@ -163,36 +162,6 @@ func TestBlockStoreProvider(t *testing.T) {
 		defer store.Shutdown()
 		stores = append(stores, store)
 	}
-
-	for _, id := range allLedgerIDs {
-		exists, err := provider.Exists(id)
-		assert.NoError(t, err)
-		assert.Equal(t, true, exists)
-	}
-
-	exists, err := provider.Exists(constructLedgerid(numStores + 1))
-	assert.NoError(t, err)
-	assert.Equal(t, false, exists)
-}
-
-// Tests must be created for the following once the functions are implemented
-func TestProviderUnimplemented(t *testing.T) {
-	env := newTestEnv(t)
-	defer env.Cleanup()
-
-	provider := env.provider
-	store, _ := provider.Open("testLedger-2")
-	defer store.Shutdown()
-
-	require.PanicsWithValue(t, "not implemented", func() { provider.BootstrapFromSnapshottedTxIDs("", &api.SnapshotInfo{}) })
-
-	require.PanicsWithValue(t, "not implemented", func() {
-		provider.ExportTxIds("", func() (hash.Hash, error) {
-			return nil, nil
-		})
-	})
-
-	require.PanicsWithValue(t, "not implemented", func() { provider.Remove("") })
 }
 
 func TestBlockStoreAsCommitter(t *testing.T) {

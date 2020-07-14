@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"path/filepath"
 	"strconv"
 	"sync"
 
@@ -25,6 +26,12 @@ import (
 	"github.com/hyperledger/fabric/common/ledger/blkstorage"
 	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/pkg/errors"
+)
+
+const (
+	snapshotFileFormat       = byte(1)
+	snapshotDataFileName     = "txids.data"
+	snapshotMetadataFileName = "txids.metadata"
 )
 
 // cdbBlockStore ...
@@ -364,7 +371,94 @@ func (s *cdbBlockStore) RetrieveTxValidationCodeByTxID(txID string) (peer.TxVali
 // Technically, the TxIDs appear in the sort order of radix-sort/shortlex. However,
 // since practically all the TxIDs are of same length, so the sort order would be the lexical sort order
 func (s *cdbBlockStore) ExportTxIds(dir string, newHashFunc snapshot.NewHashFunc) (map[string][]byte, error) {
-	panic("not implemented")
+	logger.Infof("[%s] Exporting transaction IDs to directory [%s]", s.ledgerID, dir)
+
+	dataHash, numTxIDs, err := s.exportTxIDs(dir, newHashFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	if dataHash == nil {
+		return nil, nil
+	}
+
+	// create the metadata file
+	metadataFileName := filepath.Join(dir, snapshotMetadataFileName)
+	metadataFile, err := snapshot.CreateFile(metadataFileName, snapshotFileFormat, newHashFunc)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err = metadataFile.Close(); err != nil {
+			logger.Warnf("Error closing metadataFile: %s", err)
+		}
+	}()
+
+	logger.Infof("[%s] Created file [%s]", s.ledgerID, metadataFileName)
+
+	if err = metadataFile.EncodeUVarint(numTxIDs); err != nil {
+		return nil, err
+	}
+
+	metadataHash, err := metadataFile.Done()
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string][]byte{
+		snapshotDataFileName:     dataHash,
+		snapshotMetadataFileName: metadataHash,
+	}, nil
+}
+
+func (s *cdbBlockStore) exportTxIDs(dir string, newHashFunc snapshot.NewHashFunc) ([]byte, uint64, error) {
+	// Get everything from the DB
+	// TODO: Is it practical to be returning all rows from a database?
+	results, _, err := s.txnStore.QueryDocuments(`{"selector": {}}`)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var numTxIDs uint64 = 0
+	var dataFile *snapshot.FileWriter
+
+	for _, r := range results {
+		if numTxIDs == 0 { // first iteration, create the data file
+			fileName := filepath.Join(dir, snapshotDataFileName)
+			dataFile, err = snapshot.CreateFile(fileName, snapshotFileFormat, newHashFunc)
+			if err != nil {
+				return nil, 0, err
+			}
+
+			logger.Infof("[%s] Created file [%s]", s.ledgerID, fileName)
+
+			defer func() {
+				if err = dataFile.Close(); err != nil {
+					logger.Warnf("Error closing datafile: %s", err)
+				}
+			}()
+		}
+
+		logger.Infof("[%s] Adding TxID [%s]", s.ledgerID, r.ID)
+
+		if e := dataFile.EncodeString(r.ID); e != nil {
+			return nil, 0, e
+		}
+
+		numTxIDs++
+	}
+
+	if dataFile == nil {
+		logger.Infof("[%s] No data file created", s.ledgerID)
+		return nil, 0, nil
+	}
+
+	dataHash, err := dataFile.Done()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return dataHash, numTxIDs, nil
 }
 
 // Shutdown closes the storage instance
