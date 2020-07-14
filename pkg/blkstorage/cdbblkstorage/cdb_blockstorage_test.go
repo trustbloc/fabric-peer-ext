@@ -7,8 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package cdbblkstorage
 
 import (
+	"crypto/sha256"
 	"errors"
 	"hash"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/hyperledger/fabric/common/ledger/testutil"
@@ -68,18 +71,41 @@ func TestCheckpointBlockFailure(t *testing.T) {
 	require.Error(t, err, "adding cpInfo to couchDB failed")
 }
 
-// Tests must be created for the following once the functions are implemented
-func TestStoreUnimplemented(t *testing.T) {
+func TestCdbBlockStore_ExportTxIds(t *testing.T) {
 	env := newTestEnv(t)
 	defer env.Cleanup()
 
 	provider := env.provider
-	store, _ := provider.Open("testLedger-2")
+	store, _ := provider.Open("testLedger-3")
 	defer store.Shutdown()
 
-	require.PanicsWithValue(t, "not implemented", func() {
-		store.ExportTxIds("", func() (hash.Hash, error) {
-			return nil, nil
-		})
+	store.(*cdbBlockStore).cp.db = &mocks.CouchDB{}
+	dir := os.TempDir()
+
+	t.Run("no transactions", func(t *testing.T) {
+		defer func() {
+			os.RemoveAll(filepath.Join(dir, snapshotDataFileName))
+			os.RemoveAll(filepath.Join(dir, snapshotMetadataFileName))
+		}()
+
+		result, err := store.ExportTxIds(dir, func() (hash.Hash, error) { return sha256.New(), nil })
+		require.NoError(t, err)
+		require.Empty(t, result[snapshotDataFileName])
+		require.Empty(t, result[snapshotMetadataFileName])
+	})
+
+	t.Run("with transactions", func(t *testing.T) {
+		defer func() {
+			os.RemoveAll(filepath.Join(dir, snapshotDataFileName))
+			os.RemoveAll(filepath.Join(dir, snapshotMetadataFileName))
+		}()
+
+		for _, block := range testutil.ConstructTestBlocks(t, 10) {
+			require.NoError(t, store.AddBlock(block))
+		}
+		result, err := store.ExportTxIds(dir, func() (hash.Hash, error) { return sha256.New(), nil })
+		require.NoError(t, err)
+		require.NotEmpty(t, result[snapshotDataFileName])
+		require.NotEmpty(t, result[snapshotMetadataFileName])
 	})
 }

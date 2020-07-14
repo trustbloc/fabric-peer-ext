@@ -29,3 +29,4 @@ docs/build
 .build
 
 coverage.txt
+/pkg/blkstorage/cdbblkstorage/txids.data

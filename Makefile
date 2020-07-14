@@ -65,7 +65,7 @@ fabric-unit-test: export FABRIC_COMMAND=unit-test
 fabric-unit-test: docker-thirdparty
 	@scripts/build_fabric.sh
 
-bddtests: build-fabric-images populate-fixtures docker-thirdparty bddtests-fabric-peer-docker build-cc
+bddtests: clean build-fabric-images populate-fixtures docker-thirdparty bddtests-fabric-peer-docker build-cc
 	@scripts/integration.sh
 
 bddtests-fabric-peer-cli:

@@ -41,14 +41,7 @@ func TestPrivateDataConf() *pvtdatastorage.PrivateDataConfig {
 	return testutil.TestPrivateDataConf()
 }
 
-// IsExt indicates whether or not the extensions module has been overridden
-func IsExt() bool {
-	return true
-}
-
-// SkipExt skips the unit test for extensions
-func SkipExt(t *testing.T, msg string) {
-	if IsExt() {
-		t.Skip(msg)
-	}
+// Skip skips the unit test for extensions
+func Skip(t *testing.T, msg string) {
+	t.Skip(msg)
 }
