@@ -49,7 +49,6 @@ type dbHandle interface {
 type provider struct {
 	couchInstance            *couchdb.CouchInstance
 	missingKeysIndexProvider *leveldbhelper.Provider
-	ledgerConfig             *ledger.Config
 	pvtDataConfig            *pvtdatastorage.PrivateDataConfig
 }
 
@@ -59,7 +58,7 @@ type store struct {
 	db                 couchDB
 	lastCommittedBlock uint64
 	purgerLock         *sync.Mutex
-	collElgProc        *common.CollElgProc
+	collElgProcSync    *common.CollElgProcSync
 	// missing keys db
 	missingKeysIndexDB dbHandle
 	isEmpty            bool
@@ -73,7 +72,6 @@ type store struct {
 	// in the stateDB needs to be updated before finishing the
 	// recovery operation.
 	isLastUpdatedOldBlocksSet bool
-	ledgerConfig              *ledger.Config
 	pvtDataConfig             *pvtdatastorage.PrivateDataConfig
 }
 
@@ -113,7 +111,6 @@ func newProviderWithDBDef(couchDBConfig *ledger.CouchDBConfig, conf *pvtdatastor
 	return &provider{
 		couchInstance:            couchInstance,
 		missingKeysIndexProvider: missingKeysIndexProvider,
-		ledgerConfig:             ledgerconfig,
 		pvtDataConfig:            conf,
 	}, nil
 }
@@ -136,17 +133,16 @@ func (p *provider) OpenStore(ledgerid string) (xstorageapi.PrivateDataStore, err
 
 		purgerLock := &sync.Mutex{}
 		s := &store{db: db, ledgerid: ledgerid,
-			collElgProc:        common.NewCollElgProc(purgerLock, missingKeysIndexDB, p.ledgerConfig),
+			collElgProcSync:    common.NewCollElgProcSync(purgerLock, missingKeysIndexDB, p.pvtDataConfig.BatchesInterval, p.pvtDataConfig.MaxBatchSize),
 			purgerLock:         purgerLock,
 			missingKeysIndexDB: missingKeysIndexDB,
-			ledgerConfig:       p.ledgerConfig,
 			pvtDataConfig:      p.pvtDataConfig,
 		}
 
 		if errInitState := s.initState(); errInitState != nil {
 			return nil, errInitState
 		}
-		s.collElgProc.LaunchCollElgProc()
+		s.collElgProcSync.LaunchCollElgProc()
 
 		logger.Debugf("Pvtdata store opened. Initial state: isEmpty [%t], lastCommittedBlock [%d]",
 			s.isEmpty, s.lastCommittedBlock)
@@ -463,7 +459,7 @@ func (s *store) checkLastCommittedBlock(blockNum uint64) error {
 
 // ProcessCollsEligibilityEnabled implements the function in the interface `Store`
 func (s *store) ProcessCollsEligibilityEnabled(committingBlk uint64, nsCollMap map[string][]string) error {
-	return common.ProcessCollsEligibilityEnabled(committingBlk, nsCollMap, s.collElgProc, s.missingKeysIndexDB)
+	return common.ProcessCollsEligibilityEnabled(committingBlk, nsCollMap, s.collElgProcSync, s.missingKeysIndexDB)
 }
 
 // LastCommittedBlockHeight implements the function in the interface `Store`

@@ -10,36 +10,35 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hyperledger/fabric/core/ledger"
-
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
 )
 
-// todo add pinning script to include copied code into this file, original file from fabric is found in fabric/core/ledger/pvtdatastorage/store_imp.go
+// todo add pinning script to include copied code into this file, original file from fabric is found in fabric/core/ledger/pvtdatastorage/store.go
 // todo below functions are originally unexported, the pinning script must capitalize these functions to export them
 
 var logger = flogging.MustGetLogger("collelgproc")
 
-type CollElgProc struct {
+type CollElgProcSync struct {
 	notification, procComplete chan bool
 	purgerLock                 *sync.Mutex
 	db                         *leveldbhelper.DBHandle
-	ledgerconfig               *ledger.Config
+	batchesInterval            int
+	maxBatchSize               int
 }
 
-func NewCollElgProc(purgerLock *sync.Mutex, missingKeysIndexDB *leveldbhelper.DBHandle, ledgerconfig *ledger.Config) *CollElgProc {
-
-	return &CollElgProc{
-		notification: make(chan bool, 1),
-		procComplete: make(chan bool, 1),
-		purgerLock:   purgerLock,
-		db:           missingKeysIndexDB,
-		ledgerconfig: ledgerconfig,
+func NewCollElgProcSync(purgerLock *sync.Mutex, missingKeysIndexDB *leveldbhelper.DBHandle, batchesInterval, maxBatchSize int) *CollElgProcSync {
+	return &CollElgProcSync{
+		notification:    make(chan bool, 1),
+		procComplete:    make(chan bool, 1),
+		purgerLock:      purgerLock,
+		db:              missingKeysIndexDB,
+		batchesInterval: batchesInterval,
+		maxBatchSize:    maxBatchSize,
 	}
 }
 
-func (c *CollElgProc) notify() {
+func (c *CollElgProcSync) notify() {
 	select {
 	case c.notification <- true:
 		logger.Debugf("Signaled to collection eligibility processing routine")
@@ -48,26 +47,24 @@ func (c *CollElgProc) notify() {
 	}
 }
 
-func (c *CollElgProc) waitForNotification() {
+func (c *CollElgProcSync) waitForNotification() {
 	<-c.notification
 }
 
-func (c *CollElgProc) done() {
+func (c *CollElgProcSync) done() {
 	select {
 	case c.procComplete <- true:
 	default:
 	}
 }
 
-func (c *CollElgProc) WaitForDone() {
+func (c *CollElgProcSync) WaitForDone() {
 	<-c.procComplete
 }
 
-func (c *CollElgProc) LaunchCollElgProc() {
-	maxBatchSize := c.ledgerconfig.PrivateDataConfig.MaxBatchSize
-	batchesInterval := c.ledgerconfig.PrivateDataConfig.BatchesInterval
+func (c *CollElgProcSync) LaunchCollElgProc() {
 	go func() {
-		if err := c.processCollElgEvents(maxBatchSize, batchesInterval); err != nil {
+		if err := c.processCollElgEvents(); err != nil {
 			// process collection eligibility events when store is opened -
 			// in case there is an unprocessed events from previous run
 			logger.Errorf("Failed to process collection eligibility events: %s", err)
@@ -75,13 +72,15 @@ func (c *CollElgProc) LaunchCollElgProc() {
 		for {
 			logger.Debugf("Waiting for collection eligibility event")
 			c.waitForNotification()
-			c.processCollElgEvents(maxBatchSize, batchesInterval)
+			if err := c.processCollElgEvents(); err != nil {
+				logger.Errorw("failed to process collection eligibility events", "err", err)
+			}
 			c.done()
 		}
 	}()
 }
 
-func (c *CollElgProc) processCollElgEvents(maxBatchSize, batchesInterval int) error {
+func (c *CollElgProcSync) processCollElgEvents() error {
 	logger.Debugf("Starting to process collection eligibility events")
 	c.purgerLock.Lock()
 	defer c.purgerLock.Unlock()
@@ -123,12 +122,12 @@ func (c *CollElgProc) processCollElgEvents(maxBatchSize, batchesInterval int) er
 					copy(copyVal, originalVal)
 					batch.Put(EncodeMissingDataKey(modifiedKey), copyVal)
 					collEntriesConverted++
-					if batch.Len() > maxBatchSize {
+					if batch.Len() > c.maxBatchSize {
 						if err := c.db.WriteBatch(batch, true); err != nil {
 							logger.Error(err.Error())
 						}
 						batch = c.db.NewUpdateBatch()
-						sleepTime := time.Duration(batchesInterval)
+						sleepTime := time.Duration(c.batchesInterval)
 						logger.Infof("Going to sleep for %d milliseconds between batches. Entries for [ns=%s, coll=%s] converted so far = %d",
 							sleepTime, ns, coll, collEntriesConverted)
 						c.purgerLock.Unlock()
