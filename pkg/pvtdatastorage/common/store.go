@@ -398,7 +398,7 @@ func GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int, lastCommittedBlk uin
 }
 
 // ProcessCollsEligibilityEnabled
-func ProcessCollsEligibilityEnabled(committingBlk uint64, nsCollMap map[string][]string, collElgProcSync *CollElgProc, missingKeysIndexDB dbHandle) error {
+func ProcessCollsEligibilityEnabled(committingBlk uint64, nsCollMap map[string][]string, collElgProcSync *CollElgProcSync, missingKeysIndexDB dbHandle) error {
 	key := encodeCollElgKey(committingBlk)
 	m := newCollElgInfo(nsCollMap)
 	val, err := encodeCollElgVal(m)

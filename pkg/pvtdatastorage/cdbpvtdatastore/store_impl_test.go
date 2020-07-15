@@ -1412,7 +1412,7 @@ func produceSamplePvtdata(t *testing.T, txNum uint64, nsColls []string) *ledger.
 }
 
 func testutilWaitForCollElgProcToFinish(s xstorageapi.PrivateDataStore) {
-	s.(*store).collElgProc.WaitForDone()
+	s.(*store).collElgProcSync.WaitForDone()
 }
 
 // mockCouchDB
