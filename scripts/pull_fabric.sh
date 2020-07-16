@@ -12,7 +12,7 @@ cp -r . $GOPATH/src/github.com/hyperledger/fabric/fabric-peer-ext
 cd $GOPATH/src/github.com/hyperledger/fabric
 git config advice.detachedHead false
 # fabric-mod (Jul 16, 2020)
-git checkout df000661670c2304dc84a1f19dc7ea1127001723
+git checkout 0f6536be4fe2c237e41c328b77d12c524c4a0035
 
 declare envOS
 envOS=$(uname -s)
