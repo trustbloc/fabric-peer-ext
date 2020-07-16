@@ -8,6 +8,7 @@ package mocks
 
 import (
 	"github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric/core/ledger"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 )
 
@@ -69,7 +70,7 @@ func (m *MockBlockPublisher) AddCCEventHandler(handler gossipapi.ChaincodeEventH
 }
 
 // Publish is not implemented and panics if invoked
-func (m *MockBlockPublisher) Publish(block *common.Block) {
+func (m *MockBlockPublisher) Publish(block *common.Block, pvtData ledger.TxPvtDataMap) {
 	panic("not implemented")
 }
 

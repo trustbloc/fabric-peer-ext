@@ -10,6 +10,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/hyperledger/fabric/core/ledger"
+
 	"github.com/bluele/gcache"
 	"github.com/golang/protobuf/proto"
 	cb "github.com/hyperledger/fabric-protos-go/common"
@@ -202,7 +204,7 @@ func (p *Publisher) AddLSCCWriteHandler(handler api.LSCCWriteHandler) {
 }
 
 // Publish publishes a block
-func (p *Publisher) Publish(block *cb.Block) {
+func (p *Publisher) Publish(block *cb.Block, pvtData ledger.TxPvtDataMap) {
 	if err := p.Visit(block); err != nil {
 		// Errors are never expected
 		panic(err.Error())

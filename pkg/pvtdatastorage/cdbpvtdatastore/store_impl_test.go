@@ -361,7 +361,7 @@ func TestRetrieveBlockPvtData(t *testing.T) {
 }
 
 func TestNewProviderWithDBDef(t *testing.T) {
-	_, err := newProviderWithDBDef(&ledger.CouchDBConfig{Address: "123"}, nil, nil)
+	_, err := newProviderWithDBDef(&ledger.CouchDBConfig{Address: "123"}, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "obtaining CouchDB instance failed")
 }

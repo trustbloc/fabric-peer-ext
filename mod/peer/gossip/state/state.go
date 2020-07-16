@@ -150,7 +150,7 @@ func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Bloc
 				logger.Warning("Failed to update checkpoint info for cid[%s] block[%d]", s.chainID, block.Header.Number)
 				return err
 			}
-			blockpublisher.ForChannel(s.chainID).Publish(block)
+			blockpublisher.ForChannel(s.chainID).Publish(block, nil)
 			return nil
 		}
 

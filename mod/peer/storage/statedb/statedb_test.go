@@ -53,7 +53,7 @@ func TestAddCCUpgradeHandlerAsEndorser(t *testing.T) {
 		ChaincodeAction(lsccID).
 		ChaincodeEvent(upgradeEvent, lceBytes)
 
-	blockpublisher.ForChannel(channelID).Publish(b.Build())
+	blockpublisher.ForChannel(channelID).Publish(b.Build(), nil)
 
 	// Wait a bit for the events to be published
 	time.Sleep(500 * time.Millisecond)
@@ -83,7 +83,7 @@ func TestAddCCUpgradeHandlerAsCommitter(t *testing.T) {
 		ChaincodeAction(lsccID).
 		ChaincodeEvent(upgradeEvent, lceBytes)
 
-	blockpublisher.ForChannel(channelID).Publish(b.Build())
+	blockpublisher.ForChannel(channelID).Publish(b.Build(), nil)
 
 	// Wait a bit for the events to be published
 	time.Sleep(500 * time.Millisecond)
