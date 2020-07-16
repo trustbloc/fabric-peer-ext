@@ -6,7 +6,7 @@ import (
 
 	"github.com/hyperledger/fabric-protos-go/common"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/msgs"
-	storageapi "github.com/trustbloc/fabric-peer-ext/mod/peer/storage/api"
+	storageapi "github.com/hyperledger/fabric/extensions/storage/api"
 )
 
 type IDStore struct {

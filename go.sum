@@ -316,8 +316,6 @@ github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc/go.mod h1:eyZnKCc955u
 github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/trustbloc/fabric-mod v0.1.4-0.20200716181456-0f6536be4fe2 h1:P9L1eDQOlaBhmUp/dvRARqz+43Nz7+7EStm5e6gJN+U=
 github.com/trustbloc/fabric-mod v0.1.4-0.20200716181456-0f6536be4fe2/go.mod h1:cQj569lHHCUYI44EtWmJ7Sa2Iqw/K5Hst1l9P0hsTPw=
-github.com/trustbloc/fabric-peer-ext/mod/peer v0.0.0-20200716185924-1d5449b6b436 h1:7hP5MJ6p0hY4/4yxIojKzJ4ek7WkjgyfOgB2PIdbY7c=
-github.com/trustbloc/fabric-peer-ext/mod/peer v0.0.0-20200716185924-1d5449b6b436/go.mod h1:bTEZMFDhYRiEtnNrsrrF4ySfDUo39BLreDXyo8FRaa4=
 github.com/trustbloc/fabric-protos-go-ext v0.1.4-0.20200626180529-18936b36feca h1:XFu6UF1+2kOH+GNVwLDlqcr38HVngfz+/AE/ZaiLJPU=
 github.com/trustbloc/fabric-protos-go-ext v0.1.4-0.20200626180529-18936b36feca/go.mod h1:xVYTjK4DtZRBxZ2D9aE4y6AbLaPwue2o/criQyQbVD0=
 github.com/ugorji/go v1.1.1/go.mod h1:hnLbHMwcvSihnDhEfx2/BzKp2xb0Y+ErdfYcrs9tkJQ=
