@@ -7,10 +7,15 @@ SPDX-License-Identifier: Apache-2.0
 package transientstore
 
 import (
+	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/transientstore"
 	storageapi "github.com/hyperledger/fabric/extensions/storage/api"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 	exttransientstore "github.com/trustbloc/fabric-peer-ext/pkg/transientstore"
 )
+
+var logger = flogging.MustGetLogger("ext_storage")
 
 // Provider is a transient store provider
 type ProviderImpl struct {
@@ -28,6 +33,19 @@ func (p *ProviderImpl) Close() {
 }
 
 // NewStoreProvider returns a new store provider
-func NewStoreProvider(string) (storageapi.TransientStoreProvider, error) {
-	return exttransientstore.NewStoreProvider(), nil
+func NewStoreProvider(path string) (storageapi.TransientStoreProvider, error) {
+	if config.GetTransientStoreDBType() == config.MemDBType {
+		logger.Info("Using in-memory transient store provider")
+
+		return exttransientstore.NewStoreProvider(), nil
+	}
+
+	logger.Info("Using default transient store provider")
+
+	provider, err := transientstore.NewStoreProvider(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ProviderImpl{provider: provider}, nil
 }

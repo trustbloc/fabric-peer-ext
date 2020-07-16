@@ -49,6 +49,32 @@ const (
 
 	defaultBlockPublisherBufferSize        = 100
 	defaultConfigUpdatePublisherBufferSize = 100
+
+	// ConfBlockStoreDBType is the config key for the block store database type
+	ConfBlockStoreDBType = "ledger.storage.blockStore.dbtype"
+	// ConfIDStoreDBType is the config key for the ID store database type
+	ConfIDStoreDBType = "ledger.storage.idStore.dbtype"
+	// ConfPrivateDataStoreDBType is the config key for the private data store database type
+	ConfPrivateDataStoreDBType = "ledger.storage.privateDataStore.dbtype"
+	// ConfTransientStoreDBType is the config key for the transient store database type
+	ConfTransientStoreDBType = "ledger.storage.transientStore.dbtype"
+
+	defaultBlockStoreDBType       = CouchDBType
+	defaultIDStoreDBType          = CouchDBType
+	defaultPrivateDataStoreDBType = CouchDBType
+	defaultTransientStoreDBType   = MemDBType
+)
+
+// DBType is the database type
+type DBType = string
+
+const (
+	// CouchDBType indicates that the storage type is CouchDB
+	CouchDBType DBType = "couchdb"
+	// LevelDBType indicates that the storage type is LevelDB
+	LevelDBType DBType = "leveldb"
+	// MemDBType indicates that the storage type is in-memory
+	MemDBType DBType = "memory"
 )
 
 // GetRoles returns the roles of the peer. Empty return value indicates that the peer has all roles.
@@ -173,4 +199,44 @@ func GetConfigUpdatePublisherBufferSize() int {
 		return defaultConfigUpdatePublisherBufferSize
 	}
 	return size
+}
+
+// GetBlockStoreDBType returns the type of database that should be used for block storage
+func GetBlockStoreDBType() DBType {
+	dbType := viper.GetString(ConfBlockStoreDBType)
+	if dbType == "" {
+		return defaultBlockStoreDBType
+	}
+
+	return dbType
+}
+
+// GetIDStoreDBType returns the type of database that should be used for ID storage
+func GetIDStoreDBType() DBType {
+	dbType := viper.GetString(ConfIDStoreDBType)
+	if dbType == "" {
+		return defaultIDStoreDBType
+	}
+
+	return dbType
+}
+
+// GetPrivateDataStoreDBType returns the type of database that should be used for private data storage
+func GetPrivateDataStoreDBType() DBType {
+	dbType := viper.GetString(ConfPrivateDataStoreDBType)
+	if dbType == "" {
+		return defaultPrivateDataStoreDBType
+	}
+
+	return dbType
+}
+
+// GetTransientStoreDBType returns the type of database that should be used for private data transient storage
+func GetTransientStoreDBType() DBType {
+	dbType := viper.GetString(ConfTransientStoreDBType)
+	if dbType == "" {
+		return defaultTransientStoreDBType
+	}
+
+	return dbType
 }

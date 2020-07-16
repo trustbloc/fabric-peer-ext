@@ -12,6 +12,7 @@ import (
 
 	viper "github.com/spf13/viper2015"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetRoles(t *testing.T) {
@@ -175,4 +176,48 @@ func TestGetConfigUpdatePublisherBufferSize(t *testing.T) {
 
 	viper.Set(confConfigUpdatePublisherBufferSize, 1234)
 	assert.Equal(t, 1234, GetConfigUpdatePublisherBufferSize())
+}
+
+func TestGetBlockStoreDBType(t *testing.T) {
+	oldVal := viper.Get(ConfBlockStoreDBType)
+	defer viper.Set(ConfBlockStoreDBType, oldVal)
+
+	viper.Set(ConfBlockStoreDBType, "")
+	require.Equal(t, defaultBlockStoreDBType, GetBlockStoreDBType())
+
+	viper.Set(ConfBlockStoreDBType, LevelDBType)
+	require.Equal(t, LevelDBType, GetBlockStoreDBType())
+}
+
+func TestGetIDStoreDBType(t *testing.T) {
+	oldVal := viper.Get(ConfIDStoreDBType)
+	defer viper.Set(ConfIDStoreDBType, oldVal)
+
+	viper.Set(ConfIDStoreDBType, "")
+	require.Equal(t, defaultIDStoreDBType, GetIDStoreDBType())
+
+	viper.Set(ConfIDStoreDBType, LevelDBType)
+	require.Equal(t, LevelDBType, GetIDStoreDBType())
+}
+
+func TestGetPrivateDataStoreDBType(t *testing.T) {
+	oldVal := viper.Get(ConfPrivateDataStoreDBType)
+	defer viper.Set(ConfPrivateDataStoreDBType, oldVal)
+
+	viper.Set(ConfPrivateDataStoreDBType, "")
+	require.Equal(t, defaultPrivateDataStoreDBType, GetPrivateDataStoreDBType())
+
+	viper.Set(ConfPrivateDataStoreDBType, LevelDBType)
+	require.Equal(t, LevelDBType, GetPrivateDataStoreDBType())
+}
+
+func TestGetTransientStoreDBType(t *testing.T) {
+	oldVal := viper.Get(ConfTransientStoreDBType)
+	defer viper.Set(ConfTransientStoreDBType, oldVal)
+
+	viper.Set(ConfTransientStoreDBType, "")
+	require.Equal(t, defaultTransientStoreDBType, GetTransientStoreDBType())
+
+	viper.Set(ConfTransientStoreDBType, LevelDBType)
+	require.Equal(t, LevelDBType, GetTransientStoreDBType())
 }
