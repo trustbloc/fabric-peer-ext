@@ -53,7 +53,7 @@ func TestProvider(t *testing.T) {
 		Read(key1, v1).
 		ChaincodeEvent(ccEvent1, []byte("ccpayload"))
 
-	publisher.Publish(b.Build())
+	publisher.Publish(b.Build(), nil)
 
 	// Wait a bit for the events to be published
 	time.Sleep(500 * time.Millisecond)

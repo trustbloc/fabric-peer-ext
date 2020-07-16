@@ -79,7 +79,7 @@ type BlockVisitor interface {
 type BlockPublisher interface {
 	BlockHandler
 	// Publish traverses the block and invokes all applicable handlers
-	Publish(block *cb.Block)
+	Publish(block *cb.Block, pvtData ledger.TxPvtDataMap)
 }
 
 // TxMetadata contain txn metadata

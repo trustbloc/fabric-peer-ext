@@ -16,6 +16,7 @@ import (
 	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,10 +52,11 @@ var (
 )
 
 func TestVisitor_HandleEndorsementEvents(t *testing.T) {
-	block := mockBlockWithTransactions(t)
+	block, pvtData := mockBlockWithTransactions(t)
+
 	t.Run("No handlers", func(t *testing.T) {
 		p := New(channelID)
-		require.NoError(t, p.Visit(block))
+		require.NoError(t, p.Visit(block, nil))
 		require.NotNil(t, p)
 	})
 
@@ -95,7 +97,7 @@ func TestVisitor_HandleEndorsementEvents(t *testing.T) {
 		require.NotNil(t, p)
 		require.Equal(t, channelID, p.ChannelID())
 
-		require.NoError(t, p.Visit(block))
+		require.NoError(t, p.Visit(block, pvtData))
 		assert.EqualValues(t, 1101, p.LedgerHeight())
 
 		require.Len(t, ccEvents, 2)
@@ -104,19 +106,25 @@ func TestVisitor_HandleEndorsementEvents(t *testing.T) {
 		assert.Equal(t, uint64(4), ccEvents[1].TxNum)
 		assert.Equal(t, txID5, ccEvents[1].TxID)
 
-		require.Len(t, reads, 2)
+		require.Len(t, reads, 3) // 2 public state and 1 private collection read
 		assert.Equal(t, uint64(0), reads[0].TxNum)
 		assert.Equal(t, txID1, reads[0].TxID)
 		assert.Equal(t, uint64(0), reads[1].TxNum)
 		assert.Equal(t, txID1, reads[1].TxID)
+		assert.Equal(t, uint64(0), reads[2].TxNum)
+		assert.Equal(t, txID1, reads[2].TxID)
 
-		require.Len(t, writes, 3)
+		require.Len(t, writes, 5) // 3 public state and 2 private collection writes
 		assert.Equal(t, uint64(0), writes[0].TxNum)
 		assert.Equal(t, txID1, writes[0].TxID)
 		assert.Equal(t, uint64(0), writes[1].TxNum)
 		assert.Equal(t, txID1, writes[1].TxID)
-		assert.Equal(t, uint64(1), writes[2].TxNum)
-		assert.Equal(t, txID2, writes[2].TxID)
+		assert.Equal(t, uint64(0), writes[2].TxNum)
+		assert.Equal(t, txID1, writes[2].TxID)
+		assert.Equal(t, uint64(0), writes[3].TxNum)
+		assert.Equal(t, txID1, writes[3].TxID)
+		assert.Equal(t, uint64(1), writes[4].TxNum)
+		assert.Equal(t, txID2, writes[4].TxID)
 
 		require.Len(t, collHashReads, 1)
 		assert.Equal(t, uint64(0), reads[0].TxNum)
@@ -137,7 +145,7 @@ func TestVisitor_HandleEndorsementEvents(t *testing.T) {
 }
 
 func TestVisitor_ErrorHandler(t *testing.T) {
-	block := mockBlockWithTransactions(t)
+	block, pvtData := mockBlockWithTransactions(t)
 
 	t.Run("With CCEventHandler error", func(t *testing.T) {
 		errExpected := fmt.Errorf("injected event handler error")
@@ -149,7 +157,7 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 			)
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())
-			require.NoError(t, p.Visit(block))
+			require.NoError(t, p.Visit(block, pvtData))
 		})
 
 		t.Run("Halt", func(t *testing.T) {
@@ -166,7 +174,7 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())
 
-			err := p.Visit(block)
+			err := p.Visit(block, pvtData)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), errExpected.Error())
 		})
@@ -182,7 +190,7 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 			)
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())
-			require.NoError(t, p.Visit(block))
+			require.NoError(t, p.Visit(block, pvtData))
 		})
 
 		t.Run("Halt", func(t *testing.T) {
@@ -199,7 +207,7 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())
 
-			err := p.Visit(block)
+			err := p.Visit(block, pvtData)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), errExpected.Error())
 		})
@@ -215,7 +223,7 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 			)
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())
-			require.NoError(t, p.Visit(block))
+			require.NoError(t, p.Visit(block, pvtData))
 		})
 
 		t.Run("Halt", func(t *testing.T) {
@@ -232,7 +240,7 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())
 
-			err := p.Visit(block)
+			err := p.Visit(block, pvtData)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), errExpected.Error())
 		})
@@ -248,7 +256,7 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 			)
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())
-			require.NoError(t, p.Visit(block))
+			require.NoError(t, p.Visit(block, pvtData))
 		})
 
 		t.Run("Halt", func(t *testing.T) {
@@ -265,7 +273,7 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())
 
-			err := p.Visit(block)
+			err := p.Visit(block, pvtData)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), errExpected.Error())
 		})
@@ -281,7 +289,7 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 			)
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())
-			require.NoError(t, p.Visit(block))
+			require.NoError(t, p.Visit(block, pvtData))
 		})
 
 		t.Run("Halt", func(t *testing.T) {
@@ -298,7 +306,7 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())
 
-			err := p.Visit(block)
+			err := p.Visit(block, pvtData)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), errExpected.Error())
 		})
@@ -314,7 +322,7 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 			)
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())
-			require.NoError(t, p.Visit(block))
+			require.NoError(t, p.Visit(block, pvtData))
 		})
 
 		t.Run("Halt", func(t *testing.T) {
@@ -331,7 +339,7 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())
 
-			err := p.Visit(block)
+			err := p.Visit(block, pvtData)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), errExpected.Error())
 		})
@@ -351,7 +359,7 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 			)
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())
-			require.NoError(t, p.Visit(block))
+			require.NoError(t, p.Visit(block, pvtData))
 		})
 
 		t.Run("Halt", func(t *testing.T) {
@@ -368,7 +376,7 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())
 
-			err := p.Visit(block)
+			err := p.Visit(block, pvtData)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), errExpected.Error())
 		})
@@ -381,7 +389,7 @@ func TestVisitor_PublishConfigUpdateEvents(t *testing.T) {
 
 	t.Run("No handlers", func(t *testing.T) {
 		p := New(channelID)
-		require.NoError(t, p.Visit(b.Build()))
+		require.NoError(t, p.Visit(b.Build(), nil))
 	})
 
 	t.Run("With handlers", func(t *testing.T) {
@@ -395,7 +403,7 @@ func TestVisitor_PublishConfigUpdateEvents(t *testing.T) {
 		)
 		require.NotNil(t, p)
 
-		require.NoError(t, p.Visit(b.Build()))
+		require.NoError(t, p.Visit(b.Build(), nil))
 		assert.Equal(t, 1, numConfigUpdates)
 		assert.EqualValues(t, 1101, p.LedgerHeight())
 	})
@@ -451,7 +459,7 @@ func TestVisitor_LSCCWriteEvent(t *testing.T) {
 		Write(ccID1, ccDataBytes).
 		Write(ccID1+CollectionSeparator+"collection", ccpBytes)
 
-	require.NoError(t, p.Visit(b.Build()))
+	require.NoError(t, p.Visit(b.Build(), nil))
 	require.Equal(t, ccID1, info.getCCName())
 	require.NotNil(t, info.getCCData())
 	require.Equal(t, ccData.Name, info.getCCData().Name)
@@ -519,12 +527,12 @@ func TestVisitor_LSCCWriteEventMarshalError(t *testing.T) {
 			Write(ccID1, []byte("invalid cc data")).
 			Write(ccID1+CollectionSeparator+"collection", ccpBytes)
 
-		require.NoError(t, v.Visit(b.Build()))
+		require.NoError(t, v.Visit(b.Build(), nil))
 		require.Empty(t, info.ccName)
 		require.Nil(t, info.ccData)
 		require.Nil(t, info.ccp)
 
-		require.Error(t, vHalt.Visit(b.Build()))
+		require.Error(t, vHalt.Visit(b.Build(), nil))
 		require.Empty(t, info.ccName)
 		require.Nil(t, info.ccData)
 		require.Nil(t, info.ccp)
@@ -538,12 +546,12 @@ func TestVisitor_LSCCWriteEventMarshalError(t *testing.T) {
 			Write(ccID1, ccDataBytes).
 			Write(ccID1+CollectionSeparator+"collection", []byte("invalid ccp"))
 
-		require.NoError(t, v.Visit(b.Build()))
+		require.NoError(t, v.Visit(b.Build(), nil))
 		require.Empty(t, info.ccName)
 		require.Nil(t, info.ccData)
 		require.Nil(t, info.ccp)
 
-		require.Error(t, vHalt.Visit(b.Build()))
+		require.Error(t, vHalt.Visit(b.Build(), nil))
 		require.Empty(t, info.ccName)
 		require.Nil(t, info.ccData)
 		require.Nil(t, info.ccp)
@@ -557,7 +565,7 @@ func TestVisitor_Error(t *testing.T) {
 		return err
 	}))
 
-	block := mockBlockWithTransactions(t)
+	block, pvtData := mockBlockWithTransactions(t)
 
 	t.Run("Unmarshal error", func(t *testing.T) {
 		errExpected := errors.New("injected Unmarshal error")
@@ -565,10 +573,10 @@ func TestVisitor_Error(t *testing.T) {
 		unmarshal = func(buf []byte, pb proto.Message) error { return errExpected }
 		defer func() { unmarshal = restore }()
 
-		err := vHalt.Visit(block)
+		err := vHalt.Visit(block, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
-		require.NoError(t, v.Visit(block))
+		require.NoError(t, v.Visit(block, pvtData))
 	})
 
 	t.Run("ExtractEnvelope error", func(t *testing.T) {
@@ -577,10 +585,10 @@ func TestVisitor_Error(t *testing.T) {
 		extractEnvelope = func(block *cb.Block, index int) (envelope *cb.Envelope, e error) { return nil, errExpected }
 		defer func() { extractEnvelope = restore }()
 
-		err := vHalt.Visit(block)
+		err := vHalt.Visit(block, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
-		require.NoError(t, v.Visit(block))
+		require.NoError(t, v.Visit(block, pvtData))
 	})
 
 	t.Run("ExtractPayload error", func(t *testing.T) {
@@ -589,10 +597,10 @@ func TestVisitor_Error(t *testing.T) {
 		extractPayload = func(envelope *cb.Envelope) (payload *cb.Payload, e error) { return nil, errExpected }
 		defer func() { extractPayload = restore }()
 
-		err := vHalt.Visit(block)
+		err := vHalt.Visit(block, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
-		require.NoError(t, v.Visit(block))
+		require.NoError(t, v.Visit(block, pvtData))
 	})
 
 	t.Run("UnmarshalChannelHeader error", func(t *testing.T) {
@@ -601,10 +609,10 @@ func TestVisitor_Error(t *testing.T) {
 		unmarshalChannelHeader = func(bytes []byte) (header *cb.ChannelHeader, e error) { return nil, errExpected }
 		defer func() { unmarshalChannelHeader = restore }()
 
-		err := vHalt.Visit(block)
+		err := vHalt.Visit(block, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
-		require.NoError(t, v.Visit(block))
+		require.NoError(t, v.Visit(block, pvtData))
 	})
 
 	t.Run("GetTransaction error", func(t *testing.T) {
@@ -613,10 +621,10 @@ func TestVisitor_Error(t *testing.T) {
 		getTransaction = func(txBytes []byte) (transaction *pb.Transaction, e error) { return nil, errExpected }
 		defer func() { getTransaction = restore }()
 
-		err := vHalt.Visit(block)
+		err := vHalt.Visit(block, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
-		require.NoError(t, v.Visit(block))
+		require.NoError(t, v.Visit(block, pvtData))
 	})
 
 	t.Run("GetChaincodeActionPayload error", func(t *testing.T) {
@@ -625,10 +633,29 @@ func TestVisitor_Error(t *testing.T) {
 		getChaincodeActionPayload = func(capBytes []byte) (payload *pb.ChaincodeActionPayload, e error) { return nil, errExpected }
 		defer func() { getChaincodeActionPayload = restore }()
 
-		err := vHalt.Visit(block)
+		err := vHalt.Visit(block, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
-		require.NoError(t, v.Visit(block))
+		require.NoError(t, v.Visit(block, pvtData))
+	})
+
+	t.Run("Unmarshal pvt data RW set error", func(t *testing.T) {
+		errExpected := errors.New("injected Unmarshal error")
+		restore := unmarshal
+		unmarshal = func(buf []byte, pb proto.Message) error { return errExpected }
+		defer func() { unmarshal = restore }()
+
+		b := mocks.NewBlockBuilder(channelID, 1100)
+		b.Transaction(txID1, pb.TxValidationCode_VALID)
+		block := b.Build()
+
+		err := vHalt.Visit(b.Build(), mockPvtData(block.Header.Number, 0))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+		require.NoError(t, v.Visit(block, pvtData))
+
+		vNoHalt := New(channelID)
+		require.NoError(t, vNoHalt.Visit(b.Build(), mockPvtData(block.Header.Number, 0)))
 	})
 }
 
@@ -659,11 +686,113 @@ func TestVisitor_NoStopOnError(t *testing.T) {
 	)
 	require.NotNil(t, p)
 
-	require.NoError(t, p.Visit(mockBlockWithTransactions(t)))
-	assert.Equal(t, 2, numReads)
-	assert.Equal(t, 3, numWrites)
+	block, pvtData := mockBlockWithTransactions(t)
+
+	require.NoError(t, p.Visit(block, pvtData))
+	assert.Equal(t, 3, numReads)  // 2 state and 1 private collection reads
+	assert.Equal(t, 5, numWrites) // 3 state and 2 private collection writes
 	assert.Equal(t, 2, numCCEvents)
 	assert.EqualValues(t, 1101, p.LedgerHeight())
+}
+
+func TestVisitor_PvtDataNoStopOnError(t *testing.T) {
+	expectedErr := fmt.Errorf("injected error")
+	numReads := 0
+	numWrites := 0
+
+	p := New(channelID,
+		WithReadHandler(func(read *Read) error {
+			numReads++
+			return expectedErr
+		}),
+		WithWriteHandler(func(write *Write) error {
+			numWrites++
+			return expectedErr
+		}),
+	)
+	require.NotNil(t, p)
+
+	b := mocks.NewBlockBuilder(channelID, 1100)
+	b.Transaction(txID1, pb.TxValidationCode_VALID).ChaincodeAction(ccID1)
+	block := b.Build()
+	pvtData := mockPvtData(block.Header.Number, 0)
+
+	require.NoError(t, p.Visit(block, pvtData))
+	assert.Equal(t, 1, numReads)  // 1 private collection reads
+	assert.Equal(t, 2, numWrites) // 2 private collection writes
+	assert.EqualValues(t, 1101, p.LedgerHeight())
+}
+
+func TestVisitor_PvtDataStopOnHandlerError(t *testing.T) {
+	expectedErr := fmt.Errorf("injected error")
+
+	t.Run("Read handler error", func(t *testing.T) {
+		numReads := 0
+		numWrites := 0
+		var category Category
+
+		p := New(channelID,
+			WithReadHandler(func(read *Read) error {
+				numReads++
+				return expectedErr
+			}),
+			WithWriteHandler(func(write *Write) error {
+				numWrites++
+				return nil
+			}),
+			WithErrorHandler(func(err error, ctx *Context) error {
+				category = ctx.Category
+				return err
+			}),
+		)
+		require.NotNil(t, p)
+
+		b := mocks.NewBlockBuilder(channelID, 1100)
+		b.Transaction(txID1, pb.TxValidationCode_VALID).ChaincodeAction(ccID1)
+		block := b.Build()
+		pvtData := mockPvtData(block.Header.Number, 0)
+
+		err := p.Visit(block, pvtData)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), expectedErr.Error())
+		require.Equal(t, 1, numReads)
+		require.Equal(t, 0, numWrites)
+		require.Equal(t, ReadHandlerErr, category)
+	})
+
+	t.Run("Write handler error", func(t *testing.T) {
+		numReads := 0
+		numWrites := 0
+		var category Category
+
+		p := New(channelID,
+			WithReadHandler(func(read *Read) error {
+				numReads++
+				return nil
+			}),
+			WithWriteHandler(func(write *Write) error {
+				numWrites++
+				return expectedErr
+			}),
+			WithErrorHandler(func(err error, ctx *Context) error {
+				category = ctx.Category
+				return err
+			}),
+		)
+		require.NotNil(t, p)
+
+		b := mocks.NewBlockBuilder(channelID, 1100)
+		b.Transaction(txID1, pb.TxValidationCode_VALID).ChaincodeAction(ccID1)
+		block := b.Build()
+		pvtData := mockPvtData(block.Header.Number, 0)
+
+		err := p.Visit(block, pvtData)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), expectedErr.Error())
+		require.Equal(t, 1, numReads)
+		require.Equal(t, 1, numWrites)
+		require.Equal(t, WriteHandlerErr, category)
+	})
 }
 
 func TestVisitor_SetLastCommittedBlockNum(t *testing.T) {
@@ -712,7 +841,7 @@ func (info *ccInfo) getCCP() *pb.CollectionConfigPackage {
 	return info.ccp
 }
 
-func mockBlockWithTransactions(t *testing.T) *cb.Block {
+func mockBlockWithTransactions(t *testing.T) (*cb.Block, ledger.TxPvtDataMap) {
 	var (
 		value1 = []byte("value1")
 		value2 = []byte("value2")
@@ -773,7 +902,9 @@ func mockBlockWithTransactions(t *testing.T) *cb.Block {
 		Write(ccID1, ccDataBytes).
 		ChaincodeEvent(ccEvent1, nil)
 
-	return b.Build()
+	block := b.Build()
+
+	return block, mockPvtData(block.Header.Number, 0)
 }
 
 func TestVisitorError_Cause(t *testing.T) {
@@ -781,4 +912,18 @@ func TestVisitorError_Cause(t *testing.T) {
 	err := newVisitorError(cause)
 	require.NotNil(t, err)
 	require.Equal(t, cause, errors.Cause(err))
+}
+
+func mockPvtData(blockNum, txIdx uint64) ledger.TxPvtDataMap {
+	pvtBuilder := mocks.NewPvtReadWriteSetBuilder()
+	pvtNsBuilder := pvtBuilder.Namespace(ccID1)
+	pvtNsBuilder.Collection(coll1).Write(key1, []byte("value1")).Read(key2, blockNum, txIdx)
+	pvtNsBuilder.Collection(coll2).Write(key2, []byte("value2"))
+
+	pvtData := &ledger.TxPvtData{
+		SeqInBlock: txIdx,
+		WriteSet:   pvtBuilder.BuildReadWriteSet(),
+	}
+
+	return ledger.TxPvtDataMap{0: pvtData}
 }
