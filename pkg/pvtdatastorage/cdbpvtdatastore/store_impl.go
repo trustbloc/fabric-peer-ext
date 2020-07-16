@@ -93,10 +93,10 @@ func NewProvider(conf *pvtdatastorage.PrivateDataConfig, ledgerconfig *ledger.Co
 	logger.Debugf("constructing CouchDB private data storage provider")
 	couchDBConfig := ledgerconfig.StateDBConfig.CouchDB
 
-	return newProviderWithDBDef(couchDBConfig, conf, ledgerconfig)
+	return newProviderWithDBDef(couchDBConfig, conf)
 }
 
-func newProviderWithDBDef(couchDBConfig *ledger.CouchDBConfig, conf *pvtdatastorage.PrivateDataConfig, ledgerconfig *ledger.Config) (xstorageapi.PrivateDataProvider, error) {
+func newProviderWithDBDef(couchDBConfig *ledger.CouchDBConfig, conf *pvtdatastorage.PrivateDataConfig) (xstorageapi.PrivateDataProvider, error) {
 	couchInstance, err := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {
 		return nil, errors.WithMessage(err, "obtaining CouchDB instance failed")
