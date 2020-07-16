@@ -12,6 +12,7 @@ import (
 	proto "github.com/hyperledger/fabric-protos-go/gossip"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
+	"github.com/hyperledger/fabric/core/ledger"
 	common2 "github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/gossip/discovery"
 	"github.com/hyperledger/fabric/gossip/protoext"
@@ -40,7 +41,7 @@ type GossipStateProviderExtension interface {
 	AddPayload(func(payload *proto.Payload, blockingMode bool) error) func(payload *proto.Payload, blockingMode bool) error
 
 	//StoreBlock  can used to extend given store block handle
-	StoreBlock(func(block *common.Block, pvtData util.PvtDataCollections) error) func(block *common.Block, pvtData util.PvtDataCollections) error
+	StoreBlock(func(block *common.Block, pvtData util.PvtDataCollections) (*ledger.BlockAndPvtData, error)) func(block *common.Block, pvtData util.PvtDataCollections) (*ledger.BlockAndPvtData, error)
 
 	//LedgerHeight can used to extend ledger height feature to get current ledger height
 	LedgerHeight(func() (uint64, error)) func() (uint64, error)
@@ -128,19 +129,21 @@ func (s *gossipStateProviderExtension) AddPayload(handle func(payload *proto.Pay
 	}
 }
 
-func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Block, pvtData util.PvtDataCollections) error) func(block *common.Block, pvtData util.PvtDataCollections) error {
+func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Block, pvtData util.PvtDataCollections) (*ledger.BlockAndPvtData, error)) func(block *common.Block, pvtData util.PvtDataCollections) (*ledger.BlockAndPvtData, error) {
 
-	return func(block *common.Block, pvtData util.PvtDataCollections) error {
+	return func(block *common.Block, pvtData util.PvtDataCollections) (*ledger.BlockAndPvtData, error) {
 		if roles.IsCommitter() {
 			// Commit block with available private transactions
-			if err := handle(block, pvtData); err != nil {
+			blockAndPvtData, err := handle(block, pvtData)
+			if err != nil {
 				logger.Errorf("Got error while committing(%+v)", errors.WithStack(err))
-				return err
+				return nil, err
 			}
 
 			// Gossip messages with other nodes in my org
-			s.gossipBlock(block)
-			return nil
+			s.gossipBlockAndPrivateData(blockAndPvtData)
+
+			return blockAndPvtData, nil
 		}
 
 		//in case of non-committer handle pre commit operations
@@ -148,19 +151,25 @@ func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Bloc
 			err := s.support.Ledger.CheckpointBlock(block)
 			if err != nil {
 				logger.Warning("Failed to update checkpoint info for cid[%s] block[%d]", s.chainID, block.Header.Number)
-				return err
+				return nil, err
 			}
-			blockpublisher.ForChannel(s.chainID).Publish(block)
-			return nil
+
+			logger.Debugf("[%s] Received validated block [%d] with %d private data collections", s.chainID, block.Header.Number, len(pvtData))
+
+			blockpublisher.ForChannel(s.chainID).Publish(block, toPvtDataMap(pvtData))
+
+			return nil, nil
 		}
 
 		logger.Warnf("[%s] I'm not a committer but received an unvalidated block [%d]", s.chainID, block.Header.Number)
 
-		return nil
+		return nil, nil
 	}
 }
 
-func (s *gossipStateProviderExtension) gossipBlock(block *common.Block) {
+func (s *gossipStateProviderExtension) gossipBlockAndPrivateData(blockAndPvtData *ledger.BlockAndPvtData) {
+	block := blockAndPvtData.Block
+
 	blockNum := block.Header.Number
 
 	if err := s.mediator.VerifyBlock(common2.ChannelID(s.chainID), blockNum, block); err != nil {
@@ -176,16 +185,24 @@ func (s *gossipStateProviderExtension) gossipBlock(block *common.Block) {
 		return
 	}
 
+	pvtData := fromPvtDataMap(blockAndPvtData.PvtData)
+
+	marshaledPvt, err := pvtData.Marshal()
+	if err != nil {
+		logger.Errorf("[%s] Error serializing pvtDataCollections with block number %d, due to %s", s.chainID, blockNum, err)
+	}
+
 	// Create payload with a block received
 	payload := &proto.Payload{
-		Data:   marshaledBlock,
-		SeqNum: blockNum,
+		SeqNum:      blockNum,
+		Data:        marshaledBlock,
+		PrivateData: marshaledPvt,
 	}
 
 	// Use payload to create gossip message
 	gossipMsg := createGossipMsg(s.chainID, payload)
 
-	logger.Debugf("[%s] Gossiping block [%d], number of peers [%d]", s.chainID, blockNum, numberOfPeers)
+	logger.Debugf("[%s] Gossiping block [%d] with %d private data collections, number of peers [%d]", s.chainID, blockNum, len(pvtData), numberOfPeers)
 	s.mediator.Gossip(gossipMsg)
 }
 
@@ -289,4 +306,24 @@ func createGossipMsg(chainID string, payload *proto.Payload) *proto.GossipMessag
 		},
 	}
 	return gossipMsg
+}
+
+func toPvtDataMap(pvtData util.PvtDataCollections) ledger.TxPvtDataMap {
+	pvtDataMap := make(ledger.TxPvtDataMap, len(pvtData))
+
+	for _, data := range pvtData {
+		pvtDataMap[data.SeqInBlock] = data
+	}
+
+	return pvtDataMap
+}
+
+func fromPvtDataMap(pvtData ledger.TxPvtDataMap) util.PvtDataCollections {
+	var pvtDataColl util.PvtDataCollections
+
+	for _, data := range pvtData {
+		pvtDataColl = append(pvtDataColl, data)
+	}
+
+	return pvtDataColl
 }

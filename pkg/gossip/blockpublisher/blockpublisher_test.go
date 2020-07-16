@@ -177,7 +177,7 @@ func TestPublisher_PublishEndorsementEvents(t *testing.T) {
 		Write(ccID1, ccDataBytes).
 		ChaincodeEvent(ccEvent1, nil)
 
-	p.Publish(b.Build())
+	p.Publish(b.Build(), nil)
 
 	// Wait a bit for the events to be published
 	time.Sleep(500 * time.Millisecond)
@@ -214,7 +214,7 @@ func TestPublisher_PublishConfigUpdateEvents(t *testing.T) {
 	b := mocks.NewBlockBuilder(channel1, 1100)
 	b.ConfigUpdate()
 
-	p.Publish(b.Build())
+	p.Publish(b.Build(), nil)
 
 	// Wait a bit for the events to be published
 	time.Sleep(500 * time.Millisecond)
@@ -306,7 +306,7 @@ func TestPublisher_LSCCWriteEvent(t *testing.T) {
 		Write(ccID1, ccDataBytes).
 		Write(ccID1+blockvisitor.CollectionSeparator+"collection", ccpBytes)
 
-	p.Publish(b.Build())
+	p.Publish(b.Build(), nil)
 
 	// Wait a bit for the events to be published
 	time.Sleep(500 * time.Millisecond)
@@ -386,7 +386,7 @@ func TestPublisher_Error(t *testing.T) {
 	tb4.ChaincodeAction(blockvisitor.LsccID).
 		ChaincodeEvent(ccEvent1, nil)
 
-	p.Publish(b.Build())
+	p.Publish(b.Build(), nil)
 
 	// Wait a bit for the events to be published
 	time.Sleep(500 * time.Millisecond)

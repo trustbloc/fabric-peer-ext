@@ -54,7 +54,7 @@ func TestNewUpdateHandler(t *testing.T) {
 		h := NewUpdateHandler(bpp, ccEvtMgrProvider)
 		require.NotPanics(t, func() { h.ChannelJoined(channel1) })
 
-		bpp.ForChannel(channel1).Publish(b.Build())
+		bpp.ForChannel(channel1).Publish(b.Build(), nil)
 		time.Sleep(200 * time.Millisecond)
 	})
 
@@ -69,7 +69,7 @@ func TestNewUpdateHandler(t *testing.T) {
 		h := NewUpdateHandler(bpp, ccEvtMgrProvider)
 		require.NotPanics(t, func() { h.ChannelJoined(channel1) })
 
-		bpp.ForChannel(channel1).Publish(b.Build())
+		bpp.ForChannel(channel1).Publish(b.Build(), nil)
 		time.Sleep(200 * time.Millisecond)
 	})
 
@@ -87,7 +87,7 @@ func TestNewUpdateHandler(t *testing.T) {
 		errExpected := errors.New("handler error")
 		ccEvtMgr.HandleChaincodeDeployReturns(errExpected)
 
-		bpp.ForChannel(channel1).Publish(b.Build())
+		bpp.ForChannel(channel1).Publish(b.Build(), nil)
 		time.Sleep(200 * time.Millisecond)
 	})
 }

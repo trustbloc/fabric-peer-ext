@@ -15,6 +15,7 @@ import (
 	cb "github.com/hyperledger/fabric-protos-go/common"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/pkg/errors"
 
@@ -202,8 +203,8 @@ func (p *Publisher) AddLSCCWriteHandler(handler api.LSCCWriteHandler) {
 }
 
 // Publish publishes a block
-func (p *Publisher) Publish(block *cb.Block) {
-	if err := p.Visit(block); err != nil {
+func (p *Publisher) Publish(block *cb.Block, pvtData ledger.TxPvtDataMap) {
+	if err := p.Visit(block, pvtData); err != nil {
 		// Errors are never expected
 		panic(err.Error())
 	}

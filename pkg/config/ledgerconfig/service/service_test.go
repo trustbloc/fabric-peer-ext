@@ -193,7 +193,7 @@ func TestConfigService_CacheUpdate(t *testing.T) {
 	// Other namespaces should be ignored
 	txb.ChaincodeAction("some-other-cc").
 		Write(mgr.MarshalKey(key3), val3Bytes)
-	publisher.Publish(b.Build())
+	publisher.Publish(b.Build(), nil)
 
 	// Give the event enough time to be processed
 	time.Sleep(100 * time.Millisecond)
@@ -222,7 +222,7 @@ func TestConfigService_CacheUpdate(t *testing.T) {
 		Delete(mgr.MarshalKey(key2)).
 		Write(mgr.MarshalKey(key3), val3Bytes).
 		Delete(mgr.MarshalKey(key4))
-	publisher.Publish(b.Build())
+	publisher.Publish(b.Build(), nil)
 
 	// Give the event enough time to be processed
 	time.Sleep(100 * time.Millisecond)
@@ -284,7 +284,7 @@ func TestConfigService_AddUpdateHandler(t *testing.T) {
 		Write(mgr.MarshalKey(key1), val1Bytes).
 		Write(mgr.MarshalKey(key2), val2Bytes).
 		Delete(mgr.MarshalKey(key3))
-	publisher.Publish(b.Build())
+	publisher.Publish(b.Build(), nil)
 
 	// Give the event enough time to be processed
 	time.Sleep(100 * time.Millisecond)

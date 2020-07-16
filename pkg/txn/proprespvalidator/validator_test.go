@@ -592,7 +592,7 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 		b.Transaction("tx1", pb.TxValidationCode_VALID).
 			ChaincodeAction(lsccID).ChaincodeEvent(upgradeEvent, lceBytes)
 
-		bp.Publish(b.Build())
+		bp.Publish(b.Build(), nil)
 
 		time.Sleep(100 * time.Millisecond)
 

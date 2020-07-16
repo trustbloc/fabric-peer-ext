@@ -7,15 +7,18 @@ SPDX-License-Identifier: Apache-2.0
 package blockvisitor
 
 import (
+	"fmt"
 	"strings"
 	"sync/atomic"
 
 	"github.com/golang/protobuf/proto"
 	cb "github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
 	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/pkg/errors"
@@ -232,9 +235,9 @@ func (p *Visitor) ChannelID() string {
 }
 
 // Visit traverses the given block and invokes the applicable handlers
-func (p *Visitor) Visit(block *cb.Block) error {
+func (p *Visitor) Visit(block *cb.Block, pvtData ledger.TxPvtDataMap) error {
 	defer atomic.StoreUint64(&p.lastCommittedBlock, block.Header.Number)
-	return newBlockEvent(p.channelID, block, p.Options).visit()
+	return newBlockEvent(p.channelID, block, pvtData, p.Options).visit()
 }
 
 // LedgerHeight returns ledger height based on last block published
@@ -257,13 +260,15 @@ type blockEvent struct {
 	*Options
 	channelID string
 	block     *cb.Block
+	pvtData   ledger.TxPvtDataMap
 }
 
-func newBlockEvent(channelID string, block *cb.Block, options *Options) *blockEvent {
+func newBlockEvent(channelID string, block *cb.Block, pvtData ledger.TxPvtDataMap, options *Options) *blockEvent {
 	return &blockEvent{
 		Options:   options,
 		channelID: channelID,
 		block:     block,
+		pvtData:   pvtData,
 	}
 }
 
@@ -280,7 +285,7 @@ func (p *blockEvent) visit() error {
 			continue
 		}
 
-		if err = p.visitEnvelope(uint64(txNum), envelope); err != nil {
+		if err = p.visitEnvelope(uint64(txNum), envelope, p.pvtData[uint64(txNum)]); err != nil {
 			if haltOnError(err) {
 				return errors.Wrapf(err, "error visiting envelope at index %d in block %d", txNum, p.block.Header.Number)
 			}
@@ -292,7 +297,7 @@ func (p *blockEvent) visit() error {
 	return nil
 }
 
-func (p *blockEvent) visitEnvelope(txNum uint64, envelope *cb.Envelope) error {
+func (p *blockEvent) visitEnvelope(txNum uint64, envelope *cb.Envelope, pvtData *ledger.TxPvtData) error {
 	payload, chdr, err := extractPayloadAndHeader(envelope)
 	if err != nil {
 		if e := p.HandleError(err, p.newUnmarshalErrContext(withTxNum(txNum))); e != nil {
@@ -304,7 +309,7 @@ func (p *blockEvent) visitEnvelope(txNum uint64, envelope *cb.Envelope) error {
 
 	switch cb.HeaderType(chdr.Type) {
 	case cb.HeaderType_ENDORSER_TRANSACTION:
-		return p.visitTx(txNum, payload, chdr)
+		return p.visitTx(txNum, payload, chdr, pvtData)
 	case cb.HeaderType_CONFIG_UPDATE:
 		return p.visitConfigUpdate(payload)
 	default:
@@ -312,7 +317,7 @@ func (p *blockEvent) visitEnvelope(txNum uint64, envelope *cb.Envelope) error {
 	}
 }
 
-func (p *blockEvent) visitTx(txNum uint64, payload *cb.Payload, chdr *cb.ChannelHeader) error {
+func (p *blockEvent) visitTx(txNum uint64, payload *cb.Payload, chdr *cb.ChannelHeader, pvtData *ledger.TxPvtData) error {
 	txFilter := txflags.ValidationFlags(p.block.Metadata.Metadata[cb.BlockMetadataIndex_TRANSACTIONS_FILTER])
 	code := txFilter.Flag(int(txNum))
 	if code != pb.TxValidationCode_VALID {
@@ -329,7 +334,7 @@ func (p *blockEvent) visitTx(txNum uint64, payload *cb.Payload, chdr *cb.Channel
 		return nil
 	}
 
-	return newTxEvent(p.channelID, p.block.Header.Number, txNum, chdr.TxId, tx, p.Options).visit()
+	return newTxEvent(p.channelID, p.block.Header.Number, txNum, chdr.TxId, tx, pvtData, p.Options).visit()
 }
 
 func (p *blockEvent) visitConfigUpdate(payload *cb.Payload) error {
@@ -352,9 +357,10 @@ type txEvent struct {
 	txNum     uint64
 	txID      string
 	tx        *pb.Transaction
+	pvtData   *ledger.TxPvtData
 }
 
-func newTxEvent(channelID string, blockNum uint64, txNum uint64, txID string, tx *pb.Transaction, options *Options) *txEvent {
+func newTxEvent(channelID string, blockNum uint64, txNum uint64, txID string, tx *pb.Transaction, pvtData *ledger.TxPvtData, options *Options) *txEvent {
 	return &txEvent{
 		Options:   options,
 		channelID: channelID,
@@ -362,6 +368,7 @@ func newTxEvent(channelID string, blockNum uint64, txNum uint64, txID string, tx
 		txNum:     txNum,
 		txID:      txID,
 		tx:        tx,
+		pvtData:   pvtData,
 	}
 }
 
@@ -378,7 +385,11 @@ func (p *txEvent) visit() error {
 		}
 	}
 
-	return nil
+	if p.pvtData == nil {
+		return nil
+	}
+
+	return p.visitPvtDataWriteSet(p.pvtData.WriteSet)
 }
 
 func (p *txEvent) visitTXAction(action *pb.TransactionAction) error {
@@ -583,6 +594,62 @@ func (p *txEvent) visitCollHashRWSets(nameSpace string, collHashedRwSets []*rwse
 		if err != nil && haltOnError(err) {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (p *txEvent) visitPvtDataWriteSet(writeSet *rwset.TxPvtReadWriteSet) error {
+	if writeSet == nil {
+		return nil
+	}
+
+	for _, nsWriteSet := range writeSet.NsPvtRwset {
+		if err := p.visitPvtNsWriteSet(nsWriteSet); err != nil {
+			if haltOnError(err) {
+				return err
+			}
+
+			logger.Warningf("[%s] Error visiting namespace private write set for namespace [%s]: %s", p.channelID, nsWriteSet.Namespace, err)
+		}
+	}
+
+	return nil
+}
+
+func (p *txEvent) visitPvtNsWriteSet(nsWriteSet *rwset.NsPvtReadWriteSet) error {
+	for _, collWriteSet := range nsWriteSet.CollectionPvtRwset {
+		if err := p.visitPvtCollWriteSet(nsWriteSet.Namespace, collWriteSet); err != nil {
+			if haltOnError(err) {
+				return err
+			}
+
+			logger.Warningf("[%s] Error visiting collection private write set for [%s:%s]: %s", p.channelID, nsWriteSet.Namespace, collWriteSet.CollectionName, err)
+		}
+	}
+
+	return nil
+}
+
+func (p *txEvent) visitPvtCollWriteSet(namespace string, collWriteSet *rwset.CollectionPvtReadWriteSet) error {
+	kvRwSet := &kvrwset.KVRWSet{}
+	if err := unmarshal(collWriteSet.Rwset, kvRwSet); err != nil {
+		if e := p.HandleError(err, p.newContext(UnmarshalErr)); e != nil {
+			return newVisitorError(errors.WithMessagef(e, "invalid KV read/write set for collection [%s:%s]", namespace, collWriteSet.CollectionName))
+		}
+
+		logger.Warningf("[%s] error unmarshalling KV read/write set for collection [%s]", p.channelID, namespace, collWriteSet.CollectionName)
+		return nil
+	}
+
+	collNamespace := fmt.Sprintf("%s$$p%s", namespace, collWriteSet.CollectionName)
+
+	if err := p.publishReads(collNamespace, kvRwSet.Reads); err != nil && haltOnError(err) {
+		return err
+	}
+
+	if err := p.publishWrites(collNamespace, kvRwSet.Writes); err != nil && haltOnError(err) {
+		return err
 	}
 
 	return nil

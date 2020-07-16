@@ -11,6 +11,7 @@ import (
 
 	"github.com/hyperledger/fabric-protos-go/common"
 	proto "github.com/hyperledger/fabric-protos-go/gossip"
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/gossip/discovery"
 	"github.com/hyperledger/fabric/gossip/protoext"
 	"github.com/hyperledger/fabric/gossip/util"
@@ -35,8 +36,8 @@ func TestProviderExtension(t *testing.T) {
 		return sampleError
 	}
 
-	handleStoreBlock := func(block *common.Block, pvtData util.PvtDataCollections) error {
-		return sampleError
+	handleStoreBlock := func(block *common.Block, pvtData util.PvtDataCollections) (*ledger.BlockAndPvtData, error) {
+		return nil, sampleError
 	}
 
 	extension := NewGossipStateProviderExtension("test", nil, &api.Support{}, false)
@@ -49,7 +50,8 @@ func TestProviderExtension(t *testing.T) {
 	require.Error(t, sampleError, extension.AddPayload(handleAddPayload)(payload, false))
 
 	//test extension.StoreBlock
-	require.Error(t, sampleError, extension.StoreBlock(handleStoreBlock)(nil, util.PvtDataCollections{}))
+	_, err := extension.StoreBlock(handleStoreBlock)(nil, nil)
+	require.Error(t, err, sampleError)
 
 	//test extension.AntiEntropy
 	handled := make(chan bool, 1)
@@ -108,8 +110,8 @@ func TestProviderByEndorser(t *testing.T) {
 		return sampleError
 	}
 
-	handleStoreBlock := func(block *common.Block, pvtData util.PvtDataCollections) error {
-		return sampleError
+	handleStoreBlock := func(block *common.Block, pvtData util.PvtDataCollections) (*ledger.BlockAndPvtData, error) {
+		return nil, sampleError
 	}
 
 	extension := NewGossipStateProviderExtension("test", nil, &api.Support{
@@ -130,7 +132,8 @@ func TestProviderByEndorser(t *testing.T) {
 	require.Error(t, sampleError, extension.AddPayload(handleAddPayload)(payload, false))
 
 	//test extension.StoreBlock
-	require.Nil(t, extension.StoreBlock(handleStoreBlock)(block, util.PvtDataCollections{}))
+	_, err := extension.StoreBlock(handleStoreBlock)(block, util.PvtDataCollections{})
+	require.NoError(t, err)
 
 	//test extension.AntiEntropy
 	handled := make(chan bool, 1)
@@ -200,8 +203,8 @@ func TestProviderByCommitter(t *testing.T) {
 		return sampleError
 	}
 
-	handleStoreBlock := func(block *common.Block, pvtData util.PvtDataCollections) error {
-		return sampleError
+	handleStoreBlock := func(block *common.Block, pvtData util.PvtDataCollections) (*ledger.BlockAndPvtData, error) {
+		return nil, sampleError
 	}
 
 	extension := NewGossipStateProviderExtension("test", nil, &api.Support{}, false)
@@ -214,7 +217,8 @@ func TestProviderByCommitter(t *testing.T) {
 	require.Error(t, sampleError, extension.AddPayload(handleAddPayload)(payload, false))
 
 	//test extension.StoreBlock
-	require.Error(t, sampleError, extension.StoreBlock(handleStoreBlock)(nil, util.PvtDataCollections{}))
+	_, err := extension.StoreBlock(handleStoreBlock)(nil, nil)
+	require.Error(t, err, sampleError)
 
 	//test extension.AntiEntropy
 	handled := make(chan bool, 1)
