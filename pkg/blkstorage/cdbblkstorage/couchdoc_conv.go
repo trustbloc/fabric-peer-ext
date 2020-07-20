@@ -22,6 +22,11 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/txflags"
 )
 
+const (
+	preResetHeightKey = "preResetHeight"
+	heightField       = "height"
+)
+
 // block document
 const (
 	idField             = "_id"
@@ -33,6 +38,7 @@ const (
 	blockAttachmentName = "block"
 	blockKeyPrefix      = ""
 	blockHeaderField    = "header"
+	deletedField        = "_deleted"
 )
 
 // txn document
@@ -186,6 +192,21 @@ func checkpointInfoToCouchDoc(i *checkpointInfo) (*couchdb.CouchDoc, error) {
 
 	attachments := append([]*couchdb.AttachmentInfo{}, attachment)
 	couchDoc.Attachments = attachments
+	return couchDoc, nil
+}
+
+func preResetHeightKeyToCouchDoc(blockNumber string) (*couchdb.CouchDoc, error) {
+	jsonMap := make(jsonValue)
+
+	jsonMap[idField] = preResetHeightKey
+	jsonMap[heightField] = blockNumber
+
+	jsonBytes, err := jsonMap.toBytes()
+	if err != nil {
+		return nil, err
+	}
+	couchDoc := &couchdb.CouchDoc{JSONValue: jsonBytes}
+
 	return couchDoc, nil
 }
 
@@ -374,4 +395,27 @@ func couchDocToJSON(doc *couchdb.CouchDoc) (jsonValue, error) {
 	}
 
 	return jsonResult, nil
+}
+
+func addDeletedFlagToCouchDoc(value []byte) (*couchdb.CouchDoc, error) {
+	// create a generic map unmarshal the json
+	jsonResult := make(map[string]interface{})
+	decoder := json.NewDecoder(bytes.NewBuffer(value))
+	decoder.UseNumber()
+
+	err := decoder.Decode(&jsonResult)
+	if err != nil {
+		return nil, errors.Wrapf(err, "result from DB is not JSON encoded")
+	}
+
+	jsonResult[deletedField] = true
+
+	valueBytes, err := json.Marshal(jsonResult)
+	if err != nil {
+		return nil, err
+	}
+
+	couchDoc := &couchdb.CouchDoc{JSONValue: valueBytes}
+
+	return couchDoc, nil
 }
