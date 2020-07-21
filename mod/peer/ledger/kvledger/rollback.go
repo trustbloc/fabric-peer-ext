@@ -8,6 +8,7 @@ package kvledger
 
 import (
 	"github.com/hyperledger/fabric/common/flogging"
+	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
 	"github.com/hyperledger/fabric/common/metrics/disabled"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger"
@@ -21,6 +22,14 @@ var logger = flogging.MustGetLogger("kvledger")
 
 func RollbackKVLedger(ledgerconfig *ledger.Config, ledgerID string, blockNum uint64) error {
 	if config.GetBlockStoreDBType() == config.CouchDBType {
+		fileLockPath := fileLockPath(ledgerconfig.RootFSPath)
+		fileLock := leveldbhelper.NewFileLock(fileLockPath)
+		if err := fileLock.Lock(); err != nil {
+			return errors.Wrap(err, "as another peer node command is executing,"+
+				" wait for that command to complete its execution or terminate it before retrying")
+		}
+		defer fileLock.Unlock()
+
 		stateDBCouchInstance, err := couchdb.CreateCouchInstance(ledgerconfig.StateDBConfig.CouchDB, &disabled.Provider{})
 		if err != nil {
 			return errors.WithMessage(err, "obtaining CouchDB instance failed")
@@ -31,7 +40,7 @@ func RollbackKVLedger(ledgerconfig *ledger.Config, ledgerID string, blockNum uin
 		}
 
 		logger.Infof("Dropping databases")
-		if err := dropDBs(ledgerconfig.RootFSPath); err != nil {
+		if err := dropDBs(ledgerconfig); err != nil {
 			return err
 		}
 

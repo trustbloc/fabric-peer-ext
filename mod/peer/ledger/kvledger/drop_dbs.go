@@ -8,12 +8,13 @@ package kvledger
 
 import (
 	"os"
-	"path/filepath"
 
+	"github.com/hyperledger/fabric/core/ledger"
+	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/pkg/errors"
 )
 
-func dropDBs(rootFSPath string) error {
+func dropDBs(ledgerconfig *ledger.Config) error {
 	// During block commits to stateDB, the transaction manager updates the bookkeeperDB and one of the
 	// state listener updates the config historyDB. As we drop the stateDB, we need to drop the
 	// configHistoryDB and bookkeeperDB too so that during the peer startup after the reset/rollback,
@@ -23,17 +24,23 @@ func dropDBs(rootFSPath string) error {
 	// command fails before dropping the stateDB, peer cannot start with consistent data (if the
 	// user decides to start the peer without retrying the reset/rollback) as the stateDB would
 	// not be rebuilt.
-	// TODO Drop stateCouchDB
-	if err := dropStateLevelDB(rootFSPath); err != nil {
+
+	if ledgerconfig.StateDBConfig.StateDatabase == "CouchDB" {
+		if err := statecouchdb.DropApplicationDBs(ledgerconfig.StateDBConfig.CouchDB); err != nil {
+			return err
+		}
+	}
+
+	if err := dropStateLevelDB(ledgerconfig.RootFSPath); err != nil {
 		return err
 	}
-	if err := dropConfigHistoryDB(rootFSPath); err != nil {
+	if err := dropConfigHistoryDB(ledgerconfig.RootFSPath); err != nil {
 		return err
 	}
-	if err := dropBookkeeperDB(rootFSPath); err != nil {
+	if err := dropBookkeeperDB(ledgerconfig.RootFSPath); err != nil {
 		return err
 	}
-	if err := dropHistoryDB(rootFSPath); err != nil {
+	if err := dropHistoryDB(ledgerconfig.RootFSPath); err != nil {
 		return err
 	}
 	return nil
@@ -63,24 +70,4 @@ func dropHistoryDB(rootFSPath string) error {
 	historyDBPath := HistoryDBPath(rootFSPath)
 	logger.Infof("Dropping HistoryDB at location [%s] ...if present", historyDBPath)
 	return os.RemoveAll(historyDBPath)
-}
-
-// StateDBPath returns the absolute path of state level DB
-func StateDBPath(rootFSPath string) string {
-	return filepath.Join(rootFSPath, "stateLeveldb")
-}
-
-// HistoryDBPath returns the absolute path of history DB
-func HistoryDBPath(rootFSPath string) string {
-	return filepath.Join(rootFSPath, "historyLeveldb")
-}
-
-// ConfigHistoryDBPath returns the absolute path of configHistory DB
-func ConfigHistoryDBPath(rootFSPath string) string {
-	return filepath.Join(rootFSPath, "configHistory")
-}
-
-// BookkeeperDBPath return the absolute path of bookkeeper DB
-func BookkeeperDBPath(rootFSPath string) string {
-	return filepath.Join(rootFSPath, "bookkeeper")
 }
