@@ -1,3 +1,5 @@
+// +build testing
+
 /*
 Copyright IBM Corp. All Rights Reserved.
 
@@ -10,6 +12,9 @@ import (
 	"testing"
 
 	"github.com/hyperledger/fabric/core/ledger"
+	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
+	"github.com/pkg/errors"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
 
@@ -29,6 +34,21 @@ func NewTestStoreEnv(t *testing.T, ledgerid string, couchDBConfig *ledger.CouchD
 	}
 	s := &StoreEnv{t, testStore, ledgerid, couchDBConfig}
 	return s
+}
+
+// SaveMetadataDoc save metadata
+func SaveMetadataDoc(testStore *Store, format string) error {
+	jsonBytes, e := createMetadataDoc("", format)
+	if e != nil {
+		return e
+	}
+
+	_, e = testStore.db.SaveDoc(metadataID, "", &couchdb.CouchDoc{JSONValue: jsonBytes})
+	if e != nil {
+		return errors.WithMessage(e, "update of metadata in CouchDB failed")
+	}
+
+	return nil
 }
 
 var openIDStore = func(ledgerconfig *ledger.Config) (*Store, error) {
