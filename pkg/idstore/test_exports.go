@@ -51,6 +51,35 @@ func SaveMetadataDoc(testStore *Store, format string) error {
 	return nil
 }
 
+func SaveLedgerID(testStore *Store, ledgerID string, inventoryNameLedgerIDField string, status string) error {
+	_, rev, err := testStore.db.ReadDoc(ledgerIDToKey(ledgerID))
+	if err != nil {
+		return err
+	}
+
+	jsonMap := make(jsonValue)
+
+	jsonMap[idField] = ledgerIDToKey(ledgerID)
+	jsonMap[inventoryTypeField] = typeLedgerName
+	if inventoryNameLedgerIDField != "" {
+		jsonMap[inventoryNameLedgerIDField] = inventoryNameLedgerIDField
+	}
+	jsonMap[statusField] = status
+	jsonMap["_rev"] = rev
+
+	jsonBytes, err := jsonMap.toBytes()
+	if err != nil {
+		return err
+	}
+
+	_, err = testStore.db.BatchUpdateDocuments([]*couchdb.CouchDoc{{JSONValue: jsonBytes}})
+	if err != nil {
+		return errors.WithMessagef(err, "creation of ledger failed [%s]", ledgerID)
+	}
+
+	return nil
+}
+
 var openIDStore = func(ledgerconfig *ledger.Config) (*Store, error) {
 	return OpenIDStore(ledgerconfig)
 }
