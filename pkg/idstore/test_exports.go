@@ -51,6 +51,7 @@ func SaveMetadataDoc(testStore *Store, format string) error {
 	return nil
 }
 
+// SaveLedgerID save ledger ID
 func SaveLedgerID(testStore *Store, ledgerID string, inventoryNameLedgerIDField string, status string) error {
 	_, rev, err := testStore.db.ReadDoc(ledgerIDToKey(ledgerID))
 	if err != nil {

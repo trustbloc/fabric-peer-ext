@@ -545,7 +545,7 @@ func TestStore_UpdateLedgerStatus(t *testing.T) {
 	require.False(t, active)
 	require.False(t, exists)
 
-	req.EqualError(store.UpdateLedgerStatus(ledgerID, msgs.Status_INACTIVE), "ledger ID does not exist")
+	req.EqualError(store.UpdateLedgerStatus(ledgerID, msgs.Status_INACTIVE), "LedgerID does not exist")
 
 	block := &common.Block{}
 	block.Data = &common.BlockData{Data: [][]byte{[]byte("testblock")}}
