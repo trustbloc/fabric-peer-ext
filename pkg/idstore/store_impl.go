@@ -412,7 +412,7 @@ func (s *Store) UpdateLedgerStatus(ledgerID string, newStatus msgs.Status) error
 
 	if ledgerMetadata == nil {
 		logger.Errorf("Ledger [%s] does not exist", ledgerID)
-		return errors.New("ledger ID does not exist")
+		return errors.New("LedgerID does not exist")
 	}
 
 	if ledgerMetadata[statusField] == newStatus.String() {
