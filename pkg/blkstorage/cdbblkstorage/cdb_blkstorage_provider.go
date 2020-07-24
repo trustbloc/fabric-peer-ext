@@ -51,26 +51,25 @@ func (p *CDBBlockstoreProvider) Open(ledgerid string) (api.BlockStore, error) {
 	txnStoreDBName := couchdb.ConstructBlockchainDBName(id, txnStoreName)
 
 	if roles.IsCommitter() {
-		return p.createCommitterBlockStore(ledgerid, blockStoreDBName, txnStoreDBName)
+		return createCommitterBlockStore(p.couchInstance, ledgerid, blockStoreDBName, txnStoreDBName)
 	}
 
 	return p.createNonCommitterBlockStore(ledgerid, blockStoreDBName, txnStoreDBName)
 }
 
 //createCommitterBlockStore creates new couch db with gievn db name if doesn't exists
-func (p *CDBBlockstoreProvider) createCommitterBlockStore(ledgerid, blockStoreDBName, txnStoreDBName string) (api.BlockStore, error) {
-
-	blockStoreDB, err := couchdb.CreateCouchDatabase(p.couchInstance, blockStoreDBName)
+func createCommitterBlockStore(couchInstance *couchdb.CouchInstance, ledgerid, blockStoreDBName, txnStoreDBName string) (api.BlockStore, error) {
+	blockStoreDB, err := couchdb.CreateCouchDatabase(couchInstance, blockStoreDBName)
 	if err != nil {
 		return nil, err
 	}
 
-	txnStoreDB, err := couchdb.CreateCouchDatabase(p.couchInstance, txnStoreDBName)
+	txnStoreDB, err := couchdb.CreateCouchDatabase(couchInstance, txnStoreDBName)
 	if err != nil {
 		return nil, err
 	}
 
-	err = p.createBlockStoreIndices(blockStoreDB)
+	err = createBlockStoreIndices(blockStoreDB)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +123,7 @@ func (p *CDBBlockstoreProvider) openCouchDB(dbName string) (*couchdb.CouchDataba
 	return cdb, nil
 }
 
-func (p *CDBBlockstoreProvider) createBlockStoreIndices(db *couchdb.CouchDatabase) error {
+func createBlockStoreIndices(db *couchdb.CouchDatabase) error {
 	_, err := db.CreateIndex(blockHashIndexDef)
 	if err != nil {
 		return errors.WithMessage(err, "creation of block hash index failed")

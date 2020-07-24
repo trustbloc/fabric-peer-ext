@@ -106,19 +106,119 @@ func LoadPreResetHeight(couchInstance *couchdb.CouchInstance, ledgerIDs []string
 			return nil, err
 		}
 
-		v, err := couchDocToJSON(doc)
-		if err != nil {
-			return nil, err
-		}
+		if doc != nil {
+			v, err := couchDocToJSON(doc)
+			if err != nil {
+				return nil, err
+			}
 
-		previuoslyRecordedHt, err := strconv.ParseUint(v["height"].(string), 10, 64)
-		if err != nil {
-			return nil, err
+			previuoslyRecordedHt, err := strconv.ParseUint(v["height"].(string), 10, 64)
+			if err != nil {
+				return nil, err
+			}
+
+			m[ledgerID] = previuoslyRecordedHt
 		}
-		m[ledgerID] = previuoslyRecordedHt
 	}
 	if len(m) > 0 {
 		logger.Infof("Pre-reset heights loaded: %v", m)
 	}
 	return m, nil
+}
+
+// ClearPreResetHeight deletes the files that contain the last recorded reset heights for the specified ledgers
+func ClearPreResetHeight(couchInstance *couchdb.CouchInstance, ledgerIDs []string) error {
+	logger.Info("Clearing Pre-reset heights")
+	for _, ledgerID := range ledgerIDs {
+		id := strings.ToLower(ledgerID)
+		blockStoreDBName := couchdb.ConstructBlockchainDBName(id, blockStoreName)
+		blockStoreDB := couchdb.CouchDatabase{CouchInstance: couchInstance, DBName: blockStoreDBName}
+
+		doc, _, err := blockStoreDB.ReadDoc(preResetHeightKey)
+		if err != nil {
+			return err
+		}
+
+		doc, err = addDeletedFlagToCouchDoc(doc.JSONValue)
+		if err != nil {
+			return err
+		}
+
+		_, err = blockStoreDB.BatchUpdateDocuments([]*couchdb.CouchDoc{doc})
+		if err != nil {
+			return err
+		}
+	}
+	logger.Info("Cleared off Pre-reset heights")
+
+	return nil
+
+}
+
+// ResetBlockStore drops the block storage index and truncates the blocks files for all channels/ledgers to genesis blocks
+func ResetBlockStore(couchInstance *couchdb.CouchInstance) error { // nolint: gocyclo
+	dbsName, _ := couchInstance.RetrieveApplicationDBNames()
+	for _, dbName := range dbsName {
+		if strings.Contains(dbName, "$$blocks_") {
+			split := strings.Split(dbName, "$$")
+			blockStoreDBName := couchdb.ConstructBlockchainDBName(split[0], blockStoreName)
+			blockStoreDB := couchdb.CouchDatabase{CouchInstance: couchInstance, DBName: blockStoreDBName}
+			txnStoreDBName := couchdb.ConstructBlockchainDBName(split[0], txnStoreName)
+			txnStoreDB := couchdb.CouchDatabase{CouchInstance: couchInstance, DBName: txnStoreDBName}
+
+			if err := recordHeightIfGreaterThanPreviousRecording(couchInstance, split[0]); err != nil {
+				return err
+			}
+
+			// get genesis block
+			genesisDoc, _, errReadDoc := blockStoreDB.ReadDoc(blockNumberToKey(0))
+			if errReadDoc != nil {
+				return errReadDoc
+			}
+
+			genesisBlock, errToBlock := couchDocToBlock(genesisDoc)
+			if errToBlock != nil {
+				return errToBlock
+			}
+
+			// get preResetHeight
+			preResetHeight, errLoadPreReset := LoadPreResetHeight(couchInstance, []string{split[0]})
+			if errLoadPreReset != nil {
+				return errLoadPreReset
+			}
+
+			// drop block store
+			if _, err := blockStoreDB.DropDatabase(); err != nil {
+				return err
+			}
+			// drop txn store
+			if _, err := txnStoreDB.DropDatabase(); err != nil {
+				return err
+			}
+
+			// create block store db
+			_, err := createCommitterBlockStore(couchInstance, split[0], blockStoreDBName, txnStoreDBName)
+			if err != nil {
+				return err
+			}
+
+			// add genesis block
+			store := newCDBBlockStore(&blockStoreDB, &txnStoreDB, split[0])
+			if errAddBlock := store.AddBlock(genesisBlock); errAddBlock != nil {
+				return errAddBlock
+			}
+
+			preResetHeightDoc, err := preResetHeightKeyToCouchDoc(strconv.FormatUint(preResetHeight[split[0]], 10))
+			if err != nil {
+				return err
+			}
+
+			_, errSaveDoc := blockStoreDB.SaveDoc(preResetHeightKey, "", preResetHeightDoc)
+			if errSaveDoc != nil {
+				return errSaveDoc
+			}
+		}
+	}
+
+	return nil
 }
