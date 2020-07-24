@@ -267,7 +267,7 @@ func TestBlockStoreAsEndorser(t *testing.T) {
 	assert.Nil(t, store)
 
 	//create block store index manually
-	err = provider.createBlockStoreIndices(bdb)
+	err = createBlockStoreIndices(bdb)
 	assert.NoError(t, err)
 
 	//expect error for missing txn store
