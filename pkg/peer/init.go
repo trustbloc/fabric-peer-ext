@@ -10,6 +10,7 @@ import (
 	storagecouchdb "github.com/hyperledger/fabric/extensions/storage/couchdb"
 
 	"github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configcc"
+	ccnotifier "github.com/trustbloc/fabric-peer-ext/pkg/chaincode/notifier"
 	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/ucc"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/client"
 	dcasclient "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas/client"
@@ -58,6 +59,7 @@ func registerResources() {
 	resource.Register(proprespvalidator.New)
 	resource.Register(extcouchdb.NewReadOnlyProvider)
 	resource.Register(storagecouchdb.NewHandler)
+	resource.Register(ccnotifier.New)
 }
 
 func registerChaincodes() {
