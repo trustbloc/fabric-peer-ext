@@ -14,7 +14,7 @@ import (
 )
 
 // Rollback reverts changes made to the block store beyond a given block number.
-func Rollback(couchInstance *couchdb.CouchInstance, ledgerID string, targetBlockNum uint64) error {
+func Rollback(couchInstance *couchdb.CouchInstance, internalQueryLimit int, ledgerID string, targetBlockNum uint64) error {
 	if err := recordHeightIfGreaterThanPreviousRecording(couchInstance, ledgerID); err != nil {
 		return err
 	}
@@ -24,8 +24,8 @@ func Rollback(couchInstance *couchdb.CouchInstance, ledgerID string, targetBlock
 	blockStoreDB := couchdb.CouchDatabase{CouchInstance: couchInstance, DBName: blockStoreDBName}
 	blockStore := newCDBBlockStore(&blockStoreDB, nil, ledgerID)
 
-	// TODO handle limit
-	docs, _, errReadDoc := blockStoreDB.ReadDocRange(blockNumberToKey(targetBlockNum+1), blockNumberToKey(blockStore.cpInfo.lastBlockNumber+1), 100)
+	docs, errReadDoc := readDocRange(&blockStoreDB, blockNumberToKey(targetBlockNum+1),
+		blockNumberToKey(blockStore.cpInfo.lastBlockNumber+1), int32(internalQueryLimit))
 	if errReadDoc != nil {
 		return errReadDoc
 	}
