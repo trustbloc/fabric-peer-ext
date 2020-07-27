@@ -45,7 +45,7 @@ func RollbackKVLedger(ledgerconfig *ledger.Config, ledgerID string, blockNum uin
 		}
 
 		logger.Info("Rolling back ledger store")
-		if err := cdbblkstorage.Rollback(stateDBCouchInstance, ledgerID, blockNum); err != nil {
+		if err := cdbblkstorage.Rollback(stateDBCouchInstance, ledgerconfig.StateDBConfig.CouchDB.InternalQueryLimit, ledgerID, blockNum); err != nil {
 			return err
 		}
 		logger.Infof("The channel [%s] has been successfully rolled back to the block number [%d]", ledgerID, blockNum)

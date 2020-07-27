@@ -419,3 +419,40 @@ func addDeletedFlagToCouchDoc(value []byte) (*couchdb.CouchDoc, error) {
 
 	return couchDoc, nil
 }
+
+func readDocRange(db *couchdb.CouchDatabase, startKey, endKey string, queryLimit int32) ([]*couchdb.QueryResult, error) {
+	var finalResults []*couchdb.QueryResult
+	var finalNextStartKey string
+
+	if queryLimit <= 0 {
+		queryLimit = 1
+	}
+
+	for {
+		results, nextStartKey, err := db.ReadDocRange(startKey, endKey, queryLimit)
+		if err != nil {
+			logger.Debugf("Error calling ReadDocRange(): %s\n", err.Error())
+			return nil, err
+		}
+
+		var filteredResults []*couchdb.QueryResult
+		for _, doc := range results {
+			if !isCouchInternalKey(doc.ID) {
+				filteredResults = append(filteredResults, doc)
+			}
+		}
+
+		finalResults = append(finalResults, filteredResults...)
+		finalNextStartKey = nextStartKey
+		if finalNextStartKey == "" || finalNextStartKey == endKey {
+			break
+		}
+		startKey = finalNextStartKey
+	}
+
+	return finalResults, nil
+}
+
+func isCouchInternalKey(key string) bool {
+	return len(key) != 0 && key[0] == '_'
+}
