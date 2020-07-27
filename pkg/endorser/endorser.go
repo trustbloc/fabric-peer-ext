@@ -7,6 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package endorser
 
 import (
+	"strings"
+
 	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
@@ -14,6 +16,8 @@ import (
 )
 
 var endorserLogger = flogging.MustGetLogger("ext_endorser")
+
+const implicitOrgPrefix = "_implicit_org_"
 
 // CollRWSetFilter filters out all off-ledger (including transient data) read-write sets from the simulation results
 // so that they won't be included in the block.
@@ -89,6 +93,10 @@ func (f *CollRWSetFilter) filterNamespace(channelID string, nsRWSet *rwset.NsRea
 }
 
 func (f *CollRWSetFilter) isOffLedger(channelID, ns, coll string) (bool, error) {
+	if strings.HasPrefix(coll, implicitOrgPrefix) {
+		return false, nil
+	}
+
 	staticConfig, err := f.configProvider.ForChannel(channelID).Config(ns, coll)
 	if err != nil {
 		return false, err

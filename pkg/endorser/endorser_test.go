@@ -13,6 +13,7 @@ import (
 	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/privdata"
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
@@ -77,10 +78,19 @@ func TestFilterPubSimulationResults(t *testing.T) {
 	assert.Empty(t, len(results.NsRwset[2].Rwset))
 
 	lp := &mocks.LedgerProvider{}
-	lp.GetLedgerReturns(&mocks.Ledger{
-		QueryExecutor: newMockQueryExecutor(pvtBuilder.BuildCollectionConfigs()),
-	})
-	f := NewCollRWSetFilter().Initialize(support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}, &mocks.IdentifierProvider{}))
+	lp.GetLedgerReturns(&mocks.Ledger{})
+
+	f := NewCollRWSetFilter().Initialize(support.NewCollectionConfigRetrieverProvider(
+		lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
+		&mocks.IdentifierProvider{},
+		mocks.NewChaincodeInfoProvider().
+			WithData(ns1, &ledger.DeployedChaincodeInfo{
+				ExplicitCollectionConfigPkg: pvtNSBuilder1.BuildCollectionConfig(),
+			}).
+			WithData(ns3, &ledger.DeployedChaincodeInfo{
+				ExplicitCollectionConfigPkg: pvtNSBuilder3.BuildCollectionConfig(),
+			})),
+	)
 
 	filteredResults, err := f.Filter(channelID, results)
 	assert.NoError(t, err)
@@ -114,7 +124,10 @@ func TestFilterPubSimulationResults_NoCollections(t *testing.T) {
 		QueryExecutor: newMockQueryExecutor(pvtBuilder.BuildCollectionConfigs()),
 	})
 
-	f := NewCollRWSetFilter().Initialize(support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}, &mocks.IdentifierProvider{}))
+	f := NewCollRWSetFilter().Initialize(support.NewCollectionConfigRetrieverProvider(
+		lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
+		&mocks.IdentifierProvider{}, mocks.NewChaincodeInfoProvider(),
+	))
 	filteredResults, err := f.Filter(channelID, results)
 	assert.NoError(t, err)
 	assert.Equal(t, results, filteredResults)

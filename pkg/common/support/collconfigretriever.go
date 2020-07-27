@@ -12,7 +12,6 @@ import (
 	"sync"
 
 	"github.com/bluele/gcache"
-	"github.com/golang/protobuf/proto"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
@@ -29,12 +28,17 @@ import (
 
 var logger = flogging.MustGetLogger("ext_support")
 
+type chaincodeInfoProvider interface {
+	ChaincodeInfo(channelName, chaincodeName string, qe ledger.SimpleQueryExecutor) (*ledger.DeployedChaincodeInfo, error)
+}
+
 type ledgerProvider interface {
 	GetLedger(cid string) ledger.PeerLedger
 }
 
 // CollectionConfigRetrieverProvider is a collection config retriever provider
 type CollectionConfigRetrieverProvider struct {
+	chaincodeInfoProvider
 	mutex                  sync.RWMutex
 	retrievers             map[string]*CollectionConfigRetriever
 	ledgerProvider         ledgerProvider
@@ -48,7 +52,8 @@ func NewCollectionConfigRetrieverProvider(
 	ledgerProvider ledgerProvider,
 	blockPublisherProvider api.BlockPublisherProvider,
 	idProvider collcommon.IdentityDeserializerProvider,
-	identifierProvider collcommon.IdentifierProvider) *CollectionConfigRetrieverProvider {
+	identifierProvider collcommon.IdentifierProvider,
+	lifecycleCCInfoProvider chaincodeInfoProvider) *CollectionConfigRetrieverProvider {
 	logger.Info("Creating collection config retriever provider")
 	return &CollectionConfigRetrieverProvider{
 		retrievers:             make(map[string]*CollectionConfigRetriever),
@@ -56,6 +61,7 @@ func NewCollectionConfigRetrieverProvider(
 		blockPublisherProvider: blockPublisherProvider,
 		idProvider:             idProvider,
 		identifierProvider:     identifierProvider,
+		chaincodeInfoProvider:  lifecycleCCInfoProvider,
 	}
 }
 
@@ -82,6 +88,7 @@ func (rc *CollectionConfigRetrieverProvider) ForChannel(channelID string) suppor
 			rc.blockPublisherProvider.ForChannel(channelID),
 			rc.idProvider.GetIdentityDeserializer(channelID),
 			rc.identifierProvider,
+			rc.chaincodeInfoProvider,
 		)
 		rc.retrievers[channelID] = r
 	}
@@ -97,6 +104,7 @@ type peerLedger interface {
 
 // CollectionConfigRetriever loads and caches collection configuration and policies
 type CollectionConfigRetriever struct {
+	chaincodeInfoProvider
 	channelID            string
 	ledger               peerLedger
 	identityDeserializer msp.IdentityDeserializer
@@ -108,12 +116,13 @@ type blockPublisher interface {
 	AddLSCCWriteHandler(handler gossipapi.LSCCWriteHandler)
 }
 
-func newCollectionConfigRetriever(channelID string, ledger peerLedger, blockPublisher blockPublisher, identityDeserializer msp.IdentityDeserializer, identifierProvider collcommon.IdentifierProvider) *CollectionConfigRetriever {
+func newCollectionConfigRetriever(channelID string, ledger peerLedger, blockPublisher blockPublisher, identityDeserializer msp.IdentityDeserializer, identifierProvider collcommon.IdentifierProvider, lifecycleCCInfoProvider chaincodeInfoProvider) *CollectionConfigRetriever {
 	r := &CollectionConfigRetriever{
-		channelID:            channelID,
-		ledger:               ledger,
-		identityDeserializer: identityDeserializer,
-		identifierProvider:   identifierProvider,
+		channelID:             channelID,
+		ledger:                ledger,
+		identityDeserializer:  identityDeserializer,
+		identifierProvider:    identifierProvider,
+		chaincodeInfoProvider: lifecycleCCInfoProvider,
 	}
 
 	r.cache = gcache.New(0).Simple().LoaderFunc(
@@ -229,19 +238,11 @@ func (s *CollectionConfigRetriever) getConfigAndPolicy(ns string, ccp *pb.Collec
 func (s *CollectionConfigRetriever) loadConfigs(ns string) ([]*pb.StaticCollectionConfig, error) {
 	logger.Debugf("[%s] Loading collection configs for chaincode [%s]", s.channelID, ns)
 
-	cpBytes, err := s.getCCPBytes(ns)
+	ccp, err := s.getCollConfigPackage(ns)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error retrieving collection config for chaincode [%s]", ns)
 	}
-	if cpBytes == nil {
-		return nil, errors.Errorf("no collection config for chaincode [%s]", ns)
-	}
 
-	ccp := &pb.CollectionConfigPackage{}
-	err = proto.Unmarshal(cpBytes, ccp)
-	if err != nil {
-		return nil, errors.Wrapf(err, "invalid collection configuration for [%s]", ns)
-	}
 	return s.configsFromCCP(ns, ccp)
 }
 
@@ -291,12 +292,17 @@ func (s *CollectionConfigRetriever) loadPolicy(ns string, config *pb.StaticColle
 	return implicitpolicy.NewResolver(localMSP, colAP), nil
 }
 
-func (s *CollectionConfigRetriever) getCCPBytes(ns string) ([]byte, error) {
+func (s *CollectionConfigRetriever) getCollConfigPackage(ns string) (*pb.CollectionConfigPackage, error) {
 	qe, err := s.ledger.NewQueryExecutor()
 	if err != nil {
 		return nil, err
 	}
 	defer qe.Done()
 
-	return qe.GetState("lscc", privdata.BuildCollectionKVSKey(ns))
+	info, err := s.ChaincodeInfo(s.channelID, ns, qe)
+	if err != nil {
+		return nil, err
+	}
+
+	return info.ExplicitCollectionConfigPkg, nil
 }

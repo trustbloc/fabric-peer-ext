@@ -10,8 +10,8 @@ require (
 	github.com/golang/protobuf v1.3.3
 	github.com/hyperledger/fabric v2.0.0+incompatible
 	github.com/hyperledger/fabric-chaincode-go v0.0.0-20200128192331-2d899240a7ed
-	github.com/hyperledger/fabric-protos-go v0.0.0-20200506201313-25f6564b9ac4
-	github.com/hyperledger/fabric-sdk-go v1.0.0-beta2
+	github.com/hyperledger/fabric-protos-go v0.0.0-20200707132912-fee30f3ccd23
+	github.com/hyperledger/fabric-sdk-go v1.0.0-beta2.0.20200724161828-7b97fdf0b97a
 	github.com/hyperledger/fabric/extensions v0.0.0
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper2015 v1.3.2
@@ -22,7 +22,7 @@ require (
 	google.golang.org/grpc v1.29.1
 )
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.4-0.20200724181212-2899e1ebbed0
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.4-0.20200724192340-7474a6e078e6
 
 replace github.com/hyperledger/fabric/extensions => ./mod/peer
 
