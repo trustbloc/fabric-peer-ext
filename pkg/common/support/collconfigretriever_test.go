@@ -14,6 +14,7 @@ import (
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/core/common/privdata"
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,6 +45,10 @@ func TestConfigRetriever(t *testing.T) {
 
 	qe := mocks.NewQueryExecutor().WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes)
 
+	ccinfoProvider := mocks.NewChaincodeInfoProvider().WithData(ns1, &ledger.DeployedChaincodeInfo{
+		ExplicitCollectionConfigPkg: nsBuilder.BuildCollectionConfig(),
+	})
+
 	r := newCollectionConfigRetriever(
 		channelID, &mocks.Ledger{
 			QueryExecutor: qe,
@@ -51,6 +56,7 @@ func TestConfigRetriever(t *testing.T) {
 		blockPublisher,
 		&mocks.IdentityDeserializer{},
 		&mocks.IdentifierProvider{},
+		ccinfoProvider,
 	)
 	require.NotNil(t, r)
 
@@ -125,14 +131,14 @@ func TestConfigRetrieverError(t *testing.T) {
 	blockPublisher := mocks.NewBlockPublisher()
 
 	expectedErr := fmt.Errorf("injected error")
+
 	r := newCollectionConfigRetriever(
 		channelID,
-		&mocks.Ledger{
-			QueryExecutor: mocks.NewQueryExecutor().WithError(expectedErr),
-		},
+		&mocks.Ledger{},
 		blockPublisher,
 		&mocks.IdentityDeserializer{},
 		&mocks.IdentifierProvider{},
+		mocks.NewChaincodeInfoProvider().WithError(expectedErr),
 	)
 	require.NotNil(t, r)
 
@@ -168,6 +174,7 @@ func TestCollectionConfigRetrieverForChannel(t *testing.T) {
 		mocks.NewBlockPublisherProvider(),
 		&mocks.IdentityDeserializerProvider{},
 		&mocks.IdentifierProvider{},
+		mocks.NewChaincodeInfoProvider(),
 	)
 	require.NotNil(t, p)
 

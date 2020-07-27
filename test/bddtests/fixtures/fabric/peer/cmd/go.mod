@@ -13,7 +13,7 @@ require (
 	github.com/trustbloc/fabric-peer-ext v0.0.0
 )
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.4-0.20200724181212-2899e1ebbed0
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.4-0.20200724192340-7474a6e078e6
 
 replace github.com/hyperledger/fabric/extensions => ../../../../../../mod/peer
 

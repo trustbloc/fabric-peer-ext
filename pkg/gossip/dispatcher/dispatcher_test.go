@@ -12,9 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	gproto "github.com/hyperledger/fabric-protos-go/gossip"
-	"github.com/hyperledger/fabric/core/common/privdata"
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/extensions/collections/api/store"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	"github.com/stretchr/testify/assert"
@@ -115,11 +114,6 @@ func TestDispatchDataRequest(t *testing.T) {
 	nsBuilder2.Collection(coll1).DCASConfig("OR ('Org1MSP.member','Org2MSP.member','Org3MSP.member')", 3, 3, "1m")
 	nsBuilder2.Collection(coll3).StaticConfig("OR ('Org1MSP.member','Org2MSP.member','Org3MSP.member')", 3, 3, 100)
 
-	configPkgBytes1, err := proto.Marshal(nsBuilder1.BuildCollectionConfig())
-	require.NoError(t, err)
-	configPkgBytes2, err := proto.Marshal(nsBuilder2.BuildCollectionConfig())
-	require.NoError(t, err)
-
 	gossipAdapter := mocks.NewMockGossipAdapter()
 	gossipAdapter.Self(org1MSPID, mocks.NewMember(p1Org1Endpoint, p1Org1PKIID)).
 		Member(org1MSPID, mocks.NewMember(p2Org1Endpoint, p2Org1PKIID, committerRole)).
@@ -132,18 +126,25 @@ func TestDispatchDataRequest(t *testing.T) {
 		Member(org3MSPID, mocks.NewMember(p3Org3Endpoint, p3Org3PKIID, endorserRole))
 
 	lp := &mocks.LedgerProvider{}
-	lp.GetLedgerReturns(&mocks.Ledger{
-		QueryExecutor: mocks.NewQueryExecutor().
-			WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes1).
-			WithState(lscc, privdata.BuildCollectionKVSKey(ns2), configPkgBytes2),
-	})
+	lp.GetLedgerReturns(&mocks.Ledger{})
 
 	gossipProvider := &mocks.GossipProvider{}
 	gossipProvider.GetGossipServiceReturns(gossipAdapter)
 
+	lip := mocks.NewChaincodeInfoProvider().
+		WithData(ns1, &ledger.DeployedChaincodeInfo{
+			ExplicitCollectionConfigPkg: nsBuilder1.BuildCollectionConfig(),
+		}).
+		WithData(ns2, &ledger.DeployedChaincodeInfo{
+			ExplicitCollectionConfigPkg: nsBuilder2.BuildCollectionConfig(),
+		})
+
 	dispatcher := NewProvider().Initialize(
 		gossipProvider,
-		support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}, &mocks.IdentifierProvider{}),
+		support.NewCollectionConfigRetrieverProvider(
+			lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
+			&mocks.IdentifierProvider{}, lip,
+		),
 		&gmocks.AppDataHandlerProvider{},
 	).ForChannel(
 		channelID,
@@ -365,7 +366,10 @@ func TestDispatchDataResponse(t *testing.T) {
 
 	dispatcher := NewProvider().Initialize(
 		gossipProvider,
-		support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}, &mocks.IdentifierProvider{}),
+		support.NewCollectionConfigRetrieverProvider(
+			lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
+			&mocks.IdentifierProvider{}, mocks.NewChaincodeInfoProvider(),
+		),
 		&gmocks.AppDataHandlerProvider{},
 	).ForChannel(
 		channelID,
@@ -454,7 +458,10 @@ func TestDispatchAppDataRequest(t *testing.T) {
 	gossipProvider := &mocks.GossipProvider{}
 	gossipProvider.GetGossipServiceReturns(gossipAdapter)
 
-	collCfgProvider := support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}, &mocks.IdentifierProvider{})
+	collCfgProvider := support.NewCollectionConfigRetrieverProvider(
+		lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
+		&mocks.IdentifierProvider{}, mocks.NewChaincodeInfoProvider(),
+	)
 
 	t.Run("success", func(t *testing.T) {
 		appDataHandlerProvider := &gmocks.AppDataHandlerProvider{}
@@ -562,7 +569,10 @@ func TestDispatchAppDataResponse(t *testing.T) {
 
 	dispatcher := NewProvider().Initialize(
 		gossipProvider,
-		support.NewCollectionConfigRetrieverProvider(lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{}, &mocks.IdentifierProvider{}),
+		support.NewCollectionConfigRetrieverProvider(
+			lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
+			&mocks.IdentifierProvider{}, mocks.NewChaincodeInfoProvider(),
+		),
 		&gmocks.AppDataHandlerProvider{},
 	).ForChannel(channelID, mocks.NewDataStore())
 	require.NotNil(t, dispatcher)
