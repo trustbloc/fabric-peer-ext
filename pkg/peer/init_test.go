@@ -36,6 +36,7 @@ func TestInitialize(t *testing.T) {
 		&mocks.IdentityProvider{},
 		&statemocks.CCEventMgrProvider{},
 		&mocks.ChaincodeInfoProvider{},
+		&mocks.ChaincodeUpdateHandler{},
 	))
 }
 
