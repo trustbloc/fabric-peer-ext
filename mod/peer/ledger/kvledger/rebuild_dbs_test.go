@@ -39,11 +39,13 @@ func TestRebuildDBs(t *testing.T) {
 	storeBlockDBCouchInstance, err := couchdb.CreateCouchInstance(conf.StateDBConfig.CouchDB, &disabled.Provider{})
 	require.NoError(t, err)
 
-	var blockStoreDBNames []string
+	var dbNamesShouldExist []string
 	dbsName, _ := storeBlockDBCouchInstance.RetrieveApplicationDBNames()
 	for _, dbName := range dbsName {
-		if strings.Contains(dbName, "$$blocks_") || strings.Contains(dbName, "$$transactions_") {
-			blockStoreDBNames = append(blockStoreDBNames, dbName)
+		if strings.Contains(dbName, blockStorePostFix) || strings.Contains(dbName, txnStorePostFix) ||
+			strings.Contains(dbName, idStore) || strings.Contains(dbName, internalIDStore) ||
+			strings.Contains(dbName, pvtDataStorePostFix) {
+			dbNamesShouldExist = append(dbNamesShouldExist, dbName)
 		}
 	}
 
@@ -57,10 +59,15 @@ func TestRebuildDBs(t *testing.T) {
 
 	// verify block store db is deleted
 	dbsName, _ = storeBlockDBCouchInstance.RetrieveApplicationDBNames()
-	for _, dbName := range dbsName {
-		for _, blockStoreDBName := range blockStoreDBNames {
-			require.NotEqual(t, dbName, blockStoreDBName)
+	for _, dbNameShouldExist := range dbNamesShouldExist {
+		exist := false
+		for _, dbName := range dbsName {
+			if dbNameShouldExist == dbName {
+				exist = true
+				break
+			}
 		}
+		require.True(t, exist)
 	}
 
 	// verify configHistory, history, state, bookkeeper dbs are deleted

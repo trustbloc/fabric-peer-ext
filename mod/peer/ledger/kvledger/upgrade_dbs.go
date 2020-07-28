@@ -10,11 +10,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
-	"github.com/hyperledger/fabric/common/metrics/disabled"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger"
-	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
-	"github.com/trustbloc/fabric-peer-ext/pkg/blkstorage/cdbblkstorage"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/idstore"
 )
@@ -35,15 +32,6 @@ func UpgradeDBs(ledgerconfig *ledger.Config) error {
 		defer fileLock.Unlock()
 
 		if err := dropDBs(ledgerconfig); err != nil {
-			return err
-		}
-
-		storeBlockDBCouchInstance, err := couchdb.CreateCouchInstance(ledgerconfig.StateDBConfig.CouchDB, &disabled.Provider{})
-		if err != nil {
-			return errors.WithMessage(err, "obtaining CouchDB instance failed")
-		}
-
-		if err := cdbblkstorage.DeleteBlockStore(storeBlockDBCouchInstance); err != nil {
 			return err
 		}
 
