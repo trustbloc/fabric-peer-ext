@@ -8,10 +8,21 @@ package kvledger
 
 import (
 	"os"
+	"strings"
 
-	"github.com/hyperledger/fabric/core/ledger"
-	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/pkg/errors"
+
+	"github.com/hyperledger/fabric/common/metrics/disabled"
+	"github.com/hyperledger/fabric/core/ledger"
+	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
+)
+
+const (
+	blockStorePostFix   = "$$blocks_"
+	txnStorePostFix     = "$$transactions_"
+	pvtDataStorePostFix = "$$pvtdata_"
+	idStore             = "fabric_system_$$inventory_"
+	internalIDStore     = "fabric__internal"
 )
 
 func dropDBs(ledgerconfig *ledger.Config) error {
@@ -26,7 +37,7 @@ func dropDBs(ledgerconfig *ledger.Config) error {
 	// not be rebuilt.
 
 	if ledgerconfig.StateDBConfig.StateDatabase == "CouchDB" {
-		if err := statecouchdb.DropApplicationDBs(ledgerconfig.StateDBConfig.CouchDB); err != nil {
+		if err := dropApplicationDBs(ledgerconfig.StateDBConfig.CouchDB); err != nil {
 			return err
 		}
 	}
@@ -44,6 +55,36 @@ func dropDBs(ledgerconfig *ledger.Config) error {
 		return err
 	}
 	return nil
+}
+
+// dropApplicationDBs drops all application databases.
+func dropApplicationDBs(config *ledger.CouchDBConfig) error {
+	couchInstance, err := couchdb.CreateCouchInstance(config, &disabled.Provider{})
+	if err != nil {
+		return err
+	}
+	dbNames, err := couchInstance.RetrieveApplicationDBNames()
+	if err != nil {
+		return err
+	}
+	for _, dbName := range dbNames {
+		if !strings.Contains(dbName, idStore) && !strings.Contains(dbName, internalIDStore) &&
+			!strings.Contains(dbName, blockStorePostFix) && !strings.Contains(dbName, txnStorePostFix) &&
+			!strings.Contains(dbName, pvtDataStorePostFix) {
+			if _, err = dropDB(couchInstance, dbName); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func dropDB(couchInstance *couchdb.CouchInstance, dbName string) (*couchdb.DBOperationResponse, error) {
+	db := &couchdb.CouchDatabase{
+		CouchInstance: couchInstance,
+		DBName:        dbName,
+	}
+	return db.DropDatabase()
 }
 
 func dropStateLevelDB(rootFSPath string) error {

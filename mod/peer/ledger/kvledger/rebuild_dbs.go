@@ -7,14 +7,10 @@ SPDX-License-Identifier: Apache-2.0
 package kvledger
 
 import (
-	"github.com/hyperledger/fabric/common/metrics/disabled"
-	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
-	"github.com/pkg/errors"
-	"github.com/trustbloc/fabric-peer-ext/pkg/blkstorage/cdbblkstorage"
-
 	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger"
+	"github.com/pkg/errors"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 )
 
@@ -31,16 +27,7 @@ func RebuildDBs(ledgerconfig *ledger.Config) error {
 		}
 		defer fileLock.Unlock()
 
-		if err := dropDBs(ledgerconfig); err != nil {
-			return err
-		}
-
-		storeBlockDBCouchInstance, err := couchdb.CreateCouchInstance(ledgerconfig.StateDBConfig.CouchDB, &disabled.Provider{})
-		if err != nil {
-			return errors.WithMessage(err, "obtaining CouchDB instance failed")
-		}
-
-		return cdbblkstorage.DeleteBlockStore(storeBlockDBCouchInstance)
+		return dropDBs(ledgerconfig)
 	}
 
 	return kvledger.RebuildDBs(ledgerconfig)

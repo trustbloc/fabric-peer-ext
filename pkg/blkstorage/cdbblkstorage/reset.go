@@ -13,32 +13,6 @@ import (
 	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 )
 
-// DeleteBlockStore deletes block store
-func DeleteBlockStore(couchInstance *couchdb.CouchInstance) error {
-	dbsName, _ := couchInstance.RetrieveApplicationDBNames()
-	for _, dbName := range dbsName {
-		if strings.Contains(dbName, "$$blocks_") || strings.Contains(dbName, "$$transactions_") {
-			if err := dropDB(couchInstance, dbName); err != nil {
-				logger.Errorf("Error dropping CouchDB database %s", dbName)
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func dropDB(couchInstance *couchdb.CouchInstance, dbName string) error {
-	db := &couchdb.CouchDatabase{
-		CouchInstance: couchInstance,
-		DBName:        dbName,
-	}
-
-	_, err := db.DropDatabase()
-
-	return err
-}
-
 // recordHeightIfGreaterThanPreviousRecording creates a file "__preResetHeight" in the ledger's
 // directory. This file contains human readable string for the current block height. This function
 // only overwrites this information if the current block height is higher than the one recorded in
