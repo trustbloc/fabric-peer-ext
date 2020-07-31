@@ -13,10 +13,12 @@ import (
 	"github.com/hyperledger/fabric/extensions/collections/storeprovider"
 	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
 	"github.com/stretchr/testify/require"
+
 	extconfig "github.com/trustbloc/fabric-peer-ext/pkg/config"
 	statemocks "github.com/trustbloc/fabric-peer-ext/pkg/gossip/state/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
+	txnmocks "github.com/trustbloc/fabric-peer-ext/pkg/txn/mocks"
 )
 
 func TestInitialize(t *testing.T) {
@@ -37,6 +39,7 @@ func TestInitialize(t *testing.T) {
 		&statemocks.CCEventMgrProvider{},
 		&mocks.ChaincodeInfoProvider{},
 		&mocks.ChaincodeUpdateHandler{},
+		&txnmocks.LifecycleCCInfoProvider{},
 	))
 }
 
