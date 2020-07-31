@@ -9,6 +9,7 @@ package inprocucc
 import (
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
+	ccapi "github.com/hyperledger/fabric/extensions/chaincode/api"
 )
 
 const (
@@ -30,6 +31,20 @@ func (cc *V2) Version() string { return v2 }
 
 // Chaincode returns the chaincode implementation
 func (cc *V2) Chaincode() shim.Chaincode { return cc }
+
+// GetDBArtifacts returns DB artifacts
+func (cc *V2) GetDBArtifacts([]string) map[string]*ccapi.DBArtifacts {
+	return map[string]*ccapi.DBArtifacts{
+		"couchdb": {
+			Indexes: []string{
+				`{"index": {"fields": ["id"]}, "ddoc": "indexIDDoc", "name": "ccIndexID", "type": "json"}`,
+			},
+			CollectionIndexes: map[string][]string{
+				"coll1": {`{"index": {"fields": ["id"]}, "ddoc": "indexIDDoc", "name": "collIndexID", "type": "json"}`},
+			},
+		},
+	}
+}
 
 // Invoke invokes the chaincode
 func (cc *V2) Invoke(stub shim.ChaincodeStubInterface) pb.Response {

@@ -48,6 +48,11 @@ FABRIC_PEER_EXT_IMAGE   ?= trustbloc/fabric-peer
 FABRIC_PEER_EXT_VERSION ?= latest
 FABRIC_PEER_EXT_TAG     ?= $(FABRIC_PEER_EXT_VERSION)
 
+FIXTURES_VERSION_1_4	= v1.4
+FIXTURES_VERSION_2_2	= v2.2
+
+FIXTURES_VERSION		?= ${FIXTURES_VERSION_1_4}
+
 checks: version license lint
 
 lint:
@@ -95,17 +100,16 @@ crypto-gen:
 	@$(DOCKER_CMD) run -i \
 		-v /$(abspath .):/opt/workspace/$(PROJECT_NAME) -u $(shell id -u):$(shell id -g) \
 		$(FABRIC_TOOLS_IMAGE):$(FABRIC_TOOLS_TAG) \
-		//bin/bash -c "FABRIC_VERSION_DIR=fabric /opt/workspace/${PROJECT_NAME}/scripts/generate_crypto.sh"
+		//bin/bash -c "FIXTURES_VERSION=${FIXTURES_VERSION} /opt/workspace/${PROJECT_NAME}/scripts/generate_crypto.sh"
 
 channel-config-gen:
 	@echo "Generating test channel configuration transactions and blocks ..."
 	@$(DOCKER_CMD) run -i \
 		-v /$(abspath .):/opt/workspace/$(PROJECT_NAME) -u $(shell id -u):$(shell id -g) \
 		$(FABRIC_TOOLS_IMAGE):$(FABRIC_TOOLS_TAG) \
-		//bin/bash -c "FABRIC_VERSION_DIR=fabric/ /opt/workspace/${PROJECT_NAME}/scripts/generate_channeltx.sh"
+		//bin/bash -c "FIXTURES_VERSION=${FIXTURES_VERSION} /opt/workspace/${PROJECT_NAME}/scripts/generate_channeltx.sh"
 
-populate-fixtures:
-	@scripts/populate-fixtures.sh -f
+populate-fixtures: crypto-gen channel-config-gen
 
 version:
 	@scripts/check_version.sh
@@ -122,6 +126,7 @@ clean:
 	@rm -rf ./.build
 	@rm -rf ./test/bddtests/fixtures/fabric/channel
 	@rm -rf ./test/bddtests/fixtures/fabric/crypto-config
+	@rm -rf ./test/bddtests/*.log
 
 clean-images:
 	@echo "Stopping all containers, pruning containers and images, deleting dev images"

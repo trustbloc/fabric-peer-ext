@@ -6,20 +6,20 @@
 #
 
 CONFIGTXGEN_CMD="${CONFIGTXGEN_CMD:-configtxgen}"
-FIXTURES_PATH="${FIXTURES_PATH:-/opt/workspace/fabric-peer-ext/test/bddtests/fixtures/}"
+FIXTURES_PATH="${FIXTURES_PATH:-/opt/workspace/fabric-peer-ext/test/bddtests/fixtures/fabric}"
 CHANNEL_DIR="${CHANNEL_DIR:-channel}"
 CONFIG_DIR="${CONFIG_DIR:-config}"
 
-if [ -z "$FABRIC_VERSION_DIR" ]; then
-  echo "FABRIC_VERSION_DIR is required"
+if [ -z "$FIXTURES_VERSION" ]; then
+  echo "FIXTURES_VERSION is required"
   exit 1
 fi
 
 declare -a twoOrgChannels=("mychannel" "yourchannel")
 declare -a orgs=("Org1MSP" "Org2MSP")
 
-FIXTURES_CHANNEL_PATH=${FIXTURES_PATH}${FABRIC_VERSION_DIR}${CHANNEL_DIR}
-export FABRIC_CFG_PATH=${FIXTURES_PATH}${FABRIC_VERSION_DIR}${CONFIG_DIR}
+FIXTURES_CHANNEL_PATH=${FIXTURES_PATH}/${CHANNEL_DIR}
+export FABRIC_CFG_PATH=${FIXTURES_PATH}/${FIXTURES_VERSION}/${CONFIG_DIR}
 
 echo "Generating channel fixtures into ${FIXTURES_CHANNEL_PATH}"
 

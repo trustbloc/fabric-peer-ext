@@ -38,7 +38,8 @@ Feature: In-process user chaincode
     Then response from "inproc_test_cc" to client equal value "v1.1"
 
     # Upgrading with a different major and/or minor version should target a different chaincode implementation
-    Given "test" chaincode "inproc_test_cc" is upgraded with version "v2.0.0" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy ""
+    Given collection config "coll1" is defined for collection "coll1" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and blocksToLive=3
+    Given "test" chaincode "inproc_test_cc" is upgraded with version "v2.0.0" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "coll1"
     And we wait 10 seconds
     And client queries chaincode "inproc_test_cc" with args "getversion" on the "mychannel" channel
     Then response from "inproc_test_cc" to client equal value "v2.0"
