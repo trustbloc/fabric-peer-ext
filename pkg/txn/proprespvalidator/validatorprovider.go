@@ -8,14 +8,21 @@ package proprespvalidator
 
 import (
 	"github.com/bluele/gcache"
+	"github.com/hyperledger/fabric/core/chaincode/lifecycle"
 	"github.com/hyperledger/fabric/core/committer/txvalidator/v14"
 	xgossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
 )
 
+//go:generate counterfeiter -o ../mocks/ccinfoprovider.gen.go --fake-name LifecycleCCInfoProvider . lifecycleCCInfoProvider
+
 type blockPublisherProvider interface {
 	ForChannel(channelID string) xgossipapi.BlockPublisher
+}
+
+type lifecycleCCInfoProvider interface {
+	ChaincodeInfo(channelID, name string) (*lifecycle.LocalChaincodeInfo, error)
 }
 
 // Provider is a ProposalResponseValidator provider
@@ -24,16 +31,18 @@ type Provider struct {
 	common.IdentityDeserializerProvider
 	blockPublisherProvider blockPublisherProvider
 	validators             gcache.Cache
+	lcCCInfoProvider       lifecycleCCInfoProvider
 }
 
 // New returns a new ProposalResponseValidator provider
-func New(ledgerProvider common.LedgerProvider, idd common.IdentityDeserializerProvider, bpp blockPublisherProvider) *Provider {
+func New(ledgerProvider common.LedgerProvider, idd common.IdentityDeserializerProvider, bpp blockPublisherProvider, lcCCInfoProvider lifecycleCCInfoProvider) *Provider {
 	logger.Info("Creating ProposalResponseValidator Provider")
 
 	p := &Provider{
 		LedgerProvider:               ledgerProvider,
 		IdentityDeserializerProvider: idd,
 		blockPublisherProvider:       bpp,
+		lcCCInfoProvider:             lcCCInfoProvider,
 	}
 
 	p.validators = gcache.New(0).LoaderFunc(func(channelID interface{}) (interface{}, error) {
@@ -63,5 +72,5 @@ func (m *Provider) createValidator(channelID string) api.ProposalResponseValidat
 		IdentityDeserializer: idd,
 	}
 
-	return newValidator(channelID, m.GetLedger(channelID), pe, idd, m.blockPublisherProvider.ForChannel(channelID))
+	return newValidator(channelID, m.GetLedger(channelID), pe, idd, m.blockPublisherProvider.ForChannel(channelID), m.lcCCInfoProvider)
 }

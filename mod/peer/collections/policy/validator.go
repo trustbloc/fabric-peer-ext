@@ -31,17 +31,7 @@ func (v *Validator) Validate(collConfig *pb.CollectionConfig) error {
 		return errors.New("unknown collection configuration type")
 	}
 
-	switch config.Type {
-	case pb.CollectionType_COL_TRANSIENT:
-		return tdatapolicy.ValidateConfig(config)
-	case pb.CollectionType_COL_DCAS:
-		fallthrough
-	case pb.CollectionType_COL_OFFLEDGER:
-		return olpolicy.ValidateConfig(config)
-	default:
-		// Nothing to do
-		return nil
-	}
+	return v.ValidateCollectionConfig(config)
 }
 
 // ValidateNewCollectionConfigsAgainstOld validates updated collection configs
@@ -64,12 +54,37 @@ func (v *Validator) ValidateNewCollectionConfigsAgainstOld(newCollectionConfigs 
 			continue
 		}
 
-		newCollType := getCollType(newColl)
-		oldCollType := getCollType(oldColl)
-		if newCollType != oldCollType {
-			return fmt.Errorf("collection-name: %s -- attempt to change collection type from [%s] to [%s]", oldColl.Name, oldCollType, newCollType)
+		if err := v.ValidateNewCollectionConfigAgainstCommitted(newColl, oldColl); err != nil {
+			return err
 		}
 	}
+	return nil
+}
+
+// ValidateCollectionConfig validates a new collection config
+func (v *Validator) ValidateCollectionConfig(config *pb.StaticCollectionConfig) error {
+	switch config.Type {
+	case pb.CollectionType_COL_TRANSIENT:
+		return tdatapolicy.ValidateConfig(config)
+	case pb.CollectionType_COL_DCAS:
+		fallthrough
+	case pb.CollectionType_COL_OFFLEDGER:
+		return olpolicy.ValidateConfig(config)
+	default:
+		// Nothing to do
+		return nil
+	}
+}
+
+// ValidateNewCollectionConfigAgainstCommitted validates a new collection config against a committed collection config
+func (v *Validator) ValidateNewCollectionConfigAgainstCommitted(newColl, committedColl *pb.StaticCollectionConfig) error {
+	newCollType := getCollType(newColl)
+	oldCollType := getCollType(committedColl)
+
+	if newCollType != oldCollType {
+		return fmt.Errorf("collection-name: %s -- attempt to change collection type from [%s] to [%s]", committedColl.Name, oldCollType, newCollType)
+	}
+
 	return nil
 }
 

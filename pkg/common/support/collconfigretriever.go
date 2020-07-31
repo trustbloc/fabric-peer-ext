@@ -9,9 +9,11 @@ package support
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/bluele/gcache"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
@@ -22,11 +24,20 @@ import (
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/msp"
 	"github.com/pkg/errors"
+
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/implicitpolicy"
 )
 
 var logger = flogging.MustGetLogger("ext_support")
+
+const (
+	lifecycleNamespace = "_lifecycle"
+	fieldsPrefix       = "namespaces/fields/"
+	collectionsSuffix  = "/Collections"
+)
+
+var fieldsLen = len(fieldsPrefix)
 
 type chaincodeInfoProvider interface {
 	ChaincodeInfo(channelName, chaincodeName string, qe ledger.SimpleQueryExecutor) (*ledger.DeployedChaincodeInfo, error)
@@ -114,6 +125,7 @@ type CollectionConfigRetriever struct {
 
 type blockPublisher interface {
 	AddLSCCWriteHandler(handler gossipapi.LSCCWriteHandler)
+	AddWriteHandler(handler gossipapi.WriteHandler)
 }
 
 func newCollectionConfigRetriever(channelID string, ledger peerLedger, blockPublisher blockPublisher, identityDeserializer msp.IdentityDeserializer, identifierProvider collcommon.IdentifierProvider, lifecycleCCInfoProvider chaincodeInfoProvider) *CollectionConfigRetriever {
@@ -149,6 +161,21 @@ func newCollectionConfigRetriever(channelID string, ledger peerLedger, blockPubl
 				return errors.WithMessagef(err, "error setting collection configs for chaincode [%s]", ccID)
 			}
 		}
+		return nil
+	})
+
+	// Add a handler to cache the collection config and policy when the chaincode is instantiated/upgraded
+	blockPublisher.AddWriteHandler(func(txMetadata gossipapi.TxMetadata, namespace string, kvWrite *kvrwset.KVWrite) error {
+		if namespace != lifecycleNamespace {
+			return nil
+		}
+
+		if ccID := getLifecycleChaincodeID(kvWrite); ccID != "" {
+			logger.Infof("[%s] Clearing collection cache for lifecycle chaincode: %s", channelID, ccID)
+
+			r.cache.Remove(ccID)
+		}
+
 		return nil
 	})
 
@@ -305,4 +332,17 @@ func (s *CollectionConfigRetriever) getCollConfigPackage(ns string) (*pb.Collect
 	}
 
 	return info.ExplicitCollectionConfigPkg, nil
+}
+
+func getLifecycleChaincodeID(kvWrite *kvrwset.KVWrite) string {
+	if !strings.HasPrefix(kvWrite.Key, fieldsPrefix) {
+		return ""
+	}
+
+	i := strings.Index(kvWrite.Key[fieldsLen:], collectionsSuffix)
+	if i <= 0 {
+		return ""
+	}
+
+	return kvWrite.Key[fieldsLen : i+fieldsLen]
 }

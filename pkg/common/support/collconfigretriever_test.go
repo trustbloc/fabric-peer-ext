@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
 	"github.com/hyperledger/fabric/core/common/privdata"
@@ -45,9 +46,11 @@ func TestConfigRetriever(t *testing.T) {
 
 	qe := mocks.NewQueryExecutor().WithState(lscc, privdata.BuildCollectionKVSKey(ns1), configPkgBytes)
 
-	ccinfoProvider := mocks.NewChaincodeInfoProvider().WithData(ns1, &ledger.DeployedChaincodeInfo{
+	ccInfo := &ledger.DeployedChaincodeInfo{
 		ExplicitCollectionConfigPkg: nsBuilder.BuildCollectionConfig(),
-	})
+	}
+
+	ccinfoProvider := mocks.NewChaincodeInfoProvider().WithData(ns1, ccInfo)
 
 	r := newCollectionConfigRetriever(
 		channelID, &mocks.Ledger{
@@ -104,6 +107,50 @@ func TestConfigRetriever(t *testing.T) {
 
 		err = blockPublisher.HandleLSCCWrite(api.TxMetadata{BlockNum: 1001, TxID: "tx1"}, ns1, &ccprovider.ChaincodeData{Name: ns1}, ccp)
 		assert.NoError(t, err)
+
+		// Make sure the new config is loaded
+		config, err := r.Config(ns1, coll2)
+		require.NoError(t, err)
+		assert.Equal(t, coll2, config.Name)
+		assert.Equal(t, int32(4), config.RequiredPeerCount)
+		assert.Equal(t, pb.CollectionType_COL_TRANSIENT, config.Type)
+		assert.Equal(t, "10m", config.TimeToLive)
+
+		policy, err := r.Policy(ns1, coll2)
+		require.NoError(t, err)
+		require.NotNil(t, policy)
+		assert.Equal(t, 3, len(policy.MemberOrgs()))
+
+		policy, err = r.Policy(ns1, coll1)
+		require.NoError(t, err)
+		require.NotNil(t, policy)
+		assert.Equal(t, 3, len(policy.MemberOrgs()))
+	})
+
+	t.Run("Chaincode committed", func(t *testing.T) {
+		defer func() {
+			ccinfoProvider.WithData(ns1, ccInfo)
+		}()
+
+		nsBuilder := mocks.NewNamespaceBuilder(ns1)
+		nsBuilder.Collection(coll1).StaticConfig("OR ('Org1.member','Org2.member','Org3.member')", 3, 3, 100)
+		nsBuilder.Collection(coll2).TransientConfig("OR ('Org1.member','Org2.member','Org3.member')", 4, 3, "10m")
+
+		ccinfoProvider.WithData(ns1, &ledger.DeployedChaincodeInfo{
+			ExplicitCollectionConfigPkg: nsBuilder.BuildCollectionConfig(),
+		})
+
+		require.NoError(t, blockPublisher.HandleWrite(
+			api.TxMetadata{BlockNum: 1001, TxID: "tx1"},
+			"non-lifecycle-namespace",
+			&kvrwset.KVWrite{Key: "some key"},
+		))
+
+		require.NoError(t, blockPublisher.HandleWrite(
+			api.TxMetadata{BlockNum: 1001, TxID: "tx1"},
+			lifecycleNamespace,
+			&kvrwset.KVWrite{Key: fmt.Sprintf("namespaces/fields/%s/Collections", ns1)},
+		))
 
 		// Make sure the new config is loaded
 		config, err := r.Config(ns1, coll2)
@@ -186,4 +233,26 @@ func TestCollectionConfigRetrieverForChannel(t *testing.T) {
 	r2 := p.ForChannel(channel2)
 	require.NotNil(t, r1)
 	require.NotEqual(t, r1, r2)
+}
+
+func TestGetLifecycleChaincodeID(t *testing.T) {
+	const cc1 = "cc1"
+
+	t.Run("Valid key", func(t *testing.T) {
+		require.Equal(t, cc1, getLifecycleChaincodeID(&kvrwset.KVWrite{
+			Key: fmt.Sprintf("%s%s%s", fieldsPrefix, cc1, collectionsSuffix),
+		}))
+	})
+
+	t.Run("Invalid prefix", func(t *testing.T) {
+		require.Empty(t, getLifecycleChaincodeID(&kvrwset.KVWrite{
+			Key: fmt.Sprintf("xxx%s%s", cc1, collectionsSuffix),
+		}))
+	})
+
+	t.Run("Invalid collections suffix", func(t *testing.T) {
+		require.Empty(t, getLifecycleChaincodeID(&kvrwset.KVWrite{
+			Key: fmt.Sprintf("%s%sxxx", fieldsPrefix, cc1),
+		}))
+	})
 }

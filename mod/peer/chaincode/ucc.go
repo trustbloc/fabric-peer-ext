@@ -8,7 +8,10 @@ package chaincode
 
 import (
 	"github.com/hyperledger/fabric/extensions/chaincode/api"
+	"github.com/hyperledger/fabric/msp"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/ucc"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/implicitpolicy"
 )
 
 // GetUCC returns the in-process user chaincode that matches the given name and version.
@@ -31,6 +34,11 @@ func GetUCC(name, version string) (api.UserCC, bool) {
 	return ucc.Get(name, version)
 }
 
+// GetUCCByPackageID returns the in-process user chaincode for the given package ID
+func GetUCCByPackageID(id string) (api.UserCC, bool) {
+	return ucc.GetByPackageID(id)
+}
+
 // Chaincodes returns all registered in-process chaincodes
 func Chaincodes() []api.UserCC {
 	return ucc.Chaincodes()
@@ -41,7 +49,17 @@ func WaitForReady() {
 	ucc.WaitForReady()
 }
 
-// GetID returns the ID of the chaincode which includes the name and version
-func GetID(cc api.UserCC) string {
+// GetPackageID returns the package ID of the chaincode
+func GetPackageID(cc api.UserCC) string {
 	return cc.Name() + ":" + cc.Version()
+}
+
+// IsValidMSP return true if the given MSP is valid for chaincode/collection policy
+func IsValidMSP(mspID string, msps map[string]msp.MSP) bool {
+	if mspID == implicitpolicy.ImplicitOrg {
+		return true
+	}
+
+	_, ok := msps[mspID]
+	return ok
 }

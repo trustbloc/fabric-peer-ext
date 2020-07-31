@@ -15,6 +15,9 @@ import (
 	"github.com/golang/protobuf/proto"
 	cb "github.com/hyperledger/fabric-protos-go/common"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
+	lb "github.com/hyperledger/fabric-protos-go/peer/lifecycle"
+	"github.com/hyperledger/fabric/common/policydsl"
+	"github.com/hyperledger/fabric/core/chaincode/lifecycle"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/stretchr/testify/require"
@@ -54,8 +57,10 @@ func TestValidator_ValidateProposalResponses_InvalidInput(t *testing.T) {
 	identity := txnmocks.NewIdentity()
 	idd.DeserializeIdentityReturns(identity, nil)
 	bp := blockpublisher.New(channelID)
+	cci := &txnmocks.LifecycleCCInfoProvider{}
+	cci.ChaincodeInfoReturns(nil, errors.New(errUnknownChaincode))
 
-	v := newValidator(channelID, newQueryExecutorProvider(qe), newMockPolicyEvaluator(), idd, bp)
+	v := newValidator(channelID, newQueryExecutorProvider(qe), newMockPolicyEvaluator(), idd, bp, cci)
 	require.NotNil(t, v)
 
 	t.Run("No Proposal Responses -> error", func(t *testing.T) {
@@ -222,7 +227,7 @@ func TestValidator_ValidateProposalResponses_InvalidInput(t *testing.T) {
 	})
 }
 
-func TestValidator_ValidateProposalResponses_ChaincodeDataError(t *testing.T) {
+func TestValidator_ValidateProposalResponses_CreateLSCCDefinitionError(t *testing.T) {
 	pBuilder := txnmocks.NewProposalBuilder().ChannelID(channelID).MSPID(org1MSP).ChaincodeID(ccID1)
 
 	qe := mocks.NewQueryExecutor()
@@ -230,8 +235,10 @@ func TestValidator_ValidateProposalResponses_ChaincodeDataError(t *testing.T) {
 	identity1 := txnmocks.NewIdentity()
 	idd.DeserializeIdentityReturns(identity1, nil)
 	bp := blockpublisher.New(channelID)
+	cci := &txnmocks.LifecycleCCInfoProvider{}
+	cci.ChaincodeInfoReturns(nil, errors.New(errUnknownChaincode))
 
-	v := newValidator(channelID, newQueryExecutorProvider(qe), newMockPolicyEvaluator(), idd, bp)
+	v := newValidator(channelID, newQueryExecutorProvider(qe), newMockPolicyEvaluator(), idd, bp, cci)
 
 	require.NotNil(t, v)
 
@@ -252,52 +259,6 @@ func TestValidator_ValidateProposalResponses_ChaincodeDataError(t *testing.T) {
 		require.Contains(t, err.Error(), "lscc's state for [chaincode1] not found")
 	})
 
-	t.Run("No VSCC in chaincode data -> error", func(t *testing.T) {
-		cdBuilder := txnmocks.NewChaincodeDataBuilder().
-			Name(ccID1).
-			Version(ccVersion1).
-			Policy("OutOf(1,'Org1MSP.member')")
-		qe.WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
-
-		id1Bytes, err := identity1.Serialize()
-		require.NoError(t, err)
-
-		responsesBuilder := txnmocks.NewProposalResponsesBuilder()
-		r1Builder := responsesBuilder.ProposalResponse()
-		r1Builder.Response().Status(int32(cb.Status_SUCCESS)).Payload([]byte("payload"))
-		r1Builder.Endorsement().Endorser(id1Bytes).Signature([]byte("id1"))
-		ca1Builder := r1Builder.Payload().ChaincodeAction().ChaincodeID(ccID1, "", ccVersion1)
-		ca1Builder.Results().Namespace(ccID2).Write("key1", []byte("value1"))
-
-		code, err := v.Validate(pBuilder.Build(), responsesBuilder.Build())
-		require.Equal(t, pb.TxValidationCode_INVALID_OTHER_REASON, code)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "vscc field must be set")
-	})
-
-	t.Run("No policy in chaincode data -> error", func(t *testing.T) {
-		cdBuilder := txnmocks.NewChaincodeDataBuilder().
-			Name(ccID1).
-			Version(ccVersion1).
-			VSCC("vscc")
-		qe.WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
-
-		id1Bytes, err := identity1.Serialize()
-		require.NoError(t, err)
-
-		responsesBuilder := txnmocks.NewProposalResponsesBuilder()
-		r1Builder := responsesBuilder.ProposalResponse()
-		r1Builder.Response().Status(int32(cb.Status_SUCCESS)).Payload([]byte("payload"))
-		r1Builder.Endorsement().Endorser(id1Bytes).Signature([]byte("id1"))
-		ca1Builder := r1Builder.Payload().ChaincodeAction().ChaincodeID(ccID1, "", ccVersion1)
-		ca1Builder.Results().Namespace(ccID2).Write("key1", []byte("value1"))
-
-		code, err := v.Validate(pBuilder.Build(), responsesBuilder.Build())
-		require.Equal(t, pb.TxValidationCode_INVALID_OTHER_REASON, code)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "policy field must be set")
-	})
-
 	t.Run("Expired chaincode -> error", func(t *testing.T) {
 		cdBuilder := txnmocks.NewChaincodeDataBuilder().
 			Name(ccID1).
@@ -305,6 +266,80 @@ func TestValidator_ValidateProposalResponses_ChaincodeDataError(t *testing.T) {
 			VSCC("vscc").
 			Policy("OutOf(1,'Org1MSP.member')")
 		qe.WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
+
+		id1Bytes, err := identity1.Serialize()
+		require.NoError(t, err)
+
+		responsesBuilder := txnmocks.NewProposalResponsesBuilder()
+		r1Builder := responsesBuilder.ProposalResponse()
+		r1Builder.Response().Status(int32(cb.Status_SUCCESS)).Payload([]byte("payload"))
+		r1Builder.Endorsement().Endorser(id1Bytes).Signature([]byte("id1"))
+		ca1Builder := r1Builder.Payload().ChaincodeAction().ChaincodeID(ccID1, "", ccVersion1)
+		ca1Builder.Results().Namespace(ccID2).Write("key1", []byte("value1"))
+
+		code, err := v.Validate(pBuilder.Build(), responsesBuilder.Build())
+		require.Equal(t, pb.TxValidationCode_EXPIRED_CHAINCODE, code)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "chaincode chaincode1:v1/testchannel didn't match chaincode1:v2/testchannel")
+	})
+}
+
+func TestValidator_ValidateProposalResponses_CreateLifecycleDefinitionError(t *testing.T) {
+	pBuilder := txnmocks.NewProposalBuilder().ChannelID(channelID).MSPID(org1MSP).ChaincodeID(ccID1)
+
+	qe := mocks.NewQueryExecutor()
+	idd := &mocks.IdentityDeserializer{}
+	identity1 := txnmocks.NewIdentity()
+	idd.DeserializeIdentityReturns(identity1, nil)
+	bp := blockpublisher.New(channelID)
+	cci := &txnmocks.LifecycleCCInfoProvider{}
+	errExpected := errors.New("lifecycle error")
+
+	v := newValidator(channelID, newQueryExecutorProvider(qe), newMockPolicyEvaluator(), idd, bp, cci)
+	require.NotNil(t, v)
+
+	t.Run("Get chaincode data -> error", func(t *testing.T) {
+		cci.ChaincodeInfoReturns(nil, errExpected)
+
+		id1Bytes, err := identity1.Serialize()
+		require.NoError(t, err)
+
+		responsesBuilder := txnmocks.NewProposalResponsesBuilder()
+		r1Builder := responsesBuilder.ProposalResponse()
+		r1Builder.Response().Status(int32(cb.Status_SUCCESS)).Payload([]byte("payload"))
+		r1Builder.Endorsement().Endorser(id1Bytes).Signature([]byte("id1"))
+		ca1Builder := r1Builder.Payload().ChaincodeAction().ChaincodeID(ccID1, "", ccVersion1)
+		ca1Builder.Results().Namespace(ccID2).Write("key1", []byte("value1"))
+
+		code, err := v.Validate(pBuilder.Build(), responsesBuilder.Build())
+		require.Equal(t, pb.TxValidationCode_INVALID_OTHER_REASON, code)
+		require.EqualError(t, err, errExpected.Error())
+	})
+
+	t.Run("Expired chaincode -> error", func(t *testing.T) {
+		policy, err := policydsl.FromString("OutOf(2,'Org1MSP.member','Org2MSP.member')")
+		require.NoError(t, err)
+		require.NotNil(t, policy)
+
+		appPolicy := &pb.ApplicationPolicy{
+			Type: &pb.ApplicationPolicy_SignaturePolicy{SignaturePolicy: policy},
+		}
+
+		policyBytes, err := proto.Marshal(appPolicy)
+		require.NoError(t, err)
+
+		ccInfo := &lifecycle.LocalChaincodeInfo{
+			Definition: &lifecycle.ChaincodeDefinition{
+				EndorsementInfo: &lb.ChaincodeEndorsementInfo{
+					Version: ccVersion2,
+				},
+				ValidationInfo: &lb.ChaincodeValidationInfo{
+					ValidationParameter: policyBytes,
+				},
+			},
+		}
+
+		cci.ChaincodeInfoReturns(ccInfo, nil)
 
 		id1Bytes, err := identity1.Serialize()
 		require.NoError(t, err)
@@ -335,8 +370,10 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 	idd := &mocks.IdentityDeserializer{}
 	idd.DeserializeIdentityReturns(identity1, nil)
 	bp := blockpublisher.New(channelID)
+	cci := &txnmocks.LifecycleCCInfoProvider{}
+	cci.ChaincodeInfoReturns(nil, errors.New(errUnknownChaincode))
 
-	v := newValidator(channelID, newQueryExecutorProvider(qe), policyEvaluator, idd, bp)
+	v := newValidator(channelID, newQueryExecutorProvider(qe), policyEvaluator, idd, bp, cci)
 	require.NotNil(t, v)
 
 	t.Run("Nil response -> error", func(t *testing.T) {
@@ -373,7 +410,7 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 		require.EqualError(t, err, errDuplicateIdentity)
 	})
 
-	t.Run("Policy satisfied -> success", func(t *testing.T) {
+	t.Run("Policy satisfied (lscc) -> success", func(t *testing.T) {
 		cdBuilder := txnmocks.NewChaincodeDataBuilder().
 			Name(ccID1).
 			Version(ccVersion1).
@@ -401,13 +438,61 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("Policy satisfied (lifecycle) -> success", func(t *testing.T) {
+		defer cci.ChaincodeInfoReturns(nil, errors.New(errUnknownChaincode))
+
+		policy, err := policydsl.FromString("OutOf(2,'Org1MSP.member','Org2MSP.member')")
+		require.NoError(t, err)
+		require.NotNil(t, policy)
+
+		appPolicy := &pb.ApplicationPolicy{
+			Type: &pb.ApplicationPolicy_SignaturePolicy{SignaturePolicy: policy},
+		}
+
+		policyBytes, err := proto.Marshal(appPolicy)
+		require.NoError(t, err)
+
+		ccInfo := &lifecycle.LocalChaincodeInfo{
+			Definition: &lifecycle.ChaincodeDefinition{
+				EndorsementInfo: &lb.ChaincodeEndorsementInfo{
+					Version: ccVersion1,
+				},
+				ValidationInfo: &lb.ChaincodeValidationInfo{
+					ValidationParameter: policyBytes,
+				},
+			},
+		}
+
+		cci.ChaincodeInfoReturns(ccInfo, nil)
+
+		id1Bytes, err := identity1.Serialize()
+		require.NoError(t, err)
+		id2Bytes, err := identity2.Serialize()
+		require.NoError(t, err)
+
+		responsesBuilder := txnmocks.NewProposalResponsesBuilder()
+		r1Builder := responsesBuilder.ProposalResponse()
+		r1Builder.Response().Status(int32(cb.Status_SUCCESS)).Payload([]byte("payload"))
+		r1Builder.Payload().ChaincodeAction().ChaincodeID(ccID1, "", ccVersion1)
+		r1Builder.Endorsement().Endorser(id1Bytes).Signature([]byte("id1"))
+		r2Builder := responsesBuilder.ProposalResponse()
+		r2Builder.Response().Status(int32(cb.Status_SUCCESS)).Payload([]byte("payload"))
+		r2Builder.Payload().ChaincodeAction().ChaincodeID(ccID1, "", ccVersion1)
+		r2Builder.Endorsement().Endorser(id2Bytes).Signature([]byte("id2"))
+
+		code, err := v.Validate(pBuilder.Build(), responsesBuilder.Build())
+		require.Equal(t, pb.TxValidationCode_VALID, code)
+		require.NoError(t, err)
+	})
+
 	t.Run("Identity deserializer error -> error", func(t *testing.T) {
 		errExpected := errors.New("injected deserializer error")
 		idd := &mocks.IdentityDeserializer{}
 		idd.DeserializeIdentityReturns(nil, errExpected)
 		bp := blockpublisher.New(channelID)
+		cci := &txnmocks.LifecycleCCInfoProvider{}
 
-		v := newValidator(channelID, newQueryExecutorProvider(qe), policyEvaluator, idd, bp)
+		v := newValidator(channelID, newQueryExecutorProvider(qe), policyEvaluator, idd, bp, cci)
 		require.NotNil(t, v)
 
 		cdBuilder := txnmocks.NewChaincodeDataBuilder().
@@ -435,8 +520,9 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 		idd := &mocks.IdentityDeserializer{}
 		idd.DeserializeIdentityReturns(identity1, nil)
 		bp := blockpublisher.New(channelID)
+		cci := &txnmocks.LifecycleCCInfoProvider{}
 
-		v := newValidator(channelID, newQueryExecutorProvider(qe), policyEvaluator, idd, bp)
+		v := newValidator(channelID, newQueryExecutorProvider(qe), policyEvaluator, idd, bp, cci)
 		require.NotNil(t, v)
 
 		cdBuilder := txnmocks.NewChaincodeDataBuilder().

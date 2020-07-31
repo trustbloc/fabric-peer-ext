@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package ucc
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/hyperledger/fabric/common/flogging"
@@ -18,6 +19,8 @@ import (
 )
 
 var logger = flogging.MustGetLogger("ext_ucc")
+
+const separator = ":"
 
 var instance = newRegistry()
 
@@ -42,9 +45,14 @@ func Register(ccCreator interface{}) {
 	instance.addCreator(ccCreator)
 }
 
-// Get returns the in-process chaincode for the given ID
+// Get returns the in-process chaincode for the given name and version
 func Get(name, version string) (api.UserCC, bool) {
 	return instance.Get(name, version)
+}
+
+// GetByPackageID returns the in-process chaincode for the given package ID
+func GetByPackageID(id string) (api.UserCC, bool) {
+	return instance.GetByPackageID(id)
 }
 
 // Chaincodes returns all registered in-process chaincodes
@@ -137,10 +145,17 @@ func (r *Registry) register(cc api.UserCC) error {
 
 // Get returns the in-process chaincode for the given ID
 func (r *Registry) Get(name, version string) (api.UserCC, bool) {
+	return r.getByID(newChaincodeID(name, version))
+}
+
+// GetByPackageID returns the in-process chaincode for the given package ID
+func (r *Registry) GetByPackageID(id string) (api.UserCC, bool) {
+	return r.getByID(chaincodeIDFromString(id))
+}
+
+func (r *Registry) getByID(ccID chaincodeID) (api.UserCC, bool) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-
-	ccID := newChaincodeID(name, version)
 
 	cc, ok := r.registry[ccID]
 	if ok {
@@ -149,12 +164,12 @@ func (r *Registry) Get(name, version string) (api.UserCC, bool) {
 	}
 
 	for _, cc := range r.registry {
-		if cc.Name() != name {
+		if cc.Name() != ccID.name {
 			continue
 		}
 
-		if getVersion(cc).Matches(version) {
-			logger.Debugf("Found in-process user chaincode that matches the desired version [%s:%s]: [%s]", name, version, cc.Name(), cc.Version())
+		if getVersion(cc).Matches(ccID.version) {
+			logger.Debugf("Found in-process user chaincode that matches the desired version [%s:%s]: [%s]", ccID.name, ccID.version, cc.Name(), cc.Version())
 			return cc, true
 		}
 	}
@@ -200,9 +215,24 @@ func newChaincodeID(name, version string) chaincodeID {
 	}
 }
 
+func chaincodeIDFromString(id string) chaincodeID {
+	nameAndVersion := strings.Split(id, separator)
+
+	var version string
+
+	if len(nameAndVersion) > 1 {
+		version = nameAndVersion[1]
+	}
+
+	return chaincodeID{
+		name:    nameAndVersion[0],
+		version: version,
+	}
+}
+
 // String returns the string representation of the chaincode ID
 func (c chaincodeID) String() string {
-	return c.name + ":" + c.version
+	return strings.Join([]string{c.name, c.version}, separator)
 }
 
 func getVersion(cc api.UserCC) Version {

@@ -9,6 +9,7 @@ package proprespvalidator
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/bluele/gcache"
 	"github.com/hyperledger/fabric/extensions/gossip/api"
@@ -32,6 +33,7 @@ var logger = logging.NewLogger("ext_txn")
 
 const (
 	errDuplicateIdentity = "Endorsement policy evaluation failure might be caused by duplicated identities"
+	errUnknownChaincode  = "unknown chaincode"
 )
 
 type queryExecutorProvider interface {
@@ -43,19 +45,24 @@ type validator struct {
 	queryExecutorProvider queryExecutorProvider
 	policyEvaluator       validation.PolicyEvaluator
 	idDeserializer        msp.IdentityDeserializer
+	lcCCInfoProvider      lifecycleCCInfoProvider
 	ccDataCache           gcache.Cache
 }
 
-func newValidator(channelID string, qeProvider queryExecutorProvider, pe validation.PolicyEvaluator, des msp.IdentityDeserializer, blockPublisher api.BlockPublisher) *validator {
+func newValidator(channelID string, qeProvider queryExecutorProvider, pe validation.PolicyEvaluator, des msp.IdentityDeserializer, blockPublisher api.BlockPublisher, lcCCInfoProvider lifecycleCCInfoProvider) *validator {
 	v := &validator{
 		channelID:             channelID,
 		queryExecutorProvider: qeProvider,
 		policyEvaluator:       pe,
 		idDeserializer:        des,
-		ccDataCache: gcache.New(0).LoaderFunc(func(ccName interface{}) (interface{}, error) {
-			return createCCDefinition(ccName.(string), qeProvider)
-		}).Build(),
+		lcCCInfoProvider:      lcCCInfoProvider,
 	}
+
+	v.ccDataCache = gcache.New(0).LoaderFunc(
+		func(ccName interface{}) (interface{}, error) {
+			return v.createCCDefinition(ccName.(string))
+		},
+	).Build()
 
 	blockPublisher.AddCCUpgradeHandler(func(txMetadata api.TxMetadata, chaincodeName string) error {
 		logger.Infof("[%s] Chaincode [%s] was upgraded. Resetting chaincode data cache", channelID, chaincodeName)
@@ -128,11 +135,11 @@ func (v *validator) validateEndorsementPolicy(ccID string, chaincodeAction *pb.C
 	// if the namespace corresponds to the cc that was originally
 	// invoked, we check that the version of the cc that was
 	// invoked corresponds to the version that lscc has returned
-	if ccID == chaincodeAction.ChaincodeId.Name && ccd.Version != chaincodeAction.ChaincodeId.Version {
-		return pb.TxValidationCode_EXPIRED_CHAINCODE, errors.Errorf("chaincode %s:%s/%s didn't match %s:%s/%s in lscc", ccID, chaincodeAction.ChaincodeId.Version, v.channelID, ccd.Name, ccd.Version, v.channelID)
+	if ccID == chaincodeAction.ChaincodeId.Name && ccd.version != chaincodeAction.ChaincodeId.Version {
+		return pb.TxValidationCode_EXPIRED_CHAINCODE, errors.Errorf("chaincode %s:%s/%s didn't match %s:%s/%s in lscc", ccID, chaincodeAction.ChaincodeId.Version, v.channelID, ccID, ccd.version, v.channelID)
 	}
 
-	if err := v.validatePolicyForCC(prespBytes, endorsements, ccd.Policy); err != nil {
+	if err := v.validatePolicyForCC(prespBytes, endorsements, ccd.policy); err != nil {
 		switch err.(type) {
 		case *commonerrors.VSCCEndorsementPolicyError:
 			return pb.TxValidationCode_ENDORSEMENT_POLICY_FAILURE, err
@@ -164,13 +171,13 @@ func (v *validator) validatePolicyForCC(prespBytes []byte, endorsements []*pb.En
 	return policyErr(fmt.Errorf("VSCC error: endorsement policy failure, err: %s", err))
 }
 
-func (v *validator) getCCDefinition(ccid string) (*ccprovider.ChaincodeData, error) {
+func (v *validator) getCCDefinition(ccid string) (*chaincodeDefinition, error) {
 	ccData, err := v.ccDataCache.Get(ccid)
 	if err != nil {
 		return nil, err
 	}
 
-	return ccData.(*ccprovider.ChaincodeData), nil
+	return ccData.(*chaincodeDefinition), nil
 }
 
 func (v *validator) validateResponses(proposalResponses []*pb.ProposalResponse) error {
@@ -382,39 +389,76 @@ func getNamespacesFromWriteSets(chaincodeAction *pb.ChaincodeAction) ([]string, 
 	return wrNamespace, pb.TxValidationCode_VALID, nil
 }
 
-func createCCDefinition(ccid string, qeProvider queryExecutorProvider) (*ccprovider.ChaincodeData, error) {
-	qe, err := qeProvider.NewQueryExecutor()
+func (v *validator) createCCDefinition(ccName string) (*chaincodeDefinition, error) {
+	ccDef, err := v.createLifecycleCCDefinition(ccName)
+	if err != nil {
+		return nil, err
+	}
+
+	if ccDef != nil {
+		return ccDef, nil
+	}
+
+	return v.createLSCCDefinition(ccName)
+}
+
+func (v *validator) createLifecycleCCDefinition(ccName string) (*chaincodeDefinition, error) {
+	ccInfo, err := v.lcCCInfoProvider.ChaincodeInfo(v.channelID, ccName)
+	if err != nil {
+		if strings.Contains(err.Error(), errUnknownChaincode) {
+			return nil, nil
+		}
+
+		logger.Errorf("[%s] Error retrieving lifecycle chaincode info for chaincode [%s]: %s", v.channelID, ccName, err)
+
+		return nil, err
+	}
+
+	appPolicy := &pb.ApplicationPolicy{}
+	err = proto.Unmarshal(ccInfo.Definition.ValidationInfo.ValidationParameter, appPolicy)
+	if err != nil {
+		return nil, errors.WithMessagef(err, "unable to unmarshal application policy for chaincode [%s]", ccName)
+	}
+
+	policyBytes, err := proto.Marshal(appPolicy.GetSignaturePolicy())
+	if err != nil {
+		return nil, errors.WithMessagef(err, "unable to marshal signature policy for chaincode [%s]", ccName)
+	}
+
+	return &chaincodeDefinition{
+		version: ccInfo.Definition.EndorsementInfo.Version,
+		policy:  policyBytes,
+	}, err
+}
+
+func (v *validator) createLSCCDefinition(ccName string) (*chaincodeDefinition, error) {
+	qe, err := v.queryExecutorProvider.NewQueryExecutor()
 	if err != nil {
 		return nil, errors.WithMessage(err, "could not retrieve QueryExecutor")
 	}
 	defer qe.Done()
 
-	bytes, err := qe.GetState("lscc", ccid)
+	ccDataBytes, err := qe.GetState("lscc", ccName)
 	if err != nil {
 		return nil, &commonerrors.VSCCInfoLookupFailureError{
-			Reason: fmt.Sprintf("Could not retrieve state for chaincode %s, error %s", ccid, err),
+			Reason: fmt.Sprintf("Could not retrieve state for chaincode %s, error %s", ccName, err),
 		}
 	}
 
-	if bytes == nil {
-		return nil, errors.Errorf("lscc's state for [%s] not found.", ccid)
+	if len(ccDataBytes) == 0 {
+		return nil, errors.Errorf("lscc's state for [%s] not found.", ccName)
 	}
 
 	cd := &ccprovider.ChaincodeData{}
-	err = proto.Unmarshal(bytes, cd)
+	err = proto.Unmarshal(ccDataBytes, cd)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshalling ChaincodeQueryResponse failed")
 	}
 
-	if cd.Vscc == "" {
-		return nil, errors.Errorf("lscc's state for [%s] is invalid, vscc field must be set", ccid)
-	}
-
-	if len(cd.Policy) == 0 {
-		return nil, errors.Errorf("lscc's state for [%s] is invalid, policy field must be set", ccid)
-	}
-
-	return cd, err
+	return &chaincodeDefinition{
+		version: cd.Version,
+		policy:  cd.Policy,
+	}, nil
 }
 
 func matches(r1, r2 *pb.ProposalResponse) bool {
@@ -435,4 +479,9 @@ func getChaincodeInvocationSpec(proposal *pb.Proposal) (*pb.ChaincodeInvocationS
 	}
 
 	return cis, nil
+}
+
+type chaincodeDefinition struct {
+	version string
+	policy  []byte
 }

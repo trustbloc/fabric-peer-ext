@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package ucc
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -46,6 +47,12 @@ func TestRegister(t *testing.T) {
 	require.Len(t, Chaincodes(), 3)
 
 	cc, ok := Get(cc1, v1)
+	require.True(t, ok)
+	require.NotNil(t, cc)
+	require.Equal(t, cc1, cc.Name())
+	require.Equal(t, v1, cc.Version())
+
+	cc, ok = GetByPackageID(fmt.Sprintf("%s:%s", cc1, v1))
 	require.True(t, ok)
 	require.NotNil(t, cc)
 	require.Equal(t, cc1, cc.Name())
