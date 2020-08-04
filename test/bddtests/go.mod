@@ -9,10 +9,10 @@ require (
 	github.com/cucumber/godog v0.8.1
 	github.com/golang/protobuf v1.3.3
 	github.com/hyperledger/fabric-protos-go v0.0.0
-	github.com/hyperledger/fabric-sdk-go v1.0.0-beta2.0.20200724161828-7b97fdf0b97a
+	github.com/hyperledger/fabric-sdk-go v1.0.0-beta2.0.20200730104005-bdbc9bd37260
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper v1.1.1
-	github.com/trustbloc/fabric-peer-test-common v0.1.4-0.20200724202402-afb908880a72
+	github.com/trustbloc/fabric-peer-test-common v0.1.4-0.20200731175120-ef25ded2adde
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
 )
 

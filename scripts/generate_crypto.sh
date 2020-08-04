@@ -6,11 +6,10 @@
 #
 
 CRYPTOGEN_CMD="${CRYPTOGEN_CMD:-cryptogen}"
-FIXTURES_PATH="${FIXTURES_PATH:-/opt/workspace/fabric-peer-ext/test/bddtests/fixtures}"
-CONFIG_DIR="${CONFIG_DIR:-config}"
+FIXTURES_PATH="${FIXTURES_PATH:-/opt/workspace/fabric-peer-ext/test/bddtests/fixtures/fabric}"
 
-if [ -z "$FABRIC_VERSION_DIR" ]; then
-  echo "FABRIC_VERSION_DIR is required"
+if [ -z "$FIXTURES_VERSION" ]; then
+  echo "FIXTURES_VERSION is required"
   exit 1
 fi
 
@@ -24,12 +23,12 @@ declare -a ordererOrgs=(
 )
 
 echo Clearing old crypto directory ...
-rm -Rf ${FIXTURES_PATH}/${FABRIC_VERSION_DIR}/crypto-config
+rm -Rf ${FIXTURES_PATH}/crypto-config
 
 echo Running cryptogen ...
-${CRYPTOGEN_CMD} generate --config=${FIXTURES_PATH}/${FABRIC_VERSION_DIR}/config/cryptogen.yaml --output=${FIXTURES_PATH}/${FABRIC_VERSION_DIR}/crypto-config
+${CRYPTOGEN_CMD} generate --config=${FIXTURES_PATH}/${FIXTURES_VERSION}/config/cryptogen.yaml --output=${FIXTURES_PATH}/crypto-config
 
 # Remove unneeded ca MSP
 for org in ${peerOrgs[@]}; do
-    rm -Rf ${FIXTURES_PATH}/${FABRIC_VERSION_DIR}/crypto-config/peerOrganizations/${org}/peers/ca.${org}/msp
+    rm -Rf ${FIXTURES_PATH}/crypto-config/peerOrganizations/${org}/peers/ca.${org}/msp
 done

@@ -27,21 +27,37 @@ jobs:
         CODECOV_UPLOAD_TOKEN: $(CODECOV_UPLOAD_TOKEN)
       displayName: Upload coverage to Codecov
 
-  - job: BDDTest
+  - job: BDDTest_lscc
     condition: in(variables['test-type'],'','bdd-test') # Run if test-type is not set or if test-type is 'bdd-test'
     pool:
       vmImage: ubuntu-18.04
     strategy:
-      parallel: 6
+      parallel: 3
     timeoutInMinutes: 60
     steps:
     - template: azp-dependencies.yml
     - checkout: self
     - script: make bddtests
-      displayName: Run BDD tests
+      displayName: Run BDD tests (lscc chaincode)
     - publish: test/bddtests/docker-compose-$(System.JobPositionInPhase).log
       artifact: docker-compose-$(System.JobPositionInPhase).log
       condition: always()
+
+  - job: BDDTest_lifecycle
+    condition: in(variables['test-type'],'','bdd-test') # Run if test-type is not set or if test-type is 'bdd-test'
+    pool:
+      vmImage: ubuntu-18.04
+    strategy:
+      parallel: 3
+    timeoutInMinutes: 60
+    steps:
+      - template: azp-dependencies.yml
+      - checkout: self
+      - script: FIXTURES_VERSION=v2.2 make bddtests
+        displayName: Run BDD tests (lifecycle chaincode)
+      - publish: test/bddtests/docker-compose-lc_$(System.JobPositionInPhase).log
+        artifact: docker-compose-lc_$(System.JobPositionInPhase).log
+        condition: always()
 
   - job: FabricUnitTest
     condition: eq(variables['test-type'],'fabric-unit-test') # Run only if test-type is 'fabric-unit-test'
