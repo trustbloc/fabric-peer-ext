@@ -37,7 +37,7 @@ jobs:
     steps:
     - template: azp-dependencies.yml
     - checkout: self
-    - script: make bddtests
+    - script: FIXTURES_VERSION=v1.4 make bddtests
       displayName: Run BDD tests (lscc chaincode)
     - publish: test/bddtests/docker-compose-$(System.JobPositionInPhase).log
       artifact: docker-compose-$(System.JobPositionInPhase).log

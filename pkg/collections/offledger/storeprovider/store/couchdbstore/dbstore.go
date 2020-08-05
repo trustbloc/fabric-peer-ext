@@ -35,7 +35,7 @@ const (
 
 const (
 	fetchExpiryDataQuery = `{
-		"selector": {"$and": [{"` + expiryField + `": {"$gt": 0}},{"` + expiryField + `": {"$lt": %v}}]},
+		"selector": {"$and": [{"` + expiryField + `": {"$ne": 0}},{"` + expiryField + `": {"$lt": %v}}]},
 		"fields": ["` + idField + `","` + revField + `"],
 		"use_index": ["_design/` + expiryIndexDoc + `", "` + expiryIndexName + `"]
 	}`
