@@ -33,6 +33,11 @@ const (
 	expiryIndexDef = `
 	{
 		"index": {
+			"partial_filter_selector": {
+				"` + expiryField + `": {
+					"$ne": 0
+				}
+			},
 			"fields": ["` + expiryField + `"]
 		},
 		"name": "` + expiryIndexName + `",

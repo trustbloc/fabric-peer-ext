@@ -14,6 +14,7 @@ import (
 	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/chaincode/ucc"
 	extconfig "github.com/trustbloc/fabric-peer-ext/pkg/config"
 	statemocks "github.com/trustbloc/fabric-peer-ext/pkg/gossip/state/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
@@ -41,6 +42,8 @@ func TestInitialize(t *testing.T) {
 		&mocks.ChaincodeUpdateHandler{},
 		&txnmocks.LifecycleCCInfoProvider{},
 	))
+
+	ucc.WaitForReady()
 }
 
 func removeDBPath(t testing.TB) {
