@@ -37,7 +37,7 @@ func (c *Commit) Handle(requestContext *invoke.RequestContext, clientContext *in
 	var statusNotifier <-chan *fab.TxStatusEvent
 
 	if !c.asyncCommit {
-		logger.Infof("Registering for tx [%s] event", txnID)
+		logger.Debugf("Registering for tx [%s] event", txnID)
 
 		var err error
 		reg, statusNotifier, err = clientContext.EventService.RegisterTxStatusEvent(string(txnID))
@@ -48,7 +48,7 @@ func (c *Commit) Handle(requestContext *invoke.RequestContext, clientContext *in
 
 		defer clientContext.EventService.Unregister(reg)
 	} else {
-		logger.Infof("Not registering for tx [%s] event since the call is async", txnID)
+		logger.Debugf("Not registering for tx [%s] event since the call is async", txnID)
 	}
 
 	if _, err := createAndSendTransaction(clientContext.Transactor, requestContext.Response.Proposal, requestContext.Response.Responses); err != nil {
@@ -62,7 +62,7 @@ func (c *Commit) Handle(requestContext *invoke.RequestContext, clientContext *in
 			requestContext.Response.TxValidationCode = txStatus.TxValidationCode
 
 			if txStatus.TxValidationCode != pb.TxValidationCode_VALID {
-				logger.Infof("Got invalid TxCode for tx [%s]: %s", txnID, txStatus.TxValidationCode)
+				logger.Debugf("Got invalid TxCode for tx [%s]: %s", txnID, txStatus.TxValidationCode)
 
 				requestContext.Error = status.New(status.EventServerStatus, int32(txStatus.TxValidationCode), "received invalid transaction", nil)
 				return

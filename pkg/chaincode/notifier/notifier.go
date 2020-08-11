@@ -74,7 +74,7 @@ func (cci channelNotifier) handleWrite(metadata xgossipapi.TxMetadata, namespace
 		return nil
 	}
 
-	logger.Infof("[%s] Handling write in block [%d] and TxID [%s] - Key [%s]", cci.channelID, metadata.BlockNum, metadata.TxID, write.Key)
+	logger.Debugf("[%s] Handling write in block [%d] and TxID [%s] - Key [%s]", cci.channelID, metadata.BlockNum, metadata.TxID, write.Key)
 
 	qe, err := cci.NewQueryExecutor()
 	if err != nil {
@@ -98,7 +98,7 @@ func (cci channelNotifier) handleHashWrite(metadata xgossipapi.TxMetadata, names
 		return nil
 	}
 
-	logger.Infof("[%s] Handling collection hash write to collection [%s] in block [%d] and TxID [%s]", cci.channelID, collection, metadata.BlockNum, metadata.TxID)
+	logger.Debugf("[%s] Handling collection hash write to collection [%s] in block [%d] and TxID [%s]", cci.channelID, collection, metadata.BlockNum, metadata.TxID)
 
 	qe, err := cci.NewQueryExecutor()
 	if err != nil {
