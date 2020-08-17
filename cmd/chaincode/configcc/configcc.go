@@ -9,12 +9,16 @@ package configcc
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
+	mb "github.com/hyperledger/fabric-protos-go/msp"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	ccapi "github.com/hyperledger/fabric/extensions/chaincode/api"
 	"github.com/pkg/errors"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	ledgerconfig "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/mgr"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/service"
@@ -26,6 +30,12 @@ var logger = flogging.MustGetLogger("configcc")
 
 const (
 	version = "v1"
+
+	// aclReadPrefix is the prefix for read-only (get) policy resource names
+	aclReadPrefix = "configdata/read/"
+
+	// aclWritePrefix is the prefix for the write (save, delete) policy resource names
+	aclWritePrefix = "configdata/write/"
 )
 
 type configMgr interface {
@@ -38,6 +48,7 @@ type function func(shim.ChaincodeStubInterface, [][]byte) pb.Response
 
 type configCC struct {
 	validatorRegistry configValidator
+	aclProvider       aclProvider
 	functionRegistry  map[string]function
 }
 
@@ -45,10 +56,19 @@ type configValidator interface {
 	Validate(kv *config.KeyValue) error
 }
 
+type aclProvider interface {
+	CheckACL(resName string, channelID string, idinfo interface{}) error
+}
+
 // New returns a new configuration chaincode
-func New(validatorRegistry configValidator) ccapi.UserCC {
-	cc := &configCC{validatorRegistry: validatorRegistry}
+func New(validatorRegistry configValidator, aclProvider aclProvider) ccapi.UserCC {
+	cc := &configCC{
+		validatorRegistry: validatorRegistry,
+		aclProvider:       aclProvider,
+	}
+
 	cc.initFunctionRegistry()
+
 	return cc
 }
 
@@ -101,6 +121,10 @@ func (cc *configCC) put(stub shim.ChaincodeStubInterface, args [][]byte) pb.Resp
 		return shim.Error(fmt.Sprintf("Error unmarshalling config: %s", err))
 	}
 
+	if err := cc.checkACL(stub, aclWritePrefix+config.MspID); err != nil {
+		return pb.Response{Status: http.StatusForbidden, Message: err.Error()}
+	}
+
 	mgr := getConfigMgr(service.ConfigNS, state.NewShimStoreProvider(stub), cc.validatorRegistry)
 	if err := mgr.Save(stub.GetTxID(), config); err != nil {
 		logger.Errorf("Error saving config: %s", err)
@@ -123,13 +147,18 @@ func (cc *configCC) get(stub shim.ChaincodeStubInterface, args [][]byte) pb.Resp
 		return shim.Error(err.Error())
 	}
 
-	config, err := getConfigMgr(service.ConfigNS, state.NewShimStoreProvider(stub), cc.validatorRegistry).Query(criteria)
+	err = cc.checkACL(stub, aclReadPrefix+criteria.MspID)
+	if err != nil {
+		return pb.Response{Status: http.StatusForbidden, Message: err.Error()}
+	}
+
+	cfg, err := getConfigMgr(service.ConfigNS, state.NewShimStoreProvider(stub), cc.validatorRegistry).Query(criteria)
 	if err != nil {
 		logger.Errorf("Error getting config for criteria [%s]: %s", criteria, err)
 		return shim.Error(fmt.Sprintf("error retrieving config: %s", err))
 	}
 
-	payload, err := marshalJSON(config)
+	payload, err := marshalJSON(cfg)
 	if err != nil {
 		logger.Errorf("Error marshalling config: %s", err)
 		return shim.Error(fmt.Sprintf("error marshalling config: %s", err))
@@ -149,6 +178,10 @@ func (cc *configCC) remove(stub shim.ChaincodeStubInterface, args [][]byte) pb.R
 	if err != nil {
 		logger.Errorf("Error unmarshalling criteria: %s", err)
 		return shim.Error(err.Error())
+	}
+
+	if err := cc.checkACL(stub, aclWritePrefix+criteria.MspID); err != nil {
+		return pb.Response{Status: http.StatusForbidden, Message: err.Error()}
 	}
 
 	if err := getConfigMgr(service.ConfigNS, state.NewShimStoreProvider(stub), cc.validatorRegistry).Delete(criteria); err != nil {
@@ -176,6 +209,44 @@ func (cc *configCC) functionSet() string {
 		functionNames += name
 	}
 	return functionNames
+}
+
+func (cc *configCC) checkACL(stub shim.ChaincodeStubInterface, resourceName string) error {
+	logger.Debugf("Checking ACL for resource: %v", resourceName)
+
+	sp, err := stub.GetSignedProposal()
+	if err != nil {
+		return errors.WithMessage(err, "unable to get signed proposal")
+	}
+
+	mspID, codedErr := getMSPID(stub)
+	if codedErr != nil {
+		return codedErr
+	}
+
+	err = cc.aclProvider.CheckACL(resourceName, stub.GetChannelID(), sp)
+	if err != nil {
+		logger.Debugf("ACL check failed for resource: %s, with signing mspID: %s", resourceName, mspID)
+
+		return errors.WithMessagef(err, "ACL check failed for resource %s and mspID %s", resourceName, mspID)
+	}
+
+	return nil
+}
+
+// getMSPID as a string from the creator of signed proposal
+func getMSPID(stub shim.ChaincodeStubInterface) (string, error) {
+	creator, err := stub.GetCreator()
+	if err != nil {
+		return "", errors.WithMessage(err, "failed to get creator bytes")
+	}
+
+	sid := &mb.SerializedIdentity{}
+	if err := proto.Unmarshal(creator, sid); err != nil {
+		return "", errors.WithMessage(err, "failed to unmarshal creator")
+	}
+
+	return sid.Mspid, nil
 }
 
 // unmarshalCriteria unmarshals the Criteria from the given JSON byte array
