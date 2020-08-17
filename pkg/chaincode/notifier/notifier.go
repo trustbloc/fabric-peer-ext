@@ -80,6 +80,7 @@ func (cci channelNotifier) handleWrite(metadata xgossipapi.TxMetadata, namespace
 	if err != nil {
 		return err
 	}
+	defer qe.Done()
 
 	return cci.HandleStateUpdates(&ledger.StateUpdateTrigger{
 		LedgerID:                cci.channelID,
@@ -104,6 +105,7 @@ func (cci channelNotifier) handleHashWrite(metadata xgossipapi.TxMetadata, names
 	if err != nil {
 		return err
 	}
+	defer qe.Done()
 
 	return cci.HandleStateUpdates(&ledger.StateUpdateTrigger{
 		LedgerID:                cci.channelID,
