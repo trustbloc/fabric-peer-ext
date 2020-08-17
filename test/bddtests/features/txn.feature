@@ -22,8 +22,8 @@ Feature: txn
     Given variable "org1Config" is assigned config from file "./fixtures/config/fabric/org1-config.json"
     And variable "org2Config" is assigned config from file "./fixtures/config/fabric/org2-config.json"
 
-    When client invokes chaincode "configscc" with args "save,${org1Config}" on the "mychannel" channel
-    And client invokes chaincode "configscc" with args "save,${org2Config}" on the "mychannel" channel
+    When "peerorg1" client invokes chaincode "configscc" with args "save,${org1Config}" on the "mychannel" channel
+    And "peerorg2" client invokes chaincode "configscc" with args "save,${org2Config}" on the "mychannel" channel
     And we wait 5 seconds
 
   @txn_s1
@@ -98,8 +98,8 @@ Feature: txn
     Given variable "org1ConfigUpdate" is assigned config from file "./fixtures/config/fabric/org1-config-update.json"
     And variable "org2ConfigUpdate" is assigned config from file "./fixtures/config/fabric/org2-config-update.json"
 
-    When client invokes chaincode "configscc" with args "save,${org1ConfigUpdate}" on the "mychannel" channel
-    And client invokes chaincode "configscc" with args "save,${org2ConfigUpdate}" on the "mychannel" channel
+    When "peerorg1" client invokes chaincode "configscc" with args "save,${org1ConfigUpdate}" on the "mychannel" channel
+    And "peerorg2" client invokes chaincode "configscc" with args "save,${org2ConfigUpdate}" on the "mychannel" channel
     And we wait 5 seconds
 
     Given variable "endorseAndCommitRequest" is assigned the JSON value '{"cc_id":"target_cc","args":["put","keyA","valueA"]}'

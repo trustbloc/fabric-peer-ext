@@ -41,6 +41,7 @@ func TestInitialize(t *testing.T) {
 		&mocks.ChaincodeInfoProvider{},
 		&mocks.ChaincodeUpdateHandler{},
 		&txnmocks.LifecycleCCInfoProvider{},
+		&mocks.ACLProvider{},
 	))
 
 	ucc.WaitForReady()

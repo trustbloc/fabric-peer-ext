@@ -46,6 +46,12 @@ defineSupportCode(function ({And, But, Given, Then, When}) {
     When(/^client invokes chaincode "([^"]*)" with args "([^"]*)" on the "([^"]*)" channel$/, function (arg1, arg2, arg3, callback) {
         callback.pending();
     });
+    When(/^"([^"]*)" client invokes chaincode "([^"]*)" with args "([^"]*)" on the "([^"]*)" channel$/, function (arg1, arg2, arg3, arg4, callback) {
+        callback.pending();
+    });
+    When(/^"([^"]*)" client invokes chaincode "([^"]*)" with args "([^"]*)" on the "([^"]*)" channel then the error response should contain "([^"]*)"$/, function (arg1, arg2, arg3, arg4, arg4, callback) {
+        callback.pending();
+    });
     When(/^client invokes chaincode "([^"]*)" with args "([^"]*)" on peers "([^"]*)" on the "([^"]*)" channel$/, function (arg1, arg2, arg3, arg4, callback) {
         callback.pending();
     });

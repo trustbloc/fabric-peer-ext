@@ -9,15 +9,19 @@ package configcc
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-chaincode-go/shimtest"
 	"github.com/stretchr/testify/require"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	configmocks "github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/service"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/state/api"
+	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
 
 const (
@@ -25,8 +29,10 @@ const (
 	org1MSP = "org1MSP"
 )
 
+//go:generate counterfeiter -o ../../../pkg/mocks/aclprovider.gen.go --fake-name ACLProvider . aclProvider
+
 func TestConfigCC_New(t *testing.T) {
-	cc := New(&configmocks.Validator{})
+	cc := New(&configmocks.Validator{}, &mocks.ACLProvider{})
 	require.NotNil(t, cc)
 
 	require.Equal(t, service.ConfigNS, cc.Name())
@@ -34,7 +40,7 @@ func TestConfigCC_New(t *testing.T) {
 }
 
 func TestConfigCC_Init(t *testing.T) {
-	cc := New(&configmocks.Validator{})
+	cc := New(&configmocks.Validator{}, &mocks.ACLProvider{})
 	require.NotNil(t, cc)
 
 	t.Run("System channel", func(t *testing.T) {
@@ -60,7 +66,7 @@ func TestConfigCC_Init(t *testing.T) {
 }
 
 func TestConfigCC_Invoke_Invalid(t *testing.T) {
-	cc := New(&configmocks.Validator{})
+	cc := New(&configmocks.Validator{}, &mocks.ACLProvider{})
 	require.NotNil(t, cc)
 
 	t.Run("No func arg", func(t *testing.T) {
@@ -81,7 +87,7 @@ func TestConfigCC_Invoke_Invalid(t *testing.T) {
 }
 
 func TestConfigCC_Invoke_Save(t *testing.T) {
-	cc := New(&configmocks.Validator{})
+	cc := New(&configmocks.Validator{}, &mocks.ACLProvider{})
 	require.NotNil(t, cc)
 
 	t.Run("Empty config", func(t *testing.T) {
@@ -136,7 +142,7 @@ func TestConfigCC_Invoke_Save(t *testing.T) {
 }
 
 func TestConfigCC_Invoke_Get(t *testing.T) {
-	cc := New(&configmocks.Validator{})
+	cc := New(&configmocks.Validator{}, &mocks.ACLProvider{})
 	require.NotNil(t, cc)
 
 	t.Run("No criteria", func(t *testing.T) {
@@ -231,7 +237,7 @@ func TestConfigCC_Invoke_Get(t *testing.T) {
 }
 
 func TestConfigCC_Invoke_Delete(t *testing.T) {
-	cc := New(&configmocks.Validator{})
+	cc := New(&configmocks.Validator{}, &mocks.ACLProvider{})
 	require.NotNil(t, cc)
 
 	t.Run("No criteria", func(t *testing.T) {
@@ -288,5 +294,48 @@ func TestConfigCC_Invoke_Delete(t *testing.T) {
 		require.NotNil(t, r)
 		require.Equal(t, shim.ERROR, int(r.Status))
 		require.Contains(t, r.Message, errExpected.Error())
+	})
+}
+
+func TestConfigCC_ACL(t *testing.T) {
+	prevProvider := getConfigMgr
+	defer func() { getConfigMgr = prevProvider }()
+
+	getConfigMgr = func(string, api.StoreProvider, configValidator) configMgr {
+		return configmocks.NewConfigMgr()
+	}
+
+	aclProvider := &mocks.ACLProvider{}
+	cc := New(&configmocks.Validator{}, aclProvider)
+	require.NotNil(t, cc)
+
+	t.Run("Get -> access denied", func(t *testing.T) {
+		aclProvider.CheckACLReturns(fmt.Errorf("access denied"))
+
+		criteriaBytes, err := json.Marshal(&config.Criteria{MspID: org1MSP})
+		require.NoError(t, err)
+
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("get"), criteriaBytes})
+		require.NotNil(t, r)
+		require.Equal(t, http.StatusForbidden, int(r.Status))
+	})
+
+	t.Run("Save -> access denied", func(t *testing.T) {
+		aclProvider.CheckACLReturns(fmt.Errorf("access denied"))
+
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("save"), []byte(`{}`)})
+		require.NotNil(t, r)
+		require.Equal(t, http.StatusForbidden, int(r.Status))
+	})
+
+	t.Run("Delete -> access denied", func(t *testing.T) {
+		aclProvider.CheckACLReturns(fmt.Errorf("access denied"))
+
+		criteriaBytes, err := json.Marshal(&config.Criteria{MspID: org1MSP})
+		require.NoError(t, err)
+
+		r := shimtest.NewMockStub("mock_stub", cc.Chaincode()).MockInvoke(tx1, [][]byte{[]byte("delete"), criteriaBytes})
+		require.NotNil(t, r)
+		require.Equal(t, http.StatusForbidden, int(r.Status))
 	})
 }
