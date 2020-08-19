@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/hyperledger/fabric/common/ledger/snapshot"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
@@ -43,6 +44,7 @@ type cdbBlockStore struct {
 	cpInfoCond *sync.Cond
 	cp         *checkpoint
 	attachTxn  bool
+	bcInfo     atomic.Value
 }
 
 // newCDBBlockStore constructs block store based on CouchDB
@@ -70,6 +72,30 @@ func newCDBBlockStore(blockStore *couchdb.CouchDatabase, txnStore *couchdb.Couch
 	// Create a checkpoint condition (event) variable, for the  goroutine waiting for
 	// or announcing the occurrence of an event.
 	cdbBlockStore.cpInfoCond = sync.NewCond(&sync.Mutex{})
+
+	var bcInfo *common.BlockchainInfo
+
+	if cpInfo.isChainEmpty {
+		bcInfo = &common.BlockchainInfo{}
+	} else {
+		logger.Debugf("[%s] Loading block %d from database", ledgerID, cpInfo.lastBlockNumber)
+
+		//If start up is a restart of an existing storage, update BlockchainInfo for external API's
+		lastBlock, err := cdbBlockStore.RetrieveBlockByNumber(cpInfo.lastBlockNumber)
+		if err != nil {
+			panic(fmt.Sprintf("Could not load block %d from database: %s", cpInfo.lastBlockNumber, err))
+		}
+
+		lastBlockHeader := lastBlock.GetHeader()
+
+		bcInfo = &common.BlockchainInfo{
+			Height:            lastBlockHeader.GetNumber() + 1,
+			CurrentBlockHash:  protoutil.BlockHeaderHash(lastBlockHeader),
+			PreviousBlockHash: lastBlockHeader.GetPreviousHash(),
+		}
+	}
+
+	cdbBlockStore.bcInfo.Store(bcInfo)
 
 	return cdbBlockStore
 }
@@ -178,34 +204,26 @@ func (s *cdbBlockStore) CheckpointBlock(block *common.Block) error {
 			return errors.WithMessage(err, "adding cpInfo to couchDB failed")
 		}
 	}
+
+	bcInfo := &common.BlockchainInfo{
+		Height:            newCPInfo.lastBlockNumber + 1,
+		CurrentBlockHash:  newCPInfo.currentHash,
+		PreviousBlockHash: block.Header.PreviousHash,
+	}
+
+	logger.Debugf("[%s] Updating blockchain info: %s", s.ledgerID, bcInfo)
+
+	s.bcInfo.Store(bcInfo)
+
 	//update the checkpoint info (for storage) and the blockchain info (for APIs) in the manager
 	s.updateCheckpoint(newCPInfo)
+
 	return nil
 }
 
 // GetBlockchainInfo returns the current info about blockchain
 func (s *cdbBlockStore) GetBlockchainInfo() (*common.BlockchainInfo, error) {
-	cpInfo := s.cp.getCheckpointInfo()
-	bcInfo := &common.BlockchainInfo{
-		Height: 0,
-	}
-	if !cpInfo.isChainEmpty {
-		//If start up is a restart of an existing storage, update BlockchainInfo for external API's
-		lastBlock, err := s.RetrieveBlockByNumber(cpInfo.lastBlockNumber)
-		if err != nil {
-			return nil, fmt.Errorf("RetrieveBlockByNumber return error: %s", err)
-		}
-
-		lastBlockHeader := lastBlock.GetHeader()
-		lastBlockHash := protoutil.BlockHeaderHash(lastBlockHeader)
-		previousBlockHash := lastBlockHeader.GetPreviousHash()
-		bcInfo = &common.BlockchainInfo{
-			Height:            lastBlockHeader.GetNumber() + 1,
-			CurrentBlockHash:  lastBlockHash,
-			PreviousBlockHash: previousBlockHash,
-		}
-	}
-	return bcInfo, nil
+	return s.bcInfo.Load().(*common.BlockchainInfo), nil
 }
 
 // RetrieveBlocks returns an iterator that can be used for iterating over a range of blocks
