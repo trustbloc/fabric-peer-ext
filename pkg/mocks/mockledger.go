@@ -112,7 +112,7 @@ func (m *Ledger) GetMissingPvtDataTracker() (ledger2.MissingPvtDataTracker, erro
 }
 
 //CheckpointBlock updates checkpoint info to given block
-func (m *Ledger) CheckpointBlock(block *common.Block) error {
+func (m *Ledger) CheckpointBlock(*common.Block, func()) error {
 	panic("not implemented")
 }
 

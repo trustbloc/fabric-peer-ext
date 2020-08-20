@@ -46,11 +46,14 @@ func TestCheckpointBlock(t *testing.T) {
 	store, _ := provider.Open("testLedger-2")
 	defer store.Shutdown()
 
+	notified := false
 	blocks := testutil.ConstructTestBlocks(t, 1)
-	err := store.CheckpointBlock(blocks[0])
-	assert.NoError(t, err)
-	assert.Equal(t, blocks[0].Header.Number, store.(*cdbBlockStore).cpInfo.lastBlockNumber)
-
+	err := store.CheckpointBlock(blocks[0], func() {
+		notified = true
+	})
+	require.NoError(t, err)
+	require.Equal(t, blocks[0].Header.Number, store.(*cdbBlockStore).cpInfo.lastBlockNumber)
+	require.True(t, notified)
 }
 
 func TestCheckpointBlockFailure(t *testing.T) {
@@ -67,7 +70,7 @@ func TestCheckpointBlockFailure(t *testing.T) {
 	db.SaveDocReturns("", errors.New("injected DB error"))
 
 	store.(*cdbBlockStore).cp.db = db
-	err := store.CheckpointBlock(blocks[0])
+	err := store.CheckpointBlock(blocks[0], noOp)
 	require.Error(t, err, "adding cpInfo to couchDB failed")
 }
 

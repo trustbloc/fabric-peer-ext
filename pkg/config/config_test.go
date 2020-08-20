@@ -123,17 +123,6 @@ func TestGetTransientDataPullTimeout(t *testing.T) {
 	assert.Equal(t, 111*time.Second, GetTransientDataPullTimeout())
 }
 
-func TestGetBlockPublisherBufferSize(t *testing.T) {
-	oldVal := viper.Get(confBlockPublisherBufferSize)
-	defer viper.Set(confBlockPublisherBufferSize, oldVal)
-
-	viper.Set(confBlockPublisherBufferSize, "")
-	assert.Equal(t, defaultBlockPublisherBufferSize, GetBlockPublisherBufferSize())
-
-	viper.Set(confBlockPublisherBufferSize, 1234)
-	assert.Equal(t, 1234, GetBlockPublisherBufferSize())
-}
-
 func TestGetOLCollMaxPeersForRetrieval(t *testing.T) {
 	oldVal := viper.Get(confOLCollMaxPeersForRetrieval)
 	defer viper.Set(confOLCollMaxPeersForRetrieval, oldVal)

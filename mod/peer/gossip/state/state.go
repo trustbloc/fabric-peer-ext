@@ -68,7 +68,12 @@ type GossipServiceMediator interface {
 
 //NewGossipStateProviderExtension returns new GossipStateProvider Extension implementation
 func NewGossipStateProviderExtension(chainID string, mediator GossipServiceMediator, support *api.Support, blockingMode bool) GossipStateProviderExtension {
-	return &gossipStateProviderExtension{chainID, mediator, support, blockingMode}
+	return &gossipStateProviderExtension{
+		chainID:      chainID,
+		mediator:     mediator,
+		support:      support,
+		blockingMode: blockingMode,
+	}
 }
 
 type gossipStateProviderExtension struct {
@@ -140,6 +145,11 @@ func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Bloc
 				return nil, err
 			}
 
+			if blockAndPvtData == nil {
+				logger.Warnf("Got nil block and private data")
+				return nil, nil
+			}
+
 			// Gossip messages with other nodes in my org
 			s.gossipBlockAndPrivateData(blockAndPvtData)
 
@@ -148,15 +158,17 @@ func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Bloc
 
 		//in case of non-committer handle pre commit operations
 		if isBlockValidated(block) {
-			err := s.support.Ledger.CheckpointBlock(block)
+			err := s.support.Ledger.CheckpointBlock(block,
+				func() {
+					logger.Debugf("[%s] Publishing validated block [%d] with %d private data collections", s.chainID, block.Header.Number, len(pvtData))
+
+					blockpublisher.ForChannel(s.chainID).Publish(block, toPvtDataMap(pvtData))
+				},
+			)
 			if err != nil {
 				logger.Warning("Failed to update checkpoint info for cid[%s] block[%d]", s.chainID, block.Header.Number)
 				return nil, err
 			}
-
-			logger.Debugf("[%s] Received validated block [%d] with %d private data collections", s.chainID, block.Header.Number, len(pvtData))
-
-			blockpublisher.ForChannel(s.chainID).Publish(block, toPvtDataMap(pvtData))
 
 			return nil, nil
 		}
