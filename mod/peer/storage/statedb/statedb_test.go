@@ -10,14 +10,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/proto"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
+	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
-
-	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
-
-	"github.com/golang/protobuf/proto"
-	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
@@ -90,4 +88,10 @@ func TestAddCCUpgradeHandlerAsCommitter(t *testing.T) {
 	//cc upgrade event will not get published
 	require.Equal(t, 0, handler3.NumCCUpgradeEvents())
 
+}
+
+func TestRegister(t *testing.T) {
+	// NOTE: statedb.VersionedDB cannot be mocked since this interface references an internal package: github.com/hyperledger/fabric/core/ledger/internal/version.
+	// Therefore, stateDB cannot be fully tested
+	require.NotPanics(t, func() { Register("channel1", nil) })
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/discovery"
 	"github.com/trustbloc/fabric-peer-ext/pkg/gossip/appdata"
+	"github.com/trustbloc/fabric-peer-ext/pkg/statedb"
 )
 
 var logger = flogging.MustGetLogger("hellocc")
@@ -30,7 +31,8 @@ var logger = flogging.MustGetLogger("hellocc")
 const (
 	v1 = "v1"
 
-	sayHelloFunc = "sayhello"
+	sayHelloFunc        = "sayhello"
+	getHelloMessageFunc = "gethellomessage"
 
 	HelloDataType     = "Hello!"
 	gossipMaxAttempts = 2
@@ -46,20 +48,27 @@ type GossipProvider interface {
 	GetGossipService() gossipapi.GossipService
 }
 
+// StateDBProvider returns a state database for a given channel
+type StateDBProvider interface {
+	StateDBForChannel(channelID string) statedb.StateDB
+}
+
 // HelloCC is a sample chaincode that broadcasts a Hello message to other peers on a channel
 // and the other peers respond with a hello
 type HelloCC struct {
 	GossipProvider
+	StateDBProvider
 	name string
 }
 
 // New returns a new Hello chaincode instance
-func New(name string, handlerRegistry AppDataHandlerRegistry, gossipProvider GossipProvider) *HelloCC {
+func New(name string, handlerRegistry AppDataHandlerRegistry, gossipProvider GossipProvider, stateDBProvider StateDBProvider) *HelloCC {
 	logger.Infof("Creating chaincode [%s]", name)
 
 	cc := &HelloCC{
-		GossipProvider: gossipProvider,
-		name:           name,
+		GossipProvider:  gossipProvider,
+		StateDBProvider: stateDBProvider,
+		name:            name,
 	}
 
 	if err := handlerRegistry.Register(HelloDataType, cc.handleRequest); err != nil {
@@ -97,6 +106,10 @@ func (cc *HelloCC) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 
 	if function == sayHelloFunc {
 		return cc.sayHello(stub, args)
+	}
+
+	if function == getHelloMessageFunc {
+		return cc.getHelloMessage(stub)
 	}
 
 	return shim.Error(fmt.Sprintf("Unknown function [%s]. Expecting '%s'", function, sayHelloFunc))
@@ -167,9 +180,24 @@ func (h *HelloCC) sayHello(stub shim.ChaincodeStubInterface, args []string) pb.R
 		return shim.Error(err.Error())
 	}
 
+	err = stub.PutState("hello-message", reqBytes)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
 	logger.Infof("Returning: %s", responsesBytes)
 
 	return shim.Success(responsesBytes)
+}
+
+func (h *HelloCC) getHelloMessage(stub shim.ChaincodeStubInterface) pb.Response {
+	// Retrieve the message directly from the state database so that the read doesn't show up on the ledger.
+	value, err := h.StateDBForChannel(stub.GetChannelID()).GetState(h.name, "hello-message")
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(value)
 }
 
 // handleRequest is a server-side handler for the 'Hello!' Gossip request. This function

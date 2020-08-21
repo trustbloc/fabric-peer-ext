@@ -62,8 +62,8 @@ func main() {
 	ucc.Register(func() ccapi.UserCC { return examplecc.New("tdata_examplecc", nil) })
 	ucc.Register(func() ccapi.UserCC { return examplecc.New("tdata_examplecc_2", nil) })
 
-	ucc.Register(func(handlerRegistry hellocc.AppDataHandlerRegistry, gossipProvider hellocc.GossipProvider) ccapi.UserCC {
-		return hellocc.New("hellocc", handlerRegistry, gossipProvider)
+	ucc.Register(func(handlerRegistry hellocc.AppDataHandlerRegistry, gossipProvider hellocc.GossipProvider, stateDBProvider hellocc.StateDBProvider) ccapi.UserCC {
+		return hellocc.New("hellocc", handlerRegistry, gossipProvider, stateDBProvider)
 	})
 
 	if err := startPeer(); err != nil {

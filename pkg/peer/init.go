@@ -27,6 +27,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/gossip/appdata"
 	gossipstate "github.com/trustbloc/fabric-peer-ext/pkg/gossip/state"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
+	extstatedb "github.com/trustbloc/fabric-peer-ext/pkg/statedb"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/proprespvalidator"
 )
@@ -60,6 +61,7 @@ func registerResources() {
 	resource.Register(extcouchdb.NewReadOnlyProvider)
 	resource.Register(storagecouchdb.NewHandler)
 	resource.Register(ccnotifier.New)
+	resource.Register(extstatedb.GetProvider)
 }
 
 func registerChaincodes() {
