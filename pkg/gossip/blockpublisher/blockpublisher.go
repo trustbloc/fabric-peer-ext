@@ -21,7 +21,6 @@ import (
 
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/blockvisitor"
-	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/resource"
 )
 
@@ -102,7 +101,7 @@ type Publisher struct {
 
 // New returns a new block Publisher for the given channel
 func New(channelID string) *Publisher {
-	channels := newChannels(config.GetBlockPublisherBufferSize())
+	channels := newChannels()
 
 	p := &Publisher{
 		channels: channels,
@@ -359,16 +358,16 @@ type channels struct {
 	configUpdateChan chan *blockvisitor.ConfigUpdate
 }
 
-func newChannels(bufferSize int) *channels {
+func newChannels() *channels {
 	return &channels{
-		blockChan:        make(chan *cb.Block, bufferSize),
-		wChan:            make(chan *blockvisitor.Write, bufferSize),
-		rChan:            make(chan *blockvisitor.Read, bufferSize),
-		wCollHashChan:    make(chan *blockvisitor.CollHashWrite, bufferSize),
-		rCollHashChan:    make(chan *blockvisitor.CollHashRead, bufferSize),
-		lsccChan:         make(chan *blockvisitor.LSCCWrite, bufferSize),
-		ccEvtChan:        make(chan *blockvisitor.CCEvent, bufferSize),
-		configUpdateChan: make(chan *blockvisitor.ConfigUpdate, bufferSize),
+		blockChan:        make(chan *cb.Block),
+		wChan:            make(chan *blockvisitor.Write),
+		rChan:            make(chan *blockvisitor.Read),
+		wCollHashChan:    make(chan *blockvisitor.CollHashWrite),
+		rCollHashChan:    make(chan *blockvisitor.CollHashRead),
+		lsccChan:         make(chan *blockvisitor.LSCCWrite),
+		ccEvtChan:        make(chan *blockvisitor.CCEvent),
+		configUpdateChan: make(chan *blockvisitor.ConfigUpdate),
 	}
 }
 

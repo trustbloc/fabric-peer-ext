@@ -364,7 +364,7 @@ func (s *Service) beforeRetryHandler(numRetries *int, lastErr *error) retry.Befo
 		*numRetries++
 		*lastErr = err
 
-		logger.Infof("[%s] Retry #%d on error: %s", s.channelID, numRetries, err.Error())
+		logger.Infof("[%s] Retry #%d on error: %s", s.channelID, *numRetries, err.Error())
 	}
 }
 

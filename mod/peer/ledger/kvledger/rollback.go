@@ -18,7 +18,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 )
 
-var logger = flogging.MustGetLogger("kvledger")
+var logger = flogging.MustGetLogger("ext_kvledger")
 
 func RollbackKVLedger(ledgerconfig *ledger.Config, ledgerID string, blockNum uint64) error {
 	if config.GetBlockStoreDBType() == config.CouchDBType {

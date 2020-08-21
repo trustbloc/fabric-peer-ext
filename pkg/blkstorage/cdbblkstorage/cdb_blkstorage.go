@@ -16,17 +16,16 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/hyperledger/fabric/common/ledger/snapshot"
-	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
-
-	"github.com/hyperledger/fabric/protoutil"
-
 	"github.com/hyperledger/fabric-protos-go/common"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/ledger"
 	"github.com/hyperledger/fabric/common/ledger/blkstorage"
+	"github.com/hyperledger/fabric/common/ledger/snapshot"
 	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
+	"github.com/hyperledger/fabric/protoutil"
 	"github.com/pkg/errors"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
 const (
@@ -123,7 +122,7 @@ func (s *cdbBlockStore) AddBlock(block *common.Block) error {
 		return err
 	}
 
-	return s.CheckpointBlock(block)
+	return s.CheckpointBlock(block, noOp)
 }
 
 //validateBlock validates block before adding to store
@@ -190,7 +189,10 @@ func (s *cdbBlockStore) storeTransactions(block *common.Block) error {
 	return nil
 }
 
-func (s *cdbBlockStore) CheckpointBlock(block *common.Block) error {
+func noOp() {
+}
+
+func (s *cdbBlockStore) CheckpointBlock(block *common.Block, notify func()) error {
 	//Update the checkpoint info with the results of adding the new block
 	newCPInfo := &checkpointInfo{
 		isChainEmpty:    false,
@@ -214,6 +216,8 @@ func (s *cdbBlockStore) CheckpointBlock(block *common.Block) error {
 	logger.Debugf("[%s] Updating blockchain info: %s", s.ledgerID, bcInfo)
 
 	s.bcInfo.Store(bcInfo)
+
+	notify()
 
 	//update the checkpoint info (for storage) and the blockchain info (for APIs) in the manager
 	s.updateCheckpoint(newCPInfo)

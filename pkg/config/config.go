@@ -34,7 +34,6 @@ const (
 	confOLCollCacheSize            = "coll.offledger.cache.size"
 	confOLCollPullTimeout          = "coll.offledger.gossip.pullTimeout"
 
-	confBlockPublisherBufferSize        = "blockpublisher.buffersize"
 	confConfigUpdatePublisherBufferSize = "configpublisher.buffersize"
 
 	defaultTransientDataCleanupIntervalTime = 5 * time.Second
@@ -47,7 +46,6 @@ const (
 	defaultOLCollCacheSize            = 10000
 	defaultOLCollPullTimeout          = 5 * time.Second
 
-	defaultBlockPublisherBufferSize        = 100
 	defaultConfigUpdatePublisherBufferSize = 100
 
 	// ConfBlockStoreDBType is the config key for the block store database type
@@ -135,15 +133,6 @@ func GetTransientDataPullTimeout() time.Duration {
 		timeout = defaultTransientDataPullTimeout
 	}
 	return timeout
-}
-
-// GetBlockPublisherBufferSize returns the size of the block publisher channel buffer for various block events
-func GetBlockPublisherBufferSize() int {
-	size := viper.GetInt(confBlockPublisherBufferSize)
-	if size == 0 {
-		return defaultBlockPublisherBufferSize
-	}
-	return size
 }
 
 // GetOLCollMaxPeersForRetrieval returns the number of peers that should be concurrently messaged

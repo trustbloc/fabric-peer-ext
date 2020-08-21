@@ -54,7 +54,7 @@ func Rollback(couchInstance *couchdb.CouchInstance, internalQueryLimit int, ledg
 		return err
 	}
 
-	return blockStore.CheckpointBlock(lastBlock)
+	return blockStore.CheckpointBlock(lastBlock, noOp)
 }
 
 // ValidateRollbackParams performs necessary validation on the input given for
