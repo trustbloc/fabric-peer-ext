@@ -13,7 +13,7 @@ Feature:
     Given the channel "mychannel" is created and all peers have joined
     And the channel "yourchannel" is created and all peers have joined
 
-    And transient collection config "tdata_coll1" is defined for collection "collection1" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=5s
+    And transient collection config "tdata_coll1" is defined for collection "collection1" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=10s
     And transient collection config "tdata_coll2" is defined for collection "collection2" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=10m
     And collection config "coll3" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and blocksToLive=1000
 
@@ -24,7 +24,7 @@ Feature:
     And "test" chaincode "tdata_examplecc" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "coll3"
 
     # Wait for instantiated chaincodes to be Gossip'ed to all other peers.
-    Then we wait 20 seconds
+    Then we wait 10 seconds
 
     And chaincode "tdata_examplecc" is warmed up on all peers on the "mychannel" channel
 
@@ -37,7 +37,7 @@ Feature:
 
     # Upgrade the chaincode, adding two transient data collections
     Given "test" chaincode "tdata_examplecc" is upgraded with version "v1.0.1" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll1,tdata_coll2,coll3"
-    Given we wait 20 seconds
+    Given we wait 10 seconds
 
     And chaincode "tdata_examplecc" is warmed up on all peers on the "mychannel" channel
 
@@ -98,7 +98,7 @@ Feature:
     Then response from "tdata_examplecc" to client equal value ""
 
     # Test expiry
-    Given we wait 5 seconds
+    Given we wait 11 seconds
 
     # Should have expired
     When client queries chaincode "tdata_examplecc" with args "getprivate,collection1,key1" on the "mychannel" channel
@@ -110,7 +110,7 @@ Feature:
 
     # Test to make sure private data collections still persist in a transaction and that transient-data reads/writes work with transactions
     When client invokes chaincode "tdata_examplecc" with args "putprivatemultiple,collection1,pvtKey1,pvtVal1,collection2,pvtKey2,pvtVal2,collection3,pvtKey3,pvtVal3" on the "mychannel" channel
-    And we wait 2 seconds
+    And we wait 5 seconds
     And client queries chaincode "tdata_examplecc" with args "getprivatemultiple,collection1,pvtKey1,collection2,pvtKey2,collection3,pvtKey3" on a single peer in the "peerorg1" org on the "mychannel" channel
     Then response from "tdata_examplecc" to client equal value "pvtVal1,pvtVal2,pvtVal3"
     # Ensure that a write to one collection and read from another works (issue #158)
@@ -122,18 +122,18 @@ Feature:
     #   - Ensure collection Type cannot be changed during chaincode upgrade
     Given transient collection config "coll3_upgrade" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
     And "test" chaincode "tdata_examplecc" is upgraded with version "v1.0.2" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll1,tdata_coll2,coll3_upgrade" then the error response should contain "ENDORSEMENT_POLICY_FAILURE. Description: instantiateOrUpgradeCC failed"
-    Given we wait 20 seconds
+    Given we wait 10 seconds
 
     And chaincode "tdata_examplecc" is warmed up on all peers on the "mychannel" channel
 
     #   - When the chaincode is upgraded with a new policy, all caches should be refreshed.
-    #     Change the policy of collection1 so that it expires in 1m instead of 3s and
+    #     Change the policy of collection1 so that it expires in 1m instead of 10s and
     #     change the policy of collection2 so that it expires in 3s instead of 10m
     Given transient collection config "tdata_coll1_upgrade" is defined for collection "collection1" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
     And transient collection config "tdata_coll2_upgrade" is defined for collection "collection2" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=3s
     And collection config "coll3" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and blocksToLive=1000
     And "test" chaincode "tdata_examplecc" is upgraded with version "v1.0.3" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll1_upgrade,tdata_coll2_upgrade,coll3"
-    Given we wait 20 seconds
+    Given we wait 10 seconds
 
     And chaincode "tdata_examplecc" is warmed up on all peers on the "mychannel" channel
 
@@ -158,7 +158,7 @@ Feature:
 
     # Test chaincode-to-chaincode invocation (same channel)
     Given "test" chaincode "tdata_examplecc_2" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll2"
-    Given we wait 20 seconds
+    Given we wait 10 seconds
 
     # Set the transient data on the target chaincode using a chaincode-to-chaincode invocation
     When client queries chaincode "tdata_examplecc" with args "invokecc,tdata_examplecc_2,,{`Args`:[`putprivate`|`collection2`|`keyC`|`valueC`]}" on the "mychannel" channel
@@ -171,7 +171,7 @@ Feature:
 
     # Test chaincode-to-chaincode invocation (different channel)
     Given "test" chaincode "tdata_examplecc_2" is instantiated from path "in-process" on the "yourchannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "tdata_coll2"
-    Given we wait 20 seconds
+    Given we wait 10 seconds
 
     # Set the transient data on a different channel
     When client queries chaincode "tdata_examplecc_2" with args "putprivate,collection2,keyD,valueD" on the "yourchannel" channel

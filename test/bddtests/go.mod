@@ -12,7 +12,7 @@ require (
 	github.com/hyperledger/fabric-sdk-go v1.0.0-beta2.0.20200807145244-92e563b57775
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper v1.1.1
-	github.com/trustbloc/fabric-peer-test-common v0.1.4-0.20200817163652-d5d9b9e97635
+	github.com/trustbloc/fabric-peer-test-common v0.1.4-0.20200821222610-722ca33f4dd6
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
 )
 
