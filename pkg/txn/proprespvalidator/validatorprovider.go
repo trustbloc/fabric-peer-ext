@@ -11,7 +11,9 @@ import (
 	"github.com/hyperledger/fabric/core/chaincode/lifecycle"
 	"github.com/hyperledger/fabric/core/committer/txvalidator/v14"
 	xgossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
+	extstatedb "github.com/trustbloc/fabric-peer-ext/pkg/statedb"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
 )
 
@@ -25,9 +27,13 @@ type lifecycleCCInfoProvider interface {
 	ChaincodeInfo(channelID, name string) (*lifecycle.LocalChaincodeInfo, error)
 }
 
+type stateDBProvider interface {
+	StateDBForChannel(channelID string) extstatedb.StateDB
+}
+
 // Provider is a ProposalResponseValidator provider
 type Provider struct {
-	common.LedgerProvider
+	stateDBProvider
 	common.IdentityDeserializerProvider
 	blockPublisherProvider blockPublisherProvider
 	validators             gcache.Cache
@@ -35,11 +41,11 @@ type Provider struct {
 }
 
 // New returns a new ProposalResponseValidator provider
-func New(ledgerProvider common.LedgerProvider, idd common.IdentityDeserializerProvider, bpp blockPublisherProvider, lcCCInfoProvider lifecycleCCInfoProvider) *Provider {
+func New(stateDBProvider stateDBProvider, idd common.IdentityDeserializerProvider, bpp blockPublisherProvider, lcCCInfoProvider lifecycleCCInfoProvider) *Provider {
 	logger.Info("Creating ProposalResponseValidator Provider")
 
 	p := &Provider{
-		LedgerProvider:               ledgerProvider,
+		stateDBProvider:              stateDBProvider,
 		IdentityDeserializerProvider: idd,
 		blockPublisherProvider:       bpp,
 		lcCCInfoProvider:             lcCCInfoProvider,
@@ -72,5 +78,5 @@ func (m *Provider) createValidator(channelID string) api.ProposalResponseValidat
 		IdentityDeserializer: idd,
 	}
 
-	return newValidator(channelID, m.GetLedger(channelID), pe, idd, m.blockPublisherProvider.ForChannel(channelID), m.lcCCInfoProvider)
+	return newValidator(channelID, m.StateDBForChannel(channelID), pe, idd, m.blockPublisherProvider.ForChannel(channelID), m.lcCCInfoProvider)
 }

@@ -12,8 +12,6 @@ import (
 	"strings"
 
 	"github.com/bluele/gcache"
-	"github.com/hyperledger/fabric/extensions/gossip/api"
-
 	"github.com/golang/protobuf/proto"
 	cb "github.com/hyperledger/fabric-protos-go/common"
 	mp "github.com/hyperledger/fabric-protos-go/msp"
@@ -22,11 +20,13 @@ import (
 	commonerrors "github.com/hyperledger/fabric/common/errors"
 	"github.com/hyperledger/fabric/core/common/ccprovider"
 	validation "github.com/hyperledger/fabric/core/handlers/validation/api/policies"
-	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
+	"github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/msp"
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/pkg/errors"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/statedb"
 )
 
 var logger = logging.NewLogger("ext_txn")
@@ -36,26 +36,22 @@ const (
 	errUnknownChaincode  = "unknown chaincode"
 )
 
-type queryExecutorProvider interface {
-	NewQueryExecutor() (ledger.QueryExecutor, error)
-}
-
 type validator struct {
-	channelID             string
-	queryExecutorProvider queryExecutorProvider
-	policyEvaluator       validation.PolicyEvaluator
-	idDeserializer        msp.IdentityDeserializer
-	lcCCInfoProvider      lifecycleCCInfoProvider
-	ccDataCache           gcache.Cache
+	channelID        string
+	stateDB          statedb.StateDB
+	policyEvaluator  validation.PolicyEvaluator
+	idDeserializer   msp.IdentityDeserializer
+	lcCCInfoProvider lifecycleCCInfoProvider
+	ccDataCache      gcache.Cache
 }
 
-func newValidator(channelID string, qeProvider queryExecutorProvider, pe validation.PolicyEvaluator, des msp.IdentityDeserializer, blockPublisher api.BlockPublisher, lcCCInfoProvider lifecycleCCInfoProvider) *validator {
+func newValidator(channelID string, stateDB statedb.StateDB, pe validation.PolicyEvaluator, des msp.IdentityDeserializer, blockPublisher api.BlockPublisher, lcCCInfoProvider lifecycleCCInfoProvider) *validator {
 	v := &validator{
-		channelID:             channelID,
-		queryExecutorProvider: qeProvider,
-		policyEvaluator:       pe,
-		idDeserializer:        des,
-		lcCCInfoProvider:      lcCCInfoProvider,
+		channelID:        channelID,
+		stateDB:          stateDB,
+		policyEvaluator:  pe,
+		idDeserializer:   des,
+		lcCCInfoProvider: lcCCInfoProvider,
 	}
 
 	v.ccDataCache = gcache.New(0).LoaderFunc(
@@ -432,13 +428,7 @@ func (v *validator) createLifecycleCCDefinition(ccName string) (*chaincodeDefini
 }
 
 func (v *validator) createLSCCDefinition(ccName string) (*chaincodeDefinition, error) {
-	qe, err := v.queryExecutorProvider.NewQueryExecutor()
-	if err != nil {
-		return nil, errors.WithMessage(err, "could not retrieve QueryExecutor")
-	}
-	defer qe.Done()
-
-	ccDataBytes, err := qe.GetState("lscc", ccName)
+	ccDataBytes, err := v.stateDB.GetState("lscc", ccName)
 	if err != nil {
 		return nil, &commonerrors.VSCCInfoLookupFailureError{
 			Reason: fmt.Sprintf("Could not retrieve state for chaincode %s, error %s", ccName, err),

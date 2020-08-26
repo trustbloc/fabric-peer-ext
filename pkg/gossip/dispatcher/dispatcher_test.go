@@ -18,6 +18,7 @@ import (
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	cmocks "github.com/trustbloc/fabric-peer-ext/pkg/common/mocks"
 
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/requestmgr"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
@@ -125,8 +126,8 @@ func TestDispatchDataRequest(t *testing.T) {
 		Member(org3MSPID, mocks.NewMember(p2Org3Endpoint, p2Org3PKIID, committerRole)).
 		Member(org3MSPID, mocks.NewMember(p3Org3Endpoint, p3Org3PKIID, endorserRole))
 
-	lp := &mocks.LedgerProvider{}
-	lp.GetLedgerReturns(&mocks.Ledger{})
+	dbp := &cmocks.StateDBProvider{}
+	dbp.StateDBForChannelReturns(&mocks.StateDB{})
 
 	gossipProvider := &mocks.GossipProvider{}
 	gossipProvider.GetGossipServiceReturns(gossipAdapter)
@@ -142,7 +143,7 @@ func TestDispatchDataRequest(t *testing.T) {
 	dispatcher := NewProvider().Initialize(
 		gossipProvider,
 		support.NewCollectionConfigRetrieverProvider(
-			lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
+			dbp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
 			&mocks.IdentifierProvider{}, lip,
 		),
 		&gmocks.AppDataHandlerProvider{},
@@ -358,8 +359,8 @@ func TestDispatchDataResponse(t *testing.T) {
 		Self(org1MSPID, p1Org1).
 		Member(org2MSPID, p1Org2)
 
-	lp := &mocks.LedgerProvider{}
-	lp.GetLedgerReturns(&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor()})
+	dbp := &cmocks.StateDBProvider{}
+	dbp.StateDBForChannelReturns(&mocks.StateDB{})
 
 	gossipProvider := &mocks.GossipProvider{}
 	gossipProvider.GetGossipServiceReturns(gossip)
@@ -367,7 +368,7 @@ func TestDispatchDataResponse(t *testing.T) {
 	dispatcher := NewProvider().Initialize(
 		gossipProvider,
 		support.NewCollectionConfigRetrieverProvider(
-			lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
+			dbp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
 			&mocks.IdentifierProvider{}, mocks.NewChaincodeInfoProvider(),
 		),
 		&gmocks.AppDataHandlerProvider{},
@@ -452,14 +453,14 @@ func TestDispatchAppDataRequest(t *testing.T) {
 		Member(org3MSPID, mocks.NewMember(p2Org3Endpoint, p2Org3PKIID, committerRole)).
 		Member(org3MSPID, mocks.NewMember(p3Org3Endpoint, p3Org3PKIID, endorserRole))
 
-	lp := &mocks.LedgerProvider{}
-	lp.GetLedgerReturns(&mocks.Ledger{})
+	dbp := &cmocks.StateDBProvider{}
+	dbp.StateDBForChannelReturns(&mocks.StateDB{})
 
 	gossipProvider := &mocks.GossipProvider{}
 	gossipProvider.GetGossipServiceReturns(gossipAdapter)
 
 	collCfgProvider := support.NewCollectionConfigRetrieverProvider(
-		lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
+		dbp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
 		&mocks.IdentifierProvider{}, mocks.NewChaincodeInfoProvider(),
 	)
 
@@ -561,8 +562,8 @@ func TestDispatchAppDataResponse(t *testing.T) {
 		Self(org1MSPID, p1Org1).
 		Member(org2MSPID, p1Org2)
 
-	lp := &mocks.LedgerProvider{}
-	lp.GetLedgerReturns(&mocks.Ledger{QueryExecutor: mocks.NewQueryExecutor()})
+	dbp := &cmocks.StateDBProvider{}
+	dbp.StateDBForChannelReturns(&mocks.StateDB{})
 
 	gossipProvider := &mocks.GossipProvider{}
 	gossipProvider.GetGossipServiceReturns(gossip)
@@ -570,7 +571,7 @@ func TestDispatchAppDataResponse(t *testing.T) {
 	dispatcher := NewProvider().Initialize(
 		gossipProvider,
 		support.NewCollectionConfigRetrieverProvider(
-			lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
+			dbp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
 			&mocks.IdentifierProvider{}, mocks.NewChaincodeInfoProvider(),
 		),
 		&gmocks.AppDataHandlerProvider{},

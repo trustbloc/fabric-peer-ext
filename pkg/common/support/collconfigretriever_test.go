@@ -19,8 +19,12 @@ import (
 	"github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	cmocks "github.com/trustbloc/fabric-peer-ext/pkg/common/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
+
+//go:generate counterfeiter -o ./../smocks/statedbprovider.gen.go -fake-name StateDBProvider . stateDBProvider
 
 const (
 	channel1 = "channel1"
@@ -53,9 +57,7 @@ func TestConfigRetriever(t *testing.T) {
 	ccinfoProvider := mocks.NewChaincodeInfoProvider().WithData(ns1, ccInfo)
 
 	r := newCollectionConfigRetriever(
-		channelID, &mocks.Ledger{
-			QueryExecutor: qe,
-		},
+		channelID, qe,
 		blockPublisher,
 		&mocks.IdentityDeserializer{},
 		&mocks.IdentifierProvider{},
@@ -181,7 +183,7 @@ func TestConfigRetrieverError(t *testing.T) {
 
 	r := newCollectionConfigRetriever(
 		channelID,
-		&mocks.Ledger{},
+		mocks.NewQueryExecutor(),
 		blockPublisher,
 		&mocks.IdentityDeserializer{},
 		&mocks.IdentifierProvider{},
@@ -217,7 +219,7 @@ func TestConfigRetrieverError(t *testing.T) {
 
 func TestCollectionConfigRetrieverForChannel(t *testing.T) {
 	p := NewCollectionConfigRetrieverProvider(
-		&mocks.LedgerProvider{},
+		&cmocks.StateDBProvider{},
 		mocks.NewBlockPublisherProvider(),
 		&mocks.IdentityDeserializerProvider{},
 		&mocks.IdentifierProvider{},

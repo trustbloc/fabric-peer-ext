@@ -13,6 +13,7 @@ import (
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
 
+	cmocks "github.com/trustbloc/fabric-peer-ext/pkg/common/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/gossip/blockpublisher"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
@@ -30,9 +31,9 @@ var _ = roles.GetRoles()
 
 func TestNotifier(t *testing.T) {
 	bpp := blockpublisher.NewProvider()
-	lp := &mocks.LedgerProvider{}
+	p := &cmocks.StateDBProvider{}
 
-	n := New(&mocks.ChaincodeUpdateHandler{}, bpp, lp)
+	n := New(&mocks.ChaincodeUpdateHandler{}, bpp, p)
 	require.NotNil(t, n)
 
 	t.Run("Committer role", func(t *testing.T) {
@@ -43,7 +44,7 @@ func TestNotifier(t *testing.T) {
 		roles.SetRoles(map[roles.Role]struct{}{roles.EndorserRole: {}})
 		defer roles.SetRoles(nil)
 
-		lp.GetLedgerReturns(&mocks.Ledger{})
+		p.StateDBForChannelReturns(&mocks.StateDB{})
 
 		n.ChannelJoined(channel1)
 
@@ -73,7 +74,7 @@ func TestNotifier(t *testing.T) {
 			lp := &mocks.LedgerProvider{}
 			lp.GetLedgerReturns(&mocks.Ledger{Error: errExpected})
 
-			n := New(&mocks.ChaincodeUpdateHandler{}, bpp, lp)
+			n := New(&mocks.ChaincodeUpdateHandler{}, bpp, p)
 			require.NotNil(t, n)
 
 			n.ChannelJoined(channel1)

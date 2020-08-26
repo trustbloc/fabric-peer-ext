@@ -27,6 +27,8 @@ import (
 
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/implicitpolicy"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/simplequeryexecutor"
+	extstatedb "github.com/trustbloc/fabric-peer-ext/pkg/statedb"
 )
 
 var logger = flogging.MustGetLogger("ext_support")
@@ -43,8 +45,8 @@ type chaincodeInfoProvider interface {
 	ChaincodeInfo(channelName, chaincodeName string, qe ledger.SimpleQueryExecutor) (*ledger.DeployedChaincodeInfo, error)
 }
 
-type ledgerProvider interface {
-	GetLedger(cid string) ledger.PeerLedger
+type stateDBProvider interface {
+	StateDBForChannel(channelID string) extstatedb.StateDB
 }
 
 // CollectionConfigRetrieverProvider is a collection config retriever provider
@@ -52,7 +54,7 @@ type CollectionConfigRetrieverProvider struct {
 	chaincodeInfoProvider
 	mutex                  sync.RWMutex
 	retrievers             map[string]*CollectionConfigRetriever
-	ledgerProvider         ledgerProvider
+	stateDBProvider        stateDBProvider
 	blockPublisherProvider api.BlockPublisherProvider
 	idProvider             collcommon.IdentityDeserializerProvider
 	identifierProvider     collcommon.IdentifierProvider
@@ -60,7 +62,7 @@ type CollectionConfigRetrieverProvider struct {
 
 // NewCollectionConfigRetrieverProvider returns a new CollectionConfigRetrieverProvider
 func NewCollectionConfigRetrieverProvider(
-	ledgerProvider ledgerProvider,
+	stateDBProvider stateDBProvider,
 	blockPublisherProvider api.BlockPublisherProvider,
 	idProvider collcommon.IdentityDeserializerProvider,
 	identifierProvider collcommon.IdentifierProvider,
@@ -68,7 +70,7 @@ func NewCollectionConfigRetrieverProvider(
 	logger.Info("Creating collection config retriever provider")
 	return &CollectionConfigRetrieverProvider{
 		retrievers:             make(map[string]*CollectionConfigRetriever),
-		ledgerProvider:         ledgerProvider,
+		stateDBProvider:        stateDBProvider,
 		blockPublisherProvider: blockPublisherProvider,
 		idProvider:             idProvider,
 		identifierProvider:     identifierProvider,
@@ -95,7 +97,7 @@ func (rc *CollectionConfigRetrieverProvider) ForChannel(channelID string) suppor
 		logger.Debugf("Creating new collection config retriever for channel [%s]", channelID)
 		r = newCollectionConfigRetriever(
 			channelID,
-			rc.ledgerProvider.GetLedger(channelID),
+			simplequeryexecutor.New(rc.stateDBProvider.StateDBForChannel(channelID)),
 			rc.blockPublisherProvider.ForChannel(channelID),
 			rc.idProvider.GetIdentityDeserializer(channelID),
 			rc.identifierProvider,
@@ -106,18 +108,11 @@ func (rc *CollectionConfigRetrieverProvider) ForChannel(channelID string) suppor
 	return r
 }
 
-type peerLedger interface {
-	// NewQueryExecutor gives handle to a query executor.
-	// A client can obtain more than one 'QueryExecutor's for parallel execution.
-	// Any synchronization should be performed at the implementation level if required
-	NewQueryExecutor() (ledger.QueryExecutor, error)
-}
-
 // CollectionConfigRetriever loads and caches collection configuration and policies
 type CollectionConfigRetriever struct {
 	chaincodeInfoProvider
 	channelID            string
-	ledger               peerLedger
+	queryExecutor        ledger.SimpleQueryExecutor
 	identityDeserializer msp.IdentityDeserializer
 	identifierProvider   collcommon.IdentifierProvider
 	cache                gcache.Cache
@@ -128,10 +123,10 @@ type blockPublisher interface {
 	AddWriteHandler(handler gossipapi.WriteHandler)
 }
 
-func newCollectionConfigRetriever(channelID string, ledger peerLedger, blockPublisher blockPublisher, identityDeserializer msp.IdentityDeserializer, identifierProvider collcommon.IdentifierProvider, lifecycleCCInfoProvider chaincodeInfoProvider) *CollectionConfigRetriever {
+func newCollectionConfigRetriever(channelID string, qe ledger.SimpleQueryExecutor, blockPublisher blockPublisher, identityDeserializer msp.IdentityDeserializer, identifierProvider collcommon.IdentifierProvider, lifecycleCCInfoProvider chaincodeInfoProvider) *CollectionConfigRetriever {
 	r := &CollectionConfigRetriever{
 		channelID:             channelID,
-		ledger:                ledger,
+		queryExecutor:         qe,
 		identityDeserializer:  identityDeserializer,
 		identifierProvider:    identifierProvider,
 		chaincodeInfoProvider: lifecycleCCInfoProvider,
@@ -320,13 +315,7 @@ func (s *CollectionConfigRetriever) loadPolicy(ns string, config *pb.StaticColle
 }
 
 func (s *CollectionConfigRetriever) getCollConfigPackage(ns string) (*pb.CollectionConfigPackage, error) {
-	qe, err := s.ledger.NewQueryExecutor()
-	if err != nil {
-		return nil, err
-	}
-	defer qe.Done()
-
-	info, err := s.ChaincodeInfo(s.channelID, ns, qe)
+	info, err := s.ChaincodeInfo(s.channelID, ns, s.queryExecutor)
 	if err != nil {
 		return nil, err
 	}
