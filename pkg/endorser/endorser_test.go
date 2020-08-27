@@ -16,8 +16,11 @@ import (
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	cmocks "github.com/trustbloc/fabric-peer-ext/pkg/common/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
+	txnmocks "github.com/trustbloc/fabric-peer-ext/pkg/txn/mocks"
 )
 
 const (
@@ -77,11 +80,11 @@ func TestFilterPubSimulationResults(t *testing.T) {
 	require.Equal(t, 2, len(results.NsRwset[2].CollectionHashedRwset))
 	assert.Empty(t, len(results.NsRwset[2].Rwset))
 
-	lp := &mocks.LedgerProvider{}
-	lp.GetLedgerReturns(&mocks.Ledger{})
+	dbp := &cmocks.StateDBProvider{}
+	dbp.StateDBForChannelReturns(&mocks.StateDB{})
 
 	f := NewCollRWSetFilter().Initialize(support.NewCollectionConfigRetrieverProvider(
-		lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
+		dbp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
 		&mocks.IdentifierProvider{},
 		mocks.NewChaincodeInfoProvider().
 			WithData(ns1, &ledger.DeployedChaincodeInfo{
@@ -119,13 +122,13 @@ func TestFilterPubSimulationResults_NoCollections(t *testing.T) {
 		},
 	}
 
-	lp := &mocks.LedgerProvider{}
-	lp.GetLedgerReturns(&mocks.Ledger{
-		QueryExecutor: newMockQueryExecutor(pvtBuilder.BuildCollectionConfigs()),
-	})
+	dbp := &cmocks.StateDBProvider{}
+	dbp.StateDBForChannelReturns(&mocks.StateDB{})
+
+	dbp.StateDBForChannelReturns(newStateDB(pvtBuilder.BuildCollectionConfigs()))
 
 	f := NewCollRWSetFilter().Initialize(support.NewCollectionConfigRetrieverProvider(
-		lp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
+		dbp, mocks.NewBlockPublisherProvider(), &mocks.IdentityDeserializerProvider{},
 		&mocks.IdentifierProvider{}, mocks.NewChaincodeInfoProvider(),
 	))
 	filteredResults, err := f.Filter(channelID, results)
@@ -133,14 +136,14 @@ func TestFilterPubSimulationResults_NoCollections(t *testing.T) {
 	assert.Equal(t, results, filteredResults)
 }
 
-func newMockQueryExecutor(ccp map[string]*pb.CollectionConfigPackage) *mocks.QueryExecutor {
-	qe := mocks.NewQueryExecutor()
+func newStateDB(ccp map[string]*pb.CollectionConfigPackage) *txnmocks.MockStateDB {
+	db := txnmocks.NewStateDB()
 	for ns, cc := range ccp {
 		bytes, err := proto.Marshal(cc)
 		if err != nil {
 			panic(err.Error())
 		}
-		qe.WithState("lscc", privdata.BuildCollectionKVSKey(ns), bytes)
+		db.WithState("lscc", privdata.BuildCollectionKVSKey(ns), bytes)
 	}
-	return qe
+	return db
 }

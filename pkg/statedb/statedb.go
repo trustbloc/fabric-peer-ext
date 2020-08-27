@@ -37,6 +37,9 @@ type StateDB interface {
 	// returns an iterator that contains results of type *VersionedKV.
 	// The bookmark and page size parameters are associated with the pagination query.
 	ExecuteQueryWithPagination(namespace, query, bookmark string, pageSize int32) (statedb.QueryResultsIterator, error)
+	// BytesKeySupported returns true if the implementation (underlying db) supports the any bytes to be used as key.
+	// For instance, leveldb supports any bytes for the key while the couchdb supports only valid utf-8 string
+	BytesKeySupported() bool
 }
 
 // Provider is a state database Provider

@@ -79,3 +79,7 @@ func (s *stateDB) ExecuteQuery(namespace, query string) (statedb.ResultsIterator
 func (s *stateDB) ExecuteQueryWithPagination(namespace, query, bookmark string, pageSize int32) (statedb.QueryResultsIterator, error) {
 	return s.db.ExecuteQueryWithPagination(namespace, query, bookmark, pageSize)
 }
+
+func (s *stateDB) BytesKeySupported() bool {
+	return s.db.BytesKeySupported()
+}

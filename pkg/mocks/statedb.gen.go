@@ -97,6 +97,15 @@ type StateDB struct {
 		result1 statedbtxmgmt.QueryResultsIterator
 		result2 error
 	}
+	BytesKeySupportedStub        func() bool
+	bytesKeySupportedMutex       sync.RWMutex
+	bytesKeySupportedArgsForCall []struct{}
+	bytesKeySupportedReturns     struct {
+		result1 bool
+	}
+	bytesKeySupportedReturnsOnCall map[int]struct {
+		result1 bool
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -423,6 +432,46 @@ func (fake *StateDB) ExecuteQueryWithPaginationReturnsOnCall(i int, result1 stat
 	}{result1, result2}
 }
 
+func (fake *StateDB) BytesKeySupported() bool {
+	fake.bytesKeySupportedMutex.Lock()
+	ret, specificReturn := fake.bytesKeySupportedReturnsOnCall[len(fake.bytesKeySupportedArgsForCall)]
+	fake.bytesKeySupportedArgsForCall = append(fake.bytesKeySupportedArgsForCall, struct{}{})
+	fake.recordInvocation("BytesKeySupported", []interface{}{})
+	fake.bytesKeySupportedMutex.Unlock()
+	if fake.BytesKeySupportedStub != nil {
+		return fake.BytesKeySupportedStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.bytesKeySupportedReturns.result1
+}
+
+func (fake *StateDB) BytesKeySupportedCallCount() int {
+	fake.bytesKeySupportedMutex.RLock()
+	defer fake.bytesKeySupportedMutex.RUnlock()
+	return len(fake.bytesKeySupportedArgsForCall)
+}
+
+func (fake *StateDB) BytesKeySupportedReturns(result1 bool) {
+	fake.BytesKeySupportedStub = nil
+	fake.bytesKeySupportedReturns = struct {
+		result1 bool
+	}{result1}
+}
+
+func (fake *StateDB) BytesKeySupportedReturnsOnCall(i int, result1 bool) {
+	fake.BytesKeySupportedStub = nil
+	if fake.bytesKeySupportedReturnsOnCall == nil {
+		fake.bytesKeySupportedReturnsOnCall = make(map[int]struct {
+			result1 bool
+		})
+	}
+	fake.bytesKeySupportedReturnsOnCall[i] = struct {
+		result1 bool
+	}{result1}
+}
+
 func (fake *StateDB) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -438,6 +487,8 @@ func (fake *StateDB) Invocations() map[string][][]interface{} {
 	defer fake.executeQueryMutex.RUnlock()
 	fake.executeQueryWithPaginationMutex.RLock()
 	defer fake.executeQueryWithPaginationMutex.RUnlock()
+	fake.bytesKeySupportedMutex.RLock()
+	defer fake.bytesKeySupportedMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

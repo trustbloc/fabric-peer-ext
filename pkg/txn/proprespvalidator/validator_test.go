@@ -52,7 +52,7 @@ func TestValidator_ValidateProposalResponses_InvalidInput(t *testing.T) {
 		VSCC("vscc").
 		Policy("OutOf(1,'Org1MSP.member')")
 
-	qe := mocks.NewQueryExecutor().WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
+	db := txnmocks.NewStateDB().WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
 	idd := &mocks.IdentityDeserializer{}
 	identity := txnmocks.NewIdentity()
 	idd.DeserializeIdentityReturns(identity, nil)
@@ -60,7 +60,7 @@ func TestValidator_ValidateProposalResponses_InvalidInput(t *testing.T) {
 	cci := &txnmocks.LifecycleCCInfoProvider{}
 	cci.ChaincodeInfoReturns(nil, errors.New(errUnknownChaincode))
 
-	v := newValidator(channelID, newQueryExecutorProvider(qe), newMockPolicyEvaluator(), idd, bp, cci)
+	v := newValidator(channelID, db, newMockPolicyEvaluator(), idd, bp, cci)
 	require.NotNil(t, v)
 
 	t.Run("No Proposal Responses -> error", func(t *testing.T) {
@@ -230,7 +230,7 @@ func TestValidator_ValidateProposalResponses_InvalidInput(t *testing.T) {
 func TestValidator_ValidateProposalResponses_CreateLSCCDefinitionError(t *testing.T) {
 	pBuilder := txnmocks.NewProposalBuilder().ChannelID(channelID).MSPID(org1MSP).ChaincodeID(ccID1)
 
-	qe := mocks.NewQueryExecutor()
+	db := txnmocks.NewStateDB()
 	idd := &mocks.IdentityDeserializer{}
 	identity1 := txnmocks.NewIdentity()
 	idd.DeserializeIdentityReturns(identity1, nil)
@@ -238,7 +238,7 @@ func TestValidator_ValidateProposalResponses_CreateLSCCDefinitionError(t *testin
 	cci := &txnmocks.LifecycleCCInfoProvider{}
 	cci.ChaincodeInfoReturns(nil, errors.New(errUnknownChaincode))
 
-	v := newValidator(channelID, newQueryExecutorProvider(qe), newMockPolicyEvaluator(), idd, bp, cci)
+	v := newValidator(channelID, db, newMockPolicyEvaluator(), idd, bp, cci)
 
 	require.NotNil(t, v)
 
@@ -265,7 +265,7 @@ func TestValidator_ValidateProposalResponses_CreateLSCCDefinitionError(t *testin
 			Version(ccVersion2).
 			VSCC("vscc").
 			Policy("OutOf(1,'Org1MSP.member')")
-		qe.WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
+		db.WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
 
 		id1Bytes, err := identity1.Serialize()
 		require.NoError(t, err)
@@ -287,7 +287,7 @@ func TestValidator_ValidateProposalResponses_CreateLSCCDefinitionError(t *testin
 func TestValidator_ValidateProposalResponses_CreateLifecycleDefinitionError(t *testing.T) {
 	pBuilder := txnmocks.NewProposalBuilder().ChannelID(channelID).MSPID(org1MSP).ChaincodeID(ccID1)
 
-	qe := mocks.NewQueryExecutor()
+	db := txnmocks.NewStateDB()
 	idd := &mocks.IdentityDeserializer{}
 	identity1 := txnmocks.NewIdentity()
 	idd.DeserializeIdentityReturns(identity1, nil)
@@ -295,7 +295,7 @@ func TestValidator_ValidateProposalResponses_CreateLifecycleDefinitionError(t *t
 	cci := &txnmocks.LifecycleCCInfoProvider{}
 	errExpected := errors.New("lifecycle error")
 
-	v := newValidator(channelID, newQueryExecutorProvider(qe), newMockPolicyEvaluator(), idd, bp, cci)
+	v := newValidator(channelID, db, newMockPolicyEvaluator(), idd, bp, cci)
 	require.NotNil(t, v)
 
 	t.Run("Get chaincode data -> error", func(t *testing.T) {
@@ -361,7 +361,7 @@ func TestValidator_ValidateProposalResponses_CreateLifecycleDefinitionError(t *t
 func TestValidator_ValidateProposalResponses(t *testing.T) {
 	pBuilder := txnmocks.NewProposalBuilder().ChannelID(channelID).MSPID(org1MSP).ChaincodeID(ccID1)
 
-	qe := mocks.NewQueryExecutor()
+	db := txnmocks.NewStateDB()
 	identity1 := txnmocks.NewIdentity().WithMSPID(org1MSP)
 	identity2 := txnmocks.NewIdentity().WithMSPID(org2MSP)
 
@@ -373,7 +373,7 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 	cci := &txnmocks.LifecycleCCInfoProvider{}
 	cci.ChaincodeInfoReturns(nil, errors.New(errUnknownChaincode))
 
-	v := newValidator(channelID, newQueryExecutorProvider(qe), policyEvaluator, idd, bp, cci)
+	v := newValidator(channelID, db, policyEvaluator, idd, bp, cci)
 	require.NotNil(t, v)
 
 	t.Run("Nil response -> error", func(t *testing.T) {
@@ -389,7 +389,7 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 			VSCC("vscc").
 			Policy("OutOf(2,'Org1MSP.member','Org2MSP.member')")
 
-		qe.WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
+		db.WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
 
 		policyBytes := cdBuilder.Build().Policy
 		policyEvaluator.WithError(policyBytes, fmt.Errorf("signature set did not satisfy policy"))
@@ -416,7 +416,7 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 			Version(ccVersion1).
 			VSCC("vscc").
 			Policy("OutOf(2,'Org1MSP.member','Org2MSP.member')")
-		qe.WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
+		db.WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
 
 		id1Bytes, err := identity1.Serialize()
 		require.NoError(t, err)
@@ -492,7 +492,7 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 		bp := blockpublisher.New(channelID)
 		cci := &txnmocks.LifecycleCCInfoProvider{}
 
-		v := newValidator(channelID, newQueryExecutorProvider(qe), policyEvaluator, idd, bp, cci)
+		v := newValidator(channelID, db, policyEvaluator, idd, bp, cci)
 		require.NotNil(t, v)
 
 		cdBuilder := txnmocks.NewChaincodeDataBuilder().
@@ -500,7 +500,7 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 			Version(ccVersion1).
 			VSCC("vscc").
 			Policy("OutOf(2,'Org1MSP.member','Org2MSP.member')")
-		qe.WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
+		db.WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
 
 		responsesBuilder := txnmocks.NewProposalResponsesBuilder()
 		r1Builder := responsesBuilder.ProposalResponse()
@@ -522,7 +522,7 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 		bp := blockpublisher.New(channelID)
 		cci := &txnmocks.LifecycleCCInfoProvider{}
 
-		v := newValidator(channelID, newQueryExecutorProvider(qe), policyEvaluator, idd, bp, cci)
+		v := newValidator(channelID, db, policyEvaluator, idd, bp, cci)
 		require.NotNil(t, v)
 
 		cdBuilder := txnmocks.NewChaincodeDataBuilder().
@@ -530,7 +530,7 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 			Version(ccVersion1).
 			VSCC("vscc").
 			Policy("OutOf(2,'Org1MSP.member','Org2MSP.member')")
-		qe.WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
+		db.WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
 
 		responsesBuilder := txnmocks.NewProposalResponsesBuilder()
 		r1Builder := responsesBuilder.ProposalResponse()
@@ -550,14 +550,14 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 			Version(ccVersion1).
 			VSCC("vscc").
 			Policy("OutOf(1,'Org1MSP.member')")
-		qe.WithState(ccLSCC, ccID1, cd1Builder.BuildBytes())
+		db.WithState(ccLSCC, ccID1, cd1Builder.BuildBytes())
 
 		cd2Builder := txnmocks.NewChaincodeDataBuilder().
 			Name(ccID2).
 			Version(ccVersion1).
 			VSCC("vscc").
 			Policy("OutOf(2,'Org1MSP.member','Org2MSP.member')")
-		qe.WithState(ccLSCC, ccID2, cd2Builder.BuildBytes())
+		db.WithState(ccLSCC, ccID2, cd2Builder.BuildBytes())
 
 		// Set an error on CC2 policy evaluation
 		policyBytes := cd2Builder.Build().Policy
@@ -587,21 +587,21 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 			Version(ccVersion1).
 			VSCC("vscc").
 			Policy("OutOf(1,'Org1MSP.member')")
-		qe.WithState(ccLSCC, ccID1, cd1Builder.BuildBytes())
+		db.WithState(ccLSCC, ccID1, cd1Builder.BuildBytes())
 
 		cd2Builder := txnmocks.NewChaincodeDataBuilder().
 			Name(ccID2).
 			Version(ccVersion1).
 			VSCC("vscc").
 			Policy("OutOf(2,'Org1MSP.member','Org2MSP.member')")
-		qe.WithState(ccLSCC, ccID2, cd2Builder.BuildBytes())
+		db.WithState(ccLSCC, ccID2, cd2Builder.BuildBytes())
 
 		cd3Builder := txnmocks.NewChaincodeDataBuilder().
 			Name(ccID3).
 			Version(ccVersion1).
 			VSCC("vscc").
 			Policy("OutOf(2,'Org1MSP.member','Org2MSP.member')")
-		qe.WithState(ccLSCC, ccID3, cd3Builder.BuildBytes())
+		db.WithState(ccLSCC, ccID3, cd3Builder.BuildBytes())
 
 		id1Bytes, err := identity1.Serialize()
 		require.NoError(t, err)
@@ -626,7 +626,7 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 			Version(ccVersion1).
 			VSCC("vscc").
 			Policy("OutOf(1,'Org1MSP.member')")
-		qe.WithState(ccLSCC, ccID1, cd1Builder.BuildBytes())
+		db.WithState(ccLSCC, ccID1, cd1Builder.BuildBytes())
 
 		id1Bytes, err := identity1.Serialize()
 		require.NoError(t, err)
@@ -649,7 +649,7 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 			Version(ccVersion1).
 			VSCC("vscc").
 			Policy("OutOf(2,'Org1MSP.member','Org2MSP.member')")
-		qe.WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
+		db.WithState(ccLSCC, ccID1, cdBuilder.BuildBytes())
 
 		id1Bytes, err := identity1.Serialize()
 		require.NoError(t, err)

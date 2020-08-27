@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	cmocks "github.com/trustbloc/fabric-peer-ext/pkg/common/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	txnmocks "github.com/trustbloc/fabric-peer-ext/pkg/txn/mocks"
 )
@@ -20,12 +22,12 @@ const (
 )
 
 func TestValidatorMgr_ValidatorForChannel(t *testing.T) {
-	lp := &mocks.LedgerProvider{}
+	dbp := &cmocks.StateDBProvider{}
 	idd := &mocks.IdentityDeserializerProvider{}
 	bpp := mocks.NewBlockPublisherProvider()
 	cci := &txnmocks.LifecycleCCInfoProvider{}
 
-	p := New(lp, idd, bpp, cci)
+	p := New(dbp, idd, bpp, cci)
 	require.NotNil(t, p)
 
 	v := p.ValidatorForChannel(channel1ID)
