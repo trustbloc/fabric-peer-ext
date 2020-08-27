@@ -12,10 +12,10 @@ require (
 	github.com/hyperledger/fabric-sdk-go v1.0.0-beta3
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper v1.1.1
-	github.com/trustbloc/fabric-peer-test-common v0.1.4-0.20200821222610-722ca33f4dd6
+	github.com/trustbloc/fabric-peer-test-common v0.1.4
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
 )
 
-replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.1.4-0.20200626180529-18936b36feca
+replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.1.4
 
 go 1.14

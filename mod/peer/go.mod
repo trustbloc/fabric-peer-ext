@@ -4,13 +4,13 @@
 
 module github.com/trustbloc/fabric-peer-ext/mod/peer
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.4-0.20200824170048-acc0cead7eb9
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.4
 
 replace github.com/hyperledger/fabric/extensions => ./
 
 replace github.com/trustbloc/fabric-peer-ext => ../..
 
-replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.1.4-0.20200626180529-18936b36feca
+replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.1.4
 
 replace github.com/spf13/viper2015 => github.com/spf13/viper v0.0.0-20150908122457-1967d93db724
 
