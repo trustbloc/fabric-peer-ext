@@ -8,27 +8,32 @@ package service
 
 import (
 	"github.com/bluele/gcache"
-	"github.com/hyperledger/fabric/core/ledger"
+
 	"github.com/hyperledger/fabric/extensions/endorser/api"
-	"github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/state"
+	extstatedb "github.com/trustbloc/fabric-peer-ext/pkg/statedb"
 )
+
+type stateDBProvider interface {
+	StateDBForChannel(channelID string) extstatedb.StateDB
+}
 
 // Manager manages a set of configuration services - one per channel
 type Manager struct {
-	ledgerProvider   common.LedgerProvider
+	stateDBProvider
 	bpProvider       api.BlockPublisherProvider
 	serviceByChannel gcache.Cache
 }
 
 // NewSvcMgr creates a new config service manager
-func NewSvcMgr(ledgerProvider common.LedgerProvider, blockPublisherProvider api.BlockPublisherProvider) *Manager {
+func NewSvcMgr(stateDBProvider stateDBProvider, blockPublisherProvider api.BlockPublisherProvider) *Manager {
 	logger.Infof("Creating configuration service manager")
 
 	m := &Manager{
-		ledgerProvider: ledgerProvider,
-		bpProvider:     blockPublisherProvider,
+		stateDBProvider: stateDBProvider,
+		bpProvider:      blockPublisherProvider,
 	}
 
 	m.serviceByChannel = gcache.New(0).LoaderFunc(func(channelID interface{}) (i interface{}, e error) {
@@ -51,19 +56,7 @@ func (c *Manager) ForChannel(channelID string) config.Service {
 func (c *Manager) newService(channelID string) config.Service {
 	return New(
 		channelID,
-		state.NewQERetrieverProvider(channelID, c.newQEProvider(channelID)),
+		state.NewQERetrieverProvider(c.StateDBForChannel(channelID)),
 		c.bpProvider.ForChannel(channelID),
 	)
-}
-
-type qeProvider struct {
-	ledger ledger.PeerLedger
-}
-
-func (c *Manager) newQEProvider(channelID string) *qeProvider {
-	return &qeProvider{ledger: c.ledgerProvider.GetLedger(channelID)}
-}
-
-func (p *qeProvider) GetQueryExecutorForLedger(cid string) (ledger.QueryExecutor, error) {
-	return p.ledger.NewQueryExecutor()
 }

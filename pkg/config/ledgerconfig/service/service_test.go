@@ -15,6 +15,8 @@ import (
 
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/stretchr/testify/require"
+
+	cmocks "github.com/trustbloc/fabric-peer-ext/pkg/common/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/mgr"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config/ledgerconfig/mocks"
@@ -299,10 +301,9 @@ func TestConfigService_AddUpdateHandler(t *testing.T) {
 }
 
 func TestManager(t *testing.T) {
-	lp := &mocks2.LedgerProvider{}
-	lp.GetLedgerReturns(&mocks2.Ledger{QueryExecutor: mocks2.NewQueryExecutor()})
-
-	manager := NewSvcMgr(lp, mocks2.NewBlockPublisherProvider())
+	dbp := &cmocks.StateDBProvider{}
+	dbp.StateDBForChannelReturns(&mocks2.StateDB{})
+	manager := NewSvcMgr(dbp, mocks2.NewBlockPublisherProvider())
 
 	svc := manager.ForChannel(channelID)
 	require.NotNil(t, svc)

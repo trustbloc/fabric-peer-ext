@@ -9,18 +9,19 @@ package state
 import (
 	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
 	commonledger "github.com/hyperledger/fabric/common/ledger"
+	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
 	"github.com/pkg/errors"
 )
 
 // KVResultsIter is a key-value results iterator
 type KVResultsIter struct {
-	it      commonledger.ResultsIterator
+	it      statedb.ResultsIterator
 	next    commonledger.QueryResult
 	nextErr error
 }
 
 // NewKVResultsIter returns a new KVResultsIter
-func NewKVResultsIter(it commonledger.ResultsIterator) *KVResultsIter {
+func NewKVResultsIter(it statedb.ResultsIterator) *KVResultsIter {
 	return &KVResultsIter{it: it}
 }
 
@@ -60,7 +61,8 @@ func (it *KVResultsIter) Next() (*queryresult.KV, error) {
 		return nil, errors.New("Next() called when there is no next")
 	}
 
-	versionedKV := queryResult.(*queryresult.KV)
+	versionedKV := queryResult.(*statedb.VersionedKV)
+
 	return &queryresult.KV{
 		Namespace: versionedKV.Namespace,
 		Key:       versionedKV.Key,
