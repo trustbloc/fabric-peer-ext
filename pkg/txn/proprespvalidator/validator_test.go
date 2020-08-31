@@ -18,7 +18,6 @@ import (
 	lb "github.com/hyperledger/fabric-protos-go/peer/lifecycle"
 	"github.com/hyperledger/fabric/common/policydsl"
 	"github.com/hyperledger/fabric/core/chaincode/lifecycle"
-	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/stretchr/testify/require"
 
@@ -686,21 +685,6 @@ func TestValidator_ValidateProposalResponses(t *testing.T) {
 		require.Equal(t, pb.TxValidationCode_VALID, code)
 		require.NoError(t, err)
 	})
-}
-
-type qeProvider struct {
-	qe  *mocks.QueryExecutor
-	err error
-}
-
-func newQueryExecutorProvider(qe *mocks.QueryExecutor) *qeProvider {
-	return &qeProvider{
-		qe: qe,
-	}
-}
-
-func (p *qeProvider) NewQueryExecutor() (ledger.QueryExecutor, error) {
-	return p.qe, nil
 }
 
 type mockPolicyEvaluator struct {
