@@ -20,7 +20,7 @@ import (
 
 func TestStoreProvider(t *testing.T) {
 	tdataProvider := spmocks.NewTransientDataStoreProvider()
-	olProvider := NewOffLedgerProvider(&mocks.IdentifierProvider{}, &mocks.IdentityDeserializerProvider{})
+	olProvider := NewOffLedgerProvider(&mocks.IdentifierProvider{}, &mocks.IdentityDeserializerProvider{}, &mocks.CollectionConfigProvider{})
 
 	t.Run("OpenStore - success", func(t *testing.T) {
 		p := New().Initialize(tdataProvider, olProvider)

@@ -11,10 +11,12 @@ import (
 
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
+
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/couchdbstore"
+	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 )
 
 // Option is a store provider option
@@ -52,18 +54,31 @@ func WithDecorator(decorator Decorator) CollOption {
 	}
 }
 
+// WithCacheEnabled enables caching for the given collection type
+func WithCacheEnabled() CollOption {
+	return func(c *collTypeConfig) {
+		c.enableCache = true
+	}
+}
+
 type collTypeConfig struct {
-	decorator Decorator
+	decorator   Decorator
+	enableCache bool
 }
 
 // New returns a store provider factory
-func New(identifierProvider collcommon.IdentifierProvider, identityDeserializerProvider collcommon.IdentityDeserializerProvider, opts ...Option) *StoreProvider {
+func New(
+	identifierProvider collcommon.IdentifierProvider,
+	identityDeserializerProvider collcommon.IdentityDeserializerProvider,
+	collConfigProvider collcommon.CollectionConfigProvider,
+	opts ...Option) *StoreProvider {
 	p := &StoreProvider{
 		stores:                       make(map[string]olapi.Store),
 		dbProvider:                   getDBProvider(),
 		identifierProvider:           identifierProvider,
 		identityDeserializerProvider: identityDeserializerProvider,
 		collConfigs:                  make(map[pb.CollectionType]*collTypeConfig),
+		collConfigProvider:           collConfigProvider,
 	}
 
 	// OFF_LEDGER collection type supported by default
@@ -84,6 +99,7 @@ type StoreProvider struct {
 	identifierProvider           collcommon.IdentifierProvider
 	identityDeserializerProvider collcommon.IdentityDeserializerProvider
 	collConfigs                  map[pb.CollectionType]*collTypeConfig
+	collConfigProvider           collcommon.CollectionConfigProvider
 }
 
 // StoreForChannel returns the store for the given channel
@@ -102,10 +118,15 @@ func (sp *StoreProvider) OpenStore(channelID string) (olapi.Store, error) {
 	if !ok {
 		store = newStore(
 			channelID,
-			sp.dbProvider,
-			sp.identifierProvider,
-			sp.identityDeserializerProvider.GetIdentityDeserializer(channelID),
-			sp.collConfigs)
+			&olConfig{cacheSize: config.GetOLCollCacheSize()},
+			sp.collConfigs,
+			&providers{
+				dbProvider:           sp.dbProvider,
+				identifierProvider:   sp.identifierProvider,
+				identityDeserializer: sp.identityDeserializerProvider.GetIdentityDeserializer(channelID),
+				collConfigRetriever:  sp.collConfigProvider.ForChannel(channelID),
+			},
+		)
 		sp.stores[channelID] = store
 	}
 	return store, nil
