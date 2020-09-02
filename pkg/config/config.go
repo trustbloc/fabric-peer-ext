@@ -30,7 +30,6 @@ const (
 	confOLCollCleanupIntervalTime  = "coll.offledger.cleanupExpired.Interval"
 	confOLCollMaxPeersForRetrieval = "coll.offledger.maxpeers"
 	confOLCollMaxRetrievalAttempts = "coll.offledger.maxRetrievalAttempts"
-	confOLCollCacheEnabled         = "coll.offledger.cache.enable"
 	confOLCollCacheSize            = "coll.offledger.cache.size"
 	confOLCollPullTimeout          = "coll.offledger.gossip.pullTimeout"
 
@@ -159,17 +158,11 @@ func GetOLCollMaxRetrievalAttempts() int {
 
 // GetOLCollCacheSize returns the size of the off-ledger cache
 func GetOLCollCacheSize() int {
-	size := viper.GetInt(confOLCollCacheSize)
-	if size <= 0 {
+	if !viper.IsSet(confOLCollCacheSize) {
 		return defaultOLCollCacheSize
 	}
-	return size
-}
 
-// GetOLCollCacheEnabled returns if off-ledger cache is enabled
-func GetOLCollCacheEnabled() bool {
-	enabled := viper.GetBool(confOLCollCacheEnabled)
-	return enabled
+	return viper.GetInt(confOLCollCacheSize)
 }
 
 // GetOLCollPullTimeout is the amount of time a peer waits for a response from another peer for transient data.

@@ -16,40 +16,56 @@ import (
 	"github.com/hyperledger/fabric/core/common/privdata"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/rwsetutil"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
+	"github.com/hyperledger/fabric/extensions/collections/api/support"
 	"github.com/hyperledger/fabric/msp"
 	"github.com/pkg/errors"
+
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/cache"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/implicitpolicy"
-	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
 var logger = flogging.MustGetLogger("ext_offledger")
 
-type store struct {
-	channelID            string
+type providers struct {
 	dbProvider           api.DBProvider
 	identifierProvider   collcommon.IdentifierProvider
 	identityDeserializer msp.IdentityDeserializer
-	cache                *cache.Cache
-	collConfigs          map[pb.CollectionType]*collTypeConfig
+	collConfigRetriever  support.CollectionConfigRetriever
 }
 
-func newStore(channelID string, dbProvider api.DBProvider, identifierProvider collcommon.IdentifierProvider, identityDeserializer msp.IdentityDeserializer, collConfigs map[pb.CollectionType]*collTypeConfig) *store {
+type store struct {
+	*providers
+	channelID   string
+	cache       *cache.Cache
+	collConfigs map[pb.CollectionType]*collTypeConfig
+}
+
+type olConfig struct {
+	cacheSize int
+}
+
+func newStore(
+	channelID string,
+	cfg *olConfig,
+	collConfigs map[pb.CollectionType]*collTypeConfig,
+	providers *providers) *store {
 	logger.Debugf("constructing collection data store")
 
 	store := &store{
-		channelID:            channelID,
-		collConfigs:          collConfigs,
-		dbProvider:           dbProvider,
-		identifierProvider:   identifierProvider,
-		identityDeserializer: identityDeserializer,
+		providers:   providers,
+		channelID:   channelID,
+		collConfigs: collConfigs,
 	}
 
-	if config.GetOLCollCacheEnabled() {
-		store.cache = cache.New(channelID, dbProvider, config.GetOLCollCacheSize())
+	if cfg.cacheSize > 0 {
+		logger.Debugf("Off-ledger cache is enabled. Cache size: %d", cfg.cacheSize)
+
+		store.cache = cache.New(channelID, providers.dbProvider, cfg.cacheSize)
+	} else {
+		logger.Debugf("Off-ledger cache is disabled")
 	}
 
 	return store
@@ -111,8 +127,9 @@ func (s *store) PutData(config *pb.StaticCollectionConfig, key *storeapi.Key, va
 		return err
 	}
 
-	if s.cache != nil {
+	if s.cacheEnabledForType(config.Type) {
 		logger.Debugf("[%s] Putting key [%s] to cache", s.channelID, key)
+
 		s.cache.Put(key.Namespace, key.Collection, key.Key,
 			&api.Value{
 				Value:      value.Value,
@@ -172,61 +189,49 @@ func (s *store) persistColl(txID string, ns string, collConfigPkgs map[string]*p
 
 	logger.Debugf("[%s] Collection [%s:%s] is of type [%s]", s.channelID, ns, collRWSet.CollectionName, collConfig.Type)
 
-	ok, err := s.canPersist(ns, collConfig)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return nil
-	}
-
-	return s.persist(txID, ns, collConfig, collRWSet)
-}
-
-func (s *store) canPersist(ns string, collConfig *pb.StaticCollectionConfig) (bool, error) {
-	if !roles.IsCommitter() && collConfig.MaximumPeerCount > 0 {
-		logger.Debugf("[%s] MaximumPeerCount for collection [%s:%s] is > 0 and this peer is not a committer, in which case we will let the committer persist the data", s.channelID, ns, collConfig.Name)
-
-		return false, nil
-	}
-
 	authorized, err := s.isAuthorized(ns, collConfig)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	if !authorized {
 		logger.Infof("[%s] Will not store  collection [%s:%s] since local peer is not authorized.", s.channelID, ns, collConfig.Name)
 
-		return false, nil
+		return nil
 	}
 
-	return true, nil
+	expiryTime, err := s.getExpirationTime(collConfig)
+	if err != nil {
+		return err
+	}
+
+	batch, err := s.createBatch(txID, ns, collConfig, collRWSet, expiryTime)
+	if err != nil {
+		return err
+	}
+
+	if s.cacheEnabledForType(collConfig.Type) {
+		s.updateCache(ns, batch, collRWSet)
+	}
+
+	if !roles.IsCommitter() && collConfig.MaximumPeerCount > 0 {
+		logger.Debugf("[%s] MaximumPeerCount for collection [%s:%s] is > 0 and this peer is not a committer, in which case we will let the committer persist the data", s.channelID, ns, collConfig.Name)
+
+		return nil
+	}
+
+	return s.persist(ns, collRWSet.CollectionName, batch)
 }
 
-func (s *store) persist(txID, ns string, config *pb.StaticCollectionConfig, collRWSet *rwsetutil.CollPvtRwSet) error {
-	expiryTime, err := s.getExpirationTime(config)
-	if err != nil {
-		return err
-	}
-
-	batch, err := s.createBatch(txID, ns, config, collRWSet, expiryTime)
-	if err != nil {
-		return err
-	}
-
-	db, err := s.dbProvider.GetDB(s.channelID, collRWSet.CollectionName, ns)
+func (s *store) persist(ns, coll string, batch []*api.KeyValue) error {
+	db, err := s.dbProvider.GetDB(s.channelID, coll, ns)
 	if err != nil {
 		return err
 	}
 
 	err = db.Put(batch...)
 	if err != nil {
-		return errors.WithMessagef(err, "error persisting to [%s:%s]", ns, collRWSet.CollectionName)
-	}
-
-	if s.cache != nil {
-		s.updateCache(ns, batch, collRWSet)
+		return errors.WithMessagef(err, "error persisting to [%s:%s]", ns, coll)
 	}
 
 	return nil
@@ -245,11 +250,14 @@ func (s *store) updateCache(ns string, batch []*api.KeyValue, collRWSet *rwsetut
 }
 
 func (s *store) getData(txID, ns, coll, key string) (*storeapi.ExpiringValue, error) {
+	cacheEnabled, err := s.cacheEnabled(ns, coll)
+	if err != nil {
+		return nil, err
+	}
 
 	var value *api.Value
-	var err error
 
-	if s.cache == nil {
+	if !cacheEnabled {
 		var db api.DB
 		db, err = s.dbProvider.GetDB(s.channelID, coll, ns)
 		if err != nil {
@@ -284,7 +292,12 @@ func (s *store) getDataMultipleKeys(txID, ns, coll string, keys ...string) (stor
 	var values []*api.Value
 	var err error
 
-	if s.cache == nil {
+	cacheEnabled, err := s.cacheEnabled(ns, coll)
+	if err != nil {
+		return nil, err
+	}
+
+	if !cacheEnabled {
 		var db api.DB
 		db, err = s.dbProvider.GetDB(s.channelID, coll, ns)
 		if err != nil {
@@ -443,6 +456,28 @@ func (s *store) beforeLoad(config *pb.StaticCollectionConfig, key *storeapi.Key)
 func (s *store) collTypeSupported(collType pb.CollectionType) bool {
 	_, ok := s.collConfigs[collType]
 	return ok
+}
+
+func (s *store) cacheEnabled(ns, coll string) (bool, error) {
+	collConfig, err := s.collConfigRetriever.Config(ns, coll)
+	if err != nil {
+		return false, err
+	}
+
+	return s.cacheEnabledForType(collConfig.Type), nil
+}
+
+func (s *store) cacheEnabledForType(collType pb.CollectionType) bool {
+	if s.cache == nil {
+		return false
+	}
+
+	typeConfig, ok := s.collConfigs[collType]
+	if !ok {
+		return false
+	}
+
+	return typeConfig.enableCache
 }
 
 // getLocalMSPID returns the MSP ID of the local peer. This variable may be overridden by unit tests.

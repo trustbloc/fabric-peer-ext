@@ -9,7 +9,7 @@ require (
 	github.com/cucumber/godog v0.8.1
 	github.com/golang/protobuf v1.3.3
 	github.com/hyperledger/fabric-protos-go v0.0.0
-	github.com/hyperledger/fabric-sdk-go v1.0.0-beta3
+	github.com/hyperledger/fabric-sdk-go v1.0.0-beta3.0.20200901131551-0c18d1aa90c3
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper v1.1.1
 	github.com/trustbloc/fabric-peer-test-common v0.1.4

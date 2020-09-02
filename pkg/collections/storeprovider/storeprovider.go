@@ -87,13 +87,15 @@ func (sp *StoreProvider) Close() {
 }
 
 // NewOffLedgerProvider creates a new off-ledger store provider that supports DCAS
-func NewOffLedgerProvider(identifierProvider collcommon.IdentifierProvider, idDProvider collcommon.IdentityDeserializerProvider) olapi.StoreProvider {
+func NewOffLedgerProvider(identifierProvider collcommon.IdentifierProvider, idDProvider collcommon.IdentityDeserializerProvider, collConfigProvider collcommon.CollectionConfigProvider) olapi.StoreProvider {
 	logger.Infof("Creating off-ledger store provider with DCAS")
+
 	return olstoreprovider.New(
-		identifierProvider, idDProvider,
+		identifierProvider, idDProvider, collConfigProvider,
 		olstoreprovider.WithCollectionType(
 			pb.CollectionType_COL_DCAS,
 			olstoreprovider.WithDecorator(dcas.Decorator),
+			olstoreprovider.WithCacheEnabled(),
 		),
 	)
 }

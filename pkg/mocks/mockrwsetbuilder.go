@@ -208,7 +208,7 @@ func (b *NamespaceBuilder) BuildCollectionHashedRWSets() []*rwset.CollectionHash
 func (b *NamespaceBuilder) BuildCollectionConfig() *peer.CollectionConfigPackage {
 	cp := &peer.CollectionConfigPackage{}
 	for _, coll := range b.collections {
-		config := coll.buildConfig()
+		config := coll.BuildConfig()
 		cp.Config = append(cp.Config, config)
 	}
 	return cp
@@ -328,7 +328,8 @@ func (c *CollectionBuilder) buildReadWriteSet() []byte {
 	return bytes
 }
 
-func (c *CollectionBuilder) buildConfig() *peer.CollectionConfig {
+// BuildConfig builds the collection configuration
+func (c *CollectionBuilder) BuildConfig() *peer.CollectionConfig {
 	signaturePolicyEnvelope, err := policydsl.FromString(c.policy)
 	if err != nil {
 		panic(err.Error())

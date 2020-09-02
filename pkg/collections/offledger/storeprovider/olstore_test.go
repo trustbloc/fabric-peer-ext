@@ -15,9 +15,9 @@ import (
 
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	viper "github.com/spf13/viper2015"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 	olstoreapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/storeprovider/store/api"
@@ -59,7 +59,10 @@ var (
 
 	typeConfig = map[pb.CollectionType]*collTypeConfig{
 		pb.CollectionType_COL_OFFLEDGER: {},
-		pb.CollectionType_COL_DCAS:      {decorator: dcas.Decorator},
+		pb.CollectionType_COL_DCAS: {
+			decorator:   dcas.Decorator,
+			enableCache: true,
+		},
 	}
 
 	// Ensure roles are initialized
@@ -67,7 +70,7 @@ var (
 )
 
 func TestStore_Close(t *testing.T) {
-	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
+	s := newStore(channelID, &olConfig{cacheSize: 100}, typeConfig, newMockProviders())
 	require.NotNil(t, s)
 
 	s.Close()
@@ -79,14 +82,13 @@ func TestStore_Close(t *testing.T) {
 }
 
 func TestStore_PutAndGet(t *testing.T) {
-	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
-	require.NotNil(t, s)
-	defer s.Close()
-
 	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
 	b := mocks.NewPvtReadWriteSetBuilder()
 	ns1Builder := b.Namespace(ns1)
+	coll0Builder := ns1Builder.Collection(coll0)
+	coll0Builder.
+		OffLedgerConfig("OR('Org1MSP.member')", 1, 2, "1m")
 	coll1Builder := ns1Builder.Collection(coll1)
 	coll1Builder.
 		OffLedgerConfig("OR('Org1MSP.member')", 1, 2, "1m").
@@ -100,6 +102,12 @@ func TestStore_PutAndGet(t *testing.T) {
 	coll3Builder.
 		StaticConfig("OR('Org1MSP.member')", 1, 2, 100).
 		Write(key1, value3_1)
+
+	s := newStore(channelID, &olConfig{cacheSize: 100}, typeConfig,
+		newMockProviders(),
+	)
+	require.NotNil(t, s)
+	defer s.Close()
 
 	err := s.Persist(txID1, b.Build())
 	assert.NoError(t, err)
@@ -177,33 +185,20 @@ func TestStore_PutAndGet(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, value)
 	})
-
-	t.Run("Expire data", func(t *testing.T) {
-		b := mocks.NewPvtReadWriteSetBuilder()
-		ns1Builder := b.Namespace(ns1)
-		coll1Builder := ns1Builder.Collection(coll1)
-		coll1Builder.
-			OffLedgerConfig("OR('Org1MSP.member')", 1, 2, "10ms").
-			Write(key3, value3_1)
-
-		err = s.Persist(txID2, b.Build())
-		assert.NoError(t, err)
-
-		value, err := s.GetData(storeapi.NewKey(txID3, ns1, coll1, key3))
-		assert.NoError(t, err)
-		require.NotNil(t, value)
-		assert.Equal(t, value3_1, value.Value)
-
-		time.Sleep(200 * time.Millisecond)
-
-		value, err = s.GetData(storeapi.NewKey(txID3, ns1, coll1, key3))
-		assert.NoError(t, err)
-		assert.Nilf(t, value, "expecting key to have expired")
-	})
 }
 
 func TestStore_PutAndGet_DCAS(t *testing.T) {
-	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
+	b := mocks.NewPvtReadWriteSetBuilder()
+	ns1Builder := b.Namespace(ns1)
+	collBuilder := ns1Builder.Collection(coll1)
+	collBuilder.DCASConfig("OR('Org1MSP.member')", 1, 2, "1m")
+	collConfigRetriever := mocks.NewCollectionConfigRetriever()
+	collConfigRetriever.WithCollectionConfig(collBuilder.BuildConfig().GetStaticCollectionConfig())
+
+	providers := newMockProviders()
+	providers.collConfigRetriever = collConfigRetriever
+
+	s := newStore(channelID, &olConfig{cacheSize: 100}, typeConfig, providers)
 	require.NotNil(t, s)
 	defer s.Close()
 
@@ -283,10 +278,11 @@ func TestStore_PutAndGet_DCAS(t *testing.T) {
 func TestStore_LoadFromDB(t *testing.T) {
 	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
-	dbProvider := olmocks.NewDBProvider().
+	providers := newMockProviders()
+	providers.dbProvider = olmocks.NewDBProvider().
 		WithValue(ns1, coll1, key1, &olstoreapi.Value{Value: value1_1})
 
-	s := newStore(channelID, dbProvider, &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
+	s := newStore(channelID, &olConfig{cacheSize: 100}, typeConfig, providers)
 	require.NotNil(t, s)
 	defer s.Close()
 
@@ -300,7 +296,7 @@ func TestStore_LoadFromDB(t *testing.T) {
 func TestStore_PersistError(t *testing.T) {
 	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
-	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
+	s := newStore(channelID, &olConfig{cacheSize: 100}, typeConfig, newMockProviders())
 	require.NotNil(t, s)
 
 	defer s.Close()
@@ -333,7 +329,17 @@ func TestStore_PersistError(t *testing.T) {
 func TestStore_PutData(t *testing.T) {
 	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
-	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
+	typeConfig = map[pb.CollectionType]*collTypeConfig{
+		pb.CollectionType_COL_OFFLEDGER: {
+			enableCache: true,
+		},
+		pb.CollectionType_COL_DCAS: {
+			decorator:   dcas.Decorator,
+			enableCache: false,
+		},
+	}
+
+	s := newStore(channelID, &olConfig{cacheSize: 100}, typeConfig, newMockProviders())
 	require.NotNil(t, s)
 
 	defer s.Close()
@@ -428,7 +434,10 @@ func TestStore_DBError(t *testing.T) {
 	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
 	dbProvider := olmocks.NewDBProvider()
-	s := newStore(channelID, dbProvider, &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
+	providers := newMockProviders()
+	providers.dbProvider = dbProvider
+
+	s := newStore(channelID, &olConfig{cacheSize: 100}, typeConfig, providers)
 	require.NotNil(t, s)
 
 	t.Run("GetData -> error", func(t *testing.T) {
@@ -514,7 +523,7 @@ func TestStore_DBError(t *testing.T) {
 func TestStore_PersistNotAuthorized(t *testing.T) {
 	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org2MSP, nil }
 
-	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
+	s := newStore(channelID, &olConfig{cacheSize: 100}, typeConfig, newMockProviders())
 	require.NotNil(t, s)
 	defer s.Close()
 
@@ -550,7 +559,7 @@ func TestStore_PersistNonCommitter(t *testing.T) {
 
 	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
-	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
+	s := newStore(channelID, &olConfig{cacheSize: 0}, typeConfig, newMockProviders())
 	require.NotNil(t, s)
 	defer s.Close()
 
@@ -629,7 +638,10 @@ func TestStore_ExecuteQuery(t *testing.T) {
 	}
 
 	dbProvider := olmocks.NewDBProvider().WithQueryResults(ns1, coll1, query, results)
-	s := newStore(channelID, dbProvider, &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
+	providers := newMockProviders()
+	providers.dbProvider = dbProvider
+
+	s := newStore(channelID, &olConfig{cacheSize: 100}, typeConfig, providers)
 	require.NotNil(t, s)
 	defer s.Close()
 
@@ -687,11 +699,7 @@ func TestStore_ExecuteQuery(t *testing.T) {
 }
 
 func TestStore_PutAndGet_NoCache(t *testing.T) {
-
-	viper.Set("coll.offledger.cache.enable", "false")
-	defer viper.Set("coll.offledger.cache.enable", "true")
-
-	s := newStore(channelID, olmocks.NewDBProvider(), &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
+	s := newStore(channelID, &olConfig{cacheSize: 0}, typeConfig, newMockProviders())
 	require.NotNil(t, s)
 	defer s.Close()
 
@@ -792,14 +800,13 @@ func TestStore_PutAndGet_NoCache(t *testing.T) {
 }
 
 func TestStore_DBError_NoCache(t *testing.T) {
-
-	viper.Set("coll.offledger.cache.enable", "false")
-	defer viper.Set("coll.offledger.cache.enable", "true")
-
 	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
 
 	dbProvider := olmocks.NewDBProvider()
-	s := newStore(channelID, dbProvider, &mocks.IdentifierProvider{}, &mocks.IdentityDeserializer{}, typeConfig)
+	providers := newMockProviders()
+	providers.dbProvider = dbProvider
+
+	s := newStore(channelID, &olConfig{cacheSize: 0}, typeConfig, providers)
 	require.NotNil(t, s)
 
 	t.Run("GetData -> error", func(t *testing.T) {
@@ -880,4 +887,91 @@ func TestStore_DBError_NoCache(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), expectedErr.Error())
 	})
+}
+
+func TestStore_CacheEnabled(t *testing.T) {
+	getLocalMSPID = func(collcommon.IdentifierProvider) (string, error) { return org1MSP, nil }
+
+	b := mocks.NewPvtReadWriteSetBuilder()
+	ns1Builder := b.Namespace(ns1)
+	collBuilder := ns1Builder.Collection(coll1)
+	collBuilder.DCASConfig("OR('Org1MSP.member')", 1, 2, "1m")
+
+	collConfigRetriever := mocks.NewCollectionConfigRetriever()
+	collConfigRetriever.WithCollectionConfig(collBuilder.BuildConfig().GetStaticCollectionConfig())
+
+	providers := newMockProviders()
+	providers.collConfigRetriever = collConfigRetriever
+
+	t.Run("Cache enabled", func(t *testing.T) {
+		typeConfig = map[pb.CollectionType]*collTypeConfig{
+			pb.CollectionType_COL_DCAS: {
+				decorator:   dcas.Decorator,
+				enableCache: true,
+			},
+		}
+
+		s := newStore(channelID, &olConfig{cacheSize: 100}, typeConfig, providers)
+		require.NotNil(t, s)
+		defer s.Close()
+
+		enabled, err := s.cacheEnabled(ns1, coll1)
+		require.NoError(t, err)
+		require.True(t, enabled)
+	})
+
+	t.Run("Cache not enabled", func(t *testing.T) {
+		typeConfig = map[pb.CollectionType]*collTypeConfig{
+			pb.CollectionType_COL_DCAS: {
+				decorator:   dcas.Decorator,
+				enableCache: false,
+			},
+		}
+
+		s := newStore(channelID, &olConfig{cacheSize: 100}, typeConfig, providers)
+		require.NotNil(t, s)
+		defer s.Close()
+
+		enabled, err := s.cacheEnabled(ns1, coll1)
+		require.NoError(t, err)
+		require.False(t, enabled)
+	})
+
+	t.Run("Cache enabled -> error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected error")
+		collConfigRetriever.WithError(errExpected)
+		defer collConfigRetriever.WithError(nil)
+
+		typeConfig = map[pb.CollectionType]*collTypeConfig{
+			pb.CollectionType_COL_DCAS: {
+				decorator:   dcas.Decorator,
+				enableCache: true,
+			},
+		}
+
+		s := newStore(channelID, &olConfig{cacheSize: 100}, typeConfig, providers)
+		require.NotNil(t, s)
+		defer s.Close()
+		_, err := s.cacheEnabled(ns1, coll1)
+		require.EqualError(t, err, errExpected.Error())
+	})
+}
+
+func newMockProviders() *providers {
+	collConfigRetriever := mocks.NewCollectionConfigRetriever()
+
+	for _, coll := range []string{coll0, coll1, coll2, coll3} {
+		b := mocks.NewPvtReadWriteSetBuilder()
+		ns1Builder := b.Namespace(ns1)
+		collBuilder := ns1Builder.Collection(coll)
+		collBuilder.OffLedgerConfig("OR('Org1MSP.member')", 1, 2, "1m")
+		collConfigRetriever.WithCollectionConfig(collBuilder.BuildConfig().GetStaticCollectionConfig())
+	}
+
+	return &providers{
+		dbProvider:           olmocks.NewDBProvider(),
+		identifierProvider:   &mocks.IdentifierProvider{},
+		identityDeserializer: &mocks.IdentityDeserializer{},
+		collConfigRetriever:  collConfigRetriever,
+	}
 }

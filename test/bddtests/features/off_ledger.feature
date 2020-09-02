@@ -75,14 +75,6 @@ Feature: off-ledger
     When client queries chaincode "ol_examplecc" with args "getprivate,collection2,${key2}" on the "mychannel" channel
     Then response from "ol_examplecc" to client equal value "value2"
 
-#  Disable this test since deleting from an off-ledger collection doesn't work anymore since the introduction of a state cache in Fabric 2.0.
-#    # Delete the data on one peer - should be deleted from both peers (TODO: need to be tested with cache enabled)
-#    When client queries chaincode "ol_examplecc" with args "delprivate,collection2,${key2}" on a single peer in the "peerorg1" org on the "mychannel" channel
-#    And client queries chaincode "ol_examplecc" with args "getprivate,collection2,${key2}" on a single peer in the "peerorg1" org on the "mychannel" channel
-#    Then response from "ol_examplecc" to client equal value ""
-#    And client queries chaincode "ol_examplecc" with args "getprivate,collection2,${key2}" on a single peer in the "peerorg2" org on the "mychannel" channel
-#    Then response from "ol_examplecc" to client equal value ""
-
     # Test to make sure private data collections still persist in a transaction and that off-ledger reads/writes work with transactions
     Given variable "pvtKey2" is assigned the CAS key of value "pvtVal2"
     When client invokes chaincode "ol_examplecc" with args "putprivatemultiple,collection1,pvtKey1,pvtVal1,collection2,${pvtKey2},pvtVal2,collection3,pvtKey3,pvtVal3" on the "mychannel" channel

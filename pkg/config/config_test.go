@@ -92,24 +92,13 @@ func TestGetOLCacheSize(t *testing.T) {
 	oldVal := viper.Get(confOLCollCacheSize)
 	defer viper.Set(confOLCollCacheSize, oldVal)
 
+	require.Equal(t, defaultOLCollCacheSize, GetOLCollCacheSize())
+
 	viper.Set(confOLCollCacheSize, 0)
-	assert.Equal(t, defaultOLCollCacheSize, GetOLCollCacheSize())
+	require.Equal(t, 0, GetOLCollCacheSize())
 
 	viper.Set(confOLCollCacheSize, 10)
 	assert.Equal(t, 10, GetOLCollCacheSize())
-}
-
-func TestGetOLCacheEnabled(t *testing.T) {
-	oldVal := viper.Get(confOLCollCacheEnabled)
-	defer viper.Set(confOLCollCacheEnabled, oldVal)
-
-	assert.False(t, GetOLCollCacheEnabled())
-
-	viper.Set(confOLCollCacheEnabled, true)
-	assert.True(t, GetOLCollCacheEnabled())
-
-	viper.Set(confOLCollCacheEnabled, false)
-	assert.False(t, GetOLCollCacheEnabled())
 }
 
 func TestGetTransientDataPullTimeout(t *testing.T) {
