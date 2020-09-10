@@ -8,16 +8,19 @@ package retriever
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	gproto "github.com/hyperledger/fabric-protos-go/gossip"
-	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
-	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
+	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
+
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/requestmgr"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
@@ -314,9 +317,74 @@ func TestTransientDataProvider_AccessDenied(t *testing.T) {
 	})
 }
 
+func TestTransientDataFailover(t *testing.T) {
+	value := &storeapi.ExpiringValue{Value: []byte("value")}
+
+	ccRetriever := mocks.NewCollectionConfigRetriever().
+		WithCollectionPolicy(&mocks.MockAccessPolicy{
+			MaxPeerCount: 2,
+			Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
+		})
+	ccProvider := &mocks.CollectionConfigProvider{}
+	ccProvider.ForChannelReturns(ccRetriever)
+
+	identifierProvider := &mocks.IdentifierProvider{}
+	identifierProvider.GetIdentifierReturns(org1MSPID, nil)
+
+	gossip := mocks.NewMockGossipAdapter()
+	gossip.Self(org1MSPID, mocks.NewMember(p1Org1Endpoint, p1Org1PKIID)).
+		Member(org1MSPID, mocks.NewMember(p2Org1Endpoint, p2Org1PKIID, validatorRole)).
+		Member(org1MSPID, mocks.NewMember(p3Org1Endpoint, p3Org1PKIID, endorserRole)).
+		Member(org2MSPID, mocks.NewMember(p1Org2Endpoint, p1Org2PKIID, endorserRole)).
+		Member(org2MSPID, mocks.NewMember(p2Org2Endpoint, p2Org2PKIID, validatorRole)).
+		Member(org2MSPID, mocks.NewMember(p3Org2Endpoint, p3Org2PKIID, endorserRole)).
+		Member(org3MSPID, mocks.NewMember(p1Org3Endpoint, p1Org3PKIID, endorserRole)).
+		Member(org3MSPID, mocks.NewMember(p2Org3Endpoint, p2Org3PKIID, validatorRole)).
+		Member(org3MSPID, mocks.NewMember(p3Org3Endpoint, p3Org3PKIID, endorserRole)).IdentityInfo()
+
+	localStore := mocks.NewDataStore()
+
+	storeProvider := &mocks.StoreProvider{}
+	storeProvider.StoreForChannelReturns(localStore)
+
+	gossipProvider := &mocks.GossipProvider{}
+	gossipProvider.GetGossipServiceReturns(gossip)
+
+	providers := &collcommon.Providers{
+		BlockPublisherProvider: mocks.NewBlockPublisherProvider(),
+		StoreProvider:          storeProvider,
+		GossipProvider:         gossipProvider,
+		CCProvider:             ccProvider,
+		IdentifierProvider:     identifierProvider,
+	}
+	p := NewProvider(providers)
+
+	retriever := p.RetrieverForChannel(channelID)
+	require.NotNil(t, retriever)
+
+	t.Run("GetTransientData", func(t *testing.T) {
+		gossip.MessageHandler(
+			newMockGossipMsgHandler(channelID).
+				ValueOnCall(0, key2, nil).
+				ValueOnCall(1, key2, nil).
+				ValueOnCall(2, key2, nil).
+				ValueOnCall(3, key2, nil).
+				ValueOnCall(4, key2, value).
+				Handle)
+
+		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
+		value, err := retriever.GetTransientData(ctx, storeapi.NewKey(txID, ns1, coll1, key2))
+		require.NoError(t, err)
+		require.NotNil(t, value)
+		require.Equal(t, value, value)
+	})
+}
+
 type mockGossipMsgHandler struct {
-	channelID string
-	values    map[string]*storeapi.ExpiringValue
+	channelID    string
+	values       map[string]*storeapi.ExpiringValue
+	valuesOnCall []map[string]*storeapi.ExpiringValue
+	call         int32
 }
 
 func newMockGossipMsgHandler(channelID string) *mockGossipMsgHandler {
@@ -331,6 +399,15 @@ func (m *mockGossipMsgHandler) Value(key string, value *storeapi.ExpiringValue) 
 	return m
 }
 
+func (m *mockGossipMsgHandler) ValueOnCall(i int, key string, value *storeapi.ExpiringValue) *mockGossipMsgHandler {
+	if len(m.valuesOnCall) <= i {
+		m.valuesOnCall = append(m.valuesOnCall, make(map[string]*storeapi.ExpiringValue))
+	}
+
+	m.valuesOnCall[i][key] = value
+	return m
+}
+
 func (m *mockGossipMsgHandler) Handle(msg *gproto.GossipMessage) {
 	req := msg.GetCollDataReq()
 
@@ -341,6 +418,16 @@ func (m *mockGossipMsgHandler) Handle(msg *gproto.GossipMessage) {
 		Signature: []byte("sig"),
 	}
 
+	var values map[string]*storeapi.ExpiringValue
+
+	call := atomic.LoadInt32(&m.call)
+
+	if len(m.valuesOnCall) > int(call) {
+		values = m.valuesOnCall[call]
+	} else {
+		values = m.values
+	}
+
 	for _, d := range req.Digests {
 		e := &requestmgr.Element{
 			Namespace:  d.Namespace,
@@ -348,7 +435,7 @@ func (m *mockGossipMsgHandler) Handle(msg *gproto.GossipMessage) {
 			Key:        d.Key,
 		}
 
-		v := m.values[d.Key]
+		v := values[d.Key]
 		if v != nil {
 			e.Value = v.Value
 			e.Expiry = v.Expiry
@@ -356,6 +443,8 @@ func (m *mockGossipMsgHandler) Handle(msg *gproto.GossipMessage) {
 
 		res.Data = append(requestmgr.AsElements(res.Data), e)
 	}
+
+	atomic.AddInt32(&m.call, 1)
 
 	requestmgr.Get(m.channelID).Respond(req.Nonce, res)
 }

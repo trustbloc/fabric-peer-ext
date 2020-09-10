@@ -12,11 +12,14 @@ import (
 
 	gproto "github.com/hyperledger/fabric-protos-go/gossip"
 	"github.com/hyperledger/fabric/common/flogging"
+	"github.com/hyperledger/fabric/gossip/comm"
+	"github.com/pkg/errors"
+
+	"github.com/hyperledger/fabric/extensions/collections/api/store"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	"github.com/hyperledger/fabric/extensions/collections/api/support"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
-	"github.com/hyperledger/fabric/gossip/comm"
-	"github.com/pkg/errors"
+
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	tdataapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/dissemination"
@@ -65,6 +68,8 @@ func (p *Provider) RetrieverForChannel(channelID string) tdataapi.Retriever {
 // ResolveEndorsers resolves to a set of endorsers to which transient data should be disseminated
 type resolver interface {
 	ResolveEndorsers(key string) (discovery.PeerGroup, error)
+	ResolveAllEndorsersInOrgsForKey(key string, excludePeers ...*discovery.Member) (discovery.PeerGroup, error)
+	ResolveAllEndorsers(excludePeers ...*discovery.Member) (discovery.PeerGroup, error)
 }
 
 type collKey struct {
@@ -87,31 +92,87 @@ type retriever struct {
 	reqMgr             requestmgr.RequestMgr
 }
 
+type resolveEndorsersFunc func(key *storeapi.Key, excludePeers discovery.PeerGroup) (discovery.PeerGroup, error)
+
 func (r *retriever) GetTransientData(ctxt context.Context, key *storeapi.Key) (*storeapi.ExpiringValue, error) {
 	authorized, err := r.isAuthorized(key.Namespace, key.Collection)
 	if err != nil {
 		return nil, err
 	}
+
 	if !authorized {
 		logger.Infof("[%s] This peer does not have access to the collection [%s:%s]", r.channelID, key.Namespace, key.Collection)
+
 		return nil, nil
 	}
 
-	endorsers, err := r.resolveEndorsers(key)
+	res, err := r.getResolver(key.Namespace, key.Collection)
 	if err != nil {
-		return nil, errors.WithMessagef(err, "unable to get resolve endorsers for channel [%s] and [%s]", r.channelID, key)
+		return nil, errors.WithMessagef(err, "unable to get resolver for channel [%s] and [%s:%s]", r.channelID, key.Namespace, key.Collection)
 	}
 
-	logger.Debugf("[%s] Endorsers for [%s]: %s", r.channelID, key, endorsers)
+	resolvers := []resolveEndorsersFunc{
+		// Returns the endorsers that (should) have the transient data (based on the hash of the key)
+		func(key *store.Key, _ discovery.PeerGroup) (discovery.PeerGroup, error) {
+			return res.ResolveEndorsers(key.Key)
+		},
 
+		// Returns all endorsers from within the orgs to which transient data should be disseminated, excluding
+		// the peers in the given exclude list.
+		func(key *store.Key, excludePeers discovery.PeerGroup) (discovery.PeerGroup, error) {
+			return res.ResolveAllEndorsersInOrgsForKey(key.Key, excludePeers...)
+		},
+
+		// Returns the endorsers that are authorized for the collection, excluding the peers in the given exclude list.
+		func(_ *store.Key, excludePeers discovery.PeerGroup) (discovery.PeerGroup, error) {
+			return res.ResolveAllEndorsers(excludePeers...)
+		},
+	}
+
+	var excludePeers discovery.PeerGroup
+
+	for _, resolveEndorsers := range resolvers {
+		endorsers, err := resolveEndorsers(key, excludePeers)
+		if err != nil {
+			return nil, errors.WithMessagef(err, "unable to resolve endorsers for channel [%s] and [%s]", r.channelID, key)
+		}
+
+		logger.Debugf("[%s] Endorsers for [%s]: %s", r.channelID, key, endorsers)
+
+		value, err := r.getTransientDataFromEndorsers(ctxt, key, endorsers)
+		if err != nil {
+			return nil, err
+		}
+
+		if value != nil {
+			logger.Debugf("[%s] Transient data for key [%s] was found on endorsers %s.", r.channelID, key, endorsers)
+
+			return value, nil
+		}
+
+		logger.Debugf("[%s] Transient data for key [%s] not found on endorsers %s. Attempting to retrieve from other peers...", r.channelID, key, endorsers)
+
+		excludePeers = append(excludePeers, endorsers...)
+	}
+
+	logger.Warnf("[%s] Transient data for key [%s] not found on any peer", r.channelID, key)
+
+	return nil, nil
+}
+
+func (r *retriever) getTransientDataFromEndorsers(ctxt context.Context, key *storeapi.Key, endorsers discovery.PeerGroup) (*storeapi.ExpiringValue, error) {
 	if endorsers.ContainsLocal() {
 		value, ok, err := r.getTransientDataFromLocal(key)
 		if err != nil {
 			return nil, err
 		}
+
 		if ok {
+			logger.Debugf("[%s] Transient data for [%s] was found in the local store", r.channelID, key)
 			return value, nil
 		}
+
+		logger.Debugf("[%s] Did not find data in the local store for [%s]", r.channelID, key)
 	}
 
 	return r.getTransientDataFromRemote(ctxt, key, endorsers.Remote())
@@ -164,15 +225,6 @@ func (r *retriever) GetTransientDataMultipleKeys(ctxt context.Context, key *stor
 	}
 
 	return values, nil
-}
-
-// resolveEndorsers returns the endorsers that (should) have the transient data
-func (r *retriever) resolveEndorsers(key *storeapi.Key) (discovery.PeerGroup, error) {
-	res, err := r.getResolver(key.Namespace, key.Collection)
-	if err != nil {
-		return nil, errors.WithMessagef(err, "unable to get resolver for channel [%s] and [%s:%s]", r.channelID, key.Namespace, key.Collection)
-	}
-	return res.ResolveEndorsers(key.Key)
 }
 
 func (r *retriever) getTransientDataFromLocal(key *storeapi.Key) (*storeapi.ExpiringValue, bool, error) {

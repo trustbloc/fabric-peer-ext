@@ -13,15 +13,15 @@ Feature:
     Given the channel "mychannel" is created and all peers have joined
     And the channel "yourchannel" is created and all peers have joined
 
-    And transient collection config "tdata_coll1" is defined for collection "collection1" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=5s
+    And transient collection config "tdata_coll1" is defined for collection "collection1" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=10s
     And transient collection config "tdata_coll2" is defined for collection "collection2" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=10m
     And collection config "coll3" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and blocksToLive=1000
 
     # Wait for channel membership to be Gossip'ed to all other peers.
-    Then we wait 5 seconds
+    Then we wait 20 seconds
 
     # Start out with a chaincode that just has one static collection
-    Then chaincode "tdata_examplecc", version "v1", package ID "tdata_examplecc:v1", sequence 1 is approved and committed by orgs "peerorg1,peerorg2" on the "mychannel" channel with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" and collection policy "coll3"
+    Then chaincode "tdata_examplecc", version "v1", package ID "tdata_examplecc:v1", sequence 1 is approved and committed by orgs "peerorg1,peerorg2" on the "mychannel" channel with endorsement policy "OutOf(2,'Org1MSP.member','Org2MSP.member')" and collection policy "coll3"
     Then we wait 10 seconds
 
     # Prove that the transient data collection1 is not there
@@ -32,7 +32,7 @@ Feature:
     Then response from "tdata_examplecc" to client equal value "pvtValX"
 
     # Upgrade the chaincode, adding two transient data collections
-    Then chaincode "tdata_examplecc", version "v1.0.1", package ID "tdata_examplecc:v1", sequence 2 is approved and committed by orgs "peerorg1,peerorg2" on the "mychannel" channel with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" and collection policy "tdata_coll1,tdata_coll2,coll3"
+    Then chaincode "tdata_examplecc", version "v1.0.1", package ID "tdata_examplecc:v1", sequence 2 is approved and committed by orgs "peerorg1,peerorg2" on the "mychannel" channel with endorsement policy "OutOf(2,'Org1MSP.member','Org2MSP.member')" and collection policy "tdata_coll1,tdata_coll2,coll3"
     Given we wait 10 seconds
 
     When client queries chaincode "tdata_examplecc" with args "putprivate,collection1,key1,value1" on the "mychannel" channel
@@ -92,7 +92,7 @@ Feature:
     Then response from "tdata_examplecc" to client equal value ""
 
     # Test expiry
-    Given we wait 5 seconds
+    Given we wait 11 seconds
 
     # Should have expired
     When client queries chaincode "tdata_examplecc" with args "getprivate,collection1,key1" on the "mychannel" channel
@@ -104,12 +104,12 @@ Feature:
 
     # Test to make sure private data collections still persist in a transaction and that transient-data reads/writes work with transactions
     When client invokes chaincode "tdata_examplecc" with args "putprivatemultiple,collection1,pvtKey1,pvtVal1,collection2,pvtKey2,pvtVal2,collection3,pvtKey3,pvtVal3" on the "mychannel" channel
-    And we wait 2 seconds
+    And we wait 5 seconds
     And client queries chaincode "tdata_examplecc" with args "getprivatemultiple,collection1,pvtKey1,collection2,pvtKey2,collection3,pvtKey3" on a single peer in the "peerorg1" org on the "mychannel" channel
     Then response from "tdata_examplecc" to client equal value "pvtVal1,pvtVal2,pvtVal3"
     # Ensure that a write to one collection and read from another works (issue #158)
     When client invokes chaincode "tdata_examplecc" with args "putprivate,collection3,keyC,valueA" on the "mychannel" channel
-    And we wait 5 seconds
+    And we wait 10 seconds
     When client invokes chaincode "tdata_examplecc" with args "putprivatemultiple,collection1,key1,value1,collection3,keyC," on the "mychannel" channel
 
     # Test Chaincode Upgrade:
@@ -119,7 +119,7 @@ Feature:
     When chaincode "tdata_examplecc", version "v1.0.2", package ID "tdata_examplecc:v1", sequence 3 is approved by orgs "peerorg1" on the "mychannel" channel with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" and collection policy "coll1_upgrade,tdata_coll2,coll3" then the error response should contain "attempt to change collection type from [COL_TRANSIENT] to [COL_OFFLEDGER]"
 
     #   - When the chaincode is upgraded with a new policy, all caches should be refreshed.
-    #     Change the policy of collection1 so that it expires in 1m instead of 3s and
+    #     Change the policy of collection1 so that it expires in 1m instead of 10s and
     #     change the policy of collection2 so that it expires in 3s instead of 10m
     Given transient collection config "tdata_coll1_upgrade" is defined for collection "collection1" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
     And transient collection config "tdata_coll2_upgrade" is defined for collection "collection2" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=3s
@@ -136,7 +136,7 @@ Feature:
     Then response from "tdata_examplecc" to client equal value "valueB"
 
     # Test expiry
-    Given we wait 5 seconds
+    Given we wait 10 seconds
 
     # Should still be there
     When client queries chaincode "tdata_examplecc" with args "getprivate,collection1,keyA" on the "mychannel" channel
@@ -172,3 +172,18 @@ Feature:
     # Query the target chaincode using a chaincode-to-chaincode invocation
     When client queries chaincode "tdata_examplecc" with args "invokecc,tdata_examplecc_2,yourchannel,{`Args`:[`getprivate`|`collection2`|`keyD`]}" on the "mychannel" channel
     Then response from "tdata_examplecc" to client equal value "valueD"
+
+    When client queries chaincode "tdata_examplecc" with args "putprivatemultiple,collection1,Key_A,ValueA,collection1,Key_B,ValueB,collection1,Key_C,ValueC" on peers "peer0.org1.example.com" on the "mychannel" channel
+    # Stop a single peer in each org to test failover logic (i.e. when the deterministic selection algorithm doesn't work)
+    Given container "peer0.org1.example.com" is stopped
+    And container "peer1.org2.example.com" is stopped
+    Then we wait 10 seconds
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,Key_A" on peers "peer0.org2.example.com" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "ValueA"
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,Key_B" on peers "peer0.org2.example.com" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "ValueB"
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,Key_C" on peers "peer0.org2.example.com" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "ValueC"
+    And container "peer0.org1.example.com" is started
+    And container "peer1.org2.example.com" is started
+    Then we wait 10 seconds
