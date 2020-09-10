@@ -46,23 +46,65 @@ func (d *Disseminator) ResolveEndorsers(key string) (discovery.PeerGroup, error)
 
 	orgs := d.chooseOrgs(h)
 	if len(orgs) == 0 {
-		logger.Warnf("[%s] No orgs for key [%s] using hash32 [%d]", d.ChannelID(), key, h)
-		return nil, errors.Errorf("no orgs for key [%s]", key)
+		logger.Warnf("[%s] No orgs for key [%s:%s:%s] using hash32 [%d]", d.ChannelID(), d.namespace, d.collection, key, h)
+		return nil, errors.Errorf("no orgs for key [%s:%s:%s]", d.namespace, d.collection, key)
 	}
 
-	logger.Debugf("[%s] Chosen orgs for key [%s] using hash32 [%d]: %s", d.ChannelID(), key, h, orgs)
+	logger.Debugf("[%s] Chosen orgs for key [%s:%s:%s] using hash32 [%d]: %s", d.ChannelID(), d.namespace, d.collection, key, h, orgs)
 
 	endorsers, err := d.chooseEndorsers(h, orgs)
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Debugf("[%s] Chosen endorsers for key [%s] using hash32 [%d] from orgs %s: %s", d.ChannelID(), key, h, orgs, endorsers)
+	logger.Debugf("[%s] Chosen endorsers for key [%s:%s:%s] using hash32 [%d] from orgs %s: %s", d.ChannelID(), d.namespace, d.collection, key, h, orgs, endorsers)
+	return endorsers, nil
+}
+
+// ResolveAllEndorsersInOrgsForKey resolves all endorsers from within the orgs to which transient data should be disseminated,
+// excluding the peers in the given exclude list.
+func (d *Disseminator) ResolveAllEndorsersInOrgsForKey(key string, excludePeers ...*discovery.Member) (discovery.PeerGroup, error) {
+	h, err := getHash32(key)
+	if err != nil {
+		return nil, errors.WithMessage(err, "error computing int32 hash of key")
+	}
+
+	orgs := d.chooseOrgs(h)
+	if len(orgs) == 0 {
+		logger.Warnf("[%s] No orgs for key [%s:%s:%s] using hash32 [%d]", d.ChannelID(), d.namespace, d.collection, key, h)
+
+		return nil, errors.Errorf("no orgs for key [%s:%s:%s]", d.namespace, d.collection, key)
+	}
+
+	logger.Debugf("[%s] Orgs for key [%s:%s:%s] using hash32 [%d]: %s", d.ChannelID(), d.namespace, d.collection, key, h, orgs)
+
+	endorsers := d.getEndorsers(orgs, excludePeers...)
+
+	logger.Debugf("[%s] Chosen endorsers for key [%s:%s:%s]: %s", d.ChannelID(), d.namespace, d.collection, key, endorsers)
+
+	return endorsers, nil
+}
+
+// ResolveAllEndorsers resolves all endorsers that are eligible for the transient data, excluding the peers in the given exclude list.
+func (d *Disseminator) ResolveAllEndorsers(excludePeers ...*discovery.Member) (discovery.PeerGroup, error) {
+	orgs := keys(d.policy.MemberOrgs())
+	if len(orgs) == 0 {
+		logger.Warnf("[%s] No orgs for [%s:%s]", d.ChannelID(), d.namespace, d.collection)
+
+		return nil, errors.Errorf("no orgs for [%s:%s]", d.namespace, d.collection)
+	}
+
+	logger.Debugf("[%s] Orgs for [%s:%s]: %s", d.ChannelID(), d.namespace, d.collection, orgs)
+
+	endorsers := d.getEndorsers(orgs, excludePeers...)
+
+	logger.Debugf("[%s] Chosen endorsers for [%s:%s]: %s", d.ChannelID(), d.namespace, d.collection, endorsers)
+
 	return endorsers, nil
 }
 
 func (d *Disseminator) chooseEndorsers(h uint32, orgs []string) (discovery.PeerGroup, error) {
-	allEndorsers := d.getEndorsers(orgs...)
+	allEndorsers := d.getEndorsers(orgs)
 	logger.Debugf("[%s] All endorsers for orgs %s: %s", d.ChannelID(), orgs, allEndorsers)
 
 	if len(allEndorsers) == 0 {
@@ -92,7 +134,7 @@ func (d *Disseminator) appendEndorsersFromOrgs(endorsers discovery.PeerGroup, h 
 		}
 
 		// Get a sorted list of endorsers for the org
-		endorsersForOrg := d.getEndorsers(org).Sort()
+		endorsersForOrg := d.getEndorsers([]string{org}).Sort()
 		if len(endorsersForOrg) == 0 {
 			logger.Debugf("[%s] There are no endorsers in org [%s]", d.ChannelID(), org)
 			continue
@@ -112,12 +154,18 @@ func (d *Disseminator) appendEndorsersFromOrgs(endorsers discovery.PeerGroup, h 
 	return endorsers
 }
 
-func (d *Disseminator) getEndorsers(mspIDs ...string) discovery.PeerGroup {
+func (d *Disseminator) getEndorsers(mspIDs []string, excludePeers ...*discovery.Member) discovery.PeerGroup {
 	return d.GetMembers(func(m *discovery.Member) bool {
+		if discovery.PeerGroup(excludePeers).Contains(m) {
+			logger.Debugf("[%s] Not adding peer [%s] as an endorser since it is in the exclude list %s", d.ChannelID(), m.Endpoint, excludePeers)
+			return false
+		}
+
 		if !contains(mspIDs, m.MSPID) {
 			logger.Debugf("[%s] Not adding peer [%s] as an endorser since it is not in org %s", d.ChannelID(), m.Endpoint, mspIDs)
 			return false
 		}
+
 		if !m.HasRole(roles.EndorserRole) {
 			logger.Debugf("[%s] Not adding peer [%s] as an endorser since it does not have the endorser role", d.ChannelID(), m.Endpoint)
 			return false

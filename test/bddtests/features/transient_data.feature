@@ -181,3 +181,18 @@ Feature:
     # Query the target chaincode using a chaincode-to-chaincode invocation
     When client queries chaincode "tdata_examplecc" with args "invokecc,tdata_examplecc_2,yourchannel,{`Args`:[`getprivate`|`collection2`|`keyD`]}" on the "mychannel" channel
     Then response from "tdata_examplecc" to client equal value "valueD"
+
+    When client queries chaincode "tdata_examplecc" with args "putprivatemultiple,collection1,Key_A,ValueA,collection1,Key_B,ValueB,collection1,Key_C,ValueC" on peers "peer0.org1.example.com" on the "mychannel" channel
+    # Stop a single peer in each org to test failover logic (i.e. when the deterministic selection algorithm doesn't work)
+    Given container "peer0.org1.example.com" is stopped
+    And container "peer1.org2.example.com" is stopped
+    Then we wait 10 seconds
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,Key_A" on peers "peer0.org2.example.com" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "ValueA"
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,Key_B" on peers "peer0.org2.example.com" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "ValueB"
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,Key_C" on peers "peer0.org2.example.com" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "ValueC"
+    And container "peer0.org1.example.com" is started
+    And container "peer1.org2.example.com" is started
+    Then we wait 10 seconds

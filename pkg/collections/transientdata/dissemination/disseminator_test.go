@@ -11,21 +11,22 @@ import (
 	"testing"
 
 	pb "github.com/hyperledger/fabric-protos-go/peer"
-	"github.com/hyperledger/fabric/extensions/collections/api/dissemination"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	gdiscovery "github.com/hyperledger/fabric/gossip/discovery"
 	viper "github.com/spf13/viper2015"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hyperledger/fabric/extensions/collections/api/dissemination"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/discovery"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
 var (
 	ns1   = "chaincode1"
-	ns2   = "chaincode2"
 	coll1 = "collection1"
-	coll2 = "collection2"
 	key1  = "key1"
 	key2  = "key2"
 	key6  = "key6"
@@ -246,6 +247,76 @@ func TestDissemination(t *testing.T) {
 		assert.Equal(t, p1Org1Endpoint, endorsers[1].Endpoint)
 		assert.Equal(t, p1Org2Endpoint, endorsers[2].Endpoint)
 		assert.Equal(t, p3Org3Endpoint, endorsers[3].Endpoint)
+	})
+
+	t.Run("ResolveAllEndorsers - 5 peers", func(t *testing.T) {
+		maxPeers := 5
+
+		d := New(channelID, ns1, coll1,
+			&mocks.MockAccessPolicy{
+				MaxPeerCount: maxPeers,
+				Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
+			}, gossip)
+
+		endorsers, err := d.ResolveAllEndorsers(&discovery.Member{NetworkMember: gdiscovery.NetworkMember{Endpoint: p3Org2Endpoint}})
+		require.NoError(t, err)
+		require.Equal(t, 4, len(endorsers))
+
+		t.Logf("Endorsers: %s", endorsers)
+
+		require.Equal(t, p1Org2Endpoint, endorsers[0].Endpoint)
+		require.Equal(t, p1Org3Endpoint, endorsers[1].Endpoint)
+		require.Equal(t, p3Org3Endpoint, endorsers[2].Endpoint)
+		require.Equal(t, p1Org1Endpoint, endorsers[3].Endpoint)
+	})
+
+	t.Run("ResolveAllEndorsers - no peers", func(t *testing.T) {
+		maxPeers := 5
+
+		d := New(channelID, ns1, coll1,
+			&mocks.MockAccessPolicy{
+				MaxPeerCount: maxPeers,
+				Orgs:         []string{},
+			}, gossip)
+
+		endorsers, err := d.ResolveAllEndorsers()
+		require.EqualError(t, err, "no orgs for [chaincode1:collection1]")
+		require.Empty(t, endorsers)
+	})
+
+	t.Run("ResolveAllEndorsersInOrgsForKey - 5 peers", func(t *testing.T) {
+		maxPeers := 5
+
+		d := New(channelID, ns1, coll1,
+			&mocks.MockAccessPolicy{
+				MaxPeerCount: maxPeers,
+				Orgs:         []string{org1MSPID, org2MSPID, org3MSPID},
+			}, gossip)
+
+		endorsers, err := d.ResolveAllEndorsersInOrgsForKey(key1, &discovery.Member{NetworkMember: gdiscovery.NetworkMember{Endpoint: p3Org2Endpoint}})
+		require.NoError(t, err)
+		require.Equal(t, 4, len(endorsers))
+
+		t.Logf("Endorsers: %s", endorsers)
+
+		require.Equal(t, p1Org2Endpoint, endorsers[0].Endpoint)
+		require.Equal(t, p1Org3Endpoint, endorsers[1].Endpoint)
+		require.Equal(t, p3Org3Endpoint, endorsers[2].Endpoint)
+		require.Equal(t, p1Org1Endpoint, endorsers[3].Endpoint)
+	})
+
+	t.Run("ResolveAllEndorsersInOrgsForKey - no peers", func(t *testing.T) {
+		maxPeers := 5
+
+		d := New(channelID, ns1, coll1,
+			&mocks.MockAccessPolicy{
+				MaxPeerCount: maxPeers,
+				Orgs:         []string{},
+			}, gossip)
+
+		endorsers, err := d.ResolveAllEndorsersInOrgsForKey(key1)
+		require.EqualError(t, err, "no orgs for key [chaincode1:collection1:key1]")
+		require.Empty(t, endorsers)
 	})
 }
 
