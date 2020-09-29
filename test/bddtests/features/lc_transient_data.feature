@@ -184,6 +184,28 @@ Feature:
     Then response from "tdata_examplecc" to client equal value "ValueB"
     And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,Key_C" on peers "peer0.org2.example.com" on the "mychannel" channel
     Then response from "tdata_examplecc" to client equal value "ValueC"
-    And container "peer0.org1.example.com" is started
+
+    # Restart all peers to test transient data persistence
+    Given container "peer1.org1.example.com" is stopped
+    And container "peer0.org2.example.com" is stopped
+    Then container "peer0.org1.example.com" is started
+    And container "peer1.org1.example.com" is started
+    And container "peer0.org2.example.com" is started
     And container "peer1.org2.example.com" is started
     Then we wait 10 seconds
+
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,Key_A" on peers "peer0.org2.example.com" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "ValueA"
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,Key_B" on peers "peer0.org2.example.com" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "ValueB"
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,Key_C" on peers "peer0.org2.example.com" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value "ValueC"
+    Then we wait 60 seconds
+
+    # The data should have expired
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,Key_A" on peers "peer0.org1.example.com" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value ""
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,Key_B" on peers "peer0.org1.example.com" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value ""
+    And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,Key_C" on peers "peer0.org1.example.com" on the "mychannel" channel
+    Then response from "tdata_examplecc" to client equal value ""

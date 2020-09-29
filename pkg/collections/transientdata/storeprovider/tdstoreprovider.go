@@ -62,7 +62,7 @@ func (sp *StoreProvider) OpenStore(channelID string) (api.Store, error) {
 		return nil, err
 	}
 
-	store := newStore(channelID, config.GetTransientDataCacheSize(), db, sp.gossipProvider.GetGossipService(), sp.idProvider.GetIdentityDeserializer(channelID))
+	store := newStore(channelID, config.GetTransientDataCacheSize(), config.GetTransientDataAlwaysPersist(), db, sp.gossipProvider.GetGossipService(), sp.idProvider.GetIdentityDeserializer(channelID))
 	sp.stores[channelID] = store
 
 	return store, nil

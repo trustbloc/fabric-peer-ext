@@ -16,12 +16,15 @@ import (
 	"github.com/pkg/errors"
 	viper "github.com/spf13/viper2015"
 	"github.com/stretchr/testify/require"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider/store/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider/store/dbstore"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 )
 
 const (
+	channel1 = "channel1"
+
 	txID1 = "txid1"
 	txID2 = "txid2"
 
@@ -73,7 +76,7 @@ func TestCleanupExpiredTransientDataFromDB(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, db)
 
-	cache := New(1, db)
+	cache := New(channel1, 1, false, db)
 	require.NotNil(t, cache)
 
 	cache.PutWithExpire(k1, v1, txID1, 2*time.Second)
@@ -122,7 +125,7 @@ func TestRetrieveTransientDataFromDB(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, db)
 
-		cache := New(1, db)
+		cache := New(channel1, 1, false, db)
 		require.NotNil(t, cache)
 		v := cache.Get(k1)
 		require.Nil(t, v)
@@ -156,7 +159,7 @@ func TestRetrieveTransientDataFromDB(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, db)
 
-		cache := New(1, db)
+		cache := New(channel1, 1, false, db)
 		require.NotNil(t, cache)
 		v := cache.Get(k1)
 		require.Nil(t, v)
@@ -186,7 +189,7 @@ func TestRetrieveTransientDataFromDB(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, db)
 
-		cache := New(1, db)
+		cache := New(channel1, 1, false, db)
 		require.NotNil(t, cache)
 		v := cache.Get(k1)
 		require.Nil(t, v)
@@ -224,7 +227,7 @@ func TestTransientDataCache(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, db)
 
-	cache := New(1, db)
+	cache := New(channel1, 1, false, db)
 	require.NotNil(t, cache)
 	defer cache.Close()
 
@@ -274,7 +277,7 @@ func TestTransientDataCacheConcurrency(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, db)
 
-	cache := New(1, db)
+	cache := New(channel1, 1, false, db)
 	require.NotNil(t, cache)
 	defer cache.Close()
 
@@ -311,13 +314,63 @@ func TestTransientDataCacheConcurrency(t *testing.T) {
 func Test_Error(t *testing.T) {
 	errExpected := errors.New("db error")
 	db := newMockDB().WithError(errExpected)
-	c := New(100, db)
+	c := New(channel1, 100, false, db)
 
 	v := c.Get(k1)
 	require.Nil(t, v)
 
 	// Let periodic purge run with DB error to ensure it doesn't panic
 	time.Sleep(200 * time.Millisecond)
+}
+
+func TestTransientDataAlwaysPersist(t *testing.T) {
+	defer removeDBPath(t)
+	p, err := dbstore.NewDBProvider()
+	require.NoError(t, err)
+	require.NotNil(t, p)
+	defer p.Close()
+
+	db, err := p.OpenDBStore("testchannel")
+	require.NoError(t, err)
+	require.NotNil(t, db)
+
+	cache := New(channel1, 1, true, db)
+	require.NotNil(t, cache)
+	defer cache.Close()
+
+	t.Run("Key", func(t *testing.T) {
+		require.Equal(t, "namespace1:coll1:key1", k1.String())
+	})
+
+	t.Run("GetAndPut", func(t *testing.T) {
+		v := cache.Get(k1)
+		require.Nil(t, v)
+
+		cache.Put(k1, v1, txID1)
+		cache.Put(k2, v2, txID2)
+
+		v = cache.Get(k1)
+		require.NotNil(t, v)
+		require.Equal(t, txID1, v.TxID)
+		require.Equal(t, v1, v.Value)
+
+		v = cache.Get(k2)
+		require.NotNil(t, v)
+		require.Equal(t, txID2, v.TxID)
+		require.Equal(t, v2, v.Value)
+	})
+
+	t.Run("Expire", func(t *testing.T) {
+		expiration := 100 * time.Millisecond
+		cache.PutWithExpire(k3, v1, txID1, expiration)
+
+		v := cache.Get(k3)
+		require.NotNil(t, v)
+
+		time.Sleep(100 * time.Millisecond)
+		v = cache.Get(k3)
+		require.Nil(t, v)
+	})
 }
 
 func TestMain(m *testing.M) {

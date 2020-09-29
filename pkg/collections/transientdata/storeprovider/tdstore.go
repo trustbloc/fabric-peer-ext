@@ -48,11 +48,11 @@ type db interface {
 	GetKey(key api.Key) (*api.Value, error)
 }
 
-func newStore(channelID string, cacheSize int, transientDB db, gossip gossipAdapter, identityDeserializer msp.IdentityDeserializer) *store {
+func newStore(channelID string, cacheSize int, alwaysPersist bool, transientDB db, gossip gossipAdapter, identityDeserializer msp.IdentityDeserializer) *store {
 	logger.Debugf("[%s] Creating new store - cacheSize=%d", channelID, cacheSize)
 	return &store{
 		channelID:            channelID,
-		cache:                cache.New(cacheSize, transientDB),
+		cache:                cache.New(channelID, cacheSize, alwaysPersist, transientDB),
 		gossip:               gossip,
 		identityDeserializer: identityDeserializer,
 	}
