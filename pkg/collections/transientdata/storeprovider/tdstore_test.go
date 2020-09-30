@@ -61,7 +61,7 @@ var (
 )
 
 func TestStore(t *testing.T) {
-	s := newStore(channelID, 100, newMockDB(), mocks.NewMockGossipAdapter(), &mocks.IdentityDeserializer{})
+	s := newStore(channelID, 100, false, newMockDB(), mocks.NewMockGossipAdapter(), &mocks.IdentityDeserializer{})
 	require.NotNil(t, s)
 	s.Close()
 
@@ -115,7 +115,7 @@ func TestStorePutAndGet(t *testing.T) {
 		Member(org2MSPID, p1Org2).
 		Member(org2MSPID, p2Org2)
 
-	s := newStore(channelID, 1, newMockDB(), gossip, &mocks.IdentityDeserializer{})
+	s := newStore(channelID, 1, false, newMockDB(), gossip, &mocks.IdentityDeserializer{})
 	require.NotNil(t, s)
 	defer s.Close()
 
@@ -234,7 +234,7 @@ func TestStorePutAndGet(t *testing.T) {
 }
 
 func TestStoreInvalidData(t *testing.T) {
-	s := newStore(channelID, 100, newMockDB(), mocks.NewMockGossipAdapter(), &mocks.IdentityDeserializer{})
+	s := newStore(channelID, 100, false, newMockDB(), mocks.NewMockGossipAdapter(), &mocks.IdentityDeserializer{})
 	require.NotNil(t, s)
 	defer s.Close()
 

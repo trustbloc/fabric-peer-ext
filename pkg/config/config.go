@@ -24,6 +24,7 @@ const (
 	confTransientDataLeveldb             = "transientDataLeveldb"
 	confTransientDataCleanupIntervalTime = "coll.transientdata.cleanupExpired.Interval"
 	confTransientDataCacheSize           = "coll.transientdata.cacheSize"
+	confTransientDataAlwaysPersist       = "coll.transientdata.alwaysPersist"
 	confTransientDataPullTimeout         = "peer.gossip.transientData.pullTimeout"
 
 	confOLCollLeveldb              = "offLedgerLeveldb"
@@ -38,6 +39,7 @@ const (
 	defaultTransientDataCleanupIntervalTime = 5 * time.Second
 	defaultTransientDataCacheSize           = 100000
 	defaultTransientDataPullTimeout         = 5 * time.Second
+	defaultTransientDataAlwaysPersist       = true
 
 	defaultOLCollCleanupIntervalTime  = 5 * time.Second
 	defaultOLCollMaxPeersForRetrieval = 2
@@ -109,6 +111,15 @@ func GetTransientDataCacheSize() int {
 		return defaultTransientDataCacheSize
 	}
 	return size
+}
+
+// GetTransientDataAlwaysPersist indicates whether transient data is to always be persisted or persisted only when the cache has exceeded its maximum size
+func GetTransientDataAlwaysPersist() bool {
+	if viper.IsSet(confTransientDataAlwaysPersist) {
+		return viper.GetBool(confTransientDataAlwaysPersist)
+	}
+
+	return defaultTransientDataAlwaysPersist
 }
 
 // GetOLCollLevelDBPath returns the filesystem path that is used to maintain the off-ledger level db

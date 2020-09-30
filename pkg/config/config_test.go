@@ -68,6 +68,13 @@ func TestGetTransientDataCacheSize(t *testing.T) {
 	assert.Equal(t, 10, GetTransientDataCacheSize())
 }
 
+func TestGetTransientDataAlwaysPersist(t *testing.T) {
+	require.Equal(t, defaultTransientDataAlwaysPersist, GetTransientDataAlwaysPersist())
+
+	viper.Set(confTransientDataAlwaysPersist, false)
+	require.Equal(t, false, GetTransientDataAlwaysPersist())
+}
+
 func TestGetOLLevelDBPath(t *testing.T) {
 	oldVal := viper.Get("peer.fileSystemPath")
 	defer viper.Set("peer.fileSystemPath", oldVal)

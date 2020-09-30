@@ -12,6 +12,7 @@ import (
 
 	"github.com/bluele/gcache"
 	"github.com/hyperledger/fabric/common/flogging"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/storeprovider/store/api"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 )
@@ -20,9 +21,11 @@ var logger = flogging.MustGetLogger("transientdata")
 
 // Cache is an in-memory key-value cache
 type Cache struct {
-	cache   gcache.Cache
-	ticker  *time.Ticker
-	dbstore transientDB
+	channelID     string
+	cache         gcache.Cache
+	ticker        *time.Ticker
+	dbstore       transientDB
+	alwaysPersist bool
 }
 
 // transientDB - an interface for persisting and retrieving keys
@@ -33,16 +36,23 @@ type transientDB interface {
 }
 
 // New return a new in-memory key-value cache
-func New(size int, dbstore transientDB) *Cache {
+func New(channelID string, size int, alwaysPersist bool, dbstore transientDB) *Cache {
 	c := &Cache{
-		ticker:  time.NewTicker(config.GetTransientDataExpiredIntervalTime()),
-		dbstore: dbstore,
+		channelID:     channelID,
+		ticker:        time.NewTicker(config.GetTransientDataExpiredIntervalTime()),
+		dbstore:       dbstore,
+		alwaysPersist: alwaysPersist,
 	}
 
-	c.cache = gcache.New(size).
+	cb := gcache.New(size).
 		LoaderExpireFunc(c.loadFromDB).
-		EvictedFunc(c.storeToDB).
-		ARC().Build()
+		ARC()
+
+	if !alwaysPersist {
+		cb.EvictedFunc(c.evict)
+	}
+
+	c.cache = cb.Build()
 
 	// cleanup expired data in db
 	go c.periodicPurge()
@@ -58,24 +68,34 @@ func (c *Cache) Close() {
 
 // Put adds the transient value for the given key.
 func (c *Cache) Put(key api.Key, value []byte, txID string) {
-	if err := c.cache.Set(key,
-		&api.Value{
-			Value: value,
-			TxID:  txID,
-		}); err != nil {
+	v := &api.Value{
+		Value: value,
+		TxID:  txID,
+	}
+
+	if err := c.cache.Set(key, v); err != nil {
 		panic("Set must never return an error")
+	}
+
+	if c.alwaysPersist {
+		c.persist(key, v)
 	}
 }
 
 // PutWithExpire adds the transient value for the given key.
 func (c *Cache) PutWithExpire(key api.Key, value []byte, txID string, expiry time.Duration) {
-	if err := c.cache.SetWithExpire(key,
-		&api.Value{
-			Value:      value,
-			TxID:       txID,
-			ExpiryTime: time.Now().UTC().Add(expiry),
-		}, expiry); err != nil {
+	v := &api.Value{
+		Value:      value,
+		TxID:       txID,
+		ExpiryTime: time.Now().UTC().Add(expiry),
+	}
+
+	if err := c.cache.SetWithExpire(key, v, expiry); err != nil {
 		panic("Set must never return an error")
+	}
+
+	if c.alwaysPersist {
+		c.persist(key, v)
 	}
 }
 
@@ -93,38 +113,48 @@ func (c *Cache) Get(key api.Key) *api.Value {
 }
 
 func (c *Cache) loadFromDB(key interface{}) (interface{}, *time.Duration, error) {
-	logger.Debugf("LoaderExpireFunc for key %s", key)
+	logger.Debugf("[%s] Loading key from database: %s", c.channelID, key)
+
 	value, err := c.dbstore.GetKey(key.(api.Key))
 	if value == nil || err != nil {
 		if err != nil {
 			logger.Error(err.Error())
 		}
-		logger.Debugf("Key [%s] not found in DB", key)
+		logger.Debugf("[%s] Key [%s] not found in DB", c.channelID, key)
 		return nil, nil, gcache.KeyNotFoundError
 	}
-	isExpired, diff := checkExpiryTime(value.ExpiryTime)
+	isExpired, diff := c.checkExpiryTime(value.ExpiryTime)
 	if isExpired {
-		logger.Debugf("Key [%s] from DB has expired", key)
+		logger.Debugf("[%s] Key [%s] from DB has expired", c.channelID, key)
 		return nil, nil, gcache.KeyNotFoundError
 	}
-	logger.Debugf("Loaded key [%s] from DB", key)
+	logger.Debugf("[%s] Loaded key [%s] from DB", c.channelID, key)
 	return value, &diff, nil
 }
 
-func (c *Cache) storeToDB(key, value interface{}) {
-	logger.Debugf("EvictedFunc for key %s", key)
+func (c *Cache) evict(key, value interface{}) {
 	if value != nil {
-		k := key.(api.Key)
-		v := value.(*api.Value)
-		isExpired, _ := checkExpiryTime(v.ExpiryTime)
-		if !isExpired {
-			dbstoreErr := c.dbstore.AddKey(k, v)
-			if dbstoreErr != nil {
-				logger.Errorf("Key [%s] could not be offloaded to DB: %s", key, dbstoreErr.Error())
-			} else {
-				logger.Debugf("Key [%s] offloaded to DB", key)
-			}
-		}
+		logger.Debugf("[%s] Evicting key to database: %s", c.channelID, key)
+
+		c.persist(key.(api.Key), value.(*api.Value))
+	}
+}
+
+func (c *Cache) persist(key api.Key, value *api.Value) {
+	isExpired, _ := c.checkExpiryTime(value.ExpiryTime)
+	if isExpired {
+		logger.Debugf("[%s] Not persisting key [%s] since the value expired at [%s]", c.channelID, key, value.ExpiryTime)
+
+		return
+	}
+
+	logger.Debugf("[%s] Persisting key [%s]", c.channelID, key)
+
+	dbstoreErr := c.dbstore.AddKey(key, value)
+	if dbstoreErr != nil {
+		logger.Errorf("[%s] Key [%s] could not be offloaded to DB: %s", c.channelID, key, dbstoreErr.Error())
+	} else {
+		logger.Debugf("[%s] Key [%s] offloaded to DB", c.channelID, key)
 	}
 }
 
@@ -137,13 +167,13 @@ func (c *Cache) periodicPurge() {
 	}
 }
 
-func checkExpiryTime(expiryTime time.Time) (bool, time.Duration) {
+func (c *Cache) checkExpiryTime(expiryTime time.Time) (bool, time.Duration) {
 	if expiryTime.IsZero() {
 		return false, 0
 	}
 
 	timeNow := time.Now().UTC()
-	logger.Debugf("Checking expiration - Current time: %s, Expiry time: %s", timeNow, expiryTime)
+	logger.Debugf("[%s] Checking expiration - Current time: %s, Expiry time: %s", c.channelID, timeNow, expiryTime)
 
 	diff := expiryTime.Sub(timeNow)
 	return diff <= 0, diff
