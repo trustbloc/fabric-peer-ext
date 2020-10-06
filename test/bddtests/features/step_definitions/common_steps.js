@@ -120,7 +120,7 @@ defineSupportCode(function ({And, But, Given, Then, When}) {
     When(/^chaincode "([^"]*)", version "([^"]*)", sequence (\d+) is committed by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$/, function (arg1, arg2, arg3, arg4, arg5, arg6, callback) {
         callback.pending();
     });
-    When(/^chaincode "([^"]*)", version "([^"]*)", package ID "([^"]*)", sequence (\d+) is checked for readiness by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$/, function (arg1, arg2, arg3, arg4, arg5, arg6, arg7, callback) {
+    When(/^chaincode "([^"]*)", version "([^"]*)", sequence (\d+) is checked for readiness by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$/, function (arg1, arg2, arg3, arg4, arg5, arg6, arg7, callback) {
         callback.pending();
     });
     When(/^peer "([^"]*)" is queried for installed chaincodes$/, function (arg1, callback) {

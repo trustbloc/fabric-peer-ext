@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-@all
+@lc_all
 @lc_ledger_config
 Feature: Lifecycle ledger config
 

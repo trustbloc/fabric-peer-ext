@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-@all
+@lc_all
 @lc_in_proc_ucc
 Feature: Lifecycle in-process user chaincode
 
@@ -13,13 +13,13 @@ Feature: Lifecycle in-process user chaincode
 
     # All in-process should already be pre-installed
     Then peer "peer0.org1.example.com" is queried for installed chaincodes
-    And the JSON path "#.Label" of the response contains "inproc_test_cc"
-    And the JSON path "#.PackageID" of the response contains "inproc_test_cc:v1"
-    And the JSON path "#.PackageID" of the response contains "inproc_test_cc:v1.1"
-    And the JSON path "#.PackageID" of the response contains "inproc_test_cc:v2.0"
+    And the JSON path "#.label" of the response contains "inproc_test_cc"
+    And the JSON path "#.package_id" of the response contains "inproc_test_cc:v1"
+    And the JSON path "#.package_id" of the response contains "inproc_test_cc:v1.1"
+    And the JSON path "#.package_id" of the response contains "inproc_test_cc:v2.0"
 
     # The chaincode has not been approved by any org so it's not ready to be committed
-    Then chaincode "inproc_test_cc", version "v1", package ID "inproc_test_cc:v1", sequence 1 is checked for readiness by orgs "peerorg1,peerorg2" on the "mychannel" channel with endorsement policy "OR('Org1MSP.member','Org2MSP.member')" and collection policy ""
+    Then chaincode "inproc_test_cc", version "v1", sequence 1 is checked for readiness by orgs "peerorg1,peerorg2" on the "mychannel" channel with endorsement policy "OR('Org1MSP.member','Org2MSP.member')" and collection policy ""
     And the JSON path "Org1MSP" of the boolean response equals "false"
     And the JSON path "Org2MSP" of the boolean response equals "false"
 
@@ -28,12 +28,12 @@ Feature: Lifecycle in-process user chaincode
     And we wait 5 seconds
 
     Then peer "peer1.org1.example.com" is queried for approved chaincode "inproc_test_cc" and sequence 1 on the "mychannel" channel
-    And the JSON path "Name" of the response equals "inproc_test_cc"
-    And the JSON path "Version" of the response equals "v1"
-    And the JSON path "PackageID" of the response equals "inproc_test_cc:v1"
+    And the JSON path "name" of the response equals "inproc_test_cc"
+    And the JSON path "version" of the response equals "v1"
+    And the JSON path "package_id" of the response equals "inproc_test_cc:v1"
 
     # The chaincode has not been approved by Org2 so it's not ready to be committed
-    Then chaincode "inproc_test_cc", version "v1", package ID "inproc_test_cc:v1", sequence 1 is checked for readiness by orgs "peerorg1,peerorg2" on the "mychannel" channel with endorsement policy "OR('Org1MSP.member','Org2MSP.member')" and collection policy ""
+    Then chaincode "inproc_test_cc", version "v1", sequence 1 is checked for readiness by orgs "peerorg1,peerorg2" on the "mychannel" channel with endorsement policy "OR('Org1MSP.member','Org2MSP.member')" and collection policy ""
     And the JSON path "Org1MSP" of the boolean response equals "true"
     And the JSON path "Org2MSP" of the boolean response equals "false"
 
@@ -42,12 +42,12 @@ Feature: Lifecycle in-process user chaincode
     And we wait 5 seconds
 
     Then peer "peer1.org2.example.com" is queried for approved chaincode "inproc_test_cc" and sequence 1 on the "mychannel" channel
-    And the JSON path "Name" of the response equals "inproc_test_cc"
-    And the JSON path "Version" of the response equals "v1"
-    And the JSON path "PackageID" of the response equals "inproc_test_cc:v1"
+    And the JSON path "name" of the response equals "inproc_test_cc"
+    And the JSON path "version" of the response equals "v1"
+    And the JSON path "package_id" of the response equals "inproc_test_cc:v1"
 
     # The chaincode is ready to be committed since it's approved by Org1 and Org2
-    Then chaincode "inproc_test_cc", version "v1", package ID "inproc_test_cc:v1", sequence 1 is checked for readiness by orgs "peerorg1,peerorg2" on the "mychannel" channel with endorsement policy "OR('Org1MSP.member','Org2MSP.member')" and collection policy ""
+    Then chaincode "inproc_test_cc", version "v1", sequence 1 is checked for readiness by orgs "peerorg1,peerorg2" on the "mychannel" channel with endorsement policy "OR('Org1MSP.member','Org2MSP.member')" and collection policy ""
     And the JSON path "Org1MSP" of the boolean response equals "true"
     And the JSON path "Org2MSP" of the boolean response equals "true"
 
@@ -57,15 +57,15 @@ Feature: Lifecycle in-process user chaincode
 
     # The installed chaincode should have a single reference in mychannel
     And peer "peer0.org2.example.com" is queried for installed chaincodes
-    And the JSON path "#.References.mychannel.0.Name" of the response contains "inproc_test_cc"
-    And the JSON path "#.References.mychannel.0.Version" of the response contains "v1"
+    And the JSON path "#.references.mychannel.0.name" of the response contains "inproc_test_cc"
+    And the JSON path "#.references.mychannel.0.version" of the response contains "v1"
 
     And committed chaincode "inproc_test_cc" is queried by orgs "peerorg1,peerorg2" on the "mychannel" channel
     And the JSON path "#" of the response has 1 items
-    And the JSON path "0.Name" of the response equals "inproc_test_cc"
-    And the JSON path "0.Version" of the response equals "v1"
-    And the JSON path "0.Approvals.Org1MSP" of the boolean response equals "true"
-    And the JSON path "0.Approvals.Org2MSP" of the boolean response equals "true"
+    And the JSON path "0.name" of the response equals "inproc_test_cc"
+    And the JSON path "0.version" of the response equals "v1"
+    And the JSON path "0.approvals.Org1MSP" of the boolean response equals "true"
+    And the JSON path "0.approvals.Org2MSP" of the boolean response equals "true"
 
     # We need to wait a while so that all of the peers' channel membership is Gossip'ed to all other peers.
     Then we wait 10 seconds
@@ -81,15 +81,15 @@ Feature: Lifecycle in-process user chaincode
     And we wait 10 seconds
 
     And peer "peer0.org1.example.com" is queried for installed chaincodes
-    And the JSON path "#.References.mychannel.0.Name" of the response contains "inproc_test_cc"
-    And the JSON path "#.References.mychannel.0.Version" of the response contains "v1.0.1"
+    And the JSON path "#.references.mychannel.0.name" of the response contains "inproc_test_cc"
+    And the JSON path "#.references.mychannel.0.version" of the response contains "v1.0.1"
 
     And committed chaincode "inproc_test_cc" is queried by orgs "peerorg1,peerorg2" on the "mychannel" channel
     And the JSON path "#" of the response has 1 items
-    And the JSON path "0.Name" of the response equals "inproc_test_cc"
-    And the JSON path "0.Version" of the response equals "v1.0.1"
-    And the JSON path "0.Approvals.Org1MSP" of the boolean response equals "true"
-    And the JSON path "0.Approvals.Org2MSP" of the boolean response equals "true"
+    And the JSON path "0.name" of the response equals "inproc_test_cc"
+    And the JSON path "0.version" of the response equals "v1.0.1"
+    And the JSON path "0.approvals.Org1MSP" of the boolean response equals "true"
+    And the JSON path "0.approvals.Org2MSP" of the boolean response equals "true"
 
     And client queries chaincode "inproc_test_cc" with args "getversion" on the "mychannel" channel
     Then response from "inproc_test_cc" to client equal value "v1"
@@ -102,15 +102,15 @@ Feature: Lifecycle in-process user chaincode
     And we wait 10 seconds
 
     And peer "peer0.org1.example.com" is queried for installed chaincodes
-    And the JSON path "#.References.mychannel.0.Name" of the response contains "inproc_test_cc"
-    And the JSON path "#.References.mychannel.0.Version" of the response contains "v1.1.0"
+    And the JSON path "#.references.mychannel.0.name" of the response contains "inproc_test_cc"
+    And the JSON path "#.references.mychannel.0.version" of the response contains "v1.1.0"
 
     And committed chaincode "inproc_test_cc" is queried by orgs "peerorg1,peerorg2" on the "mychannel" channel
     And the JSON path "#" of the response has 1 items
-    And the JSON path "0.Name" of the response equals "inproc_test_cc"
-    And the JSON path "0.Version" of the response equals "v1.1.0"
-    And the JSON path "0.Approvals.Org1MSP" of the boolean response equals "true"
-    And the JSON path "0.Approvals.Org2MSP" of the boolean response equals "true"
+    And the JSON path "0.name" of the response equals "inproc_test_cc"
+    And the JSON path "0.version" of the response equals "v1.1.0"
+    And the JSON path "0.approvals.Org1MSP" of the boolean response equals "true"
+    And the JSON path "0.approvals.Org2MSP" of the boolean response equals "true"
 
     And client queries chaincode "inproc_test_cc" with args "getversion" on the "mychannel" channel
     Then response from "inproc_test_cc" to client equal value "v1.1"
@@ -123,15 +123,15 @@ Feature: Lifecycle in-process user chaincode
     And we wait 10 seconds
 
     And peer "peer1.org1.example.com" is queried for installed chaincodes
-    And the JSON path "#.References.mychannel.0.Name" of the response contains "inproc_test_cc"
-    And the JSON path "#.References.mychannel.0.Version" of the response contains "v1.1.1"
+    And the JSON path "#.references.mychannel.0.name" of the response contains "inproc_test_cc"
+    And the JSON path "#.references.mychannel.0.version" of the response contains "v1.1.1"
 
     And committed chaincode "inproc_test_cc" is queried by orgs "peerorg1,peerorg2" on the "mychannel" channel
     And the JSON path "#" of the response has 1 items
-    And the JSON path "0.Name" of the response equals "inproc_test_cc"
-    And the JSON path "0.Version" of the response equals "v1.1.1"
-    And the JSON path "0.Approvals.Org1MSP" of the boolean response equals "true"
-    And the JSON path "0.Approvals.Org2MSP" of the boolean response equals "true"
+    And the JSON path "0.name" of the response equals "inproc_test_cc"
+    And the JSON path "0.version" of the response equals "v1.1.1"
+    And the JSON path "0.approvals.Org1MSP" of the boolean response equals "true"
+    And the JSON path "0.approvals.Org2MSP" of the boolean response equals "true"
 
     And client queries chaincode "inproc_test_cc" with args "getversion" on the "mychannel" channel
     Then response from "inproc_test_cc" to client equal value "v1.1"
@@ -145,15 +145,15 @@ Feature: Lifecycle in-process user chaincode
     And we wait 10 seconds
 
     And peer "peer1.org2.example.com" is queried for installed chaincodes
-    And the JSON path "#.References.mychannel.0.Name" of the response contains "inproc_test_cc"
-    And the JSON path "#.References.mychannel.0.Version" of the response contains "v2.0.0"
+    And the JSON path "#.references.mychannel.0.name" of the response contains "inproc_test_cc"
+    And the JSON path "#.references.mychannel.0.version" of the response contains "v2.0.0"
 
     And committed chaincode "inproc_test_cc" is queried by orgs "peerorg1,peerorg2" on the "mychannel" channel
     And the JSON path "#" of the response has 1 items
-    And the JSON path "0.Name" of the response equals "inproc_test_cc"
-    And the JSON path "0.Version" of the response equals "v2.0.0"
-    And the JSON path "0.Approvals.Org1MSP" of the boolean response equals "true"
-    And the JSON path "0.Approvals.Org2MSP" of the boolean response equals "true"
+    And the JSON path "0.name" of the response equals "inproc_test_cc"
+    And the JSON path "0.version" of the response equals "v2.0.0"
+    And the JSON path "0.approvals.Org1MSP" of the boolean response equals "true"
+    And the JSON path "0.approvals.Org2MSP" of the boolean response equals "true"
 
     And client queries chaincode "inproc_test_cc" with args "getversion" on the "mychannel" channel
     Then response from "inproc_test_cc" to client equal value "v2.0"
