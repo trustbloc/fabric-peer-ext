@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-@all
+@lc_all
 @lc_gossip_appdata
 Feature: Application-specific data over Gossip
 

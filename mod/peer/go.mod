@@ -10,7 +10,7 @@ replace github.com/hyperledger/fabric/extensions => ./
 
 replace github.com/trustbloc/fabric-peer-ext => ../..
 
-replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.1.4
+replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.1.5-0.20201005203042-9fe8149374fc
 
 replace github.com/spf13/viper2015 => github.com/spf13/viper v0.0.0-20150908122457-1967d93db724
 
@@ -21,7 +21,7 @@ require (
 	github.com/hyperledger/fabric-protos-go v0.0.0-20200707132912-fee30f3ccd23
 	github.com/hyperledger/fabric/extensions v0.0.0
 	github.com/magiconair/properties v1.8.1
-	github.com/pkg/errors v0.8.1
+	github.com/pkg/errors v0.9.1
 	github.com/spf13/viper2015 v1.3.2
 	github.com/stretchr/testify v1.5.1
 	github.com/trustbloc/fabric-peer-ext v0.0.0

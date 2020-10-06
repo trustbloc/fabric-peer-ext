@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-@all
+@lc_all
 @lc_off_ledger
 Feature: Lifecycle off-ledger
 
