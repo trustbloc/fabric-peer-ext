@@ -139,3 +139,8 @@ func MarbleValue(name, color, owner string, size int) string {
 func Skip(t *testing.T, msg string) {
 	t.Skip(msg)
 }
+
+// InvokeOrSkip skips the given function.
+func InvokeOrSkip(func()) {
+	// Skip the function
+}

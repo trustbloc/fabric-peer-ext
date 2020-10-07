@@ -128,8 +128,8 @@ func (c *pvtDataStore) ProcessCollsEligibilityEnabled(committingBlk uint64, nsCo
 }
 
 //CommitPvtDataOfOldBlocks implements the function in the interface `Store`
-func (c *pvtDataStore) CommitPvtDataOfOldBlocks(blocksPvtData map[uint64][]*ledger.TxPvtData) error {
-	return c.pvtDataDBStore.CommitPvtDataOfOldBlocks(blocksPvtData)
+func (c *pvtDataStore) CommitPvtDataOfOldBlocks(blocksPvtData map[uint64][]*ledger.TxPvtData, unreconciled ledger.MissingPvtDataInfo) error {
+	return c.pvtDataDBStore.CommitPvtDataOfOldBlocks(blocksPvtData, unreconciled)
 }
 
 //GetLastUpdatedOldBlocksPvtData implements the function in the interface `Store`
