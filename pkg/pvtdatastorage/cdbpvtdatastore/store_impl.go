@@ -322,7 +322,8 @@ func (s *store) prepareLastCommittedBlockDoc(committingBlockNum uint64) (*couchd
 //     lastUpdatedOldBlocksList) from the above created data entries
 // (3) create a db update batch from the update entries
 // (4) commit the update entries to the pvtStore
-func (s *store) CommitPvtDataOfOldBlocks(blocksPvtData map[uint64][]*ledger.TxPvtData) error {
+// TODO: Need to implement FAB-15810 - Backup/Restore - deprioritize fetching of a missing pvtData after multiple retries
+func (s *store) CommitPvtDataOfOldBlocks(blocksPvtData map[uint64][]*ledger.TxPvtData, unreconciled ledger.MissingPvtDataInfo) error {
 	if s.isLastUpdatedOldBlocksSet {
 		return pvtdatastorage.NewErrIllegalCall(`The lastUpdatedOldBlocksList is set. It means that the
 		stateDB may not be in sync with the pvtStore`)

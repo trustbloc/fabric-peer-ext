@@ -102,7 +102,7 @@ func (m *Ledger) CommitLegacy(blockAndPvtdata *ledger2.BlockAndPvtData, commitOp
 }
 
 // CommitPvtDataOfOldBlocks commits the private data of old blocks
-func (m *Ledger) CommitPvtDataOfOldBlocks(reconciledPvtdata []*ledger2.ReconciledPvtdata) ([]*ledger2.PvtdataHashMismatch, error) {
+func (m *Ledger) CommitPvtDataOfOldBlocks(reconciledPvtdata []*ledger2.ReconciledPvtdata, unreconciled ledger2.MissingPvtDataInfo) ([]*ledger2.PvtdataHashMismatch, error) {
 	panic("not implemented")
 }
 

@@ -110,7 +110,7 @@ func (s *store) Commit(blockNum uint64, pvtData []*ledger.TxPvtData, missingPvtD
 }
 
 // CommitPvtDataOfOldBlocks implements the function in the interface `Store`
-func (s *store) CommitPvtDataOfOldBlocks(blocksPvtData map[uint64][]*ledger.TxPvtData) error {
+func (s *store) CommitPvtDataOfOldBlocks(blocksPvtData map[uint64][]*ledger.TxPvtData, _ ledger.MissingPvtDataInfo) error {
 	return errors.New("not supported")
 }
 

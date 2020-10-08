@@ -24,7 +24,7 @@ import (
 func TestCommitPvtDataOfOldBlocks(t *testing.T) {
 	env := NewTestStoreEnv(t, "ledger", nil)
 	store := env.TestStore
-	err := store.CommitPvtDataOfOldBlocks(nil)
+	err := store.CommitPvtDataOfOldBlocks(nil, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not supported")
 }

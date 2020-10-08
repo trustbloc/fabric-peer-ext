@@ -747,7 +747,7 @@ func TestCommitPvtDataOfOldBlocks(t *testing.T) {
 		defer env.Cleanup(ledgerId)
 		s := env.TestStore.(*store)
 		s.isLastUpdatedOldBlocksSet = true
-		err := s.CommitPvtDataOfOldBlocks(nil)
+		err := s.CommitPvtDataOfOldBlocks(nil, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "lastUpdatedOldBlocksList is set")
 
@@ -760,7 +760,7 @@ func TestCommitPvtDataOfOldBlocks(t *testing.T) {
 		s := env.TestStore.(*store)
 		s.isLastUpdatedOldBlocksSet = false
 		s.db = mockCouchDB{batchUpdateDocumentsErr: fmt.Errorf("batchUpdateDocuments error")}
-		err := s.CommitPvtDataOfOldBlocks(nil)
+		err := s.CommitPvtDataOfOldBlocks(nil, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "BatchUpdateDocuments failed")
 
@@ -774,7 +774,7 @@ func TestCommitPvtDataOfOldBlocks(t *testing.T) {
 		s.isLastUpdatedOldBlocksSet = false
 		s.db = mockCouchDB{}
 		s.missingKeysIndexDB = mockDBHandler{writeBatchErr: fmt.Errorf("WriteBatch error")}
-		err := s.CommitPvtDataOfOldBlocks(nil)
+		err := s.CommitPvtDataOfOldBlocks(nil, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "WriteBatch failed")
 
@@ -868,7 +868,7 @@ func TestCommitPvtDataOfOldBlocks(t *testing.T) {
 		produceSamplePvtdata(t, 3, []string{"ns-1:coll-1"}),
 	}
 
-	err = store.CommitPvtDataOfOldBlocks(oldBlocksPvtData)
+	err = store.CommitPvtDataOfOldBlocks(oldBlocksPvtData, nil)
 	req.NoError(err)
 
 	// ENSURE THAT THE CURRENT PVTDATA OF BLOCK 1 STILL EXIST IN THE STORE
@@ -952,7 +952,7 @@ func TestCommitPvtDataOfOldBlocks(t *testing.T) {
 		produceSamplePvtdata(t, 2, []string{"ns-3:coll-2"}), // never expires
 	}
 
-	err = store.CommitPvtDataOfOldBlocks(oldBlocksPvtData)
+	err = store.CommitPvtDataOfOldBlocks(oldBlocksPvtData, nil)
 	req.NoError(err)
 
 	ns1Coll2Blk1Tx1 := &common.DataKey{NsCollBlk: common.NsCollBlk{Ns: "ns-1", Coll: "coll-2", BlkNum: 1}, TxNum: 1}
@@ -986,7 +986,7 @@ func TestCommitPvtDataOfOldBlocks(t *testing.T) {
 		produceSamplePvtdata(t, 2, []string{"ns-1:coll-2"}),
 	}
 
-	err = store.CommitPvtDataOfOldBlocks(oldBlocksPvtData)
+	err = store.CommitPvtDataOfOldBlocks(oldBlocksPvtData, nil)
 	req.NoError(err)
 
 	ns1Coll2Blk1Tx1 = &common.DataKey{NsCollBlk: common.NsCollBlk{Ns: "ns-1", Coll: "coll-2", BlkNum: 1}, TxNum: 1}

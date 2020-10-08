@@ -79,7 +79,7 @@ func (m mockStore) ProcessCollsEligibilityEnabled(committingBlk uint64, nsCollMa
 	return m.processCollsEligibilityEnabledErr
 }
 
-func (m mockStore) CommitPvtDataOfOldBlocks(blocksPvtData map[uint64][]*ledger.TxPvtData) error {
+func (m mockStore) CommitPvtDataOfOldBlocks(blocksPvtData map[uint64][]*ledger.TxPvtData, unreconciled ledger.MissingPvtDataInfo) error {
 	return m.commitPvtDataOfOldBlocksErr
 }
 
@@ -168,7 +168,7 @@ func TestCommitPvtDataOfOldBlocks(t *testing.T) {
 		store := env.TestStore
 		s := store.(*pvtDataStore)
 		s.pvtDataDBStore = &mockStore{commitPvtDataOfOldBlocksErr: fmt.Errorf("commitPvtDataOfOldBlocks error")}
-		err := s.CommitPvtDataOfOldBlocks(nil)
+		err := s.CommitPvtDataOfOldBlocks(nil, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "commitPvtDataOfOldBlocks error")
 
