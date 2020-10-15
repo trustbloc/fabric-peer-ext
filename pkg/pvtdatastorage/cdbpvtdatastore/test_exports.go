@@ -14,6 +14,7 @@ import (
 	"github.com/hyperledger/fabric/core/ledger"
 	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
+	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
 	xstorageapi "github.com/hyperledger/fabric/extensions/storage/api"
 	"github.com/stretchr/testify/require"
 
@@ -24,7 +25,7 @@ import (
 type StoreEnv struct {
 	t                 testing.TB
 	TestStoreProvider xstorageapi.PrivateDataProvider
-	TestStore         xstorageapi.PrivateDataStore
+	TestStore         *store
 	ledgerid          string
 	btlPolicy         pvtdatapolicy.BTLPolicy
 	couchDBConfig     *ledger.CouchDBConfig
@@ -32,15 +33,19 @@ type StoreEnv struct {
 
 // NewTestStoreEnv construct a StoreEnv for testing
 func NewTestStoreEnv(t *testing.T, ledgerid string, btlPolicy pvtdatapolicy.BTLPolicy, couchDBConfig *ledger.CouchDBConfig) *StoreEnv {
+	return NewTestStoreEnvWithConfig(t, ledgerid, btlPolicy, couchDBConfig, testutil.TestPrivateDataConf())
+}
+
+// NewTestStoreEnvWithConfig construct a test StoreEnv with the given cprivate data config
+func NewTestStoreEnvWithConfig(t *testing.T, ledgerid string, btlPolicy pvtdatapolicy.BTLPolicy, couchDBConfig *ledger.CouchDBConfig, conf *pvtdatastorage.PrivateDataConfig) *StoreEnv {
 	removeStorePath()
 	req := require.New(t)
-	conf := testutil.TestPrivateDataConf()
 	testStoreProvider, err := NewProvider(conf, testutil.TestLedgerConf())
 	req.NoError(err)
 	testStore, err := testStoreProvider.OpenStore(ledgerid)
 	req.NoError(err)
 	testStore.Init(btlPolicy)
-	s := &StoreEnv{t, testStoreProvider, testStore, ledgerid, btlPolicy, couchDBConfig}
+	s := &StoreEnv{t, testStoreProvider, testStore.(*store), ledgerid, btlPolicy, couchDBConfig}
 	return s
 }
 
@@ -51,7 +56,9 @@ func (env *StoreEnv) CloseAndReopen() {
 	conf := testutil.TestPrivateDataConf()
 	env.TestStoreProvider, err = NewProvider(conf, testutil.TestLedgerConf())
 	require.NoError(env.t, err)
-	env.TestStore, err = env.TestStoreProvider.OpenStore(env.ledgerid)
+	s, err := env.TestStoreProvider.OpenStore(env.ledgerid)
+	require.NoError(env.t, err)
+	env.TestStore = s.(*store)
 	env.TestStore.Init(env.btlPolicy)
 	require.NoError(env.t, err)
 }
@@ -67,7 +74,7 @@ func (env *StoreEnv) Cleanup(ledgerid string) {
 	db := couchdb.CouchDatabase{CouchInstance: couchInstance, DBName: pvtDataStoreDBName}
 	//drop the test database
 	if _, err := db.DropDatabase(); err != nil {
-		panic(err.Error())
+		logger.Warnf(err.Error())
 	}
 	removeStorePath()
 }

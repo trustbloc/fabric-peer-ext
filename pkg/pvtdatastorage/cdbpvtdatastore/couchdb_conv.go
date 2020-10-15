@@ -167,7 +167,7 @@ func expiryEntriesToJSONValue(expiryEntries []*common.ExpiryEntry) (jsonValue, [
 	expiringBlkNums := make([]string, 0)
 
 	for _, expEntry := range expiryEntries {
-		keyBytes := common.EncodeExpiryKey(expEntry.Key)
+		keyBytes := common.EncodeExpiryKey(*expEntry.Key)
 		valBytes, err := common.EncodeExpiryValue(expEntry.Value)
 		if err != nil {
 			return nil, nil, err

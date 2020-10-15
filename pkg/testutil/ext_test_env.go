@@ -206,9 +206,10 @@ func TestPrivateDataConf() *pvtdatastorage.PrivateDataConfig {
 
 	return &pvtdatastorage.PrivateDataConfig{
 		PrivateDataConfig: &ledger.PrivateDataConfig{
-			MaxBatchSize:    collElgProcMaxDbBatchSize,
-			BatchesInterval: collElgProcDbBatchesInterval,
-			PurgeInterval:   purgeInterval,
+			MaxBatchSize:                        collElgProcMaxDbBatchSize,
+			BatchesInterval:                     collElgProcDbBatchesInterval,
+			PurgeInterval:                       purgeInterval,
+			DeprioritizedDataReconcilerInterval: 120 * time.Minute,
 		},
 		StorePath: filepath.Join(rootFSPath, "pvtdatastorage"),
 	}

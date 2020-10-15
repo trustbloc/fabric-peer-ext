@@ -106,7 +106,7 @@ func (c *CollElgProcSync) processCollElgEvents() error {
 			var coll string
 			for _, coll = range colls.Entries {
 				logger.Infof("Converting missing data entries from ineligible to eligible for [ns=%s, coll=%s]", ns, coll)
-				startKey, endKey := createRangeScanKeysForIneligibleMissingData(blkNum, ns, coll)
+				startKey, endKey := createRangeScanKeysForInelgMissingData(blkNum, ns, coll)
 				collItr, err := c.db.GetIterator(startKey, endKey)
 				if err != nil {
 					return err
@@ -115,12 +115,11 @@ func (c *CollElgProcSync) processCollElgEvents() error {
 
 				for collItr.Next() { // each entry
 					originalKey, originalVal := collItr.Key(), collItr.Value()
-					modifiedKey := decodeMissingDataKey(originalKey)
-					modifiedKey.IsEligible = true
+					modifiedKey := DecodeInelgMissingDataKey(originalKey)
 					batch.Delete(originalKey)
 					copyVal := make([]byte, len(originalVal))
 					copy(copyVal, originalVal)
-					batch.Put(EncodeMissingDataKey(modifiedKey), copyVal)
+					batch.Put(EncodeElgPrioMissingDataKey(modifiedKey), copyVal)
 					collEntriesConverted++
 					if batch.Len() > c.maxBatchSize {
 						if err := c.db.WriteBatch(batch, true); err != nil {
