@@ -13,19 +13,23 @@ import (
 	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
 	"github.com/hyperledger/fabric/common/ledger/util/leveldbhelper"
 	"github.com/hyperledger/fabric/core/ledger"
+	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
+	"github.com/pkg/errors"
 	"github.com/willf/bitset"
 )
 
 // todo add pinning script to include copied code into this file, original file from fabric is found in fabric/core/ledger/pvtdatastorage/store_imp.go
 // todo below functions are originally unexported, the pinning script must capitalize these functions to export them
 
-// dbHandle is an handle to a named db
-type dbHandle interface {
-	Get(key []byte) ([]byte, error)
+// DBHandle is an handle to a named db
+type DBHandle interface {
 	WriteBatch(batch *leveldbhelper.UpdateBatch, sync bool) error
+	Delete(key []byte, sync bool) error
+	Get(key []byte) ([]byte, error)
 	GetIterator(startKey []byte, endKey []byte) (*leveldbhelper.Iterator, error)
+	Put(key []byte, value []byte, sync bool) error
 	NewUpdateBatch() *leveldbhelper.UpdateBatch
 }
 
@@ -56,51 +60,130 @@ type DataKey struct {
 
 type MissingDataKey struct {
 	NsCollBlk
-	IsEligible bool
 }
 
 type StoreEntries struct {
-	DataEntries        []*DataEntry
-	ExpiryEntries      []*ExpiryEntry
-	MissingDataEntries map[MissingDataKey]*bitset.BitSet
+	DataEntries             []*DataEntry
+	ExpiryEntries           []*ExpiryEntry
+	ElgMissingDataEntries   map[MissingDataKey]*bitset.BitSet
+	InelgMissingDataEntries map[MissingDataKey]*bitset.BitSet
 }
 
-type EntriesForPvtDataOfOldBlocks struct {
-	// for each <ns, coll, blkNum, txNum>, store the dataEntry, i.e., pvtData
-	DataEntries map[DataKey]*rwset.CollectionPvtReadWriteSet
-	// store the retrieved (& updated) expiryData in expiryEntries
+type preparePvtDataDoc func(blockNum uint64, updateEntries *DataAndExpiryEntries) (*couchdb.CouchDoc, error)
+
+type entriesForPvtDataOfOldBlocks struct {
+	dataEntries                     map[DataKey]*rwset.CollectionPvtReadWriteSet
+	expiryEntries                   map[ExpiryKey]*ExpiryData
+	prioritizedMissingDataEntries   map[NsCollBlk]*bitset.BitSet
+	deprioritizedMissingDataEntries map[NsCollBlk]*bitset.BitSet
+	preparePvtDataDoc               preparePvtDataDoc
+}
+
+func newEntriesForPvtDataOfOldBlocks(preparePvtDataDoc preparePvtDataDoc) *entriesForPvtDataOfOldBlocks {
+	return &entriesForPvtDataOfOldBlocks{
+		dataEntries:                     make(map[DataKey]*rwset.CollectionPvtReadWriteSet),
+		expiryEntries:                   make(map[ExpiryKey]*ExpiryData),
+		prioritizedMissingDataEntries:   make(map[NsCollBlk]*bitset.BitSet),
+		deprioritizedMissingDataEntries: make(map[NsCollBlk]*bitset.BitSet),
+		preparePvtDataDoc:               preparePvtDataDoc,
+	}
+}
+
+type DataAndExpiryEntries struct {
+	DataEntries   map[DataKey]*rwset.CollectionPvtReadWriteSet
 	ExpiryEntries map[ExpiryKey]*ExpiryData
-	// for each <ns, coll, blkNum>, store the retrieved (& updated) bitmap in the missingDataEntries
-	MissingDataEntries map[NsCollBlk]*bitset.BitSet
 }
 
-func (updateEntries *EntriesForPvtDataOfOldBlocks) AddDataEntry(dataEntry *DataEntry) {
-	dataKey := DataKey{NsCollBlk: dataEntry.Key.NsCollBlk, TxNum: dataEntry.Key.TxNum}
-	updateEntries.DataEntries[dataKey] = dataEntry.Value
+func (e *entriesForPvtDataOfOldBlocks) dataAndExpiryEntriesByBlock() map[uint64]*DataAndExpiryEntries {
+	m := make(map[uint64]*DataAndExpiryEntries)
+
+	logger.Infof("Examining dataEntries: %s and ExpiringEntries: %s", e.dataEntries, e.expiryEntries)
+
+	for key, value := range e.dataEntries {
+		entries, ok := m[key.BlkNum]
+		if !ok {
+			entries = &DataAndExpiryEntries{
+				DataEntries:   make(map[DataKey]*rwset.CollectionPvtReadWriteSet),
+				ExpiryEntries: make(map[ExpiryKey]*ExpiryData),
+			}
+			m[key.BlkNum] = entries
+		}
+
+		entries.DataEntries[key] = value
+	}
+
+	for key, value := range e.expiryEntries {
+		entries, ok := m[key.CommittingBlk]
+		if !ok {
+			entries = &DataAndExpiryEntries{}
+			m[key.CommittingBlk] = entries
+		}
+
+		entries.ExpiryEntries[key] = value
+	}
+
+	logger.Infof("Returning dataAndExpiryEntriesByBlock: %s", m)
+
+	return m
 }
 
-func (updateEntries *EntriesForPvtDataOfOldBlocks) UpdateAndAddExpiryEntry(expiryEntry *ExpiryEntry, dataKey *DataKey) {
-	txNum := dataKey.TxNum
-	nsCollBlk := dataKey.NsCollBlk
-	// update
-	expiryEntry.Value.AddPresentData(nsCollBlk.Ns, nsCollBlk.Coll, txNum)
-	// we cannot delete entries from MissingDataMap as
-	// we keep only one entry per missing <ns-col>
-	// irrespective of the number of txNum.
+func (e *entriesForPvtDataOfOldBlocks) addDataAndExpiryEntriesTo(batch *couchDocs) error {
+	for blockNum, entries := range e.dataAndExpiryEntriesByBlock() {
+		doc, err := e.preparePvtDataDoc(blockNum, entries)
+		if err != nil {
+			return err
+		}
 
-	// add
-	expiryKey := ExpiryKey{expiryEntry.Key.ExpiringBlk, expiryEntry.Key.CommittingBlk}
-	updateEntries.ExpiryEntries[expiryKey] = expiryEntry.Value
+		batch.Put(doc)
+	}
+
+	return nil
 }
 
-func (updateEntries *EntriesForPvtDataOfOldBlocks) UpdateAndAddMissingDataEntry(missingData *bitset.BitSet, dataKey *DataKey) {
+func (e *entriesForPvtDataOfOldBlocks) addElgPrioMissingDataEntriesTo(batch *leveldbhelper.UpdateBatch) error {
+	var key, val []byte
+	var err error
 
-	txNum := dataKey.TxNum
-	nsCollBlk := dataKey.NsCollBlk
-	// update
-	missingData.Clear(uint(txNum))
-	// add
-	updateEntries.MissingDataEntries[nsCollBlk] = missingData
+	for nsCollBlk, missingData := range e.prioritizedMissingDataEntries {
+		missingKey := &MissingDataKey{
+			NsCollBlk: nsCollBlk,
+		}
+		key = EncodeElgPrioMissingDataKey(missingKey)
+
+		if missingData.None() {
+			batch.Delete(key)
+			continue
+		}
+
+		if val, err = EncodeMissingDataValue(missingData); err != nil {
+			return errors.Wrap(err, "error while encoding missing data bitmap")
+		}
+		batch.Put(key, val)
+	}
+	return nil
+}
+
+func (e *entriesForPvtDataOfOldBlocks) addElgDeprioMissingDataEntriesTo(batch *leveldbhelper.UpdateBatch) error {
+	var key, val []byte
+	var err error
+
+	for nsCollBlk, missingData := range e.deprioritizedMissingDataEntries {
+		missingKey := &MissingDataKey{
+			NsCollBlk: nsCollBlk,
+		}
+		key = EncodeElgDeprioMissingDataKey(missingKey)
+
+		if missingData.None() {
+			batch.Delete(key)
+			continue
+		}
+
+		if val, err = EncodeMissingDataValue(missingData); err != nil {
+			return errors.Wrap(err, "error while encoding missing data bitmap")
+		}
+		batch.Put(key, val)
+	}
+	return nil
 }
 
 type ExpiryData pvtdatastorage.ExpiryData
@@ -166,123 +249,7 @@ func ConstructDataEntriesFromBlocksPvtData(blocksPvtData map[uint64][]*ledger.Tx
 	return dataEntries
 }
 
-func ConstructUpdateEntriesFromDataEntries(dataEntries []*DataEntry, btlPolicy pvtdatapolicy.BTLPolicy,
-	getExpiryDataOfExpiryKey func(*ExpiryKey) (*ExpiryData, error), getBitmapOfMissingDataKey func(*MissingDataKey) (*bitset.BitSet, error)) (*EntriesForPvtDataOfOldBlocks, error) {
-	updateEntries := &EntriesForPvtDataOfOldBlocks{
-		DataEntries:        make(map[DataKey]*rwset.CollectionPvtReadWriteSet),
-		ExpiryEntries:      make(map[ExpiryKey]*ExpiryData),
-		MissingDataEntries: make(map[NsCollBlk]*bitset.BitSet)}
-
-	// for each data entry, first, get the expiryData and missingData from the pvtStore.
-	// Second, update the expiryData and missingData as per the data entry. Finally, add
-	// the data entry along with the updated expiryData and missingData to the update entries
-	for _, dataEntry := range dataEntries {
-		// get the expiryBlk number to construct the expiryKey
-		expiryKey, err := constructExpiryKeyFromDataEntry(dataEntry, btlPolicy)
-		if err != nil {
-			return nil, err
-		}
-
-		// get the existing expiryData ntry
-		var expiryData *ExpiryData
-		if !neverExpires(expiryKey.ExpiringBlk) {
-			if expiryData, err = getExpiryDataFromUpdateEntriesOrStore(updateEntries, expiryKey, getExpiryDataOfExpiryKey); err != nil {
-				return nil, err
-			}
-			if expiryData == nil {
-				// data entry is already expired
-				// and purged (a rare scenario)
-				continue
-			}
-		}
-
-		// get the existing missingData entry
-		var missingData *bitset.BitSet
-		nsCollBlk := dataEntry.Key.NsCollBlk
-		if missingData, err = getMissingDataFromUpdateEntriesOrStore(updateEntries, nsCollBlk, getBitmapOfMissingDataKey); err != nil {
-			return nil, err
-		}
-		if missingData == nil {
-			// data entry is already expired
-			// and purged (a rare scenario)
-			continue
-		}
-
-		updateEntries.AddDataEntry(dataEntry)
-		if expiryData != nil { // would be nill for the never expiring entry
-			expiryEntry := &ExpiryEntry{Key: &expiryKey, Value: expiryData}
-			updateEntries.UpdateAndAddExpiryEntry(expiryEntry, dataEntry.Key)
-		}
-		updateEntries.UpdateAndAddMissingDataEntry(missingData, dataEntry.Key)
-	}
-	return updateEntries, nil
-}
-
-func ConstructUpdateBatchFromUpdateEntries(updateEntries *EntriesForPvtDataOfOldBlocks, batch *leveldbhelper.UpdateBatch) (*leveldbhelper.UpdateBatch, error) {
-	// add the following four types of entries to the update batch: (1) updated missing data entries
-
-	// (1) add updated missingData to the batch
-	if err := addUpdatedMissingDataEntriesToUpdateBatch(batch, updateEntries); err != nil {
-		return nil, err
-	}
-
-	return batch, nil
-}
-
-func constructExpiryKeyFromDataEntry(dataEntry *DataEntry, btlPolicy pvtdatapolicy.BTLPolicy) (ExpiryKey, error) {
-	// get the expiryBlk number to construct the expiryKey
-	nsCollBlk := dataEntry.Key.NsCollBlk
-	expiringBlk, err := btlPolicy.GetExpiringBlock(nsCollBlk.Ns, nsCollBlk.Coll, nsCollBlk.BlkNum)
-	if err != nil {
-		return ExpiryKey{}, err
-	}
-	return ExpiryKey{ExpiringBlk: expiringBlk, CommittingBlk: nsCollBlk.BlkNum}, nil
-}
-
-func getExpiryDataFromUpdateEntriesOrStore(updateEntries *EntriesForPvtDataOfOldBlocks, expiryKey ExpiryKey, getExpiryDataOfExpiryKey func(*ExpiryKey) (*ExpiryData, error)) (*ExpiryData, error) {
-	expiryData, ok := updateEntries.ExpiryEntries[expiryKey]
-	if !ok {
-		var err error
-		expiryData, err = getExpiryDataOfExpiryKey(&expiryKey)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return expiryData, nil
-}
-
-func getMissingDataFromUpdateEntriesOrStore(updateEntries *EntriesForPvtDataOfOldBlocks, nsCollBlk NsCollBlk, getBitmapOfMissingDataKey func(*MissingDataKey) (*bitset.BitSet, error)) (*bitset.BitSet, error) {
-	missingData, ok := updateEntries.MissingDataEntries[nsCollBlk]
-	if !ok {
-		var err error
-		missingDataKey := &MissingDataKey{NsCollBlk: nsCollBlk, IsEligible: true}
-		missingData, err = getBitmapOfMissingDataKey(missingDataKey)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return missingData, nil
-}
-
-func addUpdatedMissingDataEntriesToUpdateBatch(batch *leveldbhelper.UpdateBatch, entries *EntriesForPvtDataOfOldBlocks) error {
-	var keyBytes, valBytes []byte
-	var err error
-	for nsCollBlk, missingData := range entries.MissingDataEntries {
-		keyBytes = EncodeMissingDataKey(&MissingDataKey{nsCollBlk, true})
-		// if the missingData is empty, we need to delete the missingDataKey
-		if missingData.None() {
-			batch.Delete(keyBytes)
-			continue
-		}
-		if valBytes, err = EncodeMissingDataValue(missingData); err != nil {
-			return err
-		}
-		batch.Put(keyBytes, valBytes)
-	}
-	return nil
-}
-
-func GetLastUpdatedOldBlocksList(missingKeysIndexDB dbHandle) ([]uint64, error) {
+func GetLastUpdatedOldBlocksList(missingKeysIndexDB DBHandle) ([]uint64, error) {
 	var v []byte
 	var err error
 	if v, err = missingKeysIndexDB.Get(LastUpdatedOldBlocksKey); err != nil {
@@ -308,7 +275,7 @@ func GetLastUpdatedOldBlocksList(missingKeysIndexDB dbHandle) ([]uint64, error) 
 	return updatedBlksList, nil
 }
 
-func ResetLastUpdatedOldBlocksList(missingKeysIndexDB dbHandle) error {
+func ResetLastUpdatedOldBlocksList(missingKeysIndexDB DBHandle) error {
 	batch := missingKeysIndexDB.NewUpdateBatch()
 	batch.Delete(LastUpdatedOldBlocksKey)
 	if err := missingKeysIndexDB.WriteBatch(batch, true); err != nil {
@@ -318,7 +285,7 @@ func ResetLastUpdatedOldBlocksList(missingKeysIndexDB dbHandle) error {
 }
 
 // GetMissingPvtDataInfoForMostRecentBlocks
-func GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int, lastCommittedBlk uint64, btlPolicy pvtdatapolicy.BTLPolicy, missingKeysIndexDB dbHandle) (ledger.MissingPvtDataInfo, error) {
+func GetMissingPvtDataInfoForMostRecentBlocks(group []byte, maxBlock int, lastCommittedBlk uint64, btlPolicy pvtdatapolicy.BTLPolicy, missingKeysIndexDB DBHandle) (ledger.MissingPvtDataInfo, error) {
 	// we assume that this function would be called by the gossip only after processing the
 	// last retrieved missing pvtdata info and committing the same.
 	if maxBlock < 1 {
@@ -334,7 +301,7 @@ func GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int, lastCommittedBlk uin
 	// changed. To ensure consistency, we atomically load the lastCommittedBlock value
 	lastCommittedBlock := atomic.LoadUint64(&lastCommittedBlk)
 
-	startKey, endKey := createRangeScanKeysForEligibleMissingDataEntries(lastCommittedBlock)
+	startKey, endKey := createRangeScanKeysForElgMissingData(lastCommittedBlock, group)
 	dbItr, err := missingKeysIndexDB.GetIterator(startKey, endKey)
 	if err != nil {
 		return nil, err
@@ -343,7 +310,7 @@ func GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int, lastCommittedBlk uin
 
 	for dbItr.Next() {
 		missingDataKeyBytes := dbItr.Key()
-		missingDataKey := decodeMissingDataKey(missingDataKeyBytes)
+		missingDataKey := DecodeElgMissingDataKey(missingDataKeyBytes)
 
 		if isMaxBlockLimitReached && (missingDataKey.BlkNum != lastProcessedBlock) {
 			// esnures that exactly maxBlock number
@@ -398,7 +365,7 @@ func GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int, lastCommittedBlk uin
 }
 
 // ProcessCollsEligibilityEnabled
-func ProcessCollsEligibilityEnabled(committingBlk uint64, nsCollMap map[string][]string, collElgProcSync *CollElgProcSync, missingKeysIndexDB dbHandle) error {
+func ProcessCollsEligibilityEnabled(committingBlk uint64, nsCollMap map[string][]string, collElgProcSync *CollElgProcSync, missingKeysIndexDB DBHandle) error {
 	key := encodeCollElgKey(committingBlk)
 	m := newCollElgInfo(nsCollMap)
 	val, err := encodeCollElgVal(m)
@@ -412,4 +379,220 @@ func ProcessCollsEligibilityEnabled(committingBlk uint64, nsCollMap map[string][
 	}
 	collElgProcSync.notify()
 	return nil
+}
+
+type getExpiryDataFromEntriesOrStore func(expKey ExpiryKey) (*ExpiryData, error)
+
+type OldBlockDataProcessor struct {
+	entries                         *entriesForPvtDataOfOldBlocks
+	btlPolicy                       pvtdatapolicy.BTLPolicy
+	getExpiryDataFromEntriesOrStore getExpiryDataFromEntriesOrStore
+	missingKeysIndexDB              DBHandle
+}
+
+func NewOldBlockDataProcessor(
+	btlPolicy pvtdatapolicy.BTLPolicy,
+	getExpiryDataFromEntriesOrStore getExpiryDataFromEntriesOrStore,
+	preparePvtDataDoc preparePvtDataDoc,
+	missingKeysIndexDB DBHandle) *OldBlockDataProcessor {
+	return &OldBlockDataProcessor{
+		entries:                         newEntriesForPvtDataOfOldBlocks(preparePvtDataDoc),
+		btlPolicy:                       btlPolicy,
+		getExpiryDataFromEntriesOrStore: getExpiryDataFromEntriesOrStore,
+		missingKeysIndexDB:              missingKeysIndexDB,
+	}
+}
+
+func (p *OldBlockDataProcessor) PrepareDataAndExpiryEntries(blocksPvtData map[uint64][]*ledger.TxPvtData) error {
+	var dataEntries []*DataEntry
+	var expData *ExpiryData
+
+	for blkNum, pvtData := range blocksPvtData {
+		dataEntries = append(dataEntries, prepareDataEntries(blkNum, pvtData)...)
+	}
+
+	for _, dataEntry := range dataEntries {
+		nsCollBlk := dataEntry.Key.NsCollBlk
+		txNum := dataEntry.Key.TxNum
+
+		expKey, err := p.constructExpiryKey(dataEntry)
+		if err != nil {
+			return err
+		}
+
+		if neverExpires(expKey.ExpiringBlk) {
+			p.entries.dataEntries[*dataEntry.Key] = dataEntry.Value
+			continue
+		}
+
+		if expData, err = p.getExpiryDataFromEntriesOrStore(expKey); err != nil {
+			return err
+		}
+		if expData == nil {
+			// if expiryData is not available, it means that
+			// the pruge scheduler removed these entries and the
+			// associated data entry is no longer needed. Note
+			// that the associated missingData entry would also
+			// be not present. Hence, we can skip this data entry.
+			continue
+		}
+		expData.AddPresentData(nsCollBlk.Ns, nsCollBlk.Coll, txNum)
+
+		p.entries.dataEntries[*dataEntry.Key] = dataEntry.Value
+		p.entries.expiryEntries[expKey] = expData
+	}
+	return nil
+}
+
+func (p *OldBlockDataProcessor) PrepareMissingDataEntriesToReflectReconciledData() error {
+	for dataKey := range p.entries.dataEntries {
+		key := dataKey.NsCollBlk
+		txNum := uint(dataKey.TxNum)
+
+		prioMissingData, err := p.getPrioMissingDataFromEntriesOrStore(key)
+		if err != nil {
+			return err
+		}
+		if prioMissingData != nil && prioMissingData.Test(txNum) {
+			p.entries.prioritizedMissingDataEntries[key] = prioMissingData.Clear(txNum)
+			continue
+		}
+
+		deprioMissingData, err := p.getDeprioMissingDataFromEntriesOrStore(key)
+		if err != nil {
+			return err
+		}
+		if deprioMissingData != nil && deprioMissingData.Test(txNum) {
+			p.entries.deprioritizedMissingDataEntries[key] = deprioMissingData.Clear(txNum)
+		}
+	}
+
+	return nil
+}
+
+func (p *OldBlockDataProcessor) PrepareMissingDataEntriesToReflectPriority(deprioritizedList ledger.MissingPvtDataInfo) error {
+	for blkNum, blkMissingData := range deprioritizedList {
+		for txNum, txMissingData := range blkMissingData {
+			for _, nsColl := range txMissingData {
+				key := NsCollBlk{
+					Ns:     nsColl.Namespace,
+					Coll:   nsColl.Collection,
+					BlkNum: blkNum,
+				}
+				txNum := uint(txNum)
+
+				prioMissingData, err := p.getPrioMissingDataFromEntriesOrStore(key)
+				if err != nil {
+					return err
+				}
+				if prioMissingData == nil {
+					// we would reach here when either of the following happens:
+					//   (1) when the purge scheduler already removed the respective
+					//       missing data entry.
+					//   (2) when the missing data info is already persistent in the
+					//       deprioritized list. Currently, we do not have different
+					//       levels of deprioritized list.
+					// In both of the above case, we can continue to the next entry.
+					continue
+				}
+				p.entries.prioritizedMissingDataEntries[key] = prioMissingData.Clear(txNum)
+
+				deprioMissingData, err := p.getDeprioMissingDataFromEntriesOrStore(key)
+				if err != nil {
+					return err
+				}
+				if deprioMissingData == nil {
+					deprioMissingData = &bitset.BitSet{}
+				}
+				p.entries.deprioritizedMissingDataEntries[key] = deprioMissingData.Set(txNum)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *OldBlockDataProcessor) ConstructDBUpdateBatch() ([]*couchdb.CouchDoc, *leveldbhelper.UpdateBatch, error) {
+	docs := &couchDocs{}
+	batch := p.missingKeysIndexDB.NewUpdateBatch()
+
+	if err := p.entries.addDataAndExpiryEntriesTo(docs); err != nil {
+		return nil, nil, errors.WithMessage(err, "error while adding data and expiry entries to the update batch")
+	}
+
+	if err := p.entries.addElgPrioMissingDataEntriesTo(batch); err != nil {
+		return nil, nil, errors.WithMessage(err, "error while adding eligible prioritized missing data entries to the update batch")
+	}
+
+	if err := p.entries.addElgDeprioMissingDataEntriesTo(batch); err != nil {
+		return nil, nil, errors.WithMessage(err, "error while adding eligible deprioritized missing data entries to the update batch")
+	}
+
+	return docs.docs, batch, nil
+}
+
+func (p *OldBlockDataProcessor) constructExpiryKey(dataEntry *DataEntry) (ExpiryKey, error) {
+	// get the expiryBlk number to construct the expiryKey
+	nsCollBlk := dataEntry.Key.NsCollBlk
+	expiringBlk, err := p.btlPolicy.GetExpiringBlock(nsCollBlk.Ns, nsCollBlk.Coll, nsCollBlk.BlkNum)
+	if err != nil {
+		return ExpiryKey{}, errors.WithMessagef(err, "error while constructing expiry data key")
+	}
+
+	return ExpiryKey{
+		ExpiringBlk:   expiringBlk,
+		CommittingBlk: nsCollBlk.BlkNum,
+	}, nil
+}
+
+func (p *OldBlockDataProcessor) getPrioMissingDataFromEntriesOrStore(nsCollBlk NsCollBlk) (*bitset.BitSet, error) {
+	missingData, ok := p.entries.prioritizedMissingDataEntries[nsCollBlk]
+	if ok {
+		return missingData, nil
+	}
+
+	missingKey := &MissingDataKey{
+		NsCollBlk: nsCollBlk,
+	}
+	key := EncodeElgPrioMissingDataKey(missingKey)
+
+	encMissingData, err := p.missingKeysIndexDB.Get(key)
+	if err != nil {
+		return nil, errors.Wrap(err, "error while getting missing data bitmap from the store")
+	}
+	if encMissingData == nil {
+		return nil, nil
+	}
+
+	return DecodeMissingDataValue(encMissingData)
+}
+
+func (p *OldBlockDataProcessor) getDeprioMissingDataFromEntriesOrStore(nsCollBlk NsCollBlk) (*bitset.BitSet, error) {
+	missingData, ok := p.entries.deprioritizedMissingDataEntries[nsCollBlk]
+	if ok {
+		return missingData, nil
+	}
+
+	missingKey := &MissingDataKey{
+		NsCollBlk: nsCollBlk,
+	}
+	key := EncodeElgDeprioMissingDataKey(missingKey)
+
+	encMissingData, err := p.missingKeysIndexDB.Get(key)
+	if err != nil {
+		return nil, errors.Wrap(err, "error while getting missing data bitmap from the store")
+	}
+	if encMissingData == nil {
+		return nil, nil
+	}
+
+	return DecodeMissingDataValue(encMissingData)
+}
+
+type couchDocs struct {
+	docs []*couchdb.CouchDoc
+}
+
+func (d *couchDocs) Put(doc *couchdb.CouchDoc) {
+	d.docs = append(d.docs, doc)
 }

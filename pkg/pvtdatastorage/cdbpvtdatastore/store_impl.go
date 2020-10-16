@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/common/flogging"
@@ -36,16 +37,6 @@ const (
 	pvtDataStoreName = "pvtdata"
 )
 
-// dbHandle is an handle to a named db
-type dbHandle interface {
-	WriteBatch(batch *leveldbhelper.UpdateBatch, sync bool) error
-	Delete(key []byte, sync bool) error
-	Get(key []byte) ([]byte, error)
-	GetIterator(startKey []byte, endKey []byte) (*leveldbhelper.Iterator, error)
-	Put(key []byte, value []byte, sync bool) error
-	NewUpdateBatch() *leveldbhelper.UpdateBatch
-}
-
 type provider struct {
 	couchInstance            *couchdb.CouchInstance
 	missingKeysIndexProvider *leveldbhelper.Provider
@@ -60,7 +51,7 @@ type store struct {
 	purgerLock         *sync.Mutex
 	collElgProcSync    *common.CollElgProcSync
 	// missing keys db
-	missingKeysIndexDB dbHandle
+	missingKeysIndexDB common.DBHandle
 	isEmpty            bool
 	// After committing the pvtdata of old blocks,
 	// the `isLastUpdatedOldBlocksSet` is set to true.
@@ -73,12 +64,16 @@ type store struct {
 	// recovery operation.
 	isLastUpdatedOldBlocksSet bool
 	pvtDataConfig             *pvtdatastorage.PrivateDataConfig
+
+	deprioritizedDataReconcilerInterval time.Duration
+	accessDeprioMissingDataAfter        time.Time
 }
 
 type pendingPvtData struct {
-	PvtDataDoc         *couchdb.CouchDoc `json:"pvtDataDoc"`
-	MissingDataEntries map[string]string `json:"missingDataEntries"`
-	BatchPending       bool              `json:"batchPending"`
+	PvtDataDoc              *couchdb.CouchDoc `json:"pvtDataDoc"`
+	ElgMissingDataEntries   map[string]string `json:"elgMissingDataEntries"`
+	InelgMissingDataEntries map[string]string `json:"inelgMissingDataEntries"`
+	BatchPending            bool              `json:"batchPending"`
 }
 
 // lastUpdatedOldBlocksList keeps the list of last updated blocks
@@ -133,10 +128,12 @@ func (p *provider) OpenStore(ledgerid string) (xstorageapi.PrivateDataStore, err
 
 		purgerLock := &sync.Mutex{}
 		s := &store{db: db, ledgerid: ledgerid,
-			collElgProcSync:    common.NewCollElgProcSync(purgerLock, missingKeysIndexDB, p.pvtDataConfig.BatchesInterval, p.pvtDataConfig.MaxBatchSize),
-			purgerLock:         purgerLock,
-			missingKeysIndexDB: missingKeysIndexDB,
-			pvtDataConfig:      p.pvtDataConfig,
+			collElgProcSync:                     common.NewCollElgProcSync(purgerLock, missingKeysIndexDB, p.pvtDataConfig.BatchesInterval, p.pvtDataConfig.MaxBatchSize),
+			purgerLock:                          purgerLock,
+			missingKeysIndexDB:                  missingKeysIndexDB,
+			pvtDataConfig:                       p.pvtDataConfig,
+			deprioritizedDataReconcilerInterval: p.pvtDataConfig.DeprioritizedDataReconcilerInterval,
+			accessDeprioMissingDataAfter:        time.Now().Add(p.pvtDataConfig.DeprioritizedDataReconcilerInterval),
 		}
 
 		if errInitState := s.initState(); errInitState != nil {
@@ -266,12 +263,18 @@ func (s *store) Commit(blockNum uint64, pvtData []*ledger.TxPvtData, missingPvtD
 
 func (s *store) prepareMissingKeys(pvtDataDoc *couchdb.CouchDoc, storeEntries *common.StoreEntries) (*pendingPvtData, error) {
 	pendingPvtData := &pendingPvtData{BatchPending: true}
-	if pvtDataDoc != nil || len(storeEntries.MissingDataEntries) > 0 {
+	if pvtDataDoc != nil || len(storeEntries.ElgMissingDataEntries) > 0 || len(storeEntries.InelgMissingDataEntries) > 0 {
 		var err error
-		pendingPvtData.MissingDataEntries, err = s.preparePendingMissingDataEntries(storeEntries.MissingDataEntries)
+		pendingPvtData.ElgMissingDataEntries, err = s.preparePendingMissingDataEntries(storeEntries.ElgMissingDataEntries, common.EncodeElgPrioMissingDataKey)
 		if err != nil {
 			return nil, err
 		}
+
+		pendingPvtData.InelgMissingDataEntries, err = s.preparePendingMissingDataEntries(storeEntries.InelgMissingDataEntries, common.EncodeInelgMissingDataKey)
+		if err != nil {
+			return nil, err
+		}
+
 		pendingPvtData.PvtDataDoc = pvtDataDoc
 		bytes, err := json.Marshal(pendingPvtData)
 		if err != nil {
@@ -287,10 +290,13 @@ func (s *store) prepareMissingKeys(pvtDataDoc *couchdb.CouchDoc, storeEntries *c
 
 func (s *store) updateMissingKeys(pendingPvtData *pendingPvtData) error {
 	batch := s.missingKeysIndexDB.NewUpdateBatch()
-	if len(pendingPvtData.MissingDataEntries) > 0 {
-		for missingDataKey, missingDataValue := range pendingPvtData.MissingDataEntries {
-			batch.Put([]byte(missingDataKey), []byte(missingDataValue))
-		}
+
+	for missingDataKey, missingDataValue := range pendingPvtData.ElgMissingDataEntries {
+		batch.Put([]byte(missingDataKey), []byte(missingDataValue))
+	}
+
+	for missingDataKey, missingDataValue := range pendingPvtData.InelgMissingDataEntries {
+		batch.Put([]byte(missingDataKey), []byte(missingDataValue))
 	}
 
 	batch.Delete(common.PendingCommitKey)
@@ -311,70 +317,6 @@ func (s *store) prepareLastCommittedBlockDoc(committingBlockNum uint64) (*couchd
 		return nil, err
 	}
 	return lastCommittedBlockDoc, nil
-}
-
-// CommitPvtDataOfOldBlocks commits the pvtData (i.e., previously missing data) of old blocks.
-// The parameter `blocksPvtData` refers a list of old block's pvtdata which are missing in the pvtstore.
-// Given a list of old block's pvtData, `CommitPvtDataOfOldBlocks` performs the following four
-// operations
-// (1) construct dataEntries for all pvtData
-// (2) construct update entries (i.e., dataEntries, expiryEntries, missingDataEntries, and
-//     lastUpdatedOldBlocksList) from the above created data entries
-// (3) create a db update batch from the update entries
-// (4) commit the update entries to the pvtStore
-// TODO: Need to implement FAB-15810 - Backup/Restore - deprioritize fetching of a missing pvtData after multiple retries
-func (s *store) CommitPvtDataOfOldBlocks(blocksPvtData map[uint64][]*ledger.TxPvtData, unreconciled ledger.MissingPvtDataInfo) error {
-	if s.isLastUpdatedOldBlocksSet {
-		return pvtdatastorage.NewErrIllegalCall(`The lastUpdatedOldBlocksList is set. It means that the
-		stateDB may not be in sync with the pvtStore`)
-	}
-
-	batch := s.missingKeysIndexDB.NewUpdateBatch()
-	docs := make([]*couchdb.CouchDoc, 0)
-	// create a list of blocks' pvtData which are being stored. If this list is
-	// found during the recovery, the stateDB may not be in sync with the pvtData
-	// and needs recovery. In a normal flow, once the stateDB is synced, the
-	// block list would be deleted.
-	updatedBlksListMap := make(map[uint64]bool)
-	// (1) construct dataEntries for all pvtData
-	entries := common.ConstructDataEntriesFromBlocksPvtData(blocksPvtData)
-
-	for blockNum, value := range entries {
-		// (2) construct update entries (i.e., dataEntries, expiryEntries, missingDataEntries) from the above created data entries
-		logger.Debugf("Constructing pvtdatastore entries for pvtData of [%d] old blocks", len(blocksPvtData))
-		updateEntries, err := common.ConstructUpdateEntriesFromDataEntries(value, s.btlPolicy, s.getExpiryDataOfExpiryKey, s.getBitmapOfMissingDataKey)
-		if err != nil {
-			return err
-		}
-		// (3) create a db update batch from the update entries
-		logger.Debug("Constructing update batch from pvtdatastore entries")
-		batch, err = common.ConstructUpdateBatchFromUpdateEntries(updateEntries, batch)
-		if err != nil {
-			return err
-		}
-		pvtDataDoc, err := s.preparePvtDataDoc(blockNum, updateEntries)
-		if err != nil {
-			return err
-		}
-		if pvtDataDoc != nil {
-			docs = append(docs, pvtDataDoc)
-		}
-		updatedBlksListMap[blockNum] = true
-	}
-	if err := s.addLastUpdatedOldBlocksList(batch, updatedBlksListMap); err != nil {
-		return err
-	}
-	// (4) commit the update entries to the pvtStore
-	logger.Debug("Committing the update batch to pvtdatastore")
-	if _, err := s.db.BatchUpdateDocuments(docs); err != nil {
-		return errors.Wrapf(err, "BatchUpdateDocuments failed")
-	}
-	if err := s.missingKeysIndexDB.WriteBatch(batch, true); err != nil {
-		return errors.Wrapf(err, "WriteBatch failed")
-	}
-	s.isLastUpdatedOldBlocksSet = true
-
-	return nil
 }
 
 // GetLastUpdatedOldBlocksPvtData implements the function in the interface `Store`
@@ -476,7 +418,7 @@ func (s *store) Shutdown() {
 	// do nothing
 }
 
-func (s *store) preparePvtDataDoc(blockNum uint64, updateEntries *common.EntriesForPvtDataOfOldBlocks) (*couchdb.CouchDoc, error) {
+func (s *store) preparePvtDataDoc(blockNum uint64, updateEntries *common.DataAndExpiryEntries) (*couchdb.CouchDoc, error) {
 	dataEntries, expiryEntries, rev, err := s.retrieveBlockPvtEntries(blockNum)
 	if err != nil {
 		return nil, errors.WithMessage(err, "retrieveBlockPvtEntries failed")
@@ -599,12 +541,26 @@ func (s *store) checkIsExpired(dataKey *common.DataKey, filter ledger.PvtNsCollF
 	return false, nil
 }
 
-//GetMissingPvtDataInfoForMostRecentBlocks implements the function in the interface `Store`
+// GetMissingPvtDataInfoForMostRecentBlocks returns the missing private data information for the
+// most recent `maxBlock` blocks which miss at least a private data of a eligible collection.
 func (s *store) GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int) (ledger.MissingPvtDataInfo, error) {
-	return common.GetMissingPvtDataInfoForMostRecentBlocks(maxBlock, s.lastCommittedBlock, s.btlPolicy, s.missingKeysIndexDB)
+	// we assume that this function would be called by the gossip only after processing the
+	// last retrieved missing pvtdata info and committing the same.
+	if maxBlock < 1 {
+		return nil, nil
+	}
+
+	if time.Now().After(s.accessDeprioMissingDataAfter) {
+		s.accessDeprioMissingDataAfter = time.Now().Add(s.deprioritizedDataReconcilerInterval)
+		logger.Debug("fetching missing pvtdata entries from the deprioritized list")
+		return common.GetMissingPvtDataInfoForMostRecentBlocks(common.ElgDeprioritizedMissingDataGroup, maxBlock, s.lastCommittedBlock, s.btlPolicy, s.missingKeysIndexDB)
+	}
+
+	logger.Debug("fetching missing pvtdata entries from the prioritized list")
+	return common.GetMissingPvtDataInfoForMostRecentBlocks(common.ElgPrioritizedMissingDataGroup, maxBlock, s.lastCommittedBlock, s.btlPolicy, s.missingKeysIndexDB)
 }
 
-func (s *store) getExpiryDataOfExpiryKey(expiryKey *common.ExpiryKey) (*common.ExpiryData, error) {
+func (s *store) getExpiryDataOfExpiryKey(expiryKey common.ExpiryKey) (*common.ExpiryData, error) {
 	var expiryEntriesMap map[string][]byte
 	var err error
 	if expiryEntriesMap, err = s.getExpiryEntriesDB(expiryKey.CommittingBlk); err != nil {
@@ -620,24 +576,15 @@ func (s *store) getExpiryDataOfExpiryKey(expiryKey *common.ExpiryKey) (*common.E
 func (s *store) getExpiryEntriesDB(blockNum uint64) (map[string][]byte, error) {
 	blockPvtData, err := retrieveBlockPvtData(s.db, blockNumberToKey(blockNum))
 	if err != nil {
+		if _, ok := err.(*NotFoundInIndexErr); ok {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return blockPvtData.Expiry, nil
 }
 
-func (s *store) getBitmapOfMissingDataKey(missingDataKey *common.MissingDataKey) (*bitset.BitSet, error) {
-	var v []byte
-	var err error
-	if v, err = s.missingKeysIndexDB.Get(common.EncodeMissingDataKey(missingDataKey)); err != nil {
-		return nil, err
-	}
-	if v == nil {
-		return nil, nil
-	}
-	return common.DecodeMissingDataValue(v)
-}
-
-func (s *store) prepareStoreEntries(updateEntries *common.EntriesForPvtDataOfOldBlocks, dataEntries []*common.DataEntry, expiryEntries []*common.ExpiryEntry) *common.StoreEntries {
+func (s *store) prepareStoreEntries(updateEntries *common.DataAndExpiryEntries, dataEntries []*common.DataEntry, expiryEntries []*common.ExpiryEntry) *common.StoreEntries {
 	if dataEntries == nil {
 		dataEntries = make([]*common.DataEntry, 0)
 	}
@@ -655,11 +602,11 @@ func (s *store) prepareStoreEntries(updateEntries *common.EntriesForPvtDataOfOld
 	return &common.StoreEntries{DataEntries: dataEntries, ExpiryEntries: expiryEntries}
 }
 
-func (s *store) preparePendingMissingDataEntries(mssingDataEntries map[common.MissingDataKey]*bitset.BitSet) (map[string]string, error) {
+func (s *store) preparePendingMissingDataEntries(mssingDataEntries map[common.MissingDataKey]*bitset.BitSet, encodeKey func(key *common.MissingDataKey) []byte) (map[string]string, error) {
 	pendingMissingDataEntries := make(map[string]string)
 	for missingDataKey, missingDataValue := range mssingDataEntries {
 		missingDataKey := missingDataKey
-		keyBytes := common.EncodeMissingDataKey(&missingDataKey)
+		keyBytes := encodeKey(&missingDataKey)
 		valBytes, err := common.EncodeMissingDataValue(missingDataValue)
 		if err != nil {
 			return nil, err
@@ -761,7 +708,9 @@ func (s *store) getExpiredDataDoc(data *blockPvtDataResponse, batch *leveldbhelp
 			}
 
 			for _, missingDataKey := range missingDataKeys {
-				batch.Delete(common.EncodeMissingDataKey(missingDataKey))
+				batch.Delete(common.EncodeElgPrioMissingDataKey(missingDataKey))
+				batch.Delete(common.EncodeElgDeprioMissingDataKey(missingDataKey))
+				batch.Delete(common.EncodeInelgMissingDataKey(missingDataKey))
 			}
 		} else {
 			expBlkNums = append(expBlkNums, blockNumberToKey(expiryKey.ExpiringBlk))

@@ -23,15 +23,16 @@ import (
 // todo below functions are originally unexported, the pinning script must capitalize these functions to export them
 
 var (
-	PendingCommitKey               = []byte{0}
-	pvtDataKeyPrefix               = []byte{2}
-	expiryKeyPrefix                = []byte{3}
-	eligibleMissingDataKeyPrefix   = []byte{4}
-	ineligibleMissingDataKeyPrefix = []byte{5}
-	collElgKeyPrefix               = []byte{6}
-	LastUpdatedOldBlocksKey        = []byte{7}
-	lastCommittedBlockKey          = []byte{8}
-	nilByte                        = byte(0)
+	PendingCommitKey                 = []byte{0}
+	pvtDataKeyPrefix                 = []byte{2}
+	expiryKeyPrefix                  = []byte{3}
+	ElgPrioritizedMissingDataGroup   = []byte{4}
+	inelgMissingDataGroup            = []byte{5}
+	collElgKeyPrefix                 = []byte{6}
+	LastUpdatedOldBlocksKey          = []byte{7}
+	lastCommittedBlockKey            = []byte{8}
+	ElgDeprioritizedMissingDataGroup = []byte{8}
+	nilByte                          = byte(0)
 )
 
 func EncodeDataKey(key *DataKey) []byte {
@@ -45,7 +46,7 @@ func EncodeDataValue(collData *rwset.CollectionPvtReadWriteSet) ([]byte, error) 
 	return proto.Marshal(collData)
 }
 
-func EncodeExpiryKey(expiryKey *ExpiryKey) []byte {
+func EncodeExpiryKey(expiryKey ExpiryKey) []byte {
 	// reusing version encoding scheme here
 	return append(expiryKeyPrefix, version.NewHeight(expiryKey.ExpiringBlk, expiryKey.CommittingBlk).ToBytes()...)
 }
@@ -89,39 +90,52 @@ func DecodeDataValue(datavalueBytes []byte) (*rwset.CollectionPvtReadWriteSet, e
 	return collPvtdata, err
 }
 
-func EncodeMissingDataKey(key *MissingDataKey) []byte {
-	if key.IsEligible {
-		keyBytes := append(eligibleMissingDataKeyPrefix, encodeReverseOrderVarUint64(key.BlkNum)...)
-		keyBytes = append(keyBytes, []byte(key.Ns)...)
-		keyBytes = append(keyBytes, nilByte)
-		return append(keyBytes, []byte(key.Coll)...)
-	}
-
-	keyBytes := append(ineligibleMissingDataKeyPrefix, []byte(key.Ns)...)
-	keyBytes = append(keyBytes, nilByte)
-	keyBytes = append(keyBytes, []byte(key.Coll)...)
-	keyBytes = append(keyBytes, nilByte)
-	return append(keyBytes, []byte(encodeReverseOrderVarUint64(key.BlkNum))...)
+func EncodeElgPrioMissingDataKey(key *MissingDataKey) []byte {
+	// When missing pvtData reconciler asks for missing data info,
+	// it is necessary to pass the missing pvtdata info associated with
+	// the most recent block so that missing pvtdata in the state db can
+	// be fixed sooner to reduce the "private data matching public hash version
+	// is not available" error during endorserments. In order to give priority
+	// to missing pvtData in the most recent block, we use reverse order
+	// preserving encoding for the missing data key. This simplifies the
+	// implementation of GetMissingPvtDataInfoForMostRecentBlocks().
+	encKey := append(ElgPrioritizedMissingDataGroup, encodeReverseOrderVarUint64(key.BlkNum)...)
+	encKey = append(encKey, []byte(key.Ns)...)
+	encKey = append(encKey, nilByte)
+	return append(encKey, []byte(key.Coll)...)
 }
 
-func decodeMissingDataKey(keyBytes []byte) *MissingDataKey {
+func EncodeElgDeprioMissingDataKey(key *MissingDataKey) []byte {
+	encKey := append(ElgDeprioritizedMissingDataGroup, encodeReverseOrderVarUint64(key.BlkNum)...)
+	encKey = append(encKey, []byte(key.Ns)...)
+	encKey = append(encKey, nilByte)
+	return append(encKey, []byte(key.Coll)...)
+}
+
+func DecodeElgMissingDataKey(keyBytes []byte) *MissingDataKey {
 	key := &MissingDataKey{NsCollBlk: NsCollBlk{}}
-	if keyBytes[0] == eligibleMissingDataKeyPrefix[0] {
-		blkNum, numBytesConsumed := decodeReverseOrderVarUint64(keyBytes[1:])
+	blkNum, numBytesConsumed := decodeReverseOrderVarUint64(keyBytes[1:])
+	splittedKey := bytes.Split(keyBytes[numBytesConsumed+1:], []byte{nilByte})
+	key.Ns = string(splittedKey[0])
+	key.Coll = string(splittedKey[1])
+	key.BlkNum = blkNum
+	return key
+}
 
-		splittedKey := bytes.Split(keyBytes[numBytesConsumed+1:], []byte{nilByte})
-		key.Ns = string(splittedKey[0])
-		key.Coll = string(splittedKey[1])
-		key.BlkNum = blkNum
-		key.IsEligible = true
-		return key
-	}
+func EncodeInelgMissingDataKey(key *MissingDataKey) []byte {
+	encKey := append(inelgMissingDataGroup, []byte(key.Ns)...)
+	encKey = append(encKey, nilByte)
+	encKey = append(encKey, []byte(key.Coll)...)
+	encKey = append(encKey, nilByte)
+	return append(encKey, []byte(encodeReverseOrderVarUint64(key.BlkNum))...)
+}
 
+func DecodeInelgMissingDataKey(keyBytes []byte) *MissingDataKey {
+	key := &MissingDataKey{NsCollBlk: NsCollBlk{}}
 	splittedKey := bytes.SplitN(keyBytes[1:], []byte{nilByte}, 3) //encoded bytes for blknum may contain empty bytes
 	key.Ns = string(splittedKey[0])
 	key.Coll = string(splittedKey[1])
 	key.BlkNum, _ = decodeReverseOrderVarUint64(splittedKey[2])
-	key.IsEligible = false
 	return key
 }
 
@@ -158,25 +172,32 @@ func decodeCollElgVal(b []byte) (*pvtdatastorage.CollElgInfo, error) {
 	return m, nil
 }
 
-func createRangeScanKeysForIneligibleMissingData(maxBlkNum uint64, ns, coll string) (startKey, endKey []byte) {
-	startKey = EncodeMissingDataKey(
+func createRangeScanKeysForInelgMissingData(maxBlkNum uint64, ns, coll string) ([]byte, []byte) {
+	startKey := EncodeInelgMissingDataKey(
 		&MissingDataKey{
-			NsCollBlk:  NsCollBlk{Ns: ns, Coll: coll, BlkNum: maxBlkNum},
-			IsEligible: false,
+			NsCollBlk: NsCollBlk{
+				Ns:     ns,
+				Coll:   coll,
+				BlkNum: maxBlkNum,
+			},
 		},
 	)
-	endKey = EncodeMissingDataKey(
+	endKey := EncodeInelgMissingDataKey(
 		&MissingDataKey{
-			NsCollBlk:  NsCollBlk{Ns: ns, Coll: coll, BlkNum: 0},
-			IsEligible: false,
+			NsCollBlk: NsCollBlk{
+				Ns:     ns,
+				Coll:   coll,
+				BlkNum: 0,
+			},
 		},
 	)
-	return
+
+	return startKey, endKey
 }
 
-func createRangeScanKeysForEligibleMissingDataEntries(blkNum uint64) (startKey, endKey []byte) {
-	startKey = append(eligibleMissingDataKeyPrefix, encodeReverseOrderVarUint64(blkNum)...)
-	endKey = append(eligibleMissingDataKeyPrefix, encodeReverseOrderVarUint64(0)...)
+func createRangeScanKeysForElgMissingData(blkNum uint64, group []byte) ([]byte, []byte) {
+	startKey := append(group, encodeReverseOrderVarUint64(blkNum)...)
+	endKey := append(group, encodeReverseOrderVarUint64(0)...)
 
 	return startKey, endKey
 }
@@ -184,18 +205,6 @@ func createRangeScanKeysForEligibleMissingDataEntries(blkNum uint64) (startKey, 
 func createRangeScanKeysForCollElg() (startKey, endKey []byte) {
 	return encodeCollElgKey(math.MaxUint64),
 		encodeCollElgKey(0)
-}
-
-func datakeyRange(blockNum uint64) (startKey, endKey []byte) {
-	startKey = append(pvtDataKeyPrefix, version.NewHeight(blockNum, 0).ToBytes()...)
-	endKey = append(pvtDataKeyPrefix, version.NewHeight(blockNum, math.MaxUint64).ToBytes()...)
-	return
-}
-
-func eligibleMissingdatakeyRange(blkNum uint64) (startKey, endKey []byte) {
-	startKey = append(eligibleMissingDataKeyPrefix, encodeReverseOrderVarUint64(blkNum)...)
-	endKey = append(eligibleMissingDataKeyPrefix, encodeReverseOrderVarUint64(blkNum-1)...)
-	return
 }
 
 // encodeReverseOrderVarUint64 returns a byte-representation for a uint64 number such that
