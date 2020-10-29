@@ -35,25 +35,25 @@ func TestProvider(t *testing.T) {
 	p := NewProvider(providers)
 	require.NotNil(t, p)
 
-	client1_1, err := p.ForChannel(channel1)
+	client1_1, err := p.GetDCASClient(channel1, ns1, coll1)
 	require.NoError(t, err)
 	require.NotNil(t, client1_1)
 
-	client1_2, err := p.ForChannel(channel1)
+	client1_2, err := p.GetDCASClient(channel1, ns1, coll1)
 	require.NoError(t, err)
 	require.Equal(t, client1_1, client1_2)
 
-	client2, err := p.ForChannel(channel2)
+	client2, err := p.GetDCASClient(channel2, ns1, coll1)
 	require.NoError(t, err)
 	require.NotNil(t, client2)
 	require.NotEqual(t, client1_1, client2)
 
-	client3, err := p.ForChannel("")
-	require.EqualError(t, err, "channel ID is empty")
+	client3, err := p.GetDCASClient("", ns1, coll1)
+	require.EqualError(t, err, "channel ID, ns, and collection must be specified")
 	require.Nil(t, client3)
 
 	lp.GetLedgerReturns(nil)
-	client4, err := p.ForChannel(channel3)
+	client4, err := p.GetDCASClient(channel3, ns1, coll1)
 	require.EqualError(t, err, fmt.Sprintf("no ledger for channel [%s]", channel3))
 	require.Nil(t, client4)
 }
