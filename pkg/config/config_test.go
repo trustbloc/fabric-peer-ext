@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	unixfs "github.com/ipfs/go-unixfs/importer/helpers"
 	viper "github.com/spf13/viper2015"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -205,4 +206,44 @@ func TestGetTransientStoreDBType(t *testing.T) {
 
 	viper.Set(ConfTransientStoreDBType, LevelDBType)
 	require.Equal(t, LevelDBType, GetTransientStoreDBType())
+}
+
+func TestGetDCASBlockLayout(t *testing.T) {
+	oldVal := viper.Get(confDCASBlockLayout)
+	defer viper.Set(confDCASBlockLayout, oldVal)
+
+	viper.Set(confDCASBlockLayout, "trickle")
+	require.Equal(t, "trickle", GetDCASBlockLayout())
+}
+
+func TestGetDCASMaxBlockSize(t *testing.T) {
+	oldVal := viper.Get(confDCASMaxBlockSize)
+	defer viper.Set(confDCASMaxBlockSize, oldVal)
+
+	viper.Set(confDCASMaxBlockSize, "")
+	require.Equal(t, defaultDCASMaxBlockSize, GetDCASMaxBlockSize())
+
+	viper.Set(confDCASMaxBlockSize, 456)
+	require.Equal(t, int64(456), GetDCASMaxBlockSize())
+}
+
+func TestGetDCASMaxLinksPerBlock(t *testing.T) {
+	oldVal := viper.Get(confDCASMaxLinksPerBlock)
+	defer viper.Set(confDCASMaxLinksPerBlock, oldVal)
+
+	viper.Set(confDCASMaxLinksPerBlock, "")
+	require.Equal(t, unixfs.DefaultLinksPerBlock, GetDCASMaxLinksPerBlock())
+
+	viper.Set(confDCASMaxLinksPerBlock, 323)
+	require.Equal(t, 323, GetDCASMaxLinksPerBlock())
+}
+
+func TestIsDCASRawLeaves(t *testing.T) {
+	oldVal := viper.Get(confDCASRawLeaves)
+	defer viper.Set(confDCASRawLeaves, oldVal)
+
+	require.Equal(t, defaultDCASrawLeaves, IsDCASRawLeaves())
+
+	viper.Set(confDCASRawLeaves, false)
+	require.False(t, IsDCASRawLeaves())
 }

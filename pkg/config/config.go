@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hyperledger/fabric/core/config"
+	unixfs "github.com/ipfs/go-unixfs/importer/helpers"
 	viper "github.com/spf13/viper2015"
 )
 
@@ -34,6 +35,11 @@ const (
 	confOLCollCacheSize            = "coll.offledger.cache.size"
 	confOLCollPullTimeout          = "coll.offledger.gossip.pullTimeout"
 
+	confDCASMaxLinksPerBlock = "coll.dcas.maxLinksPerBlock"
+	confDCASRawLeaves        = "coll.dcas.rawLeaves"
+	confDCASMaxBlockSize     = "coll.dcas.maxBlockSize"
+	confDCASBlockLayout      = "coll.dcas.blockLayout"
+
 	confConfigUpdatePublisherBufferSize = "configpublisher.buffersize"
 
 	defaultTransientDataCleanupIntervalTime = 5 * time.Second
@@ -46,6 +52,9 @@ const (
 	defaultOLCollMaxRetrievalAttempts = 3
 	defaultOLCollCacheSize            = 10000
 	defaultOLCollPullTimeout          = 5 * time.Second
+
+	defaultDCASrawLeaves          = true
+	defaultDCASMaxBlockSize int64 = 1024 * 256
 
 	defaultConfigUpdatePublisherBufferSize = 100
 
@@ -183,6 +192,41 @@ func GetOLCollPullTimeout() time.Duration {
 		timeout = defaultOLCollPullTimeout
 	}
 	return timeout
+}
+
+// GetDCASMaxLinksPerBlock specifies the maximum number of links there will be per block in a Merkle DAG.
+func GetDCASMaxLinksPerBlock() int {
+	maxLinks := viper.GetInt(confDCASMaxLinksPerBlock)
+	if maxLinks == 0 {
+		return unixfs.DefaultLinksPerBlock
+	}
+
+	return maxLinks
+}
+
+// GetDCASMaxBlockSize specifies the maximum size of a block in a Merkle DAG.
+func GetDCASMaxBlockSize() int64 {
+	maxBlockSize := viper.GetInt(confDCASMaxBlockSize)
+	if maxBlockSize == 0 {
+		return defaultDCASMaxBlockSize
+	}
+
+	return int64(maxBlockSize)
+}
+
+// IsDCASRawLeaves indicates whether or not to use raw leaf nodes in a Merkle DAG.
+func IsDCASRawLeaves() bool {
+	if viper.IsSet(confDCASRawLeaves) {
+		return viper.GetBool(confDCASRawLeaves)
+	}
+
+	return defaultDCASrawLeaves
+}
+
+// GetDCASBlockLayout returns the block layout strategy when creating a Merkle DAG.
+// Supported values are "balanced" and "trickle". Leave empty to use the default.
+func GetDCASBlockLayout() string {
+	return viper.GetString(confDCASBlockLayout)
 }
 
 // GetConfigUpdatePublisherBufferSize returns the size of the config update publisher channel buffer for ledger config update events

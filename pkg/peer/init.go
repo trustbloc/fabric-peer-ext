@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package peer
 
 import (
+	"github.com/hyperledger/fabric/common/flogging"
 	storagecouchdb "github.com/hyperledger/fabric/extensions/storage/couchdb"
 
 	"github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configcc"
@@ -32,8 +33,12 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/proprespvalidator"
 )
 
+var logger = flogging.MustGetLogger("ext_peer")
+
 // Initialize initializes the peer
 func Initialize() {
+	logger.Infof("Initializing resources")
+
 	registerResources()
 	registerChaincodes()
 
@@ -62,6 +67,7 @@ func registerResources() {
 	resource.Register(storagecouchdb.NewHandler)
 	resource.Register(ccnotifier.New)
 	resource.Register(extstatedb.GetProvider)
+	resource.Register(newDCASConfig)
 }
 
 func registerChaincodes() {

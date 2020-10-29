@@ -57,10 +57,18 @@ func main() {
 	ucc.Register(inprocucc.NewV1_1)
 	ucc.Register(inprocucc.NewV2)
 
-	ucc.Register(func() ccapi.UserCC { return examplecc.New("ol_examplecc", offLedgerDBArtifacts) })
-	ucc.Register(func() ccapi.UserCC { return examplecc.New("ol_examplecc_2", nil) })
-	ucc.Register(func() ccapi.UserCC { return examplecc.New("tdata_examplecc", nil) })
-	ucc.Register(func() ccapi.UserCC { return examplecc.New("tdata_examplecc_2", nil) })
+	ucc.Register(func(p examplecc.DCASStubWrapperFactory) ccapi.UserCC {
+		return examplecc.New("ol_examplecc", offLedgerDBArtifacts, p)
+	})
+	ucc.Register(func(p examplecc.DCASStubWrapperFactory) ccapi.UserCC {
+		return examplecc.New("ol_examplecc_2", nil, p)
+	})
+	ucc.Register(func(p examplecc.DCASStubWrapperFactory) ccapi.UserCC {
+		return examplecc.New("tdata_examplecc", nil, p)
+	})
+	ucc.Register(func(p examplecc.DCASStubWrapperFactory) ccapi.UserCC {
+		return examplecc.New("tdata_examplecc_2", nil, p)
+	})
 
 	ucc.Register(func(handlerRegistry hellocc.AppDataHandlerRegistry, gossipProvider hellocc.GossipProvider, stateDBProvider hellocc.StateDBProvider) ccapi.UserCC {
 		return hellocc.New("hellocc", handlerRegistry, gossipProvider, stateDBProvider)

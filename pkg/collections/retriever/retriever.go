@@ -17,7 +17,6 @@ import (
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	olapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/api"
-	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 	olretriever "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/retriever"
 	tdataapi "github.com/trustbloc/fabric-peer-ext/pkg/collections/transientdata/api"
 )
@@ -116,8 +115,5 @@ type Support interface {
 
 // NewOffLedgerProvider returns a new off-ledger retriever provider that supports DCAS
 func NewOffLedgerProvider(providers *collcommon.Providers) olapi.Provider {
-	return olretriever.NewProvider(providers,
-		olretriever.WithValidator(pb.CollectionType_COL_DCAS, dcas.Validator),
-		olretriever.WithDecorator(pb.CollectionType_COL_DCAS, dcas.Decorator),
-	)
+	return olretriever.NewProvider(providers)
 }

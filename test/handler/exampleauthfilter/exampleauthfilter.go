@@ -7,11 +7,13 @@ SPDX-License-Identifier: Apache-2.0
 package exampleauthfilter
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
@@ -24,6 +26,7 @@ import (
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/pkg/errors"
 
+	dcasclient "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas/client"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
 )
 
@@ -35,6 +38,9 @@ const (
 	commitFunc                    = "commit"
 	verifyProposalSignatureFunc   = "verifyProposalSignature"
 	validateProposalResponsesFunc = "validateProposalResponses"
+	putCASFunc                    = "putcas"
+	getCASFunc                    = "getcas"
+	getCASNodeFunc                = "getcasnode"
 )
 
 type gossipProvider interface {
@@ -47,20 +53,26 @@ type txnServiceProvider interface {
 	ForChannel(channelID string) (api.Service, error)
 }
 
+type dcasClientProvider interface {
+	GetDCASClient(channelID string, namespace string, coll string) (dcasclient.DCAS, error)
+}
+
 // AuthFilter is a sample Auth filter used in the BDD test. It demonstrates the handler registry and
 // dependency injection for Auth filters.
 type AuthFilter struct {
-	next             pb.EndorserServer
-	gossipProvider   gossipProvider
-	functionRegistry map[string]function
-	txnProvider      txnServiceProvider
+	next               pb.EndorserServer
+	gossipProvider     gossipProvider
+	functionRegistry   map[string]function
+	txnProvider        txnServiceProvider
+	dcasClientProvider dcasClientProvider
 }
 
 // New returns a new example auth AuthFilter. The Gossip provider is supplied via dependency injection.
-func New(gossip gossipProvider, txnProvider txnServiceProvider) *AuthFilter {
+func New(gossip gossipProvider, txnProvider txnServiceProvider, dcasClientProvider dcasClientProvider) *AuthFilter {
 	f := &AuthFilter{
-		gossipProvider: gossip,
-		txnProvider:    txnProvider,
+		gossipProvider:     gossip,
+		txnProvider:        txnProvider,
+		dcasClientProvider: dcasClientProvider,
 	}
 
 	f.initFunctionRegistry()
@@ -381,6 +393,88 @@ func (f *AuthFilter) validateProposalResponses(channelID string, args [][]byte) 
 	return shim.Success(codeBytes)
 }
 
+func (f *AuthFilter) putCAS(channelID string, args [][]byte) pb.Response {
+	if len(args) < 3 {
+		return shim.Error("Expecting args: namespace, collection, value and options")
+	}
+
+	ns := args[0]
+	coll := args[1]
+	value := args[2]
+
+	var opts []dcasclient.Option
+
+	if len(args) > 3 {
+		var err error
+		opts, err = parseDCASOptions(string(args[3]))
+		if err != nil {
+			return shim.Error(fmt.Sprintf("One or more options is invalid: %s", err))
+		}
+	}
+
+	casClient, err := f.dcasClientProvider.GetDCASClient(channelID, string(ns), string(coll))
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Failed to create DCAS client: %s", err))
+	}
+
+	cid, err := casClient.Put(bytes.NewReader(value), opts...)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Failed to store data to CAS: %s", err))
+	}
+
+	return shim.Success([]byte(cid))
+}
+
+func (f *AuthFilter) getCAS(channelID string, args [][]byte) pb.Response {
+	if len(args) != 3 {
+		return shim.Error("Expecting args: namespace, collection, and CID")
+	}
+
+	ns := args[0]
+	coll := args[1]
+	cid := args[2]
+
+	casClient, err := f.dcasClientProvider.GetDCASClient(channelID, string(ns), string(coll))
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Failed to create DCAS client: %s", err))
+	}
+
+	value := bytes.NewBuffer(nil)
+	err = casClient.Get(string(cid), value)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Failed to retrieve data from CAS: %s", err))
+	}
+
+	return shim.Success(value.Bytes())
+}
+
+func (f *AuthFilter) getCASNode(channelID string, args [][]byte) pb.Response {
+	if len(args) != 3 {
+		return shim.Error("Expecting args: namespace, collection, and CID")
+	}
+
+	ns := args[0]
+	coll := args[1]
+	cid := args[2]
+
+	casClient, err := f.dcasClientProvider.GetDCASClient(channelID, string(ns), string(coll))
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Failed to create DCAS client: %s", err))
+	}
+
+	nd, err := casClient.GetNode(string(cid))
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Failed to retrieve data from CAS: %s", err))
+	}
+
+	bytes, err := json.Marshal(nd)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Failed to marshal CAS node: %s", err))
+	}
+
+	return shim.Success(bytes)
+}
+
 func (f *AuthFilter) initFunctionRegistry() {
 	f.functionRegistry = make(map[string]function)
 	f.functionRegistry[endorseFunc] = f.endorse
@@ -388,6 +482,9 @@ func (f *AuthFilter) initFunctionRegistry() {
 	f.functionRegistry[commitFunc] = f.commit
 	f.functionRegistry[verifyProposalSignatureFunc] = f.verifyProposalSignature
 	f.functionRegistry[validateProposalResponsesFunc] = f.validateProposalResponses
+	f.functionRegistry[putCASFunc] = f.putCAS
+	f.functionRegistry[getCASFunc] = f.getCAS
+	f.functionRegistry[getCASNodeFunc] = f.getCASNode
 }
 
 func (f *AuthFilter) newInvalidTxnResponse(txnSvc api.Service) pb.Response {
@@ -408,7 +505,7 @@ func (f *AuthFilter) newInvalidTxnResponse(txnSvc api.Service) pb.Response {
 	if err != nil {
 		logger.Errorf("Error marshalling response: %s", err)
 
-		return shim.Error(fmt.Sprintf("error marshalling response"))
+		return shim.Error("error marshalling response")
 	}
 
 	return shim.Success(respBytes)
@@ -568,4 +665,31 @@ func (f *mspPeerFilter) Accept(p api.Peer) bool {
 	logger.Infof("Not accepting peer [%s] since it is NOT a member of %s", p.Endpoint(), f.mspIDs)
 
 	return false
+}
+
+func parseDCASOptions(options string) ([]dcasclient.Option, error) {
+	var opts []dcasclient.Option
+
+	for _, pair := range strings.Split(options, ";") {
+		kv := strings.Split(pair, "=")
+		if len(kv) != 2 {
+			return nil, fmt.Errorf("invalid option: %s - option must be in the format name=value", pair)
+		}
+
+		key := kv[0]
+		value := kv[1]
+
+		switch key {
+		case "node-type":
+			opts = append(opts, dcasclient.WithNodeType(dcasclient.NodeType(value)))
+		case "input-encoding":
+			opts = append(opts, dcasclient.WithInputEncoding(dcasclient.InputEncoding(value)))
+		case "format":
+			opts = append(opts, dcasclient.WithFormat(dcasclient.Format(value)))
+		default:
+			return nil, fmt.Errorf("unsupported option: %s", key)
+		}
+	}
+
+	return opts, nil
 }

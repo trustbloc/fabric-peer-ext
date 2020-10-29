@@ -42,6 +42,12 @@ services:
       - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=shared.couchdb.com:5984
       - CORE_LEDGER_STATE_DBCONFIG_PARTITIONTYPE=MSP
       - CORE_PEER_GOSSIP_USELEADERELECTION=false
+      # The following DCAS value is set for testing purposes. Typically you should not need to override the defaults
+      - CORE_COLL_DCAS_MAXBLOCKSIZE=32
+      #- CORE_COLL_DCAS_RAWLEAVES=true
+      #- CORE_COLL_DCAS_BLOCKLAYOUT=trickle
+      #- CORE_COLL_DCAS_MAXLINKSPERBLOCK=3
+
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric
     tty: true
     volumes:

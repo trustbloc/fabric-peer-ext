@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package examplecc
 
 import (
+	"bytes"
 	"crypto"
 	"encoding/base64"
 	"encoding/json"
@@ -18,6 +19,11 @@ import (
 	"github.com/hyperledger/fabric-protos-go/ledger/queryresult"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	ccapi "github.com/hyperledger/fabric/extensions/chaincode/api"
+	"github.com/ipfs/go-cid"
+	mh "github.com/multiformats/go-multihash"
+
+	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
+	dcasclient "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas/client"
 )
 
 type invokeFunc func(stub shim.ChaincodeStubInterface, args []string) pb.Response
@@ -43,21 +49,29 @@ const (
 	getPrivateByRangeFunc  = "getprivatebyrange"
 	putCASFunc             = "putcas"
 	putCASMultipleFunc     = "putcasmultiple"
+	getCASFunc             = "getcas"
 	getAndPutCASFunc       = "getandputcas"
 )
 
+// DCASStubWrapperFactory creates a DCAS client wrapper around a stub
+type DCASStubWrapperFactory interface {
+	CreateDCASClientStubWrapper(coll string, stub shim.ChaincodeStubInterface) (dcasclient.DCAS, error)
+}
+
 // ExampleCC example chaincode that puts and gets state and private data
 type ExampleCC struct {
+	DCASStubWrapperFactory
 	name         string
 	dbArtifacts  map[string]*ccapi.DBArtifacts
 	funcRegistry funcMap
 }
 
 // New returns a new example chaincode instance
-func New(name string, dbArtifacts map[string]*ccapi.DBArtifacts) *ExampleCC {
+func New(name string, dbArtifacts map[string]*ccapi.DBArtifacts, dcasClientFactory DCASStubWrapperFactory) *ExampleCC {
 	cc := &ExampleCC{
-		name:        name,
-		dbArtifacts: dbArtifacts,
+		name:                   name,
+		dbArtifacts:            dbArtifacts,
+		DCASStubWrapperFactory: dcasClientFactory,
 	}
 	cc.initRegistry()
 	return cc
@@ -434,18 +448,19 @@ func (cc *ExampleCC) putCAS(stub shim.ChaincodeStubInterface, args []string) pb.
 	}
 
 	coll := args[0]
-	value := args[1]
+	value := []byte(args[1])
 
-	key, bytes, err := getCASKeyAndValue([]byte(value))
+	casClient, err := cc.CreateDCASClientStubWrapper(coll, stub)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("Error getting CAS key for [%s]: %s", value, err))
+		return shim.Error(fmt.Sprintf("Error creating DCAS client for collection [%s]: %s", coll, err))
 	}
 
-	if err := stub.PutPrivateData(coll, key, bytes); err != nil {
-		return shim.Error(fmt.Sprintf("Error putting private data for collection [%s] and key [%s]: %s", coll, key, err))
+	cID, err := casClient.Put(bytes.NewReader(value))
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Error putting private data for collection [%s]: %s", coll, err))
 	}
 
-	return shim.Success([]byte(key))
+	return shim.Success([]byte(cID))
 }
 
 func (cc *ExampleCC) putCASMultiple(stub shim.ChaincodeStubInterface, args []string) pb.Response {
@@ -461,24 +476,48 @@ func (cc *ExampleCC) putCASMultiple(stub shim.ChaincodeStubInterface, args []str
 	var keys string
 	for _, ckv := range ckvs {
 		coll := ckv.v1
-		value := ckv.v2
+		value := []byte(ckv.v2)
 
-		key, bytes, err := getCASKeyAndValue([]byte(value))
+		casClient, err := cc.CreateDCASClientStubWrapper(coll, stub)
 		if err != nil {
-			return shim.Error(fmt.Sprintf("Error getting CAS key for [%s]: %s", value, err))
-		}
-		if keys == "" {
-			keys = key
-		} else {
-			keys += "," + key
+			return shim.Error(fmt.Sprintf("Error creating DCAS client for collection [%s]: %s", coll, err))
 		}
 
-		if err := stub.PutPrivateData(coll, key, bytes); err != nil {
-			return shim.Error(fmt.Sprintf("Error putting CAS data for collection [%s] and key [%s]: %s", coll, key, err))
+		cID, err := casClient.Put(bytes.NewReader(value))
+		if err != nil {
+			return shim.Error(fmt.Sprintf("Error putting CAS data for collection [%s]: %s", coll, err))
+		}
+
+		if keys == "" {
+			keys = cID
+		} else {
+			keys += "," + cID
 		}
 	}
 
 	return shim.Success([]byte(keys))
+}
+
+func (cc *ExampleCC) getCAS(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	if len(args) != 2 {
+		return shim.Error("Invalid args. Expecting collection and key")
+	}
+
+	coll := args[0]
+	cID := args[1]
+
+	casClient, err := cc.CreateDCASClientStubWrapper(coll, stub)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Error creating DCAS client for collection [%s]: %s", coll, err))
+	}
+
+	value := bytes.NewBuffer(nil)
+	err = casClient.Get(cID, value)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Error getting CAS data for collection [%s] and CID [%s]: %s", coll, cID, err))
+	}
+
+	return shim.Success(value.Bytes())
 }
 
 func (cc *ExampleCC) getAndPutCAS(stub shim.ChaincodeStubInterface, args []string) pb.Response {
@@ -487,26 +526,37 @@ func (cc *ExampleCC) getAndPutCAS(stub shim.ChaincodeStubInterface, args []strin
 	}
 
 	coll := args[0]
-	privValue := args[1]
+	privBytes := []byte(args[1])
 
-	privKey, privBytes, err := getCASKeyAndValue([]byte(privValue))
+	cID, err := dcas.GetCID(privBytes, dcas.CIDV1, cid.Raw, mh.SHA2_256)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("Error getting CAS key for [%s]: %s", privValue, err))
+		return shim.Error(fmt.Sprintf("Error getting CAS key for [%s]: %s", privBytes, err))
 	}
 
-	oldPrivValue, err := stub.GetPrivateData(coll, privKey)
+	casClient, err := cc.CreateDCASClientStubWrapper(coll, stub)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("Error getting DCAS data for collection [%s] and key [%s]: %s", coll, privKey, err))
-	}
-	if oldPrivValue != nil {
-		return shim.Success([]byte(privKey))
+		return shim.Error(fmt.Sprintf("Error creating DCAS client for collection [%s]: %s", coll, err))
 	}
 
-	if err := stub.PutPrivateData(coll, privKey, privBytes); err != nil {
-		return shim.Error(fmt.Sprintf("Error putting DCAS data for collection [%s] and key [%s]: %s", coll, privKey, err))
+	oldPrivValue := bytes.NewBuffer(nil)
+	err = casClient.Get(cID, oldPrivValue)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Error getting DCAS data for collection [%s] and CID [%s]: %s", coll, cID, err))
+	}
+	if len(oldPrivValue.Bytes()) > 0 {
+		return shim.Success([]byte(cID))
 	}
 
-	return shim.Success([]byte(privKey))
+	cid2, err := casClient.Put(bytes.NewReader(privBytes))
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Error putting DCAS data for collection [%s]: %s", coll, err))
+	}
+
+	if cid2 != cID {
+		return shim.Error(fmt.Sprintf("Unexpected: cid2 [%s] does not match cid2 [%s] for collection [%s]", coll, cID, cid2))
+	}
+
+	return shim.Success([]byte(cID))
 }
 
 type argStruct struct {
@@ -562,6 +612,7 @@ func (cc *ExampleCC) initRegistry() {
 	cc.funcRegistry[getPrivateByRangeFunc] = cc.getPrivateByRange
 	cc.funcRegistry[putCASFunc] = cc.putCAS
 	cc.funcRegistry[putCASMultipleFunc] = cc.putCASMultiple
+	cc.funcRegistry[getCASFunc] = cc.getCAS
 	cc.funcRegistry[getAndPutCASFunc] = cc.getAndPutCAS
 }
 
