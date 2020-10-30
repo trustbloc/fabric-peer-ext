@@ -7,80 +7,73 @@ SPDX-License-Identifier: Apache-2.0
 package dcas
 
 import (
-	"crypto"
-	"encoding/base64"
-	"encoding/json"
+	"fmt"
 
-	"github.com/btcsuite/btcutil/base58"
+	"github.com/ipfs/go-cid"
+	dshelp "github.com/ipfs/go-ipfs-ds-help"
 )
 
-// GetCASKeyAndValue first normalizes the content (i.e. if the content is a JSON doc then the fields
-// are marshaled in a deterministic order) and returns the content-addressable key
-// (encoded in base64) along with the normalized value.
-func GetCASKeyAndValue(content []byte) (string, []byte, error) {
-	bytes, err := getNormalizedContent(content)
-	if err != nil {
-		return "", nil, err
-	}
-	return string(getCASKey(bytes)), bytes, nil
-}
+const (
+	// The go-ipfs-blockstore library that is being used for DCAS
+	// always prefixes the key with "/blocks"
+	dsPrefix = "/blocks"
+)
 
-// GetCASKeyAndValueBase58 first normalizes the content (i.e. if the content is a JSON doc then the fields
-// are marshaled in a deterministic order) and returns the content-addressable key
-// (first encoded in base64 and then in base58) along with the normalized value.
-func GetCASKeyAndValueBase58(content []byte) (string, []byte, error) {
-	bytes, err := getNormalizedContent(content)
+// GetCID returns the content ID (CID) of the value using the given CID version, codec, and multi-hash type.
+func GetCID(content []byte, version CIDVersion, codec, mhType uint64) (string, error) {
+	cID, err := getCID(content, version, codec, mhType)
 	if err != nil {
-		return "", nil, err
-	}
-	return base58.Encode(getCASKey(bytes)), bytes, nil
-}
-
-// getNormalizedContent ensures that, if the content is a JSON doc, then the fields are marshaled in a deterministic order
-// so that the hash of the content is also deterministic.
-func getNormalizedContent(content []byte) ([]byte, error) {
-	m, err := unmarshalJSONMap(content)
-	if err != nil {
-		// This is not a JSON document
-		return content, nil
+		return "", err
 	}
 
-	// This is a JSON doc. Re-marshal it in order to ensure that the JSON fields are marshaled in a deterministic order.
-	bytes, err := marshalJSONMap(m)
+	return cID.String(), nil
+}
+
+// GetCASKey returns the key which will be used in the data store to store the value.
+func GetCASKey(content []byte, version CIDVersion, codec, mhType uint64) (string, error) {
+	cID, err := getCID(content, version, codec, mhType)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return bytes, nil
+	return dsPrefix + dshelp.NewKeyFromBinary(cID.Bytes()).String(), nil
 }
 
-// getHash will compute the hash for the supplied bytes using SHA256
-func getHash(bytes []byte) []byte {
-	h := crypto.SHA256.New()
-	// added no lint directive because there's no error from source code
-	// error cannot be produced, checked google source
-	h.Write(bytes) //nolint
-	return h.Sum(nil)
+// ValidateCID validates the given content ID
+func ValidateCID(id string) error {
+	_, err := cid.Parse(id)
+	return err
 }
 
-func getCASKey(content []byte) []byte {
-	hash := getHash(content)
-	buf := make([]byte, base64.URLEncoding.EncodedLen(len(hash)))
-	base64.URLEncoding.Encode(buf, hash)
-	return buf
-}
+// CIDVersion specifies the version of the content ID (CID)
+type CIDVersion = uint64
 
-// marshalJSONMap marshals a JSON map. This variable may be overridden by unit tests.
-var marshalJSONMap = func(m map[string]interface{}) ([]byte, error) {
-	return json.Marshal(&m)
-}
+const (
+	// CIDV0 content ID (CID) version 0
+	CIDV0 CIDVersion = 0
+	// CIDV1 content ID (CID) version 1
+	CIDV1 CIDVersion = 1
+)
 
-// unmarshalJSONMap unmarshals a JSON map from the given bytes. This variable may be overridden by unit tests.
-var unmarshalJSONMap = func(bytes []byte) (map[string]interface{}, error) {
-	m := make(map[string]interface{})
-	err := json.Unmarshal(bytes, &m)
-	if err != nil {
-		return nil, err
+func getCID(content []byte, version CIDVersion, codec, mhType uint64) (cid.Cid, error) {
+	var b cid.Builder
+
+	switch version {
+	case CIDV1:
+		b = cid.V1Builder{
+			Codec:  codec,
+			MhType: mhType,
+		}
+	case CIDV0:
+		b = cid.V0Builder{}
+	default:
+		return cid.Cid{}, fmt.Errorf("unsupported CID version [%d]", version)
 	}
-	return m, nil
+
+	c, err := b.Sum(content)
+	if err != nil {
+		return cid.Cid{}, err
+	}
+
+	return c, nil
 }

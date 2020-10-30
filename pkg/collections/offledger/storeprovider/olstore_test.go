@@ -15,6 +15,8 @@ import (
 
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
+	"github.com/ipfs/go-cid"
+	mh "github.com/multiformats/go-multihash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -213,14 +215,14 @@ func TestStore_PutAndGet_DCAS(t *testing.T) {
 			Write(key1, value1_1)
 		err := s.Persist(txID1, b.Build())
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "the key should be the hash of the value")
+		assert.Contains(t, err.Error(), "invalid CAS key")
 	})
 
 	t.Run("GetData -> success", func(t *testing.T) {
-		casKey1, value1, err := dcas.GetCASKeyAndValueBase58(value1_1)
+		casKey1, err := dcas.GetCASKey(value1_1, dcas.CIDV1, cid.Raw, mh.SHA2_256)
 		require.NoError(t, err)
 
-		casKey2, value2, err := dcas.GetCASKeyAndValueBase58(value1_2)
+		casKey2, err := dcas.GetCASKey(value1_2, dcas.CIDV1, cid.Raw, mh.SHA2_256)
 		require.NoError(t, err)
 
 		b := mocks.NewPvtReadWriteSetBuilder()
@@ -228,8 +230,8 @@ func TestStore_PutAndGet_DCAS(t *testing.T) {
 		coll1Builder := ns1Builder.Collection(coll1)
 		coll1Builder.
 			DCASConfig("OR('Org1MSP.member')", 1, 2, "1m").
-			Write(casKey1, value1).
-			Write(casKey2, value2)
+			Write(casKey1, value1_1).
+			Write(casKey2, value1_2)
 
 		require.NoError(t, s.Persist(txID1, b.Build()))
 
@@ -245,7 +247,7 @@ func TestStore_PutAndGet_DCAS(t *testing.T) {
 	})
 
 	t.Run("Delete data", func(t *testing.T) {
-		casKey1, value1, err := dcas.GetCASKeyAndValueBase58(value1_1)
+		casKey1, err := dcas.GetCASKey(value1_1, dcas.CIDV1, cid.Raw, mh.SHA2_256)
 		require.NoError(t, err)
 
 		b := mocks.NewPvtReadWriteSetBuilder()
@@ -253,7 +255,7 @@ func TestStore_PutAndGet_DCAS(t *testing.T) {
 		coll1Builder := ns1Builder.Collection(coll1)
 		coll1Builder.
 			DCASConfig("OR('Org1MSP.member')", 1, 2, "1m").
-			Write(casKey1, value1)
+			Write(casKey1, value1_1)
 
 		require.NoError(t, s.Persist(txID1, b.Build()))
 

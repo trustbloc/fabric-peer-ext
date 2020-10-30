@@ -14,9 +14,12 @@ import (
 	"github.com/hyperledger/fabric-protos-go/ledger/rwset/kvrwset"
 	pb "github.com/hyperledger/fabric-protos-go/peer"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
+	"github.com/ipfs/go-cid"
+	mh "github.com/multiformats/go-multihash"
 	viper "github.com/spf13/viper2015"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/discovery"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/implicitpolicy"
@@ -403,13 +406,14 @@ func TestComputeDisseminationPlan(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, handled)
 		assert.Nil(t, dPlan)
-		assert.Contains(t, err.Error(), "the key should be the hash of the value")
+		assert.Contains(t, err.Error(), "invalid CAS key")
 	})
 
 	t.Run("Valid CAS Key", func(t *testing.T) {
-		key1, value1, err := dcas.GetCASKeyAndValueBase58([]byte("value1"))
+		value1 := []byte("value1")
+		key1, err := dcas.GetCASKey(value1, dcas.CIDV1, cid.Raw, mh.SHA2_256)
 		require.NoError(t, err)
-		key2, _, err := dcas.GetCASKeyAndValueBase58([]byte("value2"))
+		key2, err := dcas.GetCASKey([]byte("value2"), dcas.CIDV1, cid.Raw, mh.SHA2_256)
 		require.NoError(t, err)
 		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
 			Write(key1, value1).
@@ -439,28 +443,9 @@ func TestComputeDisseminationPlan(t *testing.T) {
 		assert.False(t, criteria.IsEligible(p3Org3))
 	})
 
-	t.Run("Marshal error", func(t *testing.T) {
-		key1, value1, err := dcas.GetCASKeyAndValueBase58([]byte(`{"field1":"value1"}`))
-		require.NoError(t, err)
-		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
-			Write(key1, value1).
-			Build()
-		colConfig := &pb.StaticCollectionConfig{
-			Type: pb.CollectionType_COL_DCAS,
-		}
-
-		reset := dcas.SetJSONMarshaller(func(m map[string]interface{}) ([]byte, error) {
-			return nil, errors.New("injected marshal error")
-		})
-		defer reset()
-
-		_, handled, err := ComputeDisseminationPlan(channelID, ns1, rwSet, colConfig, colAP, nil, gossip)
-		require.Error(t, err)
-		require.True(t, handled)
-	})
-
 	t.Run("Unmarshal error", func(t *testing.T) {
-		key1, value1, err := dcas.GetCASKeyAndValueBase58([]byte(`{"field1":"value1"}`))
+		value1 := []byte(`{"field1":"value1"}`)
+		key1, err := dcas.GetCASKey(value1, dcas.CIDV1, cid.Raw, mh.SHA2_256)
 		require.NoError(t, err)
 		rwSet := mocks.NewPvtReadWriteSetCollectionBuilder(coll1).
 			Write(key1, value1).

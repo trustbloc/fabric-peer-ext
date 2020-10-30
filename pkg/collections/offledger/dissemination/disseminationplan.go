@@ -20,6 +20,7 @@ import (
 	"github.com/hyperledger/fabric/gossip/protoext"
 	"github.com/pkg/errors"
 	viper "github.com/spf13/viper2015"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/implicitpolicy"
 )
@@ -94,14 +95,9 @@ func validateAll(collType pb.CollectionType, kvRWSet *kvrwset.KVRWSet) error {
 
 func validate(collType pb.CollectionType, ws *kvrwset.KVWrite) error {
 	if collType == pb.CollectionType_COL_DCAS && ws.Value != nil {
-		expectedKey, _, err := dcas.GetCASKeyAndValueBase58(ws.Value)
-		if err != nil {
-			return err
-		}
-		if ws.Key != expectedKey {
-			return errors.Errorf("invalid CAS key [%s] - the key should be the hash of the value [%s]", ws.Key, expectedKey)
-		}
+		return dcas.ValidateDatastoreKey(ws.Key, ws.Value)
 	}
+
 	return nil
 }
 

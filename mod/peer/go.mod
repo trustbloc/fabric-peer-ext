@@ -23,7 +23,7 @@ require (
 	github.com/magiconair/properties v1.8.1
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/viper2015 v1.3.2
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.6.1
 	github.com/trustbloc/fabric-peer-ext v0.0.0
 )
 

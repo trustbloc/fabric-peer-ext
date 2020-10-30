@@ -56,7 +56,11 @@ func (d *OffLedgerSteps) DefineDCASCollectionConfig(id, name, policy string, req
 }
 
 func (d *OffLedgerSteps) setCASVariable(varName, value string) error {
-	casKey := GetCASKey([]byte(value))
+	casKey, err := getCASKey([]byte(value))
+	if err != nil {
+		return err
+	}
+
 	bddtests.SetVar(varName, casKey)
 	logger.Infof("Saving CAS key '%s' to variable '%s'", casKey, varName)
 	return nil

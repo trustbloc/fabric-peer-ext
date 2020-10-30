@@ -9,7 +9,6 @@ require (
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/hyperledger/fabric v2.0.0+incompatible
 	github.com/hyperledger/fabric/extensions v0.0.0
-	github.com/prometheus/procfs v0.0.5 // indirect
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper2015 v1.3.2
 	github.com/trustbloc/fabric-peer-ext v0.0.0

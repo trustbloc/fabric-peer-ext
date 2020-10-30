@@ -16,9 +16,12 @@ import (
 	storeapi "github.com/hyperledger/fabric/extensions/collections/api/store"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
+	"github.com/ipfs/go-cid"
+	mh "github.com/multiformats/go-multihash"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	collcommon "github.com/trustbloc/fabric-peer-ext/pkg/collections/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/requestmgr"
@@ -110,7 +113,8 @@ func TestRetriever(t *testing.T) {
 		Member(org3MSPID, mocks.NewMember(p2Org3Endpoint, p2Org3PKIID, committerRole)).
 		Member(org3MSPID, mocks.NewMember(p3Org3Endpoint, p3Org3PKIID, endorserRole))
 
-	casKey1, casValue1, err := dcas.GetCASKeyAndValueBase58([]byte(`{"id":"id1","value":"value1"}`))
+	casValue1 := []byte(`{"id":"id1","value":"value1"}`)
+	casKey1, err := dcas.GetCASKey(casValue1, dcas.CIDV1, cid.Raw, mh.SHA2_256)
 	require.NoError(t, err)
 
 	localStore := mocks.NewDataStore().
@@ -175,7 +179,7 @@ func TestRetriever(t *testing.T) {
 		ctx, _ := context.WithTimeout(context.Background(), respTimeout)
 		value, err := retriever.GetData(ctx, storeapi.NewKey(txID, ns1, coll2, key1))
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "the key should be the hash of the value")
+		require.Contains(t, err.Error(), "invalid CAS key")
 		require.Nil(t, value)
 
 		value, err = retriever.GetData(ctx, storeapi.NewKey(txID, ns1, coll2, casKey1))
@@ -340,9 +344,12 @@ func TestRetriever(t *testing.T) {
 }
 
 func TestRetriever_Query(t *testing.T) {
-	keyX, valueX, err := dcas.GetCASKeyAndValueBase58([]byte(`{"id":"id3","value":"valueX"}`))
+	valueX := []byte(`{"id":"id3","value":"valueX"}`)
+	keyX, err := dcas.GetCASKey(valueX, dcas.CIDV1, cid.Raw, mh.SHA2_256)
 	require.NoError(t, err)
-	keyY, valueY, err := dcas.GetCASKeyAndValueBase58([]byte(`{"id":"id4","value":"valueY"}`))
+
+	valueY := []byte(`{"id":"id4","value":"valueY"}`)
+	keyY, err := dcas.GetCASKey(valueY, dcas.CIDV1, cid.Raw, mh.SHA2_256)
 	require.NoError(t, err)
 
 	offLedgerQueryKey := storeapi.NewQueryKey(txID, ns1, coll1, "off-ledger query")

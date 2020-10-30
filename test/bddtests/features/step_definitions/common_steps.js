@@ -67,6 +67,9 @@ defineSupportCode(function ({And, But, Given, Then, When}) {
     Given(/^variable "([^"]*)" is assigned the JSON value '([^']*)'$/, function (arg1, arg2, callback) {
         callback.pending();
     });
+    Given(/^variable "([^"]*)" is assigned the value "([^"]*)"$/, function (arg1, arg2, callback) {
+        callback.pending();
+    });
     Then(/^the JSON path "([^"]*)" of the response has (\d+) items$/, function (arg1, arg2, callback) {
         callback.pending();
     });

@@ -19,20 +19,20 @@ Feature: off-ledger
     # Data in collection3 are purged after 10 blocks of being added
     And collection config "coll3" is defined for collection "collection3" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=3, and blocksToLive=10
     # Data in accounts are never purged
-    And DCAS collection config "dcas_accounts" is defined for collection "accounts" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=
+    And off-ledger collection config "accounts" is defined for collection "accounts" as policy="OR('Org1MSP.member','Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=
     # Define an off-ledger collection with implicit policy, which means that data is stored and distributed only within the peer's local org.
     And off-ledger collection config "ol_implicitColl" is defined for collection "implicitcoll" as policy="OR('IMPLICIT-ORG.member')", requiredPeerCount=0, maxPeerCount=0, and timeToLive=10s
 
-    And "test" chaincode "ol_examplecc" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_coll2,coll3,dcas_accounts,ol_implicitColl"
-    And "test" chaincode "ol_examplecc_2" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts,ol_implicitColl"
-    And "test" chaincode "ol_examplecc_2" is instantiated from path "in-process" on the "yourchannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_accounts,ol_implicitColl"
+    And "test" chaincode "ol_examplecc" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,dcas_coll2,coll3,accounts,ol_implicitColl"
+    And "test" chaincode "ol_examplecc_2" is instantiated from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,accounts,ol_implicitColl"
+    And "test" chaincode "ol_examplecc_2" is instantiated from path "in-process" on the "yourchannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1,accounts,ol_implicitColl"
 
     Then we wait 10 seconds
 
   @off_ledger_s1
   Scenario: Put and get off-ledger data
     # Test for invalid CAS key
-    When client queries chaincode "ol_examplecc" with args "putprivate,collection2,key1,value1" on the "mychannel" channel then the error response should contain "the key should be the hash of the value"
+    When client queries chaincode "ol_examplecc" with args "putprivate,collection2,key1,value1" on the "mychannel" channel then the error response should contain "invalid CAS key [key1]"
 
     # Set off-ledger data on a peer in one org and get it from one in another org
     When client queries chaincode "ol_examplecc" with args "putprivate,collection1,key1,value1" on a single peer in the "peerorg1" org on the "mychannel" channel
@@ -42,9 +42,9 @@ Feature: off-ledger
     # Set DCAS data on a peer in one org and get it from one in another org
     When client queries chaincode "ol_examplecc" with args "putcas,collection2,value2" on a single peer in the "peerorg2" org on the "mychannel" channel
     And the response is saved to variable "key2"
-    And client queries chaincode "ol_examplecc" with args "getprivate,collection2,${key2}" on a single peer in the "peerorg1" org on the "mychannel" channel
+    And client queries chaincode "ol_examplecc" with args "getcas,collection2,${key2}" on a single peer in the "peerorg1" org on the "mychannel" channel
     Then response from "ol_examplecc" to client equal value "value2"
-    And client queries chaincode "ol_examplecc" with args "getprivate,collection2,${key2}" on a single peer in the "peerorg2" org on the "mychannel" channel
+    And client queries chaincode "ol_examplecc" with args "getcas,collection2,${key2}" on a single peer in the "peerorg2" org on the "mychannel" channel
     Then response from "ol_examplecc" to client equal value "value2"
 
     # Test for put of keys on multiple collections. The first two collections are off-ledger/DCAS type so they should persist. The third
@@ -61,7 +61,7 @@ Feature: off-ledger
     # with the transaction ID at which the data was stored. If the IDs match then nil is returned.
     When client queries chaincode "ol_examplecc" with args "getandputcas,collection2,value4" on the "mychannel" channel
     And the response is saved to variable "key4"
-    And client queries chaincode "ol_examplecc" with args "getprivate,collection2,${key4}" on the "mychannel" channel
+    And client queries chaincode "ol_examplecc" with args "getcas,collection2,${key4}" on the "mychannel" channel
     Then response from "ol_examplecc" to client equal value "value4"
 
     # Test expiry
@@ -72,7 +72,7 @@ Feature: off-ledger
     Then response from "ol_examplecc" to client equal value ""
 
     # Should still be there
-    When client queries chaincode "ol_examplecc" with args "getprivate,collection2,${key2}" on the "mychannel" channel
+    When client queries chaincode "ol_examplecc" with args "getcas,collection2,${key2}" on the "mychannel" channel
     Then response from "ol_examplecc" to client equal value "value2"
 
     # Test to make sure private data collections still persist in a transaction and that off-ledger reads/writes work with transactions
@@ -87,7 +87,7 @@ Feature: off-ledger
     #   then all caches should be refreshed.
     Given off-ledger collection config "ol_coll1_upgrade" is defined for collection "collection1" as policy="OR('Org1MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
     And DCAS collection config "dcas_coll2_upgrade" is defined for collection "collection2" as policy="OR('Org2MSP.member')", requiredPeerCount=1, maxPeerCount=2, and timeToLive=1m
-    And "test" chaincode "ol_examplecc" is upgraded with version "v1.0.1" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1_upgrade,dcas_coll2_upgrade,coll3,dcas_accounts,ol_implicitColl"
+    And "test" chaincode "ol_examplecc" is upgraded with version "v1.0.1" from path "in-process" on the "mychannel" channel with args "" with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" with collection policy "ol_coll1_upgrade,dcas_coll2_upgrade,coll3,accounts,ol_implicitColl"
     Then we wait 20 seconds
 
     # Put the data to org2 - the data should be disseminated to org1
@@ -104,10 +104,10 @@ Feature: off-ledger
     And the response is saved to variable "keyB"
     And we wait 1 seconds
     # Get the data from org2 - the data should be there
-    And client queries chaincode "ol_examplecc" with args "getprivate,collection2,${keyB}" on a single peer in the "peerorg2" org on the "mychannel" channel
+    And client queries chaincode "ol_examplecc" with args "getcas,collection2,${keyB}" on a single peer in the "peerorg2" org on the "mychannel" channel
     Then response from "ol_examplecc" to client equal value "valueB"
     # Get the data from org1 - the data should NOT be there
-    When client queries chaincode "ol_examplecc" with args "getprivate,collection2,${keyB}" on a single peer in the "peerorg1" org on the "mychannel" channel
+    When client queries chaincode "ol_examplecc" with args "getcas,collection2,${keyB}" on a single peer in the "peerorg1" org on the "mychannel" channel
     Then response from "ol_examplecc" to client equal value ""
 
     # Test chaincode-to-chaincode invocation (same channel)
@@ -132,22 +132,31 @@ Feature: off-ledger
 
   @off_ledger_s2
   Scenario: Rich Queries
+    # Rich Queries
     Given the account with ID "456456", owner "Tim Jones" and a balance of 1000 is created and stored to variable "tim_account"
-    And client queries chaincode "ol_examplecc" with args "putcas,accounts,${tim_account}" on the "mychannel" channel
-    And the response is saved to variable "tim_account_key"
+    And client queries chaincode "ol_examplecc" with args "putprivate,accounts,account1,${tim_account}" on the "mychannel" channel
     When client queries chaincode "ol_examplecc" with args "queryprivate,accounts,{`selector`:{`id`:`456456`}|`fields`:[`id`|`balance`|`owner`|`operationType`|`order`]|`use_index`:[`_design/indexIDDoc`|`indexID`]}" on the "mychannel" channel
     And the response is saved to variable "account_operations"
     Then the variable "account_operations" contains 1 accounts
-    And the variable "account_operations" contains an account at index 0 with Key "${tim_account_key}", ID "456456", Owner "Tim Jones", and Balance 1000
+    And the variable "account_operations" contains an account at index 0 with Key "account1", ID "456456", Owner "Tim Jones", and Balance 1000
 
     Given the account stored in variable "tim_account" is updated with a balance of 2000
-    And client queries chaincode "ol_examplecc" with args "putcas,accounts,${tim_account}" on the "mychannel" channel
-    And the response is saved to variable "tim_account_update_key"
+    And client queries chaincode "ol_examplecc" with args "putprivate,accounts,account2,${tim_account}" on the "mychannel" channel
     When client queries chaincode "ol_examplecc" with args "queryprivate,accounts,{`selector`:{`id`:`456456`}|`fields`:[`id`|`balance`|`owner`|`operationType`|`order`]|`use_index`:[`_design/indexIDDoc`|`indexID`]}" on the "mychannel" channel
     And the response is saved to variable "account_operations"
     Then the variable "account_operations" contains 2 accounts
-    And the variable "account_operations" contains an account at index 0 with Key "${tim_account_key}", ID "456456", Owner "Tim Jones", and Balance 1000
-    And the variable "account_operations" contains an account at index 1 with Key "${tim_account_update_key}", ID "456456", Owner "Tim Jones", and Balance 2000
+    And the variable "account_operations" contains an account at index 0 with Key "account1", ID "456456", Owner "Tim Jones", and Balance 1000
+    And the variable "account_operations" contains an account at index 1 with Key "account2", ID "456456", Owner "Tim Jones", and Balance 2000
+
+    # Test for off-ledger collections with implicit policy, i.e. data is stored and distributed only within the peer's local org.
+    When client queries chaincode "ol_examplecc" with args "putprivate,implicitcoll,key1,org1value" on peers "peer1.org1.example.com" on the "mychannel" channel
+    And client queries chaincode "ol_examplecc" with args "putprivate,implicitcoll,key1,org2value" on peers "peer1.org2.example.com" on the "mychannel" channel
+
+    When client queries chaincode "ol_examplecc" with args "getprivate,implicitcoll,key1" on peers "peer0.org1.example.com,peer1.org1.example.com" on the "mychannel" channel
+    Then response from "ol_examplecc" to client equal value "org1value"
+
+    When client queries chaincode "ol_examplecc" with args "getprivate,implicitcoll,key1" on peers "peer0.org2.example.com,peer1.org2.example.com" on the "mychannel" channel
+    Then response from "ol_examplecc" to client equal value "org2value"
 
   @off_ledger_s3
   Scenario: Test for off-ledger collections with implicit policy, i.e. data is stored and distributed only within the peer's local org.
