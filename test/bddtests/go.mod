@@ -14,7 +14,7 @@ require (
 	github.com/multiformats/go-multihash v0.0.13
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/viper v1.1.1
-	github.com/trustbloc/fabric-peer-test-common v0.1.5-0.20201029180125-c96c1cfc0bd0
+	github.com/trustbloc/fabric-peer-test-common v0.1.5-0.20201113155245-6d0a12169e94
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
 )
 
