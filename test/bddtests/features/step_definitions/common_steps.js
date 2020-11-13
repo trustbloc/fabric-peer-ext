@@ -67,6 +67,9 @@ defineSupportCode(function ({And, But, Given, Then, When}) {
     Given(/^variable "([^"]*)" is assigned the JSON value '([^']*)'$/, function (arg1, arg2, callback) {
         callback.pending();
     });
+    Given(/^variable "([^"]*)" is assigned the uncanonicalized JSON value '([^']*)'$/, function (arg1, arg2, callback) {
+        callback.pending();
+    });
     Given(/^variable "([^"]*)" is assigned the value "([^"]*)"$/, function (arg1, arg2, callback) {
         callback.pending();
     });
@@ -142,6 +145,12 @@ defineSupportCode(function ({And, But, Given, Then, When}) {
         callback.pending();
     });
     When(/^chaincode "([^"]*)", version "([^"]*)", package ID "([^"]*)", sequence (\d+) is approved and committed by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$/, function (arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, callback) {
+        callback.pending();
+    });
+    When(/^the value "([^"]*)" equals "([^"]*)"$/, function (arg1, arg2, callback) {
+        callback.pending();
+    });
+    When(/^the value "([^"]*)" does not equal "([^"]*)"$/, function (arg1, arg2, callback) {
         callback.pending();
     });
 });

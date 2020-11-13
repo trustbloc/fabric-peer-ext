@@ -61,6 +61,13 @@ func TestDCASClient_Put(t *testing.T) {
 		require.NoError(t, dcas.ValidateCID(cID))
 	})
 
+	t.Run("Object node-type - RAW - no data -> Success", func(t *testing.T) {
+		cID, err := c.Put(bytes.NewReader(nil))
+		require.NoError(t, err)
+		t.Logf("Got CID: %s", cID)
+		require.NoError(t, dcas.ValidateCID(cID))
+	})
+
 	t.Run("Object node-type - data store error -> Error", func(t *testing.T) {
 		errExpected := fmt.Errorf("injected data store error")
 		ds.WithError(errExpected)

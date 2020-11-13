@@ -178,7 +178,7 @@ Feature: Lifecycle off-ledger
     And the JSON path "links" of the response has 0 items
 
     # Store a large file that's broken up into raw nodes of 32 bytes each and the root node links to these raw nodes
-    # (Note that the block size is set to 32 bytes for this test in doocker-compose-base.yml: CORE_COLL_DCAS_MAXBLOCKSIZE=32)
+    # (Note that the block size is set to 32 bytes for this test in docker-compose-base.yml: CORE_COLL_DCAS_MAXBLOCKSIZE=32)
     Given variable "fileData2" is assigned the value "Here is some data which is longer than the maximum size for a file node in DCAS so it will have to be split into multiple chunks."
     When txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "putcas,dcas_examplecc,collection1,${fileData2},node-type=file" on peers "peer0.org2.example.com"
     Then the response is saved to variable "file2_cid"
@@ -191,11 +191,17 @@ Feature: Lifecycle off-ledger
 
     # ------ Store data as an object
     # This JSON object contains arbitrary fields as well as links to the files that were created above
-    Given variable "jsonData" is assigned the JSON value '{"field1":"value1","files":[{"/":"${file1_cid}"},{"/":"${file2_cid}"}]}'
+    Given variable "jsonData" is assigned the uncanonicalized JSON value '{"field1":"value1","files":[{"/":"${file1_cid}"},{"/":"${file2_cid}"}]}'
+    # This JSON object is the same as the one above but with the fields in different order
+    And variable "jsonData2" is assigned the uncanonicalized JSON value '{"files":[{"/":"${file1_cid}"},{"/":"${file2_cid}"}],"field1":"value1"}'
 
     # Store object in CBOR format
     When txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "putcas,dcas_examplecc,collection1,${jsonData},node-type=object;input-encoding=json;format=cbor" on peers "peer0.org2.example.com"
     Then the response is saved to variable "cid1"
+    # Store the same JSON object which has the fields out of order. This JSON object should be treated exactly the same as the object above when stored in CBOR format since JSON objects are canonicalized before they are stored.
+    When txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "putcas,dcas_examplecc,collection1,${jsonData2},node-type=object;input-encoding=json;format=cbor" on peers "peer0.org2.example.com"
+    Then response from "" to client equal value "${cid1}"
+
     When txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "getcas,dcas_examplecc,collection1,${cid1}" on peers "peer0.org1.example.com"
     Then the JSON path "field1" of the response equals "value1"
     When txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "getcasnode,dcas_examplecc,collection1,${cid1}" on peers "peer0.org1.example.com"
@@ -206,6 +212,11 @@ Feature: Lifecycle off-ledger
     # Store object in raw format
     When txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "putcas,dcas_examplecc,collection1,${jsonData},node-type=object;input-encoding=raw;format=raw" on peers "peer0.org2.example.com"
     Then the response is saved to variable "cid2"
+    # Store the same JSON object which has the fields out of order. This JSON object should NOT be treated the same as the object above when stored in RAW format since the object is not canonicalized before being stored.
+    When txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "putcas,dcas_examplecc,collection1,${jsonData2},node-type=object;input-encoding=raw;format=raw" on peers "peer0.org2.example.com"
+    Then the response is saved to variable "cid2_1"
+    Then the value "${cid2_1}" does not equal "${cid2}"
+
     When txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "getcas,dcas_examplecc,collection1,${cid2}" on peers "peer0.org1.example.com"
     Then the JSON path "field1" of the response equals "value1"
     When txn service is invoked on channel "mychannel" with chaincode "e2e_cc" with args "getcasnode,dcas_examplecc,collection1,${cid2}" on peers "peer0.org1.example.com"
