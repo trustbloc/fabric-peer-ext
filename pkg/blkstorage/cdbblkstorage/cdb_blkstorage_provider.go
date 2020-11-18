@@ -9,14 +9,15 @@ package cdbblkstorage
 import (
 	"strings"
 
-	"github.com/hyperledger/fabric/core/ledger"
-	"github.com/hyperledger/fabric/extensions/ledger/api"
-
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/common/ledger/blkstorage"
 	"github.com/hyperledger/fabric/common/metrics/disabled"
+	"github.com/hyperledger/fabric/core/ledger"
 	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
+	"github.com/hyperledger/fabric/extensions/ledger/api"
 	"github.com/pkg/errors"
+
+	cfg "github.com/trustbloc/fabric-peer-ext/pkg/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
@@ -29,6 +30,7 @@ const (
 
 // CDBBlockstoreProvider provides block storage in CouchDB
 type CDBBlockstoreProvider struct {
+	options       []option
 	couchInstance *couchdb.CouchInstance
 	indexConfig   *blkstorage.IndexConfig
 }
@@ -41,7 +43,15 @@ func NewProvider(indexConfig *blkstorage.IndexConfig, ledgerconfig *ledger.Confi
 	if err != nil {
 		return nil, errors.WithMessage(err, "obtaining CouchDB instance failed")
 	}
-	return &CDBBlockstoreProvider{couchInstance, indexConfig}, nil
+
+	return &CDBBlockstoreProvider{
+		options: []option{
+			withBlockByNumCacheSize(cfg.GetBlockStoreBlockByNumCacheSize()),
+			withBlockByHashCacheSize(cfg.GetBlockStoreBlockByHashCacheSize()),
+		},
+		couchInstance: couchInstance,
+		indexConfig:   indexConfig,
+	}, nil
 }
 
 // Open opens the block store for the given ledger ID
@@ -50,15 +60,24 @@ func (p *CDBBlockstoreProvider) Open(ledgerid string) (api.BlockStore, error) {
 	blockStoreDBName := couchdb.ConstructBlockchainDBName(id, blockStoreName)
 	txnStoreDBName := couchdb.ConstructBlockchainDBName(id, txnStoreName)
 
+	var err error
+	var s api.BlockStore
+
 	if roles.IsCommitter() {
-		return createCommitterBlockStore(p.couchInstance, ledgerid, blockStoreDBName, txnStoreDBName)
+		s, err = createCommitterBlockStore(p.couchInstance, ledgerid, blockStoreDBName, txnStoreDBName, p.options...)
+	} else {
+		s, err = p.createNonCommitterBlockStore(ledgerid, blockStoreDBName, txnStoreDBName, p.options...)
 	}
 
-	return p.createNonCommitterBlockStore(ledgerid, blockStoreDBName, txnStoreDBName)
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
 }
 
-//createCommitterBlockStore creates new couch db with gievn db name if doesn't exists
-func createCommitterBlockStore(couchInstance *couchdb.CouchInstance, ledgerid, blockStoreDBName, txnStoreDBName string) (api.BlockStore, error) {
+// createCommitterBlockStore creates new couch db with given db name if doesn't exists
+func createCommitterBlockStore(couchInstance *couchdb.CouchInstance, ledgerid, blockStoreDBName, txnStoreDBName string, opts ...option) (api.BlockStore, error) {
 	blockStoreDB, err := couchdb.CreateCouchDatabase(couchInstance, blockStoreDBName)
 	if err != nil {
 		return nil, err
@@ -74,12 +93,11 @@ func createCommitterBlockStore(couchInstance *couchdb.CouchInstance, ledgerid, b
 		return nil, err
 	}
 
-	return newCDBBlockStore(blockStoreDB, txnStoreDB, ledgerid), nil
+	return newCDBBlockStore(blockStoreDB, txnStoreDB, ledgerid, opts...), nil
 }
 
-//createBlockStore opens existing couch db with given db name with retry
-func (p *CDBBlockstoreProvider) createNonCommitterBlockStore(ledgerid, blockStoreDBName, txnStoreDBName string) (api.BlockStore, error) {
-
+// createNonCommitterBlockStore opens existing couch db with given db name with retry
+func (p *CDBBlockstoreProvider) createNonCommitterBlockStore(ledgerid, blockStoreDBName, txnStoreDBName string, opts ...option) (api.BlockStore, error) {
 	//create new block store db
 	blockStoreDB, err := p.openCouchDB(blockStoreDBName)
 	if err != nil {
@@ -101,7 +119,7 @@ func (p *CDBBlockstoreProvider) createNonCommitterBlockStore(ledgerid, blockStor
 		return nil, err
 	}
 
-	return newCDBBlockStore(blockStoreDB, txnStoreDB, ledgerid), nil
+	return newCDBBlockStore(blockStoreDB, txnStoreDB, ledgerid, opts...), nil
 }
 
 func (p *CDBBlockstoreProvider) openCouchDB(dbName string) (*couchdb.CouchDatabase, error) {

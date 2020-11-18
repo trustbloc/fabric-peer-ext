@@ -34,6 +34,8 @@ type checkpointInfo struct {
 type couchDB interface {
 	ReadDoc(id string) (*couchdb.CouchDoc, string, error)
 	SaveDoc(id string, rev string, couchDoc *couchdb.CouchDoc) (string, error)
+	QueryDocuments(query string) ([]*couchdb.QueryResult, string, error)
+	BatchUpdateDocuments(documents []*couchdb.CouchDoc) ([]*couchdb.BatchUpdateResponse, error)
 }
 
 func newCheckpoint(db couchDB) *checkpoint {
@@ -69,7 +71,7 @@ func (cp *checkpoint) loadCurrentInfo() (*checkpointInfo, error) {
 	if err != nil {
 		return nil, errors.WithMessage(err, fmt.Sprintf("unmarshal of checkpointInfo from couchDB failed [%s]", blkMgrInfoKey))
 	}
-	logger.Debugf("loaded checkpointInfo:%s", checkpointInfo)
+	logger.Debugf("loaded checkpointInfo for block [%d]", checkpointInfo.lastBlockNumber)
 	return checkpointInfo, nil
 }
 

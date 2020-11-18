@@ -247,3 +247,29 @@ func TestIsDCASRawLeaves(t *testing.T) {
 	viper.Set(confDCASRawLeaves, false)
 	require.False(t, IsDCASRawLeaves())
 }
+
+func TestGetBlockStoreBlockByNumCacheSize(t *testing.T) {
+	oldVal := viper.Get(confBlockStoreCacheSizeBlockByNum)
+	defer viper.Set(confBlockStoreCacheSizeBlockByNum, oldVal)
+
+	require.Equal(t, defaultBlockByNumCacheSize, GetBlockStoreBlockByNumCacheSize())
+
+	viper.Set(confBlockStoreCacheSizeBlockByNum, 300)
+	require.Equal(t, uint(300), GetBlockStoreBlockByNumCacheSize())
+
+	viper.Set(confBlockStoreCacheSizeBlockByNum, -1)
+	require.Equal(t, defaultBlockByNumCacheSize, GetBlockStoreBlockByNumCacheSize())
+}
+
+func TestGetBlockStoreBlockByHashCacheSize(t *testing.T) {
+	oldVal := viper.Get(confBlockStoreCacheSizeBlockByHash)
+	defer viper.Set(confBlockStoreCacheSizeBlockByHash, oldVal)
+
+	require.Equal(t, defaultBlockByHashCacheSize, GetBlockStoreBlockByHashCacheSize())
+
+	viper.Set(confBlockStoreCacheSizeBlockByHash, 300)
+	require.Equal(t, uint(300), GetBlockStoreBlockByHashCacheSize())
+
+	viper.Set(confBlockStoreCacheSizeBlockByHash, -1)
+	require.Equal(t, defaultBlockByHashCacheSize, GetBlockStoreBlockByHashCacheSize())
+}

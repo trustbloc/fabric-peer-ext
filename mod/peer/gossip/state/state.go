@@ -160,7 +160,7 @@ func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Bloc
 		if isBlockValidated(block) {
 			err := s.support.Ledger.CheckpointBlock(block,
 				func() {
-					logger.Debugf("[%s] Publishing validated block [%d] with %d private data collections", s.chainID, block.Header.Number, len(pvtData))
+					logger.Infof("[%s] Publishing validated block [%d] with %d private data collections", s.chainID, block.Header.Number, len(pvtData))
 
 					blockpublisher.ForChannel(s.chainID).Publish(block, toPvtDataMap(pvtData))
 				},

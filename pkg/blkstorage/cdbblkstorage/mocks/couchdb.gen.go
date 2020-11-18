@@ -38,6 +38,34 @@ type CouchDB struct {
 		result1 string
 		result2 error
 	}
+	QueryDocumentsStub        func(query string) ([]*couchdb.QueryResult, string, error)
+	queryDocumentsMutex       sync.RWMutex
+	queryDocumentsArgsForCall []struct {
+		query string
+	}
+	queryDocumentsReturns struct {
+		result1 []*couchdb.QueryResult
+		result2 string
+		result3 error
+	}
+	queryDocumentsReturnsOnCall map[int]struct {
+		result1 []*couchdb.QueryResult
+		result2 string
+		result3 error
+	}
+	BatchUpdateDocumentsStub        func(documents []*couchdb.CouchDoc) ([]*couchdb.BatchUpdateResponse, error)
+	batchUpdateDocumentsMutex       sync.RWMutex
+	batchUpdateDocumentsArgsForCall []struct {
+		documents []*couchdb.CouchDoc
+	}
+	batchUpdateDocumentsReturns struct {
+		result1 []*couchdb.BatchUpdateResponse
+		result2 error
+	}
+	batchUpdateDocumentsReturnsOnCall map[int]struct {
+		result1 []*couchdb.BatchUpdateResponse
+		result2 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -149,6 +177,116 @@ func (fake *CouchDB) SaveDocReturnsOnCall(i int, result1 string, result2 error) 
 	}{result1, result2}
 }
 
+func (fake *CouchDB) QueryDocuments(query string) ([]*couchdb.QueryResult, string, error) {
+	fake.queryDocumentsMutex.Lock()
+	ret, specificReturn := fake.queryDocumentsReturnsOnCall[len(fake.queryDocumentsArgsForCall)]
+	fake.queryDocumentsArgsForCall = append(fake.queryDocumentsArgsForCall, struct {
+		query string
+	}{query})
+	fake.recordInvocation("QueryDocuments", []interface{}{query})
+	fake.queryDocumentsMutex.Unlock()
+	if fake.QueryDocumentsStub != nil {
+		return fake.QueryDocumentsStub(query)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2, ret.result3
+	}
+	return fake.queryDocumentsReturns.result1, fake.queryDocumentsReturns.result2, fake.queryDocumentsReturns.result3
+}
+
+func (fake *CouchDB) QueryDocumentsCallCount() int {
+	fake.queryDocumentsMutex.RLock()
+	defer fake.queryDocumentsMutex.RUnlock()
+	return len(fake.queryDocumentsArgsForCall)
+}
+
+func (fake *CouchDB) QueryDocumentsArgsForCall(i int) string {
+	fake.queryDocumentsMutex.RLock()
+	defer fake.queryDocumentsMutex.RUnlock()
+	return fake.queryDocumentsArgsForCall[i].query
+}
+
+func (fake *CouchDB) QueryDocumentsReturns(result1 []*couchdb.QueryResult, result2 string, result3 error) {
+	fake.QueryDocumentsStub = nil
+	fake.queryDocumentsReturns = struct {
+		result1 []*couchdb.QueryResult
+		result2 string
+		result3 error
+	}{result1, result2, result3}
+}
+
+func (fake *CouchDB) QueryDocumentsReturnsOnCall(i int, result1 []*couchdb.QueryResult, result2 string, result3 error) {
+	fake.QueryDocumentsStub = nil
+	if fake.queryDocumentsReturnsOnCall == nil {
+		fake.queryDocumentsReturnsOnCall = make(map[int]struct {
+			result1 []*couchdb.QueryResult
+			result2 string
+			result3 error
+		})
+	}
+	fake.queryDocumentsReturnsOnCall[i] = struct {
+		result1 []*couchdb.QueryResult
+		result2 string
+		result3 error
+	}{result1, result2, result3}
+}
+
+func (fake *CouchDB) BatchUpdateDocuments(documents []*couchdb.CouchDoc) ([]*couchdb.BatchUpdateResponse, error) {
+	var documentsCopy []*couchdb.CouchDoc
+	if documents != nil {
+		documentsCopy = make([]*couchdb.CouchDoc, len(documents))
+		copy(documentsCopy, documents)
+	}
+	fake.batchUpdateDocumentsMutex.Lock()
+	ret, specificReturn := fake.batchUpdateDocumentsReturnsOnCall[len(fake.batchUpdateDocumentsArgsForCall)]
+	fake.batchUpdateDocumentsArgsForCall = append(fake.batchUpdateDocumentsArgsForCall, struct {
+		documents []*couchdb.CouchDoc
+	}{documentsCopy})
+	fake.recordInvocation("BatchUpdateDocuments", []interface{}{documentsCopy})
+	fake.batchUpdateDocumentsMutex.Unlock()
+	if fake.BatchUpdateDocumentsStub != nil {
+		return fake.BatchUpdateDocumentsStub(documents)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fake.batchUpdateDocumentsReturns.result1, fake.batchUpdateDocumentsReturns.result2
+}
+
+func (fake *CouchDB) BatchUpdateDocumentsCallCount() int {
+	fake.batchUpdateDocumentsMutex.RLock()
+	defer fake.batchUpdateDocumentsMutex.RUnlock()
+	return len(fake.batchUpdateDocumentsArgsForCall)
+}
+
+func (fake *CouchDB) BatchUpdateDocumentsArgsForCall(i int) []*couchdb.CouchDoc {
+	fake.batchUpdateDocumentsMutex.RLock()
+	defer fake.batchUpdateDocumentsMutex.RUnlock()
+	return fake.batchUpdateDocumentsArgsForCall[i].documents
+}
+
+func (fake *CouchDB) BatchUpdateDocumentsReturns(result1 []*couchdb.BatchUpdateResponse, result2 error) {
+	fake.BatchUpdateDocumentsStub = nil
+	fake.batchUpdateDocumentsReturns = struct {
+		result1 []*couchdb.BatchUpdateResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *CouchDB) BatchUpdateDocumentsReturnsOnCall(i int, result1 []*couchdb.BatchUpdateResponse, result2 error) {
+	fake.BatchUpdateDocumentsStub = nil
+	if fake.batchUpdateDocumentsReturnsOnCall == nil {
+		fake.batchUpdateDocumentsReturnsOnCall = make(map[int]struct {
+			result1 []*couchdb.BatchUpdateResponse
+			result2 error
+		})
+	}
+	fake.batchUpdateDocumentsReturnsOnCall[i] = struct {
+		result1 []*couchdb.BatchUpdateResponse
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *CouchDB) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -156,6 +294,10 @@ func (fake *CouchDB) Invocations() map[string][][]interface{} {
 	defer fake.readDocMutex.RUnlock()
 	fake.saveDocMutex.RLock()
 	defer fake.saveDocMutex.RUnlock()
+	fake.queryDocumentsMutex.RLock()
+	defer fake.queryDocumentsMutex.RUnlock()
+	fake.batchUpdateDocumentsMutex.RLock()
+	defer fake.batchUpdateDocumentsMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
