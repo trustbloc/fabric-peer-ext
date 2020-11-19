@@ -354,7 +354,7 @@ func blockNumberToKey(blockNum uint64) string {
 	return blockKeyPrefix + strconv.FormatUint(blockNum, 10)
 }
 
-func retrieveBlockQuery(db *couchdb.CouchDatabase, query string) (*common.Block, error) {
+func retrieveBlockQuery(db couchDB, query string) (*common.Block, error) {
 	results, _, err := db.QueryDocuments(query)
 	if err != nil {
 		return nil, err
@@ -371,7 +371,7 @@ func retrieveBlockQuery(db *couchdb.CouchDatabase, query string) (*common.Block,
 	return couchAttachmentsToBlock(results[0].Attachments)
 }
 
-func retrieveJSONQuery(db *couchdb.CouchDatabase, id string) (jsonValue, error) {
+func retrieveJSONQuery(db couchDB, id string) (jsonValue, error) {
 	doc, _, err := db.ReadDoc(id)
 	if err != nil {
 		return nil, err

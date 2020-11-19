@@ -8,18 +8,14 @@ package cdbblkstorage
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"math"
 	"path/filepath"
-	"strconv"
 	"sync"
-	"sync/atomic"
 
 	"github.com/hyperledger/fabric-protos-go/common"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/ledger"
-	"github.com/hyperledger/fabric/common/ledger/blkstorage"
 	"github.com/hyperledger/fabric/common/ledger/snapshot"
 	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/hyperledger/fabric/protoutil"
@@ -36,26 +32,47 @@ const (
 
 // cdbBlockStore ...
 type cdbBlockStore struct {
-	blockStore *couchdb.CouchDatabase
-	txnStore   *couchdb.CouchDatabase
 	ledgerID   string
 	cpInfo     *checkpointInfo
 	cpInfoCond *sync.Cond
 	cp         *checkpoint
-	attachTxn  bool
-	bcInfo     atomic.Value
+	store      *store
+	cache      *blockCache
+}
+
+type config struct {
+	blockByNumSize  uint
+	blockByHashSize uint
+}
+
+type option func(cfg *config)
+
+// withBlockByNumCacheSize sets the size of the block-by-number cache
+// A size of zero disables the cache
+func withBlockByNumCacheSize(size uint) option {
+	return func(cfg *config) {
+		cfg.blockByNumSize = size
+	}
+}
+
+// withBlockByHashCacheSize sets the size of the block-by-hash cache
+// A size of zero disables the cache
+func withBlockByHashCacheSize(size uint) option {
+	return func(cfg *config) {
+		cfg.blockByHashSize = size
+	}
 }
 
 // newCDBBlockStore constructs block store based on CouchDB
-func newCDBBlockStore(blockStore *couchdb.CouchDatabase, txnStore *couchdb.CouchDatabase, ledgerID string) *cdbBlockStore {
+func newCDBBlockStore(blockStore *couchdb.CouchDatabase, txnStore *couchdb.CouchDatabase, ledgerID string, opts ...option) *cdbBlockStore {
 	cp := newCheckpoint(blockStore)
 
+	store := newStore(ledgerID, blockStore, txnStore)
+
 	cdbBlockStore := &cdbBlockStore{
-		blockStore: blockStore,
-		txnStore:   txnStore,
-		ledgerID:   ledgerID,
-		cp:         cp,
-		attachTxn:  false,
+		ledgerID: ledgerID,
+		store:    store,
+		cp:       cp,
 	}
 
 	// cp = checkpointInfo, retrieve from the database the last block number that was written to that db.
@@ -80,7 +97,7 @@ func newCDBBlockStore(blockStore *couchdb.CouchDatabase, txnStore *couchdb.Couch
 		logger.Debugf("[%s] Loading block %d from database", ledgerID, cpInfo.lastBlockNumber)
 
 		//If start up is a restart of an existing storage, update BlockchainInfo for external API's
-		lastBlock, err := cdbBlockStore.RetrieveBlockByNumber(cpInfo.lastBlockNumber)
+		lastBlock, err := store.RetrieveBlockByNumber(cpInfo.lastBlockNumber)
 		if err != nil {
 			panic(fmt.Sprintf("Could not load block %d from database: %s", cpInfo.lastBlockNumber, err))
 		}
@@ -94,14 +111,13 @@ func newCDBBlockStore(blockStore *couchdb.CouchDatabase, txnStore *couchdb.Couch
 		}
 	}
 
-	cdbBlockStore.bcInfo.Store(bcInfo)
+	cdbBlockStore.cache = newCache(ledgerID, store, bcInfo, resolveOptions(opts))
 
 	return cdbBlockStore
 }
 
 // AddBlock adds a new block
 func (s *cdbBlockStore) AddBlock(block *common.Block) error {
-
 	if !roles.IsCommitter() {
 		// Nothing to do if not a committer
 		return nil
@@ -112,12 +128,7 @@ func (s *cdbBlockStore) AddBlock(block *common.Block) error {
 		return err
 	}
 
-	err = s.storeBlock(block)
-	if err != nil {
-		return err
-	}
-
-	err = s.storeTransactions(block)
+	err = s.store.store(block)
 	if err != nil {
 		return err
 	}
@@ -155,40 +166,6 @@ func (s *cdbBlockStore) validateBlock(block *common.Block) error {
 	return nil
 }
 
-func (s *cdbBlockStore) storeBlock(block *common.Block) error {
-	doc, err := blockToCouchDoc(block)
-	if err != nil {
-		return errors.WithMessage(err, "converting block to couchDB document failed")
-	}
-
-	id := blockNumberToKey(block.GetHeader().GetNumber())
-
-	rev, err := s.blockStore.SaveDoc(id, "", doc)
-	if err != nil {
-		return errors.WithMessage(err, "adding block to couchDB failed")
-	}
-	logger.Debugf("block added to couchDB [%d, %s]", block.GetHeader().GetNumber(), rev)
-	return nil
-}
-
-func (s *cdbBlockStore) storeTransactions(block *common.Block) error {
-	docs, err := blockToTxnCouchDocs(block, s.attachTxn)
-	if err != nil {
-		return errors.WithMessage(err, "converting block to couchDB txn documents failed")
-	}
-
-	if len(docs) == 0 {
-		return nil
-	}
-
-	_, err = s.txnStore.BatchUpdateDocuments(docs)
-	if err != nil {
-		return errors.WithMessage(err, "adding block to couchDB failed")
-	}
-	logger.Debugf("block transactions added to couchDB [%d]", block.GetHeader().GetNumber())
-	return nil
-}
-
 func noOp() {
 }
 
@@ -199,6 +176,9 @@ func (s *cdbBlockStore) CheckpointBlock(block *common.Block, notify func()) erro
 		lastBlockNumber: block.Header.Number,
 		currentHash:     protoutil.BlockHeaderHash(block.Header),
 	}
+
+	s.cache.put(block)
+
 	if roles.IsCommitter() {
 		//save the checkpoint information in the database
 		err := s.cp.saveCurrentInfo(newCPInfo)
@@ -213,9 +193,7 @@ func (s *cdbBlockStore) CheckpointBlock(block *common.Block, notify func()) erro
 		PreviousBlockHash: block.Header.PreviousHash,
 	}
 
-	logger.Debugf("[%s] Updating blockchain info: %s", s.ledgerID, bcInfo)
-
-	s.bcInfo.Store(bcInfo)
+	s.cache.setBlockchainInfo(bcInfo)
 
 	notify()
 
@@ -227,7 +205,7 @@ func (s *cdbBlockStore) CheckpointBlock(block *common.Block, notify func()) erro
 
 // GetBlockchainInfo returns the current info about blockchain
 func (s *cdbBlockStore) GetBlockchainInfo() (*common.BlockchainInfo, error) {
-	return s.bcInfo.Load().(*common.BlockchainInfo), nil
+	return s.cache.getBlockchainInfo(), nil
 }
 
 // RetrieveBlocks returns an iterator that can be used for iterating over a range of blocks
@@ -237,23 +215,7 @@ func (s *cdbBlockStore) RetrieveBlocks(startNum uint64) (ledger.ResultsIterator,
 
 // RetrieveBlockByHash returns the block for given block-hash
 func (s *cdbBlockStore) RetrieveBlockByHash(blockHash []byte) (*common.Block, error) {
-	blockHashHex := hex.EncodeToString(blockHash)
-	const queryFmt = `
-	{
-		"selector": {
-			"` + blockHeaderField + `.` + blockHashField + `": {
-				"$eq": "%s"
-			}
-		},
-		"use_index": ["_design/` + blockHashIndexDoc + `", "` + blockHashIndexName + `"]
-	}`
-
-	block, err := retrieveBlockQuery(s.blockStore, fmt.Sprintf(queryFmt, blockHashHex))
-	if err != nil {
-		// note: allow ErrNotFoundInIndex to pass through
-		return nil, err
-	}
-	return block, nil
+	return s.cache.getBlockByHash(blockHash)
 }
 
 // RetrieveBlockByNumber returns the block at a given blockchain height
@@ -267,125 +229,33 @@ func (s *cdbBlockStore) RetrieveBlockByNumber(blockNum uint64) (*common.Block, e
 		blockNum = bcinfo.Height - 1
 	}
 
-	id := blockNumberToKey(blockNum)
-
-	doc, _, err := s.blockStore.ReadDoc(id)
-	if err != nil {
-		return nil, errors.WithMessage(err, fmt.Sprintf("retrieval of block from couchDB failed [%d]", blockNum))
-	}
-	if doc == nil {
-		return nil, blkstorage.ErrNotFoundInIndex
-	}
-
-	block, err := couchDocToBlock(doc)
-	if err != nil {
-		return nil, errors.WithMessage(err, fmt.Sprintf("unmarshal of block from couchDB failed [%d]", blockNum))
-	}
-
-	return block, nil
+	return s.cache.getBlockByNumber(blockNum)
 }
 
 // RetrieveTxByID returns a transaction for given transaction id
 func (s *cdbBlockStore) RetrieveTxByID(txID string) (*common.Envelope, error) {
-	doc, _, err := s.txnStore.ReadDoc(txID)
-	if err != nil {
-		// note: allow ErrNotFoundInIndex to pass through
-		return nil, err
-	}
-	if doc == nil {
-		return nil, blkstorage.ErrNotFoundInIndex
-	}
-
-	// If this transaction includes the envelope as a valid attachment then can return immediately.
-	if len(doc.Attachments) > 0 {
-		attachedEnv, e := couchAttachmentsToTxnEnvelope(doc.Attachments)
-		if e == nil {
-			return attachedEnv, nil
-		}
-		logger.Debugf("transaction has attachment but failed to be extracted into envelope [%s]", err)
-	}
-
-	// Otherwise, we need to extract the transaction from the block document.
-	block, err := s.RetrieveBlockByTxID(txID)
-	if err != nil {
-		// note: allow ErrNotFoundInIndex to pass through
-		return nil, err
-	}
-
-	return extractTxnEnvelopeFromBlock(block, txID)
+	return s.store.RetrieveTxByID(txID)
 }
 
 // RetrieveTxByBlockNumTranNum returns a transaction for given block ID and transaction ID
 func (s *cdbBlockStore) RetrieveTxByBlockNumTranNum(blockNum uint64, tranNum uint64) (*common.Envelope, error) {
-	block, err := s.RetrieveBlockByNumber(blockNum)
+	block, err := s.cache.getBlockByNumber(blockNum)
 	if err != nil {
 		// note: allow ErrNotFoundInIndex to pass through
 		return nil, err
 	}
+
 	return extractEnvelopeFromBlock(block, tranNum)
 }
 
 // RetrieveBlockByTxID returns a block for a given transaction ID
 func (s *cdbBlockStore) RetrieveBlockByTxID(txID string) (*common.Block, error) {
-	blockHash, err := s.retrieveBlockHashByTxID(txID)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.RetrieveBlockByHash(blockHash)
-}
-
-func (s *cdbBlockStore) retrieveBlockHashByTxID(txID string) ([]byte, error) {
-	jsonResult, err := retrieveJSONQuery(s.txnStore, txID)
-	if err != nil {
-		// note: allow ErrNotFoundInIndex to pass through
-		logger.Errorf("retrieving transaction document from DB failed : %s", err)
-		return nil, blkstorage.ErrNotFoundInIndex
-	}
-
-	blockHashStoredUT, ok := jsonResult[txnBlockHashField]
-	if !ok {
-		return nil, errors.Errorf("block hash was not found for transaction ID [%s]", txID)
-	}
-
-	blockHashStored, ok := blockHashStoredUT.(string)
-	if !ok {
-		return nil, errors.Errorf("block hash has invalid type for transaction ID [%s]", txID)
-	}
-
-	blockHash, err := hex.DecodeString(blockHashStored)
-	if err != nil {
-		return nil, errors.Wrapf(err, "block hash was invalid for transaction ID [%s]", txID)
-	}
-
-	return blockHash, nil
+	return s.store.RetrieveBlockByTxID(txID)
 }
 
 // RetrieveTxValidationCodeByTxID returns a TX validation code for a given transaction ID
 func (s *cdbBlockStore) RetrieveTxValidationCodeByTxID(txID string) (peer.TxValidationCode, error) {
-	jsonResult, err := retrieveJSONQuery(s.txnStore, txID)
-	if err != nil {
-		// note: allow ErrNotFoundInIndex to pass through
-		return peer.TxValidationCode(-1), err
-	}
-
-	txnValidationCodeStoredUT, ok := jsonResult[txnValidationCode]
-	if !ok {
-		return peer.TxValidationCode_INVALID_OTHER_REASON, errors.Errorf("validation code was not found for transaction ID [%s]", txID)
-	}
-
-	txnValidationCodeStored, ok := txnValidationCodeStoredUT.(string)
-	if !ok {
-		return peer.TxValidationCode_INVALID_OTHER_REASON, errors.Errorf("validation code has invalid type for transaction ID [%s]", txID)
-	}
-
-	const sizeOfTxValidationCode = 32
-	txnValidationCode, err := strconv.ParseInt(txnValidationCodeStored, txnValidationCodeBase, sizeOfTxValidationCode)
-	if err != nil {
-		return peer.TxValidationCode_INVALID_OTHER_REASON, errors.Wrapf(err, "validation code was invalid for transaction ID [%s]", txID)
-	}
-
-	return peer.TxValidationCode(txnValidationCode), nil
+	return s.store.RetrieveTxValidationCodeByTxID(txID)
 }
 
 // ExportTxIds creates two files in the specified dir and returns a map that contains
@@ -395,7 +265,7 @@ func (s *cdbBlockStore) RetrieveTxValidationCodeByTxID(txID string) (peer.TxVali
 func (s *cdbBlockStore) ExportTxIds(dir string, newHashFunc snapshot.NewHashFunc) (map[string][]byte, error) {
 	logger.Infof("[%s] Exporting transaction IDs to directory [%s]", s.ledgerID, dir)
 
-	dataHash, numTxIDs, err := s.exportTxIDs(dir, newHashFunc)
+	dataHash, numTxIDs, err := s.store.exportTxIDs(dir, newHashFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -433,56 +303,6 @@ func (s *cdbBlockStore) ExportTxIds(dir string, newHashFunc snapshot.NewHashFunc
 	}, nil
 }
 
-func (s *cdbBlockStore) exportTxIDs(dir string, newHashFunc snapshot.NewHashFunc) ([]byte, uint64, error) {
-	// Get everything from the DB
-	// TODO: Is it practical to be returning all rows from a database?
-	results, _, err := s.txnStore.QueryDocuments(`{"selector": {}}`)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	var numTxIDs uint64 = 0
-	var dataFile *snapshot.FileWriter
-
-	for _, r := range results {
-		if numTxIDs == 0 { // first iteration, create the data file
-			fileName := filepath.Join(dir, snapshotDataFileName)
-			dataFile, err = snapshot.CreateFile(fileName, snapshotFileFormat, newHashFunc)
-			if err != nil {
-				return nil, 0, err
-			}
-
-			logger.Infof("[%s] Created file [%s]", s.ledgerID, fileName)
-
-			defer func() {
-				if err = dataFile.Close(); err != nil {
-					logger.Warnf("Error closing datafile: %s", err)
-				}
-			}()
-		}
-
-		logger.Infof("[%s] Adding TxID [%s]", s.ledgerID, r.ID)
-
-		if e := dataFile.EncodeString(r.ID); e != nil {
-			return nil, 0, e
-		}
-
-		numTxIDs++
-	}
-
-	if dataFile == nil {
-		logger.Infof("[%s] No data file created", s.ledgerID)
-		return nil, 0, nil
-	}
-
-	dataHash, err := dataFile.Done()
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return dataHash, numTxIDs, nil
-}
-
 // Shutdown closes the storage instance
 func (s *cdbBlockStore) Shutdown() {
 }
@@ -491,6 +311,18 @@ func (s *cdbBlockStore) updateCheckpoint(cpInfo *checkpointInfo) {
 	s.cpInfoCond.L.Lock()
 	defer s.cpInfoCond.L.Unlock()
 	s.cpInfo = cpInfo
-	logger.Debugf("Broadcasting about update checkpointInfo: %s", cpInfo)
+
+	logger.Debugf("[%s] Broadcasting checkpoint info for block [%d]", s.ledgerID, cpInfo.lastBlockNumber)
+
 	s.cpInfoCond.Broadcast()
+}
+
+func resolveOptions(opts []option) config {
+	var cfg config
+
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	return cfg
 }

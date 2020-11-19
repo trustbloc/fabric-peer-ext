@@ -10,10 +10,13 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/config"
 	unixfs "github.com/ipfs/go-unixfs/importer/helpers"
 	viper "github.com/spf13/viper2015"
 )
+
+var logger = flogging.MustGetLogger("ext_config")
 
 const (
 	confPeerFileSystemPath = "peer.fileSystemPath"
@@ -71,6 +74,12 @@ const (
 	defaultIDStoreDBType          = CouchDBType
 	defaultPrivateDataStoreDBType = CouchDBType
 	defaultTransientStoreDBType   = MemDBType
+
+	confBlockStoreCacheSizeBlockByNum  = "ledger.storage.blockStore.cacheSize.blockByNum"
+	confBlockStoreCacheSizeBlockByHash = "ledger.storage.blockStore.cacheSize.blockByHash"
+
+	defaultBlockByNumCacheSize  = uint(20)
+	defaultBlockByHashCacheSize = uint(20)
 )
 
 // DBType is the database type
@@ -276,4 +285,40 @@ func GetTransientStoreDBType() DBType {
 	}
 
 	return dbType
+}
+
+// GetBlockStoreBlockByNumCacheSize returns the size of the blocks-by-number cache.
+// A value of zero disables the cache.
+func GetBlockStoreBlockByNumCacheSize() uint {
+	if !viper.IsSet(confBlockStoreCacheSizeBlockByNum) {
+		return defaultBlockByNumCacheSize
+	}
+
+	size := viper.GetInt(confBlockStoreCacheSizeBlockByNum)
+	if size < 0 {
+		logger.Warnf("Invalid value for %s: %d. The value must be >= 0. Using default cache size %d",
+			confBlockStoreCacheSizeBlockByNum, size, defaultBlockByNumCacheSize)
+
+		return defaultBlockByNumCacheSize
+	}
+
+	return uint(size)
+}
+
+// GetBlockStoreBlockByHashCacheSize returns the size of the blocks-by-hash cache
+// A value of zero disables the cache.
+func GetBlockStoreBlockByHashCacheSize() uint {
+	if !viper.IsSet(confBlockStoreCacheSizeBlockByHash) {
+		return defaultBlockByHashCacheSize
+	}
+
+	size := viper.GetInt(confBlockStoreCacheSizeBlockByHash)
+	if size < 0 {
+		logger.Warnf("Invalid value for %s: %d. The value must be >= 0. Using default cache size %d",
+			confBlockStoreCacheSizeBlockByHash, size, defaultBlockByHashCacheSize)
+
+		return defaultBlockByHashCacheSize
+	}
+
+	return uint(size)
 }

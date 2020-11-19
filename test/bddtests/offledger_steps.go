@@ -232,18 +232,6 @@ func newDCASCollectionConfig(collName string, requiredPeerCount, maxPeerCount in
 	}
 }
 
-func (d *OffLedgerSteps) setVariable(varName, value string) error {
-	if err := bddtests.ResolveVarsInExpression(&value); err != nil {
-		return err
-	}
-
-	logger.Infof("Setting var [%s] to [%s]", varName, value)
-
-	bddtests.SetVar(varName, value)
-
-	return nil
-}
-
 // RegisterSteps registers off-ledger steps
 func (d *OffLedgerSteps) RegisterSteps(s *godog.Suite) {
 	s.BeforeScenario(d.BDDContext.BeforeScenario)
@@ -255,7 +243,6 @@ func (d *OffLedgerSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the account stored in variable "([^"]*)" is updated with a balance of (\d+)$`, d.updateAccountBalance)
 	s.Step(`^the variable "([^"]*)" contains (\d+) accounts$`, d.checkAccountQueryResponse)
 	s.Step(`^the variable "([^"]*)" contains an account at index (\d+) with Key "([^"]*)", ID "([^"]*)", Owner "([^"]*)", and Balance (\d+)$`, d.validateAccountAtIndex)
-	s.Step(`^variable "([^"]*)" is assigned the uncanonicalized JSON value '([^']*)'$`, d.setVariable)
 }
 
 // AccountOperation contains account information
