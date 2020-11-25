@@ -78,6 +78,8 @@ const (
 	confBlockStoreCacheSizeBlockByNum  = "ledger.storage.blockStore.cacheSize.blockByNum"
 	confBlockStoreCacheSizeBlockByHash = "ledger.storage.blockStore.cacheSize.blockByHash"
 
+	confSkipCheckForDupTxnID = "peer.skipCheckForDupTxnID"
+
 	defaultBlockByNumCacheSize  = uint(20)
 	defaultBlockByHashCacheSize = uint(20)
 )
@@ -321,4 +323,10 @@ func GetBlockStoreBlockByHashCacheSize() uint {
 	}
 
 	return uint(size)
+}
+
+// IsSkipCheckForDupTxnID indicates whether or not endorsers should skip the check for duplicate transactions IDs. The check
+// would still be performed during validation.
+func IsSkipCheckForDupTxnID() bool {
+	return viper.GetBool(confSkipCheckForDupTxnID)
 }

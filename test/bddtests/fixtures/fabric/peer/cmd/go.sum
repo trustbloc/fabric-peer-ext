@@ -645,8 +645,8 @@ github.com/syndtr/goleveldb v1.0.1-0.20190625010220-02440ea7a285/go.mod h1:9OrXJ
 github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc h1:LUUe4cdABGrIJAhl1P1ZpWY76AwukVszFdwkVFVLwIk=
 github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc/go.mod h1:eyZnKCc955uh98WQvzOm0dgAeLnf2O0Rz0LPoC5ze+0=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
-github.com/trustbloc/fabric-mod v0.1.5-0.20201119154229-995b7da0e927 h1:c20NDCnhFO83Jq0mH6lHnPhMW0uK/DQ56GaUBDayBZg=
-github.com/trustbloc/fabric-mod v0.1.5-0.20201119154229-995b7da0e927/go.mod h1:uxmhuaA5Z4g2uJVkOYwhdmQHygguxiMCMQu4EvNEBUM=
+github.com/trustbloc/fabric-mod v0.1.5-0.20201125203534-d4b11ce12a78 h1:kjUeRg5Up7ebfigGBCyvl5fwOYOolJkpY+GwsxOHU04=
+github.com/trustbloc/fabric-mod v0.1.5-0.20201125203534-d4b11ce12a78/go.mod h1:uxmhuaA5Z4g2uJVkOYwhdmQHygguxiMCMQu4EvNEBUM=
 github.com/trustbloc/fabric-protos-go-ext v0.1.5-0.20201007143125-b463170dba33 h1:uCW4UrePlLUzeCDnUgQBMMECtFFIBGRGKSdhOfBg4oY=
 github.com/trustbloc/fabric-protos-go-ext v0.1.5-0.20201007143125-b463170dba33/go.mod h1:xVYTjK4DtZRBxZ2D9aE4y6AbLaPwue2o/criQyQbVD0=
 github.com/ugorji/go v1.1.1/go.mod h1:hnLbHMwcvSihnDhEfx2/BzKp2xb0Y+ErdfYcrs9tkJQ=
@@ -773,7 +773,6 @@ golang.org/x/sys v0.0.0-20190610200419-93c9922d18ae/go.mod h1:h1NjWce9XRLGQEsW7w
 golang.org/x/sys v0.0.0-20190710143415-6ec70d6a5542/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20190801041406-cbf593c0f2f3 h1:4y9KwBHBgBNwDbtu44R5o1fdOCQUEXhbk/P4A9WmJq0=
 golang.org/x/sys v0.0.0-20190801041406-cbf593c0f2f3/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
-golang.org/x/sys v0.0.0-20190916202348-b4ddaad3f8a3 h1:7TYNF4UdlohbFwpNH04CoPMp1cHUZgO1Ebq5r2hIjfo=
 golang.org/x/sys v0.0.0-20190916202348-b4ddaad3f8a3/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20191022100944-742c48ecaeb7/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200120151820-655fe14d7479 h1:LhLiKguPgZL+Tglay4GhVtfF0kb8cvOJ0dHTCBO8YNI=
