@@ -273,3 +273,13 @@ func TestGetBlockStoreBlockByHashCacheSize(t *testing.T) {
 	viper.Set(confBlockStoreCacheSizeBlockByHash, -1)
 	require.Equal(t, defaultBlockByHashCacheSize, GetBlockStoreBlockByHashCacheSize())
 }
+
+func TestIsSkipCheckForDupTxnID(t *testing.T) {
+	oldVal := viper.Get(confSkipCheckForDupTxnID)
+	defer viper.Set(confSkipCheckForDupTxnID, oldVal)
+
+	require.False(t, IsSkipCheckForDupTxnID())
+
+	viper.Set(confSkipCheckForDupTxnID, true)
+	require.True(t, IsSkipCheckForDupTxnID())
+}
