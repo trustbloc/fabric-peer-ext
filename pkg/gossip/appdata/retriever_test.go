@@ -14,8 +14,8 @@ import (
 
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	"github.com/stretchr/testify/require"
-
 	"github.com/trustbloc/fabric-peer-ext/pkg/common"
+	"github.com/trustbloc/fabric-peer-ext/pkg/common/discovery"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/requestmgr"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 )
@@ -76,7 +76,7 @@ func TestRetriever(t *testing.T) {
 
 	reqMgr := requestmgr.Get(channel1)
 
-	r := newRetriever(channel1, gossip, 2, 2, reqMgr,
+	r := NewRetrieverForTest(channel1, gossip, 2, 2,
 		func() requestmgr.Request {
 			mutex.Lock()
 			defer mutex.Unlock()
@@ -113,7 +113,10 @@ func TestRetriever(t *testing.T) {
 		return v, nil
 	}, func(values common.Values) bool {
 		return true
-	})
+	}, WithPeerFilter(func(member *discovery.Member) bool {
+		return member.MSPID == org2MSPID
+	}),
+	)
 
 	require.NoError(t, err)
 	require.Len(t, values, 3)

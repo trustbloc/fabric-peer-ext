@@ -13,17 +13,17 @@ import (
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/ledger"
+	"github.com/hyperledger/fabric/extensions/gossip/api"
+	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
+	"github.com/hyperledger/fabric/extensions/roles"
 	common2 "github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/gossip/discovery"
 	"github.com/hyperledger/fabric/gossip/protoext"
 	"github.com/hyperledger/fabric/gossip/util"
 	"github.com/pkg/errors"
 
-	"github.com/hyperledger/fabric/extensions/gossip/api"
-	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
-	"github.com/hyperledger/fabric/extensions/roles"
-
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/txflags"
+	"github.com/trustbloc/fabric-peer-ext/pkg/gossip/state"
 )
 
 var logger = flogging.MustGetLogger("ext_gossip_state")
@@ -135,7 +135,6 @@ func (s *gossipStateProviderExtension) AddPayload(handle func(payload *proto.Pay
 }
 
 func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Block, pvtData util.PvtDataCollections) (*ledger.BlockAndPvtData, error)) func(block *common.Block, pvtData util.PvtDataCollections) (*ledger.BlockAndPvtData, error) {
-
 	return func(block *common.Block, pvtData util.PvtDataCollections) (*ledger.BlockAndPvtData, error) {
 		if roles.IsCommitter() {
 			// Commit block with available private transactions
@@ -158,7 +157,12 @@ func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Bloc
 
 		//in case of non-committer handle pre commit operations
 		if isBlockValidated(block) {
-			err := s.support.Ledger.CheckpointBlock(block,
+			err := state.UpdateCache(s.chainID, block.Header.Number)
+			if err != nil {
+				logger.Warnf("[%s] Error applying cache updates for block [%d]", s.chainID, block.Header.Number)
+			}
+
+			err = s.support.Ledger.CheckpointBlock(block,
 				func() {
 					logger.Infof("[%s] Publishing validated block [%d] with %d private data collections", s.chainID, block.Header.Number, len(pvtData))
 
@@ -338,4 +342,9 @@ func fromPvtDataMap(pvtData ledger.TxPvtDataMap) util.PvtDataCollections {
 	}
 
 	return pvtDataColl
+}
+
+// SaveCacheUpdates saves the state cache updates so that the results may be published to endorsing peers
+func SaveCacheUpdates(channelID string, blockNum uint64, updates []byte) {
+	state.SaveCacheUpdates(channelID, blockNum, updates)
 }

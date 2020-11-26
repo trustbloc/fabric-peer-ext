@@ -112,7 +112,6 @@ func (cc *ExampleCC) Init(stub shim.ChaincodeStubInterface) pb.Response {
 
 // Invoke invoke the chaincode with a given function
 func (cc *ExampleCC) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
-	fmt.Print("########### example_cc Invoke ###########\n")
 	function, args := stub.GetFunctionAndParameters()
 	if function == "" {
 		return shim.Error("Expecting function")
@@ -133,14 +132,6 @@ func (cc *ExampleCC) put(stub shim.ChaincodeStubInterface, args []string) pb.Res
 
 	key := args[0]
 	value := args[1]
-
-	existingValue, err := stub.GetState(key)
-	if err != nil {
-		return shim.Error(fmt.Sprintf("Error getting data for key [%s]: %s", key, err))
-	}
-	if existingValue != nil {
-		value = string(existingValue) + "-" + value
-	}
 
 	if err := stub.PutState(key, []byte(value)); err != nil {
 		return shim.Error(fmt.Sprintf("Error putting data for key [%s]: %s", key, err))
@@ -236,7 +227,7 @@ func (cc *ExampleCC) queryPrivate(stub shim.ChaincodeStubInterface, args []strin
 		if err != nil {
 			return shim.Error(fmt.Sprintf("query operation on private data failed. Error accessing state: %s", err))
 		}
-		fmt.Printf("Adding result: Key [%s], Value: [%s]\n", result.Key, result.Value)
+
 		results = append(results, result)
 	}
 

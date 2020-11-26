@@ -83,3 +83,7 @@ func (s *stateDB) ExecuteQueryWithPagination(namespace, query, bookmark string, 
 func (s *stateDB) BytesKeySupported() bool {
 	return s.db.BytesKeySupported()
 }
+
+func (s *stateDB) UpdateCache(blockNum uint64, updates []byte) error {
+	return s.db.UpdateCache(blockNum, updates)
+}

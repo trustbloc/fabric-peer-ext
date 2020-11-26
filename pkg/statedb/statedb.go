@@ -40,6 +40,8 @@ type StateDB interface {
 	// BytesKeySupported returns true if the implementation (underlying db) supports the any bytes to be used as key.
 	// For instance, leveldb supports any bytes for the key while the couchdb supports only valid utf-8 string
 	BytesKeySupported() bool
+	// UpdateCache updates the state cache with the given updates. The format of the updates depends on the database implementation.
+	UpdateCache(blockNum uint64, updates []byte) error
 }
 
 // Provider is a state database Provider

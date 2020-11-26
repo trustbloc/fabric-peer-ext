@@ -15,13 +15,15 @@ import (
 	"github.com/hyperledger/fabric/gossip/comm"
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/gossip/discovery"
+
 	extcommon "github.com/trustbloc/fabric-peer-ext/pkg/common"
 	extdiscovery "github.com/trustbloc/fabric-peer-ext/pkg/common/discovery"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/multirequest"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/requestmgr"
 )
 
-type peerFilter = func(*extdiscovery.Member) bool
+// PeerFilter returns true to include the peer in the Gossip request
+type PeerFilter = func(*extdiscovery.Member) bool
 
 // ResponseHandler handles the response to retrieved data
 type ResponseHandler func(response []byte) (extcommon.Values, error)
@@ -56,7 +58,6 @@ type requestCreator func() requestmgr.Request
 type Retriever struct {
 	*extdiscovery.Discovery
 	gossipService
-	reqMgr            requestmgr.RequestMgr
 	createRequest     requestCreator
 	gossipMaxAttempts int
 	gossipMaxPeers    int
@@ -65,29 +66,55 @@ type Retriever struct {
 // NewRetriever returns a new application data retriever
 func NewRetriever(channelID string, gossip gossipService, gossipMaxAttempts, gossipMaxPeers int) *Retriever {
 	reqMgr := requestmgr.Get(channelID)
-	return newRetriever(channelID, gossip, gossipMaxAttempts, gossipMaxPeers, reqMgr, reqMgr.NewRequest)
+	return newRetriever(channelID, gossip, gossipMaxAttempts, gossipMaxPeers, reqMgr.NewRequest)
 }
 
-func newRetriever(channelID string, gossip gossipService, gossipMaxAttempts, gossipMaxPeers int, reqMgr requestmgr.RequestMgr, reqCreator requestCreator) *Retriever {
+func newRetriever(channelID string, gossip gossipService, gossipMaxAttempts, gossipMaxPeers int, reqCreator requestCreator) *Retriever {
 	return &Retriever{
 		Discovery:         extdiscovery.New(channelID, gossip),
 		gossipService:     gossip,
-		reqMgr:            reqMgr,
 		createRequest:     reqCreator,
 		gossipMaxAttempts: gossipMaxAttempts,
 		gossipMaxPeers:    gossipMaxPeers,
 	}
 }
 
+type options struct {
+	peerFilter PeerFilter
+}
+
+// Option is a retriever option
+type Option func(options *options)
+
+// WithPeerFilter sets a peer filter
+func WithPeerFilter(filter PeerFilter) Option {
+	return func(options *options) {
+		options.peerFilter = filter
+	}
+}
+
 // Retrieve retrieves application data from one or more peers
-func (r *Retriever) Retrieve(ctxt context.Context, request *Request, responseHandler ResponseHandler, allSet AllSet) (extcommon.Values, error) {
+func (r *Retriever) Retrieve(ctxt context.Context, request *Request, responseHandler ResponseHandler, allSet AllSet, opts ...Option) (extcommon.Values, error) {
 	logger.Debugf("[%s] Retrieving data for request: %+v", r.ChannelID(), request)
+
+	var retrieverOpts options
+	for _, opt := range opts {
+		opt(&retrieverOpts)
+	}
 
 	var values extcommon.Values
 	var attemptedPeers extdiscovery.PeerGroup
 	for attempt := 1; attempt <= r.gossipMaxAttempts; attempt++ {
 		peers := r.getPeersForRetrieval(func(peer *extdiscovery.Member) bool {
-			return !peer.Local && !attemptedPeers.Contains(peer)
+			if peer.Local || attemptedPeers.Contains(peer) {
+				return false
+			}
+
+			if retrieverOpts.peerFilter != nil {
+				return retrieverOpts.peerFilter(peer)
+			}
+
+			return true
 		})
 
 		if len(peers) == 0 {
@@ -174,7 +201,7 @@ func (r *Retriever) createAppDataRequestMsg(request *Request, reqID uint64) *gpr
 	}
 }
 
-func (r *Retriever) getPeersForRetrieval(filter peerFilter) extdiscovery.PeerGroup {
+func (r *Retriever) getPeersForRetrieval(filter PeerFilter) extdiscovery.PeerGroup {
 	members := r.GetMembers(filter)
 
 	logger.Debugf("[%s] Peers to choose from: %v", r.ChannelID(), members)
