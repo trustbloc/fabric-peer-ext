@@ -78,10 +78,17 @@ const (
 	confBlockStoreCacheSizeBlockByNum  = "ledger.storage.blockStore.cacheSize.blockByNum"
 	confBlockStoreCacheSizeBlockByHash = "ledger.storage.blockStore.cacheSize.blockByHash"
 
+	confStateCachePrePopulate   = "ledger.state.dbConfig.cache.prePopulate"
+	confStateCacheGossipTimeout = "ledger.state.dbConfig.cache.gossipTimeout"
+	confStateCacheRetentionSize = "ledger.state.dbConfig.cache.retentionSize"
+
 	confSkipCheckForDupTxnID = "peer.skipCheckForDupTxnID"
 
 	defaultBlockByNumCacheSize  = uint(20)
 	defaultBlockByHashCacheSize = uint(20)
+
+	defaultStateCacheGossipTimeout = 500 * time.Millisecond
+	defaultStateCacheRetentionSize = 20
 )
 
 // DBType is the database type
@@ -323,6 +330,32 @@ func GetBlockStoreBlockByHashCacheSize() uint {
 	}
 
 	return uint(size)
+}
+
+// IsPrePopulateStateCache indicates whether or not the state cache on the endorsing peer should be pre-populated
+// with values retrieved from the committing peer.
+func IsPrePopulateStateCache() bool {
+	return viper.GetBool(confStateCachePrePopulate)
+}
+
+// GetStateCacheGossipTimeout is the maximum amount of time to wait for a response from a committer for cache-updates.
+func GetStateCacheGossipTimeout() time.Duration {
+	if !viper.IsSet(confStateCacheGossipTimeout) {
+		return defaultStateCacheGossipTimeout
+	}
+
+	return viper.GetDuration(confStateCacheGossipTimeout)
+}
+
+// GetStateCacheRetentionSize is the number of cache-updates that a committer should store in cache in order to process
+// cache-updates requests from endorsers.
+func GetStateCacheRetentionSize() int {
+	size := viper.GetInt(confStateCacheRetentionSize)
+	if size <= 0 {
+		return defaultStateCacheRetentionSize
+	}
+
+	return size
 }
 
 // IsSkipCheckForDupTxnID indicates whether or not endorsers should skip the check for duplicate transactions IDs. The check

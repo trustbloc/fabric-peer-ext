@@ -283,3 +283,33 @@ func TestIsSkipCheckForDupTxnID(t *testing.T) {
 	viper.Set(confSkipCheckForDupTxnID, true)
 	require.True(t, IsSkipCheckForDupTxnID())
 }
+
+func TestIsPrePopulateStateCache(t *testing.T) {
+	oldVal := viper.Get(confStateCachePrePopulate)
+	defer viper.Set(confStateCachePrePopulate, oldVal)
+
+	require.False(t, IsPrePopulateStateCache())
+
+	viper.Set(confStateCachePrePopulate, true)
+	require.True(t, IsPrePopulateStateCache())
+}
+
+func TestGetStateCacheGossipTimeout(t *testing.T) {
+	oldVal := viper.Get(confStateCacheGossipTimeout)
+	defer viper.Set(confStateCacheGossipTimeout, oldVal)
+
+	require.Equal(t, defaultStateCacheGossipTimeout, GetStateCacheGossipTimeout())
+
+	viper.Set(confStateCacheGossipTimeout, 7*time.Second)
+	require.Equal(t, 7*time.Second, GetStateCacheGossipTimeout())
+}
+
+func TestGetStateCacheRetentionSize(t *testing.T) {
+	oldVal := viper.Get(confStateCacheRetentionSize)
+	defer viper.Set(confStateCacheRetentionSize, oldVal)
+
+	require.Equal(t, defaultStateCacheRetentionSize, GetStateCacheRetentionSize())
+
+	viper.Set(confStateCacheRetentionSize, 55)
+	require.Equal(t, 55, GetStateCacheRetentionSize())
+}

@@ -100,3 +100,8 @@ func (db *MockStateDB) ExecuteQueryWithPagination(namespace, query, bookmark str
 func (db *MockStateDB) BytesKeySupported() bool {
 	return false
 }
+
+// UpdateCache is not implemented
+func (db *MockStateDB) UpdateCache(uint64, []byte) error {
+	panic("not implemented")
+}

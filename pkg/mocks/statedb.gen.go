@@ -106,6 +106,18 @@ type StateDB struct {
 	bytesKeySupportedReturnsOnCall map[int]struct {
 		result1 bool
 	}
+	UpdateCacheStub        func(blockNum uint64, updates []byte) error
+	updateCacheMutex       sync.RWMutex
+	updateCacheArgsForCall []struct {
+		blockNum uint64
+		updates  []byte
+	}
+	updateCacheReturns struct {
+		result1 error
+	}
+	updateCacheReturnsOnCall map[int]struct {
+		result1 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -472,6 +484,60 @@ func (fake *StateDB) BytesKeySupportedReturnsOnCall(i int, result1 bool) {
 	}{result1}
 }
 
+func (fake *StateDB) UpdateCache(blockNum uint64, updates []byte) error {
+	var updatesCopy []byte
+	if updates != nil {
+		updatesCopy = make([]byte, len(updates))
+		copy(updatesCopy, updates)
+	}
+	fake.updateCacheMutex.Lock()
+	ret, specificReturn := fake.updateCacheReturnsOnCall[len(fake.updateCacheArgsForCall)]
+	fake.updateCacheArgsForCall = append(fake.updateCacheArgsForCall, struct {
+		blockNum uint64
+		updates  []byte
+	}{blockNum, updatesCopy})
+	fake.recordInvocation("UpdateCache", []interface{}{blockNum, updatesCopy})
+	fake.updateCacheMutex.Unlock()
+	if fake.UpdateCacheStub != nil {
+		return fake.UpdateCacheStub(blockNum, updates)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.updateCacheReturns.result1
+}
+
+func (fake *StateDB) UpdateCacheCallCount() int {
+	fake.updateCacheMutex.RLock()
+	defer fake.updateCacheMutex.RUnlock()
+	return len(fake.updateCacheArgsForCall)
+}
+
+func (fake *StateDB) UpdateCacheArgsForCall(i int) (uint64, []byte) {
+	fake.updateCacheMutex.RLock()
+	defer fake.updateCacheMutex.RUnlock()
+	return fake.updateCacheArgsForCall[i].blockNum, fake.updateCacheArgsForCall[i].updates
+}
+
+func (fake *StateDB) UpdateCacheReturns(result1 error) {
+	fake.UpdateCacheStub = nil
+	fake.updateCacheReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *StateDB) UpdateCacheReturnsOnCall(i int, result1 error) {
+	fake.UpdateCacheStub = nil
+	if fake.updateCacheReturnsOnCall == nil {
+		fake.updateCacheReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.updateCacheReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *StateDB) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -489,6 +555,8 @@ func (fake *StateDB) Invocations() map[string][][]interface{} {
 	defer fake.executeQueryWithPaginationMutex.RUnlock()
 	fake.bytesKeySupportedMutex.RLock()
 	defer fake.bytesKeySupportedMutex.RUnlock()
+	fake.updateCacheMutex.RLock()
+	defer fake.updateCacheMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

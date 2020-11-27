@@ -19,3 +19,19 @@ func TestIsSkipCheckForDupTxnID(t *testing.T) {
 	viper.Set("peer.skipCheckForDupTxnID", true)
 	require.True(t, IsSkipCheckForDupTxnID())
 }
+
+func TestIsPrePopulateStateCache(t *testing.T) {
+	viper.Set("ledger.state.dbConfig.cache.prePopulate", false)
+	require.False(t, IsPrePopulateStateCache())
+
+	viper.Set("ledger.state.dbConfig.cache.prePopulate", true)
+	require.True(t, IsPrePopulateStateCache())
+}
+
+func TestIsSaveCacheUpdates(t *testing.T) {
+	viper.Set("ledger.state.dbConfig.cache.prePopulate", false)
+	require.False(t, IsSaveCacheUpdates())
+
+	viper.Set("ledger.state.dbConfig.cache.prePopulate", true)
+	require.True(t, IsSaveCacheUpdates())
+}
