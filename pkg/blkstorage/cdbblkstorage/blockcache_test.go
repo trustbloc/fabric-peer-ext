@@ -92,6 +92,16 @@ func TestCache(t *testing.T) {
 		b, err = c.getBlockByHash(protoutil.BlockHeaderHash(configBlock.Header))
 		require.NoError(t, err)
 		require.Equal(t, configBlock, b)
+
+		builder = mocks.NewBlockBuilder(channel1, 10)
+		builder.ConfigUpdate()
+		configBlock = builder.Build()
+
+		// Should not update config block since the block number is lower than the existing config block number
+		c.put(configBlock)
+		cb := c.getConfigBlock()
+		require.NotNil(t, cb)
+		require.Equal(t, uint64(1000), cb.Header.Number)
 	})
 
 	t.Run("Load from retriever", func(t *testing.T) {

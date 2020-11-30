@@ -117,6 +117,14 @@ func (c *blockCache) setConfigBlock(b *common.Block) {
 		return
 	}
 
+	cb := c.getConfigBlock()
+	if cb != nil && cb.Header.Number >= b.Header.Number {
+		// We already have the latest config block
+		logger.Debugf("[%s] Not caching config block [%d] since we already have config block [%d] cached", c.ledgerID, b.Header.Number, cb.Header.Number)
+
+		return
+	}
+
 	logger.Debugf("[%s] Caching config block [%d]", c.ledgerID, b.Header.Number)
 
 	c.configBlock.Store(b)
