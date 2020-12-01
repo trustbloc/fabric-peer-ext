@@ -14,9 +14,9 @@ Feature: Lifecycle in-process user chaincode
     # All in-process should already be pre-installed
     Then peer "peer0.org1.example.com" is queried for installed chaincodes
     And the JSON path "#.label" of the response contains "inproc_test_cc"
-    And the JSON path "#.package_id" of the response contains "inproc_test_cc:v1"
-    And the JSON path "#.package_id" of the response contains "inproc_test_cc:v1.1"
-    And the JSON path "#.package_id" of the response contains "inproc_test_cc:v2.0"
+    And the JSON path "#.packageID" of the response contains "inproc_test_cc:v1"
+    And the JSON path "#.packageID" of the response contains "inproc_test_cc:v1.1"
+    And the JSON path "#.packageID" of the response contains "inproc_test_cc:v2.0"
 
     # The chaincode has not been approved by any org so it's not ready to be committed
     Then chaincode "inproc_test_cc", version "v1", sequence 1 is checked for readiness by orgs "peerorg1,peerorg2" on the "mychannel" channel with endorsement policy "OR('Org1MSP.member','Org2MSP.member')" and collection policy ""
@@ -30,7 +30,7 @@ Feature: Lifecycle in-process user chaincode
     Then peer "peer1.org1.example.com" is queried for approved chaincode "inproc_test_cc" and sequence 1 on the "mychannel" channel
     And the JSON path "name" of the response equals "inproc_test_cc"
     And the JSON path "version" of the response equals "v1"
-    And the JSON path "package_id" of the response equals "inproc_test_cc:v1"
+    And the JSON path "packageID" of the response equals "inproc_test_cc:v1"
 
     # The chaincode has not been approved by Org2 so it's not ready to be committed
     Then chaincode "inproc_test_cc", version "v1", sequence 1 is checked for readiness by orgs "peerorg1,peerorg2" on the "mychannel" channel with endorsement policy "OR('Org1MSP.member','Org2MSP.member')" and collection policy ""
@@ -44,7 +44,7 @@ Feature: Lifecycle in-process user chaincode
     Then peer "peer1.org2.example.com" is queried for approved chaincode "inproc_test_cc" and sequence 1 on the "mychannel" channel
     And the JSON path "name" of the response equals "inproc_test_cc"
     And the JSON path "version" of the response equals "v1"
-    And the JSON path "package_id" of the response equals "inproc_test_cc:v1"
+    And the JSON path "packageID" of the response equals "inproc_test_cc:v1"
 
     # The chaincode is ready to be committed since it's approved by Org1 and Org2
     Then chaincode "inproc_test_cc", version "v1", sequence 1 is checked for readiness by orgs "peerorg1,peerorg2" on the "mychannel" channel with endorsement policy "OR('Org1MSP.member','Org2MSP.member')" and collection policy ""
