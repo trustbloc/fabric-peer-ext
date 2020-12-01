@@ -17,26 +17,26 @@ Feature:
     And we wait 3 seconds
 
     And peer "peer0.org1.example.com" is queried for installed chaincodes
-    And the JSON path "#.package_id" of the response does not contain "${e2ePackageID}"
+    And the JSON path "#.packageID" of the response does not contain "${e2ePackageID}"
 
     And chaincode "e2e_cc" is installed from path "fixtures/testdata/chaincode/e2e_cc" to all peers
     And the response is saved to variable "e2ePackageID"
 
     And peer "peer0.org1.example.com" is queried for installed chaincodes
     And the JSON path "#.label" of the response contains "e2e_cc"
-    And the JSON path "#.package_id" of the response contains "${e2ePackageID}"
+    And the JSON path "#.packageID" of the response contains "${e2ePackageID}"
 
     And peer "peer1.org1.example.com" is queried for installed chaincodes
     And the JSON path "#.label" of the response contains "e2e_cc"
-    And the JSON path "#.package_id" of the response contains "${e2ePackageID}"
+    And the JSON path "#.packageID" of the response contains "${e2ePackageID}"
 
     And peer "peer0.org2.example.com" is queried for installed chaincodes
     And the JSON path "#.label" of the response contains "e2e_cc"
-    And the JSON path "#.package_id" of the response contains "${e2ePackageID}"
+    And the JSON path "#.packageID" of the response contains "${e2ePackageID}"
 
     And peer "peer1.org2.example.com" is queried for installed chaincodes
     And the JSON path "#.label" of the response contains "e2e_cc"
-    And the JSON path "#.package_id" of the response contains "${e2ePackageID}"
+    And the JSON path "#.packageID" of the response contains "${e2ePackageID}"
 
     And chaincode "e2e_cc", version "v1", sequence 1 is checked for readiness by orgs "peerorg1,peerorg2" on the "mychannel" channel with endorsement policy "AND('Org1MSP.member','Org2MSP.member')" and collection policy "privColl"
     And the JSON path "Org1MSP" of the boolean response equals "false"
@@ -72,7 +72,7 @@ Feature:
     Then peer "peer0.org1.example.com" is queried for approved chaincode "e2e_cc" and sequence 1 on the "mychannel" channel
     And the JSON path "name" of the response equals "e2e_cc"
     And the JSON path "version" of the response equals "v1"
-    And the JSON path "package_id" of the response equals "${e2ePackageID}"
+    And the JSON path "packageID" of the response equals "${e2ePackageID}"
 
     And chaincode "e2e_cc" is warmed up on all peers on the "mychannel" channel
 

@@ -11,7 +11,7 @@ require (
 	github.com/hyperledger/fabric v2.0.0+incompatible
 	github.com/hyperledger/fabric-chaincode-go v0.0.0-20200128192331-2d899240a7ed
 	github.com/hyperledger/fabric-protos-go v0.0.0-20200707132912-fee30f3ccd23
-	github.com/hyperledger/fabric-sdk-go v1.0.0-beta3.0.20201006151309-9c426dcc5096
+	github.com/hyperledger/fabric-sdk-go v1.0.0-beta3.0.20201103202456-5b6912cc2680
 	github.com/hyperledger/fabric/extensions v0.0.0
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-blockservice v0.1.3
@@ -34,13 +34,13 @@ require (
 	google.golang.org/grpc v1.29.1
 )
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.5-0.20201127164233-ea1329f6cc1e
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.5
 
 replace github.com/hyperledger/fabric/extensions => ./mod/peer
 
 replace github.com/trustbloc/fabric-peer-ext => ./
 
-replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.1.5-0.20201007143125-b463170dba33
+replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.1.5
 
 replace github.com/spf13/viper2015 => github.com/spf13/viper v0.0.0-20150908122457-1967d93db724
 
