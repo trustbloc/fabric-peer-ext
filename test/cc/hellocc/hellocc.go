@@ -202,13 +202,15 @@ func (h *HelloCC) getHelloMessage(stub shim.ChaincodeStubInterface) pb.Response 
 
 // handleRequest is a server-side handler for the 'Hello!' Gossip request. This function
 // responds to the peer with a hello response.
-func (h *HelloCC) handleRequest(channelID string, req *gproto.AppDataRequest) ([]byte, error) {
+func (h *HelloCC) handleRequest(channelID string, req *gproto.AppDataRequest, responder appdata.Responder) {
 	logger.Infof("[%s] Got hello request: %s", channelID, req.Request)
 
 	var helloRequest helloRequest
 	err := json.Unmarshal(req.Request, &helloRequest)
 	if err != nil {
-		return nil, err
+		logger.Errorf("[%s] Error unmarshalling hello request: %s", channelID, err)
+
+		return
 	}
 
 	response := helloResponse{
@@ -218,12 +220,14 @@ func (h *HelloCC) handleRequest(channelID string, req *gproto.AppDataRequest) ([
 
 	respBytes, err := json.Marshal(response)
 	if err != nil {
-		return nil, err
+		logger.Errorf("[%s] Error marshalling hello request: %s", channelID, err)
+
+		return
 	}
 
 	logger.Infof("[%s] Returning hello response: %s", channelID, respBytes)
 
-	return respBytes, nil
+	responder.Respond(respBytes)
 }
 
 // responseHandler is a client-side handler of a response from a peer. It ensures that

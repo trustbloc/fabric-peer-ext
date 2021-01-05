@@ -213,9 +213,10 @@ func TestHandleCacheUpdatesRequest(t *testing.T) {
 
 		updateHandler = NewUpdateHandler(providers)
 
-		respBytes, err := updateHandler.handleCacheUpdatesRequest(channel1, req)
-		require.NoError(t, err)
-		require.Nil(t, respBytes)
+		resp := &mockResponder{}
+
+		updateHandler.handleCacheUpdatesRequest(channel1, req, resp)
+		require.Nil(t, resp.data)
 	})
 
 	t.Run("With success response", func(t *testing.T) {
@@ -225,9 +226,11 @@ func TestHandleCacheUpdatesRequest(t *testing.T) {
 
 		require.NotPanics(t, func() { SaveCacheUpdates(channel1, 1001, []byte("cache-updates")) })
 
-		respBytes, err := updateHandler.handleCacheUpdatesRequest(channel1, req)
+		resp := &mockResponder{}
+
+		updateHandler.handleCacheUpdatesRequest(channel1, req, resp)
 		require.NoError(t, err)
-		require.NotNil(t, respBytes)
+		require.NotNil(t, resp.data)
 	})
 
 	t.Run("Cache updates not found", func(t *testing.T) {
@@ -235,9 +238,11 @@ func TestHandleCacheUpdatesRequest(t *testing.T) {
 
 		updateHandler = NewUpdateHandler(providers)
 
-		respBytes, err := updateHandler.handleCacheUpdatesRequest(channel1, req)
+		resp := &mockResponder{}
+
+		updateHandler.handleCacheUpdatesRequest(channel1, req, resp)
 		require.NoError(t, err)
-		require.Nil(t, respBytes)
+		require.Nil(t, resp.data)
 	})
 
 	t.Run("With unmarshal error", func(t *testing.T) {
@@ -251,8 +256,17 @@ func TestHandleCacheUpdatesRequest(t *testing.T) {
 
 		require.NotPanics(t, func() { SaveCacheUpdates(channel1, 1001, []byte("cache-updates")) })
 
-		respBytes, err := updateHandler.handleCacheUpdatesRequest(channel1, req)
-		require.EqualError(t, err, errExpected.Error())
-		require.Nil(t, respBytes)
+		resp := &mockResponder{}
+
+		updateHandler.handleCacheUpdatesRequest(channel1, req, resp)
+		require.Nil(t, resp.data)
 	})
+}
+
+type mockResponder struct {
+	data []byte
+}
+
+func (m *mockResponder) Respond(data []byte) {
+	m.data = data
 }

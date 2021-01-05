@@ -42,6 +42,38 @@ type appDataHandlerProvider interface {
 	HandlerForType(dataType string) (appdata.Handler, bool)
 }
 
+type responder struct {
+	channelID string
+	request   protoext.ReceivedMessage
+}
+
+func newResponder(channelID string, req protoext.ReceivedMessage) *responder {
+	return &responder{
+		channelID: channelID,
+		request:   req,
+	}
+}
+
+func (r *responder) Respond(resp []byte) {
+	msg := r.request.GetGossipMessage()
+	reqID := msg.GetAppDataReq().Nonce
+
+	logger.Debugf("[%s] Responding with application response for request %d", r.channelID, reqID)
+
+	r.request.Respond(&gproto.GossipMessage{
+		// Copy nonce field from the request, so it will be possible to match response
+		Nonce:   msg.Nonce,
+		Tag:     gproto.GossipMessage_CHAN_ONLY,
+		Channel: []byte(r.channelID),
+		Content: &gproto.GossipMessage_AppDataRes{
+			AppDataRes: &gproto.AppDataResponse{
+				Nonce:    reqID,
+				Response: resp,
+			},
+		},
+	})
+}
+
 // Dispatcher is a Gossip message dispatcher
 type Dispatcher struct {
 	appDataHandlerProvider
@@ -72,7 +104,7 @@ func (s *Dispatcher) Dispatch(msg protoext.ReceivedMessage) bool {
 		s.handleAppDataResponse(msg)
 		return true
 	default:
-		logger.Debug("Not handling msg")
+		logger.Debug("Not handling request")
 		return false
 	}
 }
@@ -251,33 +283,19 @@ func (s *Dispatcher) isAuthorized(mspID string, ns, coll string) (bool, error) {
 func (s *Dispatcher) handleAppDataRequest(msg protoext.ReceivedMessage) {
 	req := msg.GetGossipMessage().GetAppDataReq()
 
-	var resp []byte
+	resp := newResponder(s.channelID, msg)
 
 	handleRequest, ok := s.HandlerForType(req.DataType)
 	if ok {
-		var err error
-		resp, err = handleRequest(s.channelID, req)
-		if err != nil {
-			logger.Warnf("[%s] Error handling application data request from [%s] of type [%s]: %s", s.channelID, msg.GetConnectionInfo().Endpoint, req.DataType, err)
-		}
+		logger.Debugf("[%s] Handling application data request from [%s] of type [%s]", s.channelID, msg.GetConnectionInfo().Endpoint, req.DataType)
+
+		handleRequest(s.channelID, req, resp)
 	} else {
 		logger.Warnf("[%s] No handler registered for data type [%s]", s.channelID, req.DataType)
+
+		// Respond with nil so that the requestor does not wait until he times out
+		resp.Respond(nil)
 	}
-
-	logger.Debugf("[%s] Responding with application data for request %d", s.channelID, req.Nonce)
-
-	msg.Respond(&gproto.GossipMessage{
-		// Copy nonce field from the request, so it will be possible to match response
-		Nonce:   msg.GetGossipMessage().Nonce,
-		Tag:     gproto.GossipMessage_CHAN_ONLY,
-		Channel: []byte(s.channelID),
-		Content: &gproto.GossipMessage_AppDataRes{
-			AppDataRes: &gproto.AppDataResponse{
-				Nonce:    req.Nonce,
-				Response: resp,
-			},
-		},
-	})
 }
 
 func (s *Dispatcher) handleAppDataResponse(msg protoext.ReceivedMessage) {

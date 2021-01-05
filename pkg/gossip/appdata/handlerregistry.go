@@ -16,8 +16,13 @@ import (
 
 var logger = flogging.MustGetLogger("ext_dispatcher")
 
+// Responder responds to data requests
+type Responder interface {
+	Respond(data []byte)
+}
+
 // Handler handles an application data request
-type Handler func(channelID string, request *gproto.AppDataRequest) ([]byte, error)
+type Handler func(channelID string, request *gproto.AppDataRequest, responder Responder)
 
 // HandlerRegistry manages handlers for application-specific Gossip messages
 type HandlerRegistry struct {
