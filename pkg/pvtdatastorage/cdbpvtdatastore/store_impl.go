@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -52,7 +53,7 @@ type store struct {
 	collElgProcSync    *common.CollElgProcSync
 	// missing keys db
 	missingKeysIndexDB common.DBHandle
-	isEmpty            bool
+	empty              uint32
 	// After committing the pvtdata of old blocks,
 	// the `isLastUpdatedOldBlocksSet` is set to true.
 	// Once the stateDB is updated with these pvtdata,
@@ -142,7 +143,7 @@ func (p *provider) OpenStore(ledgerid string) (xstorageapi.PrivateDataStore, err
 		s.collElgProcSync.LaunchCollElgProc()
 
 		logger.Debugf("Pvtdata store opened. Initial state: isEmpty [%t], lastCommittedBlock [%d]",
-			s.isEmpty, s.lastCommittedBlock)
+			s.isEmpty(), s.getLastCommittedBlock())
 
 		return s, nil
 	}
@@ -159,10 +160,10 @@ func (p *provider) OpenStore(ledgerid string) (xstorageapi.PrivateDataStore, err
 	if err != nil {
 		return nil, err
 	}
-	s.isEmpty = true
+	s.empty = 1
 	if lastCommittedBlock != 0 {
 		s.lastCommittedBlock = lastCommittedBlock
-		s.isEmpty = false
+		s.empty = 0
 	}
 	return s, nil
 
@@ -182,10 +183,10 @@ func (s *store) initState() error {
 	if err != nil {
 		return errors.Wrapf(err, "lookupLastBlock failed")
 	}
-	s.isEmpty = true
+	s.empty = 1
 	if lastCommittedBlock != 0 {
 		s.lastCommittedBlock = lastCommittedBlock
-		s.isEmpty = false
+		s.empty = 0
 	}
 
 	if blist, err = common.GetLastUpdatedOldBlocksList(s.missingKeysIndexDB); err != nil {
@@ -253,8 +254,8 @@ func (s *store) Commit(blockNum uint64, pvtData []*ledger.TxPvtData, missingPvtD
 		return err
 	}
 
-	s.isEmpty = false
-	s.lastCommittedBlock = committingBlockNum
+	atomic.StoreUint32(&s.empty, 0)
+	atomic.StoreUint64(&s.lastCommittedBlock, committingBlockNum)
 
 	logger.Debugf("Committed private data for block [%d]", committingBlockNum)
 	s.performPurgeIfScheduled(committingBlockNum)
@@ -379,11 +380,13 @@ func (s *store) GetPvtDataByBlockNum(blockNum uint64, filter ledger.PvtNsCollFil
 
 func (s *store) checkLastCommittedBlock(blockNum uint64) error {
 	if roles.IsCommitter() {
-		if s.isEmpty {
+		if s.isEmpty() {
 			return pvtdatastorage.NewErrOutOfRange("The store is empty")
 		}
-		if blockNum > s.lastCommittedBlock {
-			return pvtdatastorage.NewErrOutOfRange(fmt.Sprintf("Last committed block=%d, block requested=%d", s.lastCommittedBlock, blockNum))
+
+		lastCommittedBlock := s.getLastCommittedBlock()
+		if blockNum > lastCommittedBlock {
+			return pvtdatastorage.NewErrOutOfRange(fmt.Sprintf("Last committed block=%d, block requested=%d", lastCommittedBlock, blockNum))
 		}
 	} else {
 		lastCommittedBlock, _, err := lookupLastBlock(s.db)
@@ -407,10 +410,10 @@ func (s *store) ProcessCollsEligibilityEnabled(committingBlk uint64, nsCollMap m
 
 // LastCommittedBlockHeight implements the function in the interface `Store`
 func (s *store) LastCommittedBlockHeight() (uint64, error) {
-	if s.isEmpty {
+	if s.isEmpty() {
 		return 0, nil
 	}
-	return s.lastCommittedBlock + 1, nil
+	return s.getLastCommittedBlock() + 1, nil
 }
 
 // Shutdown implements the function in the interface `Store`
@@ -527,7 +530,7 @@ func (s *store) addLastUpdatedOldBlocksList(batch *leveldbhelper.UpdateBatch, up
 }
 
 func (s *store) getBlockPvtData(results map[string][]byte, filter ledger.PvtNsCollFilter, blockNum uint64, sortedKeys []string) ([]*ledger.TxPvtData, error) {
-	return newBlockPvtDataAssembler(results, filter, blockNum, s.lastCommittedBlock, sortedKeys, s.checkIsExpired).assemble()
+	return newBlockPvtDataAssembler(results, filter, blockNum, s.getLastCommittedBlock(), sortedKeys, s.checkIsExpired).assemble()
 }
 
 func (s *store) checkIsExpired(dataKey *common.DataKey, filter ledger.PvtNsCollFilter, lastCommittedBlock uint64) (bool, error) {
@@ -553,11 +556,11 @@ func (s *store) GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int) (ledger.M
 	if time.Now().After(s.accessDeprioMissingDataAfter) {
 		s.accessDeprioMissingDataAfter = time.Now().Add(s.deprioritizedDataReconcilerInterval)
 		logger.Debug("fetching missing pvtdata entries from the deprioritized list")
-		return common.GetMissingPvtDataInfoForMostRecentBlocks(common.ElgDeprioritizedMissingDataGroup, maxBlock, s.lastCommittedBlock, s.btlPolicy, s.missingKeysIndexDB)
+		return common.GetMissingPvtDataInfoForMostRecentBlocks(common.ElgDeprioritizedMissingDataGroup, maxBlock, s.getLastCommittedBlock(), s.btlPolicy, s.missingKeysIndexDB)
 	}
 
 	logger.Debug("fetching missing pvtdata entries from the prioritized list")
-	return common.GetMissingPvtDataInfoForMostRecentBlocks(common.ElgPrioritizedMissingDataGroup, maxBlock, s.lastCommittedBlock, s.btlPolicy, s.missingKeysIndexDB)
+	return common.GetMissingPvtDataInfoForMostRecentBlocks(common.ElgPrioritizedMissingDataGroup, maxBlock, s.getLastCommittedBlock(), s.btlPolicy, s.missingKeysIndexDB)
 }
 
 func (s *store) getExpiryDataOfExpiryKey(expiryKey common.ExpiryKey) (*common.ExpiryData, error) {
@@ -617,10 +620,18 @@ func (s *store) preparePendingMissingDataEntries(mssingDataEntries map[common.Mi
 }
 
 func (s *store) nextBlockNum() uint64 {
-	if s.isEmpty {
+	if s.isEmpty() {
 		return 0
 	}
-	return s.lastCommittedBlock + 1
+	return s.getLastCommittedBlock() + 1
+}
+
+func (s *store) getLastCommittedBlock() uint64 {
+	return atomic.LoadUint64(&s.lastCommittedBlock)
+}
+
+func (s *store) isEmpty() bool {
+	return atomic.LoadUint32(&s.empty) == 1
 }
 
 func (s *store) performPurgeIfScheduled(latestCommittedBlk uint64) {

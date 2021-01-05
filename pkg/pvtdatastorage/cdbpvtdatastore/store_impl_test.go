@@ -114,7 +114,7 @@ func TestLastCommittedBlockHeight(t *testing.T) {
 		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
 		defer env.Cleanup(ledgerId)
 		s := env.TestStore
-		s.isEmpty = true
+		s.empty = 1
 		blockNum, err := s.LastCommittedBlockHeight()
 		require.NoError(t, err)
 		require.Equal(t, blockNum, uint64(0))
@@ -170,7 +170,7 @@ func TestCheckLastCommittedBlock(t *testing.T) {
 		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
 		defer env.Cleanup(ledgerId)
 		s := env.TestStore
-		s.isEmpty = true
+		s.empty = 1
 		err := s.checkLastCommittedBlock(0)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "The store is empty")
@@ -182,7 +182,7 @@ func TestCheckLastCommittedBlock(t *testing.T) {
 		env := NewTestStoreEnv(t, ledgerId, nil, couchDBConfig)
 		defer env.Cleanup(ledgerId)
 		s := env.TestStore
-		s.isEmpty = false
+		s.empty = 0
 		s.lastCommittedBlock = 1
 		err := s.checkLastCommittedBlock(2)
 		require.Error(t, err)

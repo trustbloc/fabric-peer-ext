@@ -65,7 +65,7 @@ func TestGetPvtDataByBlockNum(t *testing.T) {
 	env := NewTestStoreEnv(t, "ledger", nil)
 	cacheStore := env.TestStore
 	s := cacheStore.(*store)
-	s.isEmpty = true
+	s.empty = 1
 	_, err := s.GetPvtDataByBlockNum(0, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "The store is empty")
