@@ -46,6 +46,9 @@ type ChaincodeUpgradeHandler func(txMetadata TxMetadata, chaincodeName string) e
 // LSCCWriteHandler handles chaincode instantiation/upgrade events
 type LSCCWriteHandler func(txMetadata TxMetadata, chaincodeName string, ccData *ccprovider.ChaincodeData, ccp *pb.CollectionConfigPackage) error
 
+// PublishedBlockHandler handles a published block
+type PublishedBlockHandler func(block *cb.Block) error
+
 // BlockHandler allows clients to add handlers for various block events
 type BlockHandler interface {
 	// AddCCUpgradeHandler adds a handler for chaincode upgrades
@@ -64,6 +67,8 @@ type BlockHandler interface {
 	AddLSCCWriteHandler(handler LSCCWriteHandler)
 	// AddCCEventHandler adds a handler for chaincode events
 	AddCCEventHandler(handler ChaincodeEventHandler)
+	// AddBlockHandler adds a handler for published blocks
+	AddBlockHandler(handler PublishedBlockHandler)
 	//LedgerHeight returns current in memory ledger height
 	LedgerHeight() uint64
 }

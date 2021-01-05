@@ -37,6 +37,9 @@ const (
 
 	// ConfigUpdateHandlerErr indicates that the configuration update handler returned an error
 	ConfigUpdateHandlerErr Category = "CONFIG_UPDATE_HANDLER_ERROR"
+
+	// BlockHandlerErr indicates that the block handler returned an error
+	BlockHandlerErr Category = "BLOCK_HANDLER_ERROR"
 )
 
 // Context holds the context at the time of a Visitor error

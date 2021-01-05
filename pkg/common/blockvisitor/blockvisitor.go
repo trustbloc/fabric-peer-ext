@@ -119,6 +119,9 @@ type LSCCWriteHandler func(lsccWrite *LSCCWrite) error
 // ConfigUpdateHandler publishes config updates
 type ConfigUpdateHandler func(update *ConfigUpdate) error
 
+// BlockHandler publishes blocks
+type BlockHandler func(block *cb.Block) error
+
 // Handlers contains the full set of handlers
 type Handlers struct {
 	HandleCCEvent       CCEventHandler
@@ -128,6 +131,7 @@ type Handlers struct {
 	HandleCollHashWrite CollHashWriteHandler
 	HandleLSCCWrite     LSCCWriteHandler
 	HandleConfigUpdate  ConfigUpdateHandler
+	HandleBlock         BlockHandler
 }
 
 // ErrorHandler allows clients to handle errors
@@ -196,6 +200,13 @@ func WithLSCCWriteHandler(handler LSCCWriteHandler) Opt {
 func WithConfigUpdateHandler(handler ConfigUpdateHandler) Opt {
 	return func(options *Options) {
 		options.HandleConfigUpdate = handler
+	}
+}
+
+// WithBlockHandler sets the block handler
+func WithBlockHandler(handler BlockHandler) Opt {
+	return func(options *Options) {
+		options.HandleBlock = handler
 	}
 }
 
@@ -274,6 +285,13 @@ func newBlockEvent(channelID string, block *cb.Block, pvtData ledger.TxPvtDataMa
 
 func (p *blockEvent) visit() error {
 	logger.Debugf("[%s] Publishing block #%d", p.channelID, p.block.Header.Number)
+
+	if err := p.HandleBlock(p.block); err != nil {
+		if e := p.HandleError(err, newContext(BlockHandlerErr, p.channelID, p.block.Header.Number)); e != nil {
+			return newVisitorError(e)
+		}
+	}
+
 	for txNum := range p.block.Data.Data {
 		envelope, err := extractEnvelope(p.block, txNum)
 		if err != nil {
@@ -839,6 +857,7 @@ func noopHandlers() *Handlers {
 		HandleCollHashWrite: func(*CollHashWrite) error { return nil },
 		HandleLSCCWrite:     func(*LSCCWrite) error { return nil },
 		HandleConfigUpdate:  func(*ConfigUpdate) error { return nil },
+		HandleBlock:         func(*cb.Block) error { return nil },
 	}
 }
 

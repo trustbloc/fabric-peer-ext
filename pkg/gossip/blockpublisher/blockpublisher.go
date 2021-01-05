@@ -94,6 +94,7 @@ type Publisher struct {
 	lsccWriteHandlers     []api.LSCCWriteHandler
 	ccEventHandlers       []api.ChaincodeEventHandler
 	configUpdateHandlers  []api.ConfigUpdateHandler
+	blockHandlers         []api.PublishedBlockHandler
 	mutex                 sync.RWMutex
 	doneChan              chan struct{}
 	closed                uint32
@@ -115,6 +116,7 @@ func New(channelID string) *Publisher {
 			blockvisitor.WithCollHashWriteHandler(channels.sendCollHashWrite),
 			blockvisitor.WithLSCCWriteHandler(channels.sendLSCCWrite),
 			blockvisitor.WithConfigUpdateHandler(channels.sendConfigUpdate),
+			blockvisitor.WithBlockHandler(channels.sendBlock),
 		),
 	}
 
@@ -201,6 +203,15 @@ func (p *Publisher) AddLSCCWriteHandler(handler api.LSCCWriteHandler) {
 	p.lsccWriteHandlers = append(p.lsccWriteHandlers, handler)
 }
 
+// AddBlockHandler adds a handler for published blocks
+func (p *Publisher) AddBlockHandler(handler api.PublishedBlockHandler) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	logger.Debugf("[%s] Adding block handler", p.ChannelID())
+	p.blockHandlers = append(p.blockHandlers, handler)
+}
+
 // Publish publishes a block
 func (p *Publisher) Publish(block *cb.Block, pvtData ledger.TxPvtDataMap) {
 	if err := p.Visit(block, pvtData); err != nil {
@@ -209,7 +220,7 @@ func (p *Publisher) Publish(block *cb.Block, pvtData ledger.TxPvtDataMap) {
 	}
 }
 
-func (p *Publisher) listen() {
+func (p *Publisher) listen() { // nolint: gocyclo
 	for {
 		select {
 		case w := <-p.wChan:
@@ -226,6 +237,8 @@ func (p *Publisher) listen() {
 			p.handleCCEvent(ccEvt)
 		case cu := <-p.configUpdateChan:
 			p.handleConfigUpdate(cu)
+		case b := <-p.blockChan:
+			p.handleBlock(b)
 		case <-p.doneChan:
 			logger.Debugf("[%s] Exiting block Publisher", p.ChannelID())
 			return
@@ -298,6 +311,16 @@ func (p *Publisher) handleConfigUpdate(cu *blockvisitor.ConfigUpdate) {
 	}
 }
 
+func (p *Publisher) handleBlock(block *cb.Block) {
+	logger.Debugf("[%s] Handling block: [%d]", p.ChannelID(), block.Header.Number)
+
+	for _, handleBlock := range p.getBlockHandlers() {
+		if err := handleBlock(block); err != nil {
+			logger.Warningf("[%s] Error returned from block handler: %s", p.ChannelID(), err)
+		}
+	}
+}
+
 func (p *Publisher) getReadHandlers() []api.ReadHandler {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
@@ -345,6 +368,13 @@ func (p *Publisher) getConfigUpdateHandlers() []api.ConfigUpdateHandler {
 	defer p.mutex.RUnlock()
 
 	return p.configUpdateHandlers
+}
+
+func (p *Publisher) getBlockHandlers() []api.PublishedBlockHandler {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	return p.blockHandlers
 }
 
 type channels struct {
@@ -403,6 +433,11 @@ func (c *channels) sendCCEvent(event *blockvisitor.CCEvent) error {
 
 func (c *channels) sendConfigUpdate(cu *blockvisitor.ConfigUpdate) error {
 	c.configUpdateChan <- cu
+	return nil
+}
+
+func (c *channels) sendBlock(b *cb.Block) error {
+	c.blockChan <- b
 	return nil
 }
 

@@ -398,3 +398,22 @@ func TestPublisher_Error(t *testing.T) {
 
 	assert.EqualValues(t, 1101, p.LedgerHeight())
 }
+
+func TestPublisher_PublishBlockEvents(t *testing.T) {
+	p := New(channel1)
+	require.NotNil(t, p)
+	defer p.Close()
+
+	handler := mocks.NewMockBlockHandler().WithError(fmt.Errorf("injected error"))
+	p.AddBlockHandler(handler.HandleBlock)
+
+	b := mocks.NewBlockBuilder(channel1, 1100)
+
+	p.Publish(b.Build(), nil)
+
+	// Wait a bit for the events to be published
+	time.Sleep(500 * time.Millisecond)
+
+	require.Equal(t, 1, handler.NumBlocks())
+	require.EqualValues(t, 1101, p.LedgerHeight())
+}
