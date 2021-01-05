@@ -7,26 +7,30 @@ SPDX-License-Identifier: Apache-2.0
 package pvtdatastorage
 
 import (
+	cb "github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric/common/flogging"
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
-
+	"github.com/hyperledger/fabric/extensions/gossip/api"
+	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
 	xstorageapi "github.com/hyperledger/fabric/extensions/storage/api"
+
 	"github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/cachedpvtdatastore"
 	cdbpvtdatastore "github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/cdbpvtdatastore"
+	"github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/common"
+	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 )
 
-type cacheProvider interface {
-	Create(ledgerID string, lastCommittedBlockNum uint64) xstorageapi.PrivateDataStore
-}
+var logger = flogging.MustGetLogger("ext_pvtdatastore")
 
 //////// Provider functions  /////////////
 //////////////////////////////////////////
 
 // PvtDataProvider encapsulates the storage and cache providers in addition to the missing data index provider
 type PvtDataProvider struct {
-	storageProvider xstorageapi.PrivateDataProvider
-	cacheProvider   cacheProvider
+	storageProvider common.Provider
+	cacheProvider   common.CacheProvider
 }
 
 // NewProvider creates a new PvtDataStoreProvider that combines a cache provider and a backing storage provider
@@ -60,7 +64,7 @@ func (c *PvtDataProvider) OpenStore(ledgerID string) (xstorageapi.PrivateDataSto
 
 	cachePvtDataStore := c.cacheProvider.Create(ledgerID, lastCommittedBlockHeight-1)
 
-	return newPvtDataStore(pvtDataStore, cachePvtDataStore), nil
+	return newPvtDataStore(ledgerID, pvtDataStore, cachePvtDataStore, blockpublisher.ForChannel(ledgerID)), nil
 }
 
 // Close cleans up the Provider
@@ -69,15 +73,25 @@ func (c *PvtDataProvider) Close() {
 }
 
 type pvtDataStore struct {
-	pvtDataDBStore    xstorageapi.PrivateDataStore
-	cachePvtDataStore xstorageapi.PrivateDataStore
+	ledgerID          string
+	pvtDataDBStore    common.StoreExt
+	cachePvtDataStore common.StoreExt
 }
 
-func newPvtDataStore(pvtDataDBStore xstorageapi.PrivateDataStore, cachePvtDataStore xstorageapi.PrivateDataStore) *pvtDataStore {
-	return &pvtDataStore{
+func newPvtDataStore(ledgerID string, pvtDataDBStore common.StoreExt, cachePvtDataStore common.StoreExt, bp api.BlockPublisher) *pvtDataStore {
+	s := &pvtDataStore{
+		ledgerID:          ledgerID,
 		pvtDataDBStore:    pvtDataDBStore,
 		cachePvtDataStore: cachePvtDataStore,
 	}
+
+	if !roles.IsCommitter() {
+		// This peer is not a committer and therefore Commit will never be called. So, the last committed
+		// block number needs to be updated when a committed block is published.
+		bp.AddBlockHandler(s.updateLastCommittedBlockNum)
+	}
+
+	return s
 }
 
 //////// store functions  ////////////////
@@ -140,4 +154,15 @@ func (c *pvtDataStore) GetLastUpdatedOldBlocksPvtData() (map[uint64][]*ledger.Tx
 //ResetLastUpdatedOldBlocksList implements the function in the interface `Store`
 func (c *pvtDataStore) ResetLastUpdatedOldBlocksList() error {
 	return c.pvtDataDBStore.ResetLastUpdatedOldBlocksList()
+}
+
+func (c *pvtDataStore) updateLastCommittedBlockNum(block *cb.Block) error {
+	blockNum := block.Header.Number
+
+	logger.Debugf("[%s] Updating last committed block number to %d", c.ledgerID, blockNum)
+
+	c.pvtDataDBStore.UpdateLastCommittedBlockNum(blockNum)
+	c.cachePvtDataStore.UpdateLastCommittedBlockNum(blockNum)
+
+	return nil
 }
