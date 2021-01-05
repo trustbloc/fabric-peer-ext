@@ -15,7 +15,6 @@ import (
 	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
-	xstorageapi "github.com/hyperledger/fabric/extensions/storage/api"
 	"github.com/pkg/errors"
 
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
@@ -52,7 +51,7 @@ func NewProvider() *Provider {
 }
 
 // Create creates a new cache store
-func (p *Provider) Create(ledgerID string, lastCommittedBlockNum uint64) xstorageapi.PrivateDataStore {
+func (p *Provider) Create(ledgerID string, lastCommittedBlockNum uint64) common.StoreExt {
 	s := &store{cache: gcache.New(config.GetPvtDataCacheSize()).ARC().Build(), ledgerid: ledgerID,
 		lastCommittedBlock: lastCommittedBlockNum,
 	}
@@ -106,11 +105,16 @@ func (s *store) Commit(blockNum uint64, pvtData []*ledger.TxPvtData, missingPvtD
 		}
 	}
 
-	atomic.StoreUint32(&s.empty, 0)
-	atomic.StoreUint64(&s.lastCommittedBlock, committingBlockNum)
+	s.UpdateLastCommittedBlockNum(committingBlockNum)
 
 	logger.Debugf("Committed private data for block [%d]", committingBlockNum)
 	return nil
+}
+
+// UpdateLastCommittedBlockNum updates the last committed block number
+func (s *store) UpdateLastCommittedBlockNum(blockNum uint64) {
+	atomic.StoreUint64(&s.lastCommittedBlock, blockNum)
+	atomic.StoreUint32(&s.empty, 0)
 }
 
 // CommitPvtDataOfOldBlocks implements the function in the interface `Store`

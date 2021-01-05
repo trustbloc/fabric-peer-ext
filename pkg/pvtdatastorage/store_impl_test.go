@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/core/ledger"
@@ -18,27 +20,32 @@ import (
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
 	btltestutil "github.com/hyperledger/fabric/core/ledger/pvtdatapolicy/testutil"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
-	xstorageapi "github.com/hyperledger/fabric/extensions/storage/api"
 	"github.com/hyperledger/fabric/extensions/testutil"
 	viper "github.com/spf13/viper2015"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/gossip/blockpublisher"
+	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
+	"github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/common"
+	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
 	xtestutil "github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
 
 var couchDBConfig *ledger.CouchDBConfig
 
+// Initialize roles for test
+var _ = roles.GetRoles()
+
 type mockProvider struct {
-	openStoreValue xstorageapi.PrivateDataStore
+	openStoreValue common.StoreExt
 	openStoreErr   error
 }
 
-func (m mockProvider) OpenStore(id string) (xstorageapi.PrivateDataStore, error) {
+func (m mockProvider) OpenStore(id string) (common.StoreExt, error) {
 	return m.openStoreValue, m.openStoreErr
 }
 
 func (m mockProvider) Close() {
-
 }
 
 type mockStore struct {
@@ -55,51 +62,55 @@ type mockStore struct {
 	resetLastUpdatedOldBlocksListErr            error
 }
 
-func (m mockStore) Init(btlPolicy pvtdatapolicy.BTLPolicy) {
+func (m *mockStore) Init(btlPolicy pvtdatapolicy.BTLPolicy) {
 
 }
 
-func (m mockStore) InitLastCommittedBlock(blockNum uint64) error {
+func (m *mockStore) InitLastCommittedBlock(blockNum uint64) error {
 	return m.initLastCommittedBlockErr
 }
 
-func (m mockStore) GetPvtDataByBlockNum(blockNum uint64, filter ledger.PvtNsCollFilter) ([]*ledger.TxPvtData, error) {
+func (m *mockStore) GetPvtDataByBlockNum(blockNum uint64, filter ledger.PvtNsCollFilter) ([]*ledger.TxPvtData, error) {
 	return nil, nil
 }
 
-func (m mockStore) GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int) (ledger.MissingPvtDataInfo, error) {
+func (m *mockStore) GetMissingPvtDataInfoForMostRecentBlocks(maxBlock int) (ledger.MissingPvtDataInfo, error) {
 	return nil, m.getMissingPvtDataInfoForMostRecentBlocksErr
 }
 
-func (m mockStore) Commit(blockNum uint64, pvtData []*ledger.TxPvtData, missingPvtData ledger.TxMissingPvtDataMap) error {
+func (m *mockStore) Commit(blockNum uint64, pvtData []*ledger.TxPvtData, missingPvtData ledger.TxMissingPvtDataMap) error {
 	return m.commitErr
 }
 
-func (m mockStore) ProcessCollsEligibilityEnabled(committingBlk uint64, nsCollMap map[string][]string) error {
+func (m *mockStore) ProcessCollsEligibilityEnabled(committingBlk uint64, nsCollMap map[string][]string) error {
 	return m.processCollsEligibilityEnabledErr
 }
 
-func (m mockStore) CommitPvtDataOfOldBlocks(blocksPvtData map[uint64][]*ledger.TxPvtData, unreconciled ledger.MissingPvtDataInfo) error {
+func (m *mockStore) CommitPvtDataOfOldBlocks(blocksPvtData map[uint64][]*ledger.TxPvtData, unreconciled ledger.MissingPvtDataInfo) error {
 	return m.commitPvtDataOfOldBlocksErr
 }
 
-func (m mockStore) GetLastUpdatedOldBlocksPvtData() (map[uint64][]*ledger.TxPvtData, error) {
+func (m *mockStore) GetLastUpdatedOldBlocksPvtData() (map[uint64][]*ledger.TxPvtData, error) {
 	return nil, m.getLastUpdatedOldBlocksPvtDataErr
 }
 
-func (m mockStore) ResetLastUpdatedOldBlocksList() error {
+func (m *mockStore) ResetLastUpdatedOldBlocksList() error {
 	return m.resetLastUpdatedOldBlocksListErr
 }
 
-func (m mockStore) IsEmpty() (bool, error) {
+func (m *mockStore) IsEmpty() (bool, error) {
 	return m.isEmptyValue, m.isEmptyErr
 }
 
-func (m mockStore) LastCommittedBlockHeight() (uint64, error) {
-	return m.lastCommittedBlockHeightValue, m.lastCommittedBlockHeightErr
+func (m *mockStore) LastCommittedBlockHeight() (uint64, error) {
+	return atomic.LoadUint64(&m.lastCommittedBlockHeightValue), m.lastCommittedBlockHeightErr
 }
 
-func (m mockStore) Shutdown() {
+func (m *mockStore) UpdateLastCommittedBlockNum(blockNum uint64) {
+	atomic.StoreUint64(&m.lastCommittedBlockHeightValue, blockNum+1)
+}
+
+func (m *mockStore) Shutdown() {
 }
 
 func TestOpenStore(t *testing.T) {
@@ -323,10 +334,26 @@ func TestStoreState(t *testing.T) {
 	req.True(ok)
 }
 
-func testLastCommittedBlockHeight(expectedBlockHt uint64, req *require.Assertions, store pvtdatastorage.Store) {
-	blkHt, err := store.LastCommittedBlockHeight()
-	req.NoError(err)
-	req.Equal(expectedBlockHt, blkHt)
+func TestPvtDataStore_UpdateLastCommittedBlockNum(t *testing.T) {
+	rolesValue := make(map[roles.Role]struct{})
+	rolesValue[roles.EndorserRole] = struct{}{}
+	roles.SetRoles(rolesValue)
+	defer func() { roles.SetRoles(nil) }()
+
+	bp := blockpublisher.New("channel1")
+
+	s := newPvtDataStore("channel1", &mockStore{}, &mockStore{}, bp)
+	height, err := s.LastCommittedBlockHeight()
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), height)
+
+	bp.Publish(mocks.NewBlockBuilder("channel1", 1100).Build(), nil)
+
+	time.Sleep(100 * time.Millisecond)
+
+	height, err = s.LastCommittedBlockHeight()
+	require.NoError(t, err)
+	require.Equal(t, uint64(1101), height)
 }
 
 func produceSamplePvtdata(t *testing.T, txNum uint64, nsColls []string) *ledger.TxPvtData {

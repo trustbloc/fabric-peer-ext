@@ -15,16 +15,16 @@ import (
 	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
-	xstorageapi "github.com/hyperledger/fabric/extensions/storage/api"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/testutil"
 )
 
 // StoreEnv provides the  store env for testing
 type StoreEnv struct {
 	t                 testing.TB
-	TestStoreProvider xstorageapi.PrivateDataProvider
+	TestStoreProvider common.Provider
 	TestStore         *store
 	ledgerid          string
 	btlPolicy         pvtdatapolicy.BTLPolicy

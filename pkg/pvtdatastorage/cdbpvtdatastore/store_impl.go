@@ -24,15 +24,14 @@ import (
 	couchdb "github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb/statecouchdb"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatapolicy"
 	"github.com/hyperledger/fabric/core/ledger/pvtdatastorage"
-	xstorageapi "github.com/hyperledger/fabric/extensions/storage/api"
 	"github.com/pkg/errors"
+	"github.com/willf/bitset"
 
 	"github.com/trustbloc/fabric-peer-ext/pkg/pvtdatastorage/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
-	"github.com/willf/bitset"
 )
 
-var logger = flogging.MustGetLogger("cdbpvtdatastore")
+var logger = flogging.MustGetLogger("ext_pvtdatastore")
 
 const (
 	pvtDataStoreName = "pvtdata"
@@ -85,14 +84,14 @@ type lastUpdatedOldBlocksList []uint64
 //////////////////////////////////////////
 
 // NewProvider instantiates a private data storage provider backed by CouchDB
-func NewProvider(conf *pvtdatastorage.PrivateDataConfig, ledgerconfig *ledger.Config) (xstorageapi.PrivateDataProvider, error) {
+func NewProvider(conf *pvtdatastorage.PrivateDataConfig, ledgerconfig *ledger.Config) (common.Provider, error) {
 	logger.Debugf("constructing CouchDB private data storage provider")
 	couchDBConfig := ledgerconfig.StateDBConfig.CouchDB
 
 	return newProviderWithDBDef(couchDBConfig, conf)
 }
 
-func newProviderWithDBDef(couchDBConfig *ledger.CouchDBConfig, conf *pvtdatastorage.PrivateDataConfig) (xstorageapi.PrivateDataProvider, error) {
+func newProviderWithDBDef(couchDBConfig *ledger.CouchDBConfig, conf *pvtdatastorage.PrivateDataConfig) (*provider, error) {
 	couchInstance, err := couchdb.CreateCouchInstance(couchDBConfig, &disabled.Provider{})
 	if err != nil {
 		return nil, errors.WithMessage(err, "obtaining CouchDB instance failed")
@@ -112,7 +111,7 @@ func newProviderWithDBDef(couchDBConfig *ledger.CouchDBConfig, conf *pvtdatastor
 }
 
 // OpenStore returns a handle to a store
-func (p *provider) OpenStore(ledgerid string) (xstorageapi.PrivateDataStore, error) {
+func (p *provider) OpenStore(ledgerid string) (common.StoreExt, error) {
 	// Create couchdb
 	pvtDataStoreDBName := couchdb.ConstructBlockchainDBName(strings.ToLower(ledgerid), pvtDataStoreName)
 	if roles.IsCommitter() {
@@ -254,12 +253,17 @@ func (s *store) Commit(blockNum uint64, pvtData []*ledger.TxPvtData, missingPvtD
 		return err
 	}
 
-	atomic.StoreUint32(&s.empty, 0)
-	atomic.StoreUint64(&s.lastCommittedBlock, committingBlockNum)
+	s.UpdateLastCommittedBlockNum(committingBlockNum)
 
 	logger.Debugf("Committed private data for block [%d]", committingBlockNum)
 	s.performPurgeIfScheduled(committingBlockNum)
 	return nil
+}
+
+// UpdateLastCommittedBlockNum updates the last committed block number
+func (s *store) UpdateLastCommittedBlockNum(blockNum uint64) {
+	atomic.StoreUint64(&s.lastCommittedBlock, blockNum)
+	atomic.StoreUint32(&s.empty, 0)
 }
 
 func (s *store) prepareMissingKeys(pvtDataDoc *couchdb.CouchDoc, storeEntries *common.StoreEntries) (*pendingPvtData, error) {
