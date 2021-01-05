@@ -26,6 +26,7 @@ type MockBlockHandler struct {
 	numCCUpgradeEvents int32
 	numConfigUpdates   int32
 	numLSCCWrites      int32
+	numBlocks          int32
 	err                error
 }
 
@@ -80,6 +81,11 @@ func (m *MockBlockHandler) NumConfigUpdates() int {
 	return int(atomic.LoadInt32(&m.numConfigUpdates))
 }
 
+// NumBlocks returns the number of blocks handled
+func (m *MockBlockHandler) NumBlocks() int {
+	return int(atomic.LoadInt32(&m.numBlocks))
+}
+
 // HandleRead handles a read event by incrementing the read counter
 func (m *MockBlockHandler) HandleRead(txMetadata api.TxMetadata, namespace string, kvRead *kvrwset.KVRead) error {
 	atomic.AddInt32(&m.numReads, 1)
@@ -125,5 +131,11 @@ func (m *MockBlockHandler) HandleConfigUpdate(blockNum uint64, configUpdate *cb.
 // HandleLSCCWrite handles an LSCC write by incrementing the LSCC write counter
 func (m *MockBlockHandler) HandleLSCCWrite(txMetadata api.TxMetadata, chaincodeName string, ccData *ccprovider.ChaincodeData, ccp *pb.CollectionConfigPackage) error {
 	atomic.AddInt32(&m.numLSCCWrites, 1)
+	return m.err
+}
+
+// HandleBlock handles a block by incrementing the block counter
+func (m *MockBlockHandler) HandleBlock(block *cb.Block) error {
+	atomic.AddInt32(&m.numBlocks, 1)
 	return m.err
 }

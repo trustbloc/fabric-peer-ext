@@ -67,6 +67,7 @@ func TestVisitor_HandleEndorsementEvents(t *testing.T) {
 		var collHashReads []*CollHashRead
 		var collHashWrites []*CollHashWrite
 		var lsccWrites []*LSCCWrite
+		var blocks []*cb.Block
 
 		p := New(channelID,
 			WithCCEventHandler(func(ccEvent *CCEvent) error {
@@ -93,12 +94,18 @@ func TestVisitor_HandleEndorsementEvents(t *testing.T) {
 				lsccWrites = append(lsccWrites, lsccWrite)
 				return nil
 			}),
+			WithBlockHandler(func(block *cb.Block) error {
+				blocks = append(blocks, block)
+				return nil
+			}),
 		)
 		require.NotNil(t, p)
 		require.Equal(t, channelID, p.ChannelID())
 
 		require.NoError(t, p.Visit(block, pvtData))
 		assert.EqualValues(t, 1101, p.LedgerHeight())
+
+		require.Len(t, blocks, 1)
 
 		require.Len(t, ccEvents, 2)
 		assert.Equal(t, uint64(0), ccEvents[0].TxNum)
@@ -372,6 +379,38 @@ func TestVisitor_ErrorHandler(t *testing.T) {
 					return err
 				}),
 				WithConfigUpdateHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+
+			err := p.Visit(block, pvtData)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errExpected.Error())
+		})
+	})
+
+	t.Run("With PublishedBlockHandler error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected block handler error")
+		handler := func(block2 *cb.Block) error { return errExpected }
+
+		t.Run("Ignore", func(t *testing.T) {
+			p := New(channelID,
+				WithBlockHandler(handler),
+			)
+			require.NotNil(t, p)
+			require.Equal(t, channelID, p.ChannelID())
+			require.NoError(t, p.Visit(block, pvtData))
+		})
+
+		t.Run("Halt", func(t *testing.T) {
+			p := New(channelID,
+				WithErrorHandler(func(err error, ctx *Context) error {
+					require.Equal(t, BlockHandlerErr, ctx.Category)
+					require.Equal(t, channelID, ctx.ChannelID)
+
+					return err
+				}),
+				WithBlockHandler(handler),
 			)
 			require.NotNil(t, p)
 			require.Equal(t, channelID, p.ChannelID())

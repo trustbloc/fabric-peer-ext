@@ -22,6 +22,7 @@ type MockBlockPublisher struct {
 	HandleCollHashRead  gossipapi.CollHashReadHandler
 	HandleLSCCWrite     gossipapi.LSCCWriteHandler
 	HandleCCEvent       gossipapi.ChaincodeEventHandler
+	HandleBlock         gossipapi.PublishedBlockHandler
 }
 
 // NewBlockPublisher returns a mock block publisher
@@ -67,6 +68,11 @@ func (m *MockBlockPublisher) AddLSCCWriteHandler(handler gossipapi.LSCCWriteHand
 // AddCCEventHandler adds a chaincode event handler
 func (m *MockBlockPublisher) AddCCEventHandler(handler gossipapi.ChaincodeEventHandler) {
 	m.HandleCCEvent = handler
+}
+
+// AddBlockHandler adds a block handler
+func (m *MockBlockPublisher) AddBlockHandler(handler gossipapi.PublishedBlockHandler) {
+	m.HandleBlock = handler
 }
 
 // Publish is not implemented and panics if invoked
