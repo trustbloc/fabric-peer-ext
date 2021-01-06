@@ -19,9 +19,7 @@ func TestHandlerRegistry(t *testing.T) {
 
 	const dataType = "dataType1"
 
-	handler := func(channelID string, request *gproto.AppDataRequest) ([]byte, error) {
-		return nil, nil
-	}
+	handler := func(channelID string, request *gproto.AppDataRequest, responder Responder) {}
 
 	err := r.Register(dataType, handler)
 	require.NoError(t, err)

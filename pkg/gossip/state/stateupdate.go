@@ -168,11 +168,12 @@ func (h *UpdateHandler) createCacheUpdater(channelID string) cacheUpdater {
 	}
 }
 
-func (h *UpdateHandler) handleCacheUpdatesRequest(channelID string, request *gproto.AppDataRequest) ([]byte, error) {
+func (h *UpdateHandler) handleCacheUpdatesRequest(channelID string, request *gproto.AppDataRequest, responder appdata.Responder) {
 	req := &cacheUpdatesRequest{}
 	err := jsonUnmarshal(request.Request, req)
 	if err != nil {
-		return nil, err
+		logger.Warningf("[%s] Error unmarshalling request: %s", channelID, err)
+		return
 	}
 
 	logger.Debugf("[%s] Handling cache updates request for block [%d]", channelID, req.BlockNum)
@@ -183,15 +184,14 @@ func (h *UpdateHandler) handleCacheUpdatesRequest(channelID string, request *gpr
 			// This isn't an error; it just means that there are no cache updates for the requested block.
 			// (i.e. it could be that there are no writes for the block)
 			logger.Debugf("[%s] Cache updates not found for block [%d]", channelID, req.BlockNum)
-
-			return nil, nil
+		} else {
+			// Should never happen
+			logger.Errorf("[%s] Error getting cache updater for block [%d]: %s", channelID, req.BlockNum, err)
 		}
-
-		// Should never happen
-		return nil, err
 	}
 
-	return updates, nil
+	// Respond with a nil payload so that the caller doesn't have to wait for a timeout
+	responder.Respond(updates)
 }
 
 var createStateRetriever = func(channelID string, gossipService gossipapi.GossipService) stateRetriever {

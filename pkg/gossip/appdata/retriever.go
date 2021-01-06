@@ -143,7 +143,7 @@ func (r *Retriever) Retrieve(ctxt context.Context, request *Request, responseHan
 			break
 		}
 
-		logger.Infof("[%s] Could not get all values on attempt %d for %s. Got: %s", r.ChannelID(), attempt, request.Payload, values)
+		logger.Infof("[%s] Could not get all values on attempt %d", r.ChannelID(), attempt)
 	}
 
 	return values, nil

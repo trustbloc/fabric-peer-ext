@@ -8,7 +8,6 @@ package dispatcher
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -18,10 +17,11 @@ import (
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	cmocks "github.com/trustbloc/fabric-peer-ext/pkg/common/mocks"
 
+	cmocks "github.com/trustbloc/fabric-peer-ext/pkg/common/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/requestmgr"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/support"
+	"github.com/trustbloc/fabric-peer-ext/pkg/gossip/appdata"
 	gmocks "github.com/trustbloc/fabric-peer-ext/pkg/gossip/dispatcher/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/mocks"
 	"github.com/trustbloc/fabric-peer-ext/pkg/roles"
@@ -467,8 +467,8 @@ func TestDispatchAppDataRequest(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		appDataHandlerProvider := &gmocks.AppDataHandlerProvider{}
 		handlerResponse := []byte("handlerResponse")
-		appDataHandlerProvider.HandlerForTypeReturns(func(channelID string, request *gproto.AppDataRequest) ([]byte, error) {
-			return handlerResponse, nil
+		appDataHandlerProvider.HandlerForTypeReturns(func(channelID string, request *gproto.AppDataRequest, responder appdata.Responder) {
+			responder.Respond(handlerResponse)
 		}, true)
 
 		dispatcher := NewProvider().Initialize(gossipProvider, collCfgProvider, appDataHandlerProvider).ForChannel(channelID, mocks.NewDataStore())
@@ -493,37 +493,6 @@ func TestDispatchAppDataRequest(t *testing.T) {
 		require.NotNil(t, res)
 		require.Equal(t, reqID1, res.Nonce)
 		require.Equal(t, handlerResponse, res.Response)
-	})
-
-	t.Run("handler error", func(t *testing.T) {
-		errExpected := errors.New("injected handler error")
-		appDataHandlerProvider := &gmocks.AppDataHandlerProvider{}
-		appDataHandlerProvider.HandlerForTypeReturns(func(channelID string, request *gproto.AppDataRequest) ([]byte, error) {
-			return nil, errExpected
-		}, true)
-
-		dispatcher := NewProvider().Initialize(gossipProvider, collCfgProvider, appDataHandlerProvider).ForChannel(channelID, mocks.NewDataStore())
-		require.NotNil(t, dispatcher)
-
-		reqID1 := uint64(1000)
-
-		var response *gproto.GossipMessage
-		msg := &mocks.MockReceivedMessage{
-			Message: mocks.NewAppDataReqMsg(channelID, reqID1, "appData1", []byte("requestPayload")),
-			RespondTo: func(msg *gproto.GossipMessage) {
-				response = msg
-			},
-			Member: mocks.NewMember(p1Org2Endpoint, p1Org2PKIID, endorserRole),
-		}
-		require.True(t, dispatcher.Dispatch(msg))
-		require.NotNil(t, response)
-		require.Equal(t, []byte(channelID), response.Channel)
-		require.Equal(t, gproto.GossipMessage_CHAN_ONLY, response.Tag)
-
-		res := response.GetAppDataRes()
-		require.NotNil(t, res)
-		require.Equal(t, reqID1, res.Nonce)
-		require.Empty(t, res.Response)
 	})
 
 	t.Run("No handler", func(t *testing.T) {
