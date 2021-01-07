@@ -89,6 +89,12 @@ const (
 
 	defaultStateCacheGossipTimeout = 500 * time.Millisecond
 	defaultStateCacheRetentionSize = 20
+
+	confValidationCommitterTransactionThreshold  = "peer.validation.transactionThreshold.committer"
+	confValidationSinglePeerTransactionThreshold = "peer.validation.transactionThreshold.validator"
+
+	defaultValidationCommitterTransactionThreshold  = 5
+	defaultValidationSinglePeerTransactionThreshold = 30
 )
 
 // DBType is the database type
@@ -362,4 +368,27 @@ func GetStateCacheRetentionSize() int {
 // would still be performed during validation.
 func IsSkipCheckForDupTxnID() bool {
 	return viper.GetBool(confSkipCheckForDupTxnID)
+}
+
+// GetValidationCommitterTransactionThreshold returns the transaction threshold at which the committer will validate the block.
+// If the number of transactions is less than this threshold (even if the committer does not have the validator role) it will
+// still validate the block. If set to 0 then the committer won't perform validation unless there are no validators available.
+func GetValidationCommitterTransactionThreshold() int {
+	threshold := viper.GetInt(confValidationCommitterTransactionThreshold)
+	if threshold <= 0 {
+		return defaultValidationCommitterTransactionThreshold
+	}
+
+	return threshold
+}
+
+// GetValidationSinglePeerTransactionThreshold returns the transaction threshold at which only a single peer with the validator role will
+// validate the block, i.e. if the number of transactions is less than this threshold then only a single validator is chosen.
+func GetValidationSinglePeerTransactionThreshold() int {
+	threshold := viper.GetInt(confValidationSinglePeerTransactionThreshold)
+	if threshold <= 0 {
+		return defaultValidationSinglePeerTransactionThreshold
+	}
+
+	return threshold
 }

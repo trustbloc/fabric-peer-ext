@@ -28,7 +28,7 @@ const (
 )
 
 func TestRoles_Contains(t *testing.T) {
-	roles := New(role1, role2, role3)
+	roles := Roles{role1, role2, role3}
 
 	require.True(t, roles.Contains(role1))
 	require.True(t, roles.Contains(role2))

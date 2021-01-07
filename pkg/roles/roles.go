@@ -23,21 +23,16 @@ const (
 )
 
 // Role is the role of the peer
-type Role string
+type Role = string
 
 // Roles is a set of peer roles
 type Roles []Role
-
-// New creates Roles from the given slice of roles
-func New(r ...Role) Roles {
-	return Roles(r)
-}
 
 // FromStrings creates Roles from the given slice of strings
 func FromStrings(r ...string) Roles {
 	rls := make(Roles, len(r))
 	for i, s := range r {
-		rls[i] = Role(strings.ToLower(s))
+		rls[i] = strings.ToLower(s)
 	}
 	return rls
 }
@@ -98,7 +93,7 @@ func GetRoles() []Role {
 func AsString() []string {
 	var ret []string
 	for role := range getRoles() {
-		ret = append(ret, string(role))
+		ret = append(ret, role)
 	}
 	return ret
 }
@@ -125,7 +120,7 @@ func initRoles() map[Role]struct{} {
 
 	for _, r := range strings.Split(strRoles, ",") {
 		r = strings.ToLower(strings.TrimSpace(r))
-		rolesMap[Role(r)] = exists
+		rolesMap[r] = exists
 	}
 
 	return rolesMap
