@@ -16,3 +16,19 @@ func SetRoles(rolesValue map[Role]struct{}) {
 		roles = rolesValue
 	}
 }
+
+// SetRole sets one or more roles and returns a cancel function which, when invoked,
+// resets the roles to the previous state.
+func SetRole(role ...Role) (reset func()) {
+	existingRoles := roles
+
+	rolesValue := make(map[Role]struct{})
+
+	for _, r := range role {
+		rolesValue[r] = struct{}{}
+	}
+
+	SetRoles(rolesValue)
+
+	return func() { SetRoles(existingRoles) }
+}

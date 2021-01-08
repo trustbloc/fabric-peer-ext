@@ -39,7 +39,7 @@ func TestPolicyEvaluator_GetValidatingPeers(t *testing.T) {
 	block := bb.Build()
 
 	t.Run("Success", func(t *testing.T) {
-		reset := setRoles(roles.ValidatorRole)
+		reset := roles.SetRole(roles.ValidatorRole)
 		defer reset()
 
 		gossip := extmocks.NewMockGossipAdapter().
@@ -65,7 +65,7 @@ func TestPolicyEvaluator_GetValidatingPeers(t *testing.T) {
 	})
 
 	t.Run("No validators or committers -> error", func(t *testing.T) {
-		reset := setRoles(roles.EndorserRole)
+		reset := roles.SetRole(roles.EndorserRole)
 		defer reset()
 
 		gossip := extmocks.NewMockGossipAdapter().
@@ -104,7 +104,7 @@ func TestPolicyEvaluator_GetTxFilter(t *testing.T) {
 	block := bb.Build()
 
 	t.Run("Success", func(t *testing.T) {
-		reset := setRoles(roles.ValidatorRole)
+		reset := roles.SetRole(roles.ValidatorRole)
 		defer reset()
 
 		gossip := extmocks.NewMockGossipAdapter().
@@ -135,7 +135,7 @@ func TestPolicyEvaluator_GetTxFilter(t *testing.T) {
 	})
 
 	t.Run("Policy error -> local peer validates all transactions", func(t *testing.T) {
-		reset := setRoles(roles.EndorserRole)
+		reset := roles.SetRole(roles.EndorserRole)
 		defer reset()
 
 		gossip := extmocks.NewMockGossipAdapter().
