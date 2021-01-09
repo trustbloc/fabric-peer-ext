@@ -31,6 +31,7 @@ import (
 	extstatedb "github.com/trustbloc/fabric-peer-ext/pkg/statedb"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/proprespvalidator"
+	"github.com/trustbloc/fabric-peer-ext/pkg/validation/validator"
 )
 
 var logger = flogging.MustGetLogger("ext_peer")
@@ -68,6 +69,7 @@ func registerResources() {
 	resource.Register(ccnotifier.New)
 	resource.Register(extstatedb.GetProvider)
 	resource.Register(newDCASConfig)
+	resource.Register(validator.NewProvider)
 }
 
 func registerChaincodes() {

@@ -315,21 +315,21 @@ func TestGetStateCacheRetentionSize(t *testing.T) {
 }
 
 func TestGetValidationSinglePeerTransactionThreshold(t *testing.T) {
-	oldVal := viper.Get(confValidationSinglePeerTransactionThreshold)
-	defer viper.Set(confValidationSinglePeerTransactionThreshold, oldVal)
+	oldVal := viper.Get(ConfValidationSinglePeerTransactionThreshold)
+	defer viper.Set(ConfValidationSinglePeerTransactionThreshold, oldVal)
 
 	require.Equal(t, defaultValidationSinglePeerTransactionThreshold, GetValidationSinglePeerTransactionThreshold())
 
-	viper.Set(confValidationSinglePeerTransactionThreshold, 23)
+	viper.Set(ConfValidationSinglePeerTransactionThreshold, 23)
 	require.Equal(t, 23, GetValidationSinglePeerTransactionThreshold())
 }
 
 func TestGetValidationCommitterTransactionThreshold(t *testing.T) {
-	oldVal := viper.Get(confValidationCommitterTransactionThreshold)
-	defer viper.Set(confValidationCommitterTransactionThreshold, oldVal)
+	oldVal := viper.Get(ConfValidationCommitterTransactionThreshold)
+	defer viper.Set(ConfValidationCommitterTransactionThreshold, oldVal)
 
 	require.Equal(t, defaultValidationCommitterTransactionThreshold, GetValidationCommitterTransactionThreshold())
 
-	viper.Set(confValidationCommitterTransactionThreshold, 13)
+	viper.Set(ConfValidationCommitterTransactionThreshold, 13)
 	require.Equal(t, 13, GetValidationCommitterTransactionThreshold())
 }

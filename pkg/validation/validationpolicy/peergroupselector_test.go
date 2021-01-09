@@ -50,7 +50,7 @@ func TestEvaluator_PeerGroups(t *testing.T) {
 	block := bb.Build()
 
 	t.Run("Num transactions less than committer threshold -> committer validates", func(t *testing.T) {
-		reset := setRoles(roles.ValidatorRole)
+		reset := roles.SetRole(roles.ValidatorRole)
 		defer reset()
 
 		cfg := &policy{
@@ -71,7 +71,7 @@ func TestEvaluator_PeerGroups(t *testing.T) {
 	})
 
 	t.Run("Num transactions less than single-peer transaction threshold -> one validator validates", func(t *testing.T) {
-		reset := setRoles(roles.ValidatorRole)
+		reset := roles.SetRole(roles.ValidatorRole)
 		defer reset()
 
 		cfg := &policy{
@@ -104,7 +104,7 @@ func TestEvaluator_PeerGroups(t *testing.T) {
 		})
 
 		t.Run("No validators -> committer validates", func(t *testing.T) {
-			reset := setRoles(roles.EndorserRole)
+			reset := roles.SetRole(roles.EndorserRole)
 			defer reset()
 
 			gossip := extmocks.NewMockGossipAdapter().
@@ -120,7 +120,7 @@ func TestEvaluator_PeerGroups(t *testing.T) {
 	})
 
 	t.Run("Num transactions greater than single-peer transaction threshold -> all validators validate", func(t *testing.T) {
-		reset := setRoles(roles.ValidatorRole)
+		reset := roles.SetRole(roles.ValidatorRole)
 		defer reset()
 
 		cfg := &policy{
@@ -141,7 +141,7 @@ func TestEvaluator_PeerGroups(t *testing.T) {
 	})
 
 	t.Run("No validators -> committer validates", func(t *testing.T) {
-		reset := setRoles(roles.EndorserRole)
+		reset := roles.SetRole(roles.EndorserRole)
 		defer reset()
 
 		gossip := extmocks.NewMockGossipAdapter().
@@ -161,7 +161,7 @@ func TestEvaluator_PeerGroups(t *testing.T) {
 	})
 
 	t.Run("No validators & no committers -> error", func(t *testing.T) {
-		reset := setRoles(roles.EndorserRole)
+		reset := roles.SetRole(roles.EndorserRole)
 		defer reset()
 
 		gossip := extmocks.NewMockGossipAdapter().
@@ -187,16 +187,4 @@ func asEndpoints(members ...*discovery.Member) []string {
 		endpoints = append(endpoints, member.Endpoint)
 	}
 	return endpoints
-}
-
-func setRoles(role ...roles.Role) func() {
-	rolesValue := make(map[roles.Role]struct{})
-
-	for _, r := range role {
-		rolesValue[r] = struct{}{}
-	}
-
-	roles.SetRoles(rolesValue)
-
-	return func() { roles.SetRoles(nil) }
 }

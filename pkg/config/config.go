@@ -90,9 +90,18 @@ const (
 	defaultStateCacheGossipTimeout = 500 * time.Millisecond
 	defaultStateCacheRetentionSize = 20
 
-	confValidationCommitterTransactionThreshold  = "peer.validation.transactionThreshold.committer"
-	confValidationSinglePeerTransactionThreshold = "peer.validation.transactionThreshold.validator"
+	// ConfDistributedValidationEnabled indicates whether distributed block validation is enabled.
+	ConfDistributedValidationEnabled = "peer.validation.distributed"
 
+	confValidationWaitTime = "peer.validation.waitTime"
+
+	// ConfValidationCommitterTransactionThreshold is the transaction threshold at which the committer will validate the block
+	ConfValidationCommitterTransactionThreshold = "peer.validation.transactionThreshold.committer"
+
+	// ConfValidationSinglePeerTransactionThreshold is the transaction threshold at which only a single peer with the validator role will validate the block
+	ConfValidationSinglePeerTransactionThreshold = "peer.validation.transactionThreshold.validator"
+
+	defaultValidationWaitTime                       = 50 * time.Millisecond
 	defaultValidationCommitterTransactionThreshold  = 5
 	defaultValidationSinglePeerTransactionThreshold = 30
 )
@@ -370,11 +379,26 @@ func IsSkipCheckForDupTxnID() bool {
 	return viper.GetBool(confSkipCheckForDupTxnID)
 }
 
+// IsDistributedValidationEnabled returns true if distributed block validation is enabled.
+func IsDistributedValidationEnabled() bool {
+	return viper.GetBool(ConfDistributedValidationEnabled)
+}
+
+// GetValidationWaitTime is used by the committer in distributed validation and is the minimum
+// time to wait for Tx validation responses from other validators.
+func GetValidationWaitTime() time.Duration {
+	timeout := viper.GetDuration(confValidationWaitTime)
+	if timeout == 0 {
+		return defaultValidationWaitTime
+	}
+	return timeout
+}
+
 // GetValidationCommitterTransactionThreshold returns the transaction threshold at which the committer will validate the block.
 // If the number of transactions is less than this threshold (even if the committer does not have the validator role) it will
 // still validate the block. If set to 0 then the committer won't perform validation unless there are no validators available.
 func GetValidationCommitterTransactionThreshold() int {
-	threshold := viper.GetInt(confValidationCommitterTransactionThreshold)
+	threshold := viper.GetInt(ConfValidationCommitterTransactionThreshold)
 	if threshold <= 0 {
 		return defaultValidationCommitterTransactionThreshold
 	}
@@ -385,7 +409,7 @@ func GetValidationCommitterTransactionThreshold() int {
 // GetValidationSinglePeerTransactionThreshold returns the transaction threshold at which only a single peer with the validator role will
 // validate the block, i.e. if the number of transactions is less than this threshold then only a single validator is chosen.
 func GetValidationSinglePeerTransactionThreshold() int {
-	threshold := viper.GetInt(confValidationSinglePeerTransactionThreshold)
+	threshold := viper.GetInt(ConfValidationSinglePeerTransactionThreshold)
 	if threshold <= 0 {
 		return defaultValidationSinglePeerTransactionThreshold
 	}

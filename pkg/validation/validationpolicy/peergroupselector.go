@@ -76,6 +76,11 @@ func (s *peerGroupSelector) groups() (peerGroups, error) {
 	// check committer threshold
 	if numTransactions < s.policy.committerTransactionThreshold {
 		selectedValidator = s.selectCommitter()
+
+		if selectedValidator != nil {
+			logger.Debugf("[%s] Selected validator is %s (committer) since the number of transactions in block %d is %d which is less than the committer threshold %d",
+				s.channelID, selectedValidator, s.block.Header.Number, len(s.block.Data.Data), s.policy.committerTransactionThreshold)
+		}
 	}
 
 	// check single peer threshold
@@ -85,8 +90,6 @@ func (s *peerGroupSelector) groups() (peerGroups, error) {
 
 	// select committer if no validators
 	if selectedValidator == nil && len(s.validators) == 0 {
-		logger.Debugf("[%s] There are no validators for block %d. Selecting the committer to validate the block.", s.channelID, s.block.Header.Number)
-
 		selectedValidator = s.selectCommitter()
 
 		if selectedValidator == nil {
@@ -94,6 +97,8 @@ func (s *peerGroupSelector) groups() (peerGroups, error) {
 
 			return nil, errors.Errorf("there are no validators or committers for block %d", s.block.Header.Number)
 		}
+
+		logger.Debugf("[%s] There are no validators for block %d. Selecting %s (committer) to validate the block.", s.channelID, s.block.Header.Number, selectedValidator)
 	}
 
 	var groups peerGroups
@@ -116,12 +121,7 @@ func (s *peerGroupSelector) selectCommitter() *discovery.Member {
 		return nil
 	}
 
-	peer := s.committers[0]
-
-	logger.Debugf("[%s] Selected validator is %s (committer) since the number of transactions in block %d is %d which is less than the committer threshold %d",
-		s.channelID, peer.Endpoint, s.block.Header.Number, len(s.block.Data.Data), s.policy.committerTransactionThreshold)
-
-	return peer
+	return s.committers[0]
 }
 
 func (s *peerGroupSelector) selectValidator() *discovery.Member {
@@ -129,7 +129,7 @@ func (s *peerGroupSelector) selectValidator() *discovery.Member {
 	for _, peer := range s.committers {
 		if peer.HasRole(roles.ValidatorRole) {
 			logger.Debugf("[%s] Selected validator is %s (committer,validator) since the number of transactions in block %d is %d which is less than the single validator threshold %d",
-				s.channelID, peer.Endpoint, s.block.Header.Number, len(s.block.Data.Data), s.policy.singlePeerTransactionThreshold)
+				s.channelID, peer, s.block.Header.Number, len(s.block.Data.Data), s.policy.singlePeerTransactionThreshold)
 
 			return peer
 		}
@@ -143,7 +143,7 @@ func (s *peerGroupSelector) selectValidator() *discovery.Member {
 	peer := s.validators[s.block.Header.Number%uint64(len(s.validators))]
 
 	logger.Debugf("[%s] Selected validator is %s since the number of transactions in block %d is %d which is less than the single validator threshold %d",
-		s.channelID, peer.Endpoint, s.block.Header.Number, len(s.block.Data.Data), s.policy.singlePeerTransactionThreshold)
+		s.channelID, peer, s.block.Header.Number, len(s.block.Data.Data), s.policy.singlePeerTransactionThreshold)
 
 	return peer
 }
