@@ -55,7 +55,8 @@ type mspProvider interface {
 	MSPID() string
 }
 
-type providers struct {
+// Providers contains the dependencies of the update handler
+type Providers struct {
 	BPProvider      blockPublisherProvider
 	MgrProvider     ccEventMgrProvider
 	MspProvider     mspProvider
@@ -69,16 +70,16 @@ type providers struct {
 // When an endorsing peer receives a validated block from the committing peer, a request is made to the committing peer for
 // the cache-updates. When the cache-updates are received then the cache on the endorsing peer is updated (pre-populated).
 type UpdateHandler struct {
-	*providers
+	*Providers
 	cacheUpdaters gcache.Cache
 }
 
 // NewUpdateHandler returns a new state update handler.
-func NewUpdateHandler(providers *providers) *UpdateHandler {
+func NewUpdateHandler(providers *Providers) *UpdateHandler {
 	logger.Info("Creating new cache update updateHandler")
 
 	h := &UpdateHandler{
-		providers: providers,
+		Providers: providers,
 	}
 
 	h.cacheUpdaters = gcache.New(0).LoaderFunc(func(channelID interface{}) (interface{}, error) {

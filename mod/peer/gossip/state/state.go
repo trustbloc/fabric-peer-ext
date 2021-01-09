@@ -23,7 +23,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/txflags"
+	"github.com/trustbloc/fabric-peer-ext/pkg/config"
 	"github.com/trustbloc/fabric-peer-ext/pkg/gossip/state"
+	vcommon "github.com/trustbloc/fabric-peer-ext/pkg/validation/common"
 )
 
 var logger = flogging.MustGetLogger("ext_gossip_state")
@@ -69,18 +71,20 @@ type GossipServiceMediator interface {
 //NewGossipStateProviderExtension returns new GossipStateProvider Extension implementation
 func NewGossipStateProviderExtension(chainID string, mediator GossipServiceMediator, support *api.Support, blockingMode bool) GossipStateProviderExtension {
 	return &gossipStateProviderExtension{
-		chainID:      chainID,
-		mediator:     mediator,
-		support:      support,
-		blockingMode: blockingMode,
+		chainID:                      chainID,
+		mediator:                     mediator,
+		support:                      support,
+		blockingMode:                 blockingMode,
+		distributedValidationEnabled: config.IsDistributedValidationEnabled(),
 	}
 }
 
 type gossipStateProviderExtension struct {
-	chainID      string
-	mediator     GossipServiceMediator
-	support      *api.Support
-	blockingMode bool
+	chainID                      string
+	mediator                     GossipServiceMediator
+	support                      *api.Support
+	blockingMode                 bool
+	distributedValidationEnabled bool
 }
 
 func (s *gossipStateProviderExtension) HandleStateRequest(handle func(msg protoext.ReceivedMessage)) func(msg protoext.ReceivedMessage) {
@@ -120,11 +124,18 @@ func (s *gossipStateProviderExtension) AddPayload(handle func(payload *proto.Pay
 		}
 
 		if block.Data == nil || block.Header == nil {
-			return errors.Errorf("block with sequence %d has no header (%v) or data (%v)", payload.SeqNum, block.Header, block.Data)
+			return errors.Errorf("block with sequence %d has no header or data", payload.SeqNum)
 		}
 
-		if !roles.IsCommitter() && !isBlockValidated(block) {
+		if roles.IsCommitter() {
+			if s.distributedValidationEnabled {
+				logger.Debugf("[%s] Sending validation request to other validating peers", s.chainID)
+
+				vmInstance.sendValidateRequest(s.chainID, &vcommon.ValidationRequest{Block: block, BlockBytes: payload.Data})
+			}
+		} else if !isBlockValidated(block) {
 			logger.Debugf("[%s] I'm not a committer so will not add payload for unvalidated block [%d]", s.chainID, block.Header.Number)
+
 			return nil
 		}
 
@@ -156,28 +167,36 @@ func (s *gossipStateProviderExtension) StoreBlock(handle func(block *common.Bloc
 		}
 
 		//in case of non-committer handle pre commit operations
-		if isBlockValidated(block) {
-			err := state.UpdateCache(s.chainID, block.Header.Number)
-			if err != nil {
-				logger.Warnf("[%s] Error applying cache updates for block [%d]", s.chainID, block.Header.Number)
-			}
-
-			err = s.support.Ledger.CheckpointBlock(block,
-				func() {
-					logger.Infof("[%s] Publishing validated block [%d] with %d private data collections", s.chainID, block.Header.Number, len(pvtData))
-
-					blockpublisher.ForChannel(s.chainID).Publish(block, toPvtDataMap(pvtData))
-				},
-			)
-			if err != nil {
-				logger.Warning("Failed to update checkpoint info for cid[%s] block[%d]", s.chainID, block.Header.Number)
-				return nil, err
-			}
+		if !isBlockValidated(block) {
+			logger.Warnf("[%s] I'm not a committer but received an unvalidated block [%d]", s.chainID, block.Header.Number)
 
 			return nil, nil
 		}
 
-		logger.Warnf("[%s] I'm not a committer but received an unvalidated block [%d]", s.chainID, block.Header.Number)
+		// Cancel any outstanding validation for the current block being committed
+		vmInstance.cancelValidation(s.chainID, block.Header.Number)
+
+		err := state.UpdateCache(s.chainID, block.Header.Number)
+		if err != nil {
+			logger.Warnf("[%s] Error applying cache updates for block [%d]", s.chainID, block.Header.Number)
+		}
+
+		err = s.support.Ledger.CheckpointBlock(block,
+			func() {
+				logger.Infof("[%s] Publishing validated block [%d] with %d private data collections", s.chainID, block.Header.Number, len(pvtData))
+
+				blockpublisher.ForChannel(s.chainID).Publish(block, toPvtDataMap(pvtData))
+			},
+		)
+		if err != nil {
+			logger.Warning("Failed to update checkpoint info for cid[%s] block[%d]", s.chainID, block.Header.Number)
+			return nil, err
+		}
+
+		if s.distributedValidationEnabled && roles.IsValidator() {
+			// ValidateResults any pending request for the next block
+			vmInstance.validatePending(s.chainID, block.Header.Number+1)
+		}
 
 		return nil, nil
 	}

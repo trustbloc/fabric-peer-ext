@@ -38,6 +38,7 @@ import (
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/discovery"
 	"github.com/trustbloc/fabric-peer-ext/pkg/common/txflags"
 	"github.com/trustbloc/fabric-peer-ext/pkg/config"
+	vcommon "github.com/trustbloc/fabric-peer-ext/pkg/validation/common"
 	"github.com/trustbloc/fabric-peer-ext/pkg/validation/validationpolicy"
 	"github.com/trustbloc/fabric-peer-ext/pkg/validation/validationresults"
 )
@@ -178,6 +179,14 @@ func (p *Provider) createValidator(
 	return v
 }
 
+// GetValidatorForChannel returns the validator for the given channel
+func (p *Provider) GetValidatorForChannel(channelID string) vcommon.DistributedValidator {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	return p.validators[channelID]
+}
+
 // GetValidatingPeers returns the peers that are involved in validating the given block
 func (v *validator) GetValidatingPeers(block *cb.Block) (discovery.PeerGroup, error) {
 	return v.validationPolicy.GetValidatingPeers(block)
@@ -237,6 +246,42 @@ func (v *validator) Validate(block *cb.Block) error {
 	logger.Infof("[%s] Validated block [%d] in %dms", v.channelID, block.Header.Number, time.Since(startValidation).Milliseconds())
 
 	return nil
+}
+
+// ValidatePartial partially validates the block and sends the validation results over Gossip.
+// Note that this function is only called by validators and not committers.
+func (v *validator) ValidatePartial(ctx context.Context, block *cb.Block) (txflags.ValidationFlags, []string, error) {
+	// Initialize the flags all to TxValidationCode_NOT_VALIDATED
+	protoutil.InitBlockMetadata(block)
+	block.Metadata.Metadata[cb.BlockMetadataIndex_TRANSACTIONS_FILTER] = txflags.New(len(block.Data.Data))
+
+	numValidated, txFlags, txIDs, err := v.validateBlock(ctx, block, v.validationPolicy.GetTxFilter(block))
+	if err != nil {
+		// Error while validating. Don't send the result over Gossip - in this case the committer will
+		// revalidate the unvalidated transactions.
+
+		if err == context.Canceled {
+			logger.Debugf("[%s] ... validation of block %d was cancelled", v.channelID, block.Header.Number)
+
+			return nil, nil, err
+		}
+
+		logger.Infof("[%s] Got error in validation of block %d: %s", v.channelID, block.Header.Number, err)
+
+		return nil, nil, err
+	}
+
+	logger.Infof("[%s] ... finished validating %d transactions in block %d. Error: %v", v.channelID, numValidated, block.Header.Number, err)
+
+	return txFlags, txIDs, nil
+}
+
+// SubmitValidationResults is called by the Gossip handler when it receives validation results from a remote peer.
+// The committer merges these results with results from other peers.
+func (v *validator) SubmitValidationResults(results *validationresults.Results) {
+	logger.Debugf("[%s] Got validation results from %s for block %d", v.channelID, results.Endpoint, results.BlockNumber)
+
+	v.resultsChan <- results
 }
 
 // validateBlock validates the transactions in the block for which this peer is responsible (according to validation policy) and
@@ -331,6 +376,8 @@ func (v *validator) validateTransactions(ctx context.Context, block *cb.Block, t
 func (v *validator) validateLocal(block *cb.Block) {
 	logger.Debugf("[%s] This committer is also a validator. Starting validation of transactions in block %d", v.channelID, block.Header.Number)
 
+	var errStr string
+
 	numValidated, txFlags, txIDs, err := v.validateBlock(context.Background(), block, v.validationPolicy.GetTxFilter(block))
 	if err != nil {
 		if err == context.Canceled {
@@ -338,6 +385,8 @@ func (v *validator) validateLocal(block *cb.Block) {
 
 			return
 		}
+
+		errStr = err.Error()
 
 		logger.Infof("[%s] Got error validating transactions in block %d: %s", v.channelID, block.Header.Number, err)
 	}
@@ -348,7 +397,7 @@ func (v *validator) validateLocal(block *cb.Block) {
 		BlockNumber: block.Header.Number,
 		TxFlags:     txFlags,
 		TxIDs:       txIDs,
-		Err:         err,
+		Err:         errStr,
 		Local:       true,
 		Endpoint:    v.Self().Endpoint,
 		MSPID:       v.Self().MSPID,
@@ -367,10 +416,15 @@ func (v *validator) validateRemaining(ctx context.Context, block *cb.Block, notV
 		},
 	)
 
-	if err == context.Canceled {
-		logger.Debugf("[%s] ... validation of %d of %d transactions in block %d that were not validated was cancelled", v.channelID, numValidated, len(block.Data.Data), block.Header.Number)
+	var errStr string
+	if err != nil {
+		if err == context.Canceled {
+			logger.Debugf("[%s] ... validation of %d of %d transactions in block %d that were not validated was cancelled", v.channelID, numValidated, len(block.Data.Data), block.Header.Number)
 
-		return
+			return
+		}
+
+		errStr = err.Error()
 	}
 
 	logger.Infof("[%s] ... finished validating %d of %d transactions in block %d that were not validated. Err: %v", v.channelID, numValidated, len(block.Data.Data), block.Header.Number, err)
@@ -381,7 +435,7 @@ func (v *validator) validateRemaining(ctx context.Context, block *cb.Block, notV
 		BlockNumber: block.Header.Number,
 		TxFlags:     txFlags,
 		TxIDs:       txIDs,
-		Err:         err,
+		Err:         errStr,
 		Local:       true,
 		Endpoint:    self.Endpoint,
 		MSPID:       self.MSPID,
@@ -421,7 +475,7 @@ func (v *validator) waitForValidationResults(cancel context.CancelFunc, blockNum
 			}
 
 			if done {
-				// CancelContextForBlock any background validations
+				// Cancel any background validations
 				cancel()
 
 				logger.Debugf("[%s] Block %d is all validated. Done waiting %s for responses.", v.channelID, blockNumber, time.Since(start))
@@ -452,15 +506,15 @@ func (v *validator) handleResults(blockNumber uint64, txResults *txResults, resu
 		return false, nil
 	}
 
-	if result.Err != nil {
-		if result.Err == context.Canceled {
+	if result.Err != "" {
+		if result.Err == context.Canceled.Error() {
 			// Ignore this error
 			logger.Debugf("[%s] Validation was canceled in [%s] peer for block %d", v.channelID, result.Endpoint, result.BlockNumber)
 
 			return false, nil
 		}
 
-		return false, result.Err
+		return false, fmt.Errorf(result.Err)
 	}
 
 	results := v.resultsCache.Add(result)

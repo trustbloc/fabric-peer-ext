@@ -56,7 +56,7 @@ func TestSaveCacheUpdates(t *testing.T) {
 	gossipService := mocks.NewMockGossipAdapter()
 	gossipProvider.GetGossipServiceReturns(gossipService)
 
-	providers := &providers{
+	providers := &Providers{
 		HandlerRegistry: &statemocks.AppDataHandlerRegistry{},
 		StateDBProvider: stateDBProvider,
 		MspProvider:     peerConfig,
@@ -93,7 +93,7 @@ func TestUpdateCache(t *testing.T) {
 		Member(org1MSPID, mocks.NewMember(p0Org1Endpoint, p0Org1PKIID, string(roles.CommitterRole)))
 	gossipProvider.GetGossipServiceReturns(gossipService)
 
-	providers := &providers{
+	providers := &Providers{
 		HandlerRegistry: &statemocks.AppDataHandlerRegistry{},
 		StateDBProvider: stateDBProvider,
 		MspProvider:     peerConfig,
@@ -189,7 +189,7 @@ func TestHandleCacheUpdatesRequest(t *testing.T) {
 	gossipProvider := &mocks.GossipProvider{}
 	gossipProvider.GetGossipServiceReturns(mocks.NewMockGossipAdapter())
 
-	providers := &providers{
+	providers := &Providers{
 		HandlerRegistry: &statemocks.AppDataHandlerRegistry{},
 		StateDBProvider: stateDBProvider,
 		MspProvider:     peerConfig,

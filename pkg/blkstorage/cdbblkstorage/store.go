@@ -36,7 +36,7 @@ func newStore(ledgerID string, blockStore, txnStore couchDB) *store {
 }
 
 func (s *store) RetrieveBlockByHash(blockHash []byte) (*common.Block, error) {
-	logger.Infof("[%s] Retrieving block from store for hash", s.ledgerID)
+	logger.Debugf("[%s] Retrieving block from store for hash", s.ledgerID)
 
 	blockHashHex := hex.EncodeToString(blockHash)
 	const queryFmt = `

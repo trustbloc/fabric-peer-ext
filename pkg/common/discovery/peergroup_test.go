@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPeerGroup_String(t *testing.T) {
@@ -50,6 +51,16 @@ func TestPeerGroup_ContainsLocal(t *testing.T) {
 
 	assert.True(t, pg1.ContainsLocal())
 	assert.False(t, pg2.ContainsLocal())
+}
+
+func TestPeerGroup_ContainsRemote(t *testing.T) {
+	pLocal := newMember(org1MSP, p0Endpoint, true)
+
+	pg1 := PeerGroup{p1, p2, p3, pLocal}
+	pg2 := PeerGroup{pLocal}
+
+	require.True(t, pg1.ContainsRemote())
+	require.False(t, pg2.ContainsRemote())
 }
 
 func TestPeerGroup_ContainsPeer(t *testing.T) {

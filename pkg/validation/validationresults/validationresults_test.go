@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package validationresults
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -36,7 +35,7 @@ func TestResults_String(t *testing.T) {
 	t.Run("With error", func(t *testing.T) {
 		r := &Results{
 			BlockNumber: 1000,
-			Err:         fmt.Errorf("validation error"),
+			Err:         "validation error",
 			MSPID:       org1MSP,
 			Endpoint:    p1Org1,
 		}

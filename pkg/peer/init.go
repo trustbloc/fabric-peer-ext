@@ -8,6 +8,7 @@ package peer
 
 import (
 	"github.com/hyperledger/fabric/common/flogging"
+	"github.com/hyperledger/fabric/extensions/gossip/state"
 	storagecouchdb "github.com/hyperledger/fabric/extensions/storage/couchdb"
 
 	"github.com/trustbloc/fabric-peer-ext/cmd/chaincode/configcc"
@@ -31,6 +32,8 @@ import (
 	extstatedb "github.com/trustbloc/fabric-peer-ext/pkg/statedb"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/proprespvalidator"
+	"github.com/trustbloc/fabric-peer-ext/pkg/validation/validationctx"
+	"github.com/trustbloc/fabric-peer-ext/pkg/validation/validationhandler"
 	"github.com/trustbloc/fabric-peer-ext/pkg/validation/validator"
 )
 
@@ -70,6 +73,9 @@ func registerResources() {
 	resource.Register(extstatedb.GetProvider)
 	resource.Register(newDCASConfig)
 	resource.Register(validator.NewProvider)
+	resource.Register(validationhandler.NewProvider)
+	resource.Register(state.InitValidationMgr)
+	resource.Register(validationctx.NewProvider)
 }
 
 func registerChaincodes() {
