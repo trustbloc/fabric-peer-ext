@@ -23,6 +23,7 @@ type MockBlockPublisher struct {
 	HandleLSCCWrite     gossipapi.LSCCWriteHandler
 	HandleCCEvent       gossipapi.ChaincodeEventHandler
 	HandleBlock         gossipapi.PublishedBlockHandler
+	Height              uint64
 }
 
 // NewBlockPublisher returns a mock block publisher
@@ -82,7 +83,7 @@ func (m *MockBlockPublisher) Publish(_ *common.Block, _ ledger.TxPvtDataMap) {
 
 // LedgerHeight is not implemented and panics if invoked
 func (m *MockBlockPublisher) LedgerHeight() uint64 {
-	panic("not implemented")
+	return m.Height
 }
 
 // MockBlockPublisherProvider is a mock block publisher provider

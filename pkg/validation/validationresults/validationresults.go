@@ -23,7 +23,7 @@ type Results struct {
 	BlockNumber uint64
 	TxFlags     txflags.ValidationFlags
 	TxIDs       []string
-	Err         error
+	Err         string
 	Endpoint    string // Endpoint is the endpoint of the peer that provided the results.
 	Local       bool   // If true then that means the results were generated locally and policy validation is not required
 	MSPID       string
@@ -33,7 +33,7 @@ type Results struct {
 
 // Results returns a string representation of the validation results (used in logging).
 func (vr *Results) String() string {
-	if vr.Err == nil {
+	if vr.Err == "" {
 		return fmt.Sprintf("(MSP: [%s], Endpoint: [%s], Block: %d, TxFlags: %v)", vr.MSPID, vr.Endpoint, vr.BlockNumber, vr.TxFlags)
 	}
 

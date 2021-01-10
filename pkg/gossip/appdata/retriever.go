@@ -211,7 +211,7 @@ func (r *Retriever) getPeersForRetrieval(filter PeerFilter) extdiscovery.PeerGro
 	for _, i := range rand.Perm(len(members)) {
 		peers = append(peers, members[i])
 
-		if len(peers) == r.gossipMaxPeers {
+		if r.gossipMaxPeers > 0 && len(peers) >= r.gossipMaxPeers {
 			break
 		}
 	}

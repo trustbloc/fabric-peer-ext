@@ -78,5 +78,5 @@ func setViper(key string, value interface{}) (reset func()) {
 	oldVal := viper.Get(key)
 	viper.Set(key, value)
 
-	return func() { viper.Set(config.ConfDistributedValidationEnabled, oldVal) }
+	return func() { viper.Set(key, oldVal) }
 }

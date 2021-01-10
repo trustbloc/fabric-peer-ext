@@ -46,7 +46,7 @@ func (s *ChaincodeStubWrapper) Get(key datastore.Key) ([]byte, error) {
 
 // Put stores the object `value` named by `key`.
 func (s *ChaincodeStubWrapper) Put(key datastore.Key, value []byte) error {
-	logger.Infof("Putting key %s, Value: %s", key, value)
+	logger.Debugf("Putting key %s, Value: %s", key, value)
 
 	return s.stub.PutPrivateData(s.collection, key.String(), value)
 }

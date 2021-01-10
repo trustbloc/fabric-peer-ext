@@ -24,6 +24,16 @@ func (g PeerGroup) ContainsLocal() bool {
 	return false
 }
 
+// ContainsRemote return true if one or more of the peers in the group is a remote peer
+func (g PeerGroup) ContainsRemote() bool {
+	for _, p := range g {
+		if !p.Local {
+			return true
+		}
+	}
+	return false
+}
+
 func (g PeerGroup) String() string {
 	s := "["
 	for i, p := range g {

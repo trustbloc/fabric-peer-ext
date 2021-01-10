@@ -54,7 +54,7 @@ func TestNewUpdateHandler(t *testing.T) {
 		ccEvtMgrProvider.GetMgrReturns(ccEvtMgr)
 		handlerRegistry := &statemocks.AppDataHandlerRegistry{}
 
-		h := NewUpdateHandler(&providers{BPProvider: bpp, MgrProvider: ccEvtMgrProvider, HandlerRegistry: handlerRegistry})
+		h := NewUpdateHandler(&Providers{BPProvider: bpp, MgrProvider: ccEvtMgrProvider, HandlerRegistry: handlerRegistry})
 		require.NotPanics(t, func() { h.ChannelJoined(channel1) })
 
 		bpp.ForChannel(channel1).Publish(b.Build(), nil)
@@ -70,7 +70,7 @@ func TestNewUpdateHandler(t *testing.T) {
 		ccEvtMgrProvider.GetMgrReturns(ccEvtMgr)
 		handlerRegistry := &statemocks.AppDataHandlerRegistry{}
 
-		h := NewUpdateHandler(&providers{BPProvider: bpp, MgrProvider: ccEvtMgrProvider, HandlerRegistry: handlerRegistry})
+		h := NewUpdateHandler(&Providers{BPProvider: bpp, MgrProvider: ccEvtMgrProvider, HandlerRegistry: handlerRegistry})
 		require.NotPanics(t, func() { h.ChannelJoined(channel1) })
 
 		bpp.ForChannel(channel1).Publish(b.Build(), nil)
@@ -86,7 +86,7 @@ func TestNewUpdateHandler(t *testing.T) {
 		ccEvtMgrProvider.GetMgrReturns(ccEvtMgr)
 		handlerRegistry := &statemocks.AppDataHandlerRegistry{}
 
-		h := NewUpdateHandler(&providers{BPProvider: bpp, MgrProvider: ccEvtMgrProvider, HandlerRegistry: handlerRegistry})
+		h := NewUpdateHandler(&Providers{BPProvider: bpp, MgrProvider: ccEvtMgrProvider, HandlerRegistry: handlerRegistry})
 		require.NotPanics(t, func() { h.ChannelJoined(channel1) })
 
 		errExpected := errors.New("handler error")
