@@ -293,19 +293,31 @@ func TestProvider_handleValidationRequest(t *testing.T) {
 		p, mp := newProviderWithMocks(t, vr)
 		defer p.Close()
 
-		errExpected := fmt.Errorf("injected validation error")
-		mp.validator.ValidatePartialReturns(nil, nil, errExpected)
+		t.Run("Error", func(t *testing.T) {
+			errExpected := fmt.Errorf("injected validation error")
+			mp.validator.ValidatePartialReturns(nil, nil, errExpected)
 
-		responder := &mockResponder{}
+			responder := &mockResponder{}
 
-		p.handleValidateRequest(channelID, req, responder)
+			p.handleValidateRequest(channelID, req, responder)
 
-		require.NotEmpty(t, responder.data)
+			require.NotEmpty(t, responder.data)
 
-		valResults := &validationresults.Results{}
-		require.NoError(t, json.Unmarshal(responder.data, valResults))
-		require.Equal(t, block.Header.Number, valResults.BlockNumber)
-		require.Equal(t, errExpected.Error(), valResults.Err)
+			valResults := &validationresults.Results{}
+			require.NoError(t, json.Unmarshal(responder.data, valResults))
+			require.Equal(t, block.Header.Number, valResults.BlockNumber)
+			require.Equal(t, errExpected.Error(), valResults.Err)
+		})
+
+		t.Run("Cancelled", func(t *testing.T) {
+			mp.validator.ValidatePartialReturns(nil, nil, context.Canceled)
+
+			responder := &mockResponder{}
+
+			p.handleValidateRequest(channelID, req, responder)
+
+			require.Empty(t, responder.data)
+		})
 	})
 
 	t.Run("SignValidationResults error", func(t *testing.T) {

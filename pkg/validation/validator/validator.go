@@ -257,9 +257,6 @@ func (v *validator) ValidatePartial(ctx context.Context, block *cb.Block) (txfla
 
 	numValidated, txFlags, txIDs, err := v.validateBlock(ctx, block, v.validationPolicy.GetTxFilter(block))
 	if err != nil {
-		// Error while validating. Don't send the result over Gossip - in this case the committer will
-		// revalidate the unvalidated transactions.
-
 		if err == context.Canceled {
 			logger.Debugf("[%s] ... validation of block %d was cancelled", v.channelID, block.Header.Number)
 
