@@ -72,13 +72,36 @@ services:
       - CORE_PEER_ADDRESS=peer1.org1.example.com:7051
       - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.org1.example.com:7051
       - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.org1.example.com:7051
-      - CORE_LEDGER_ROLES=endorser
+      - CORE_LEDGER_ROLES=endorser,validator
       - CORE_PEER_GOSSIP_ORGLEADER=false
     ports:
       - 7151:7051
     volumes:
       - ./fabric/crypto-config/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/msp:/etc/hyperledger/msp/peer
       - ./fabric/crypto-config/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/tls:/etc/hyperledger/fabric/tls
+    depends_on:
+      - builder
+      - orderer.example.com
+      - shared.couchdb.com
+
+  peer2.org1.example.com:
+    extends:
+      file: docker-compose-base.yml
+      service: peer
+    container_name: peer2.org1.example.com
+    environment:
+      - CORE_PEER_ID=peer2.org1.example.com
+      - CORE_PEER_LOCALMSPID=Org1MSP
+      - CORE_PEER_ADDRESS=peer2.org1.example.com:7051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.org1.example.com:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer2.org1.example.com:7051
+      - CORE_LEDGER_ROLES=endorser,validator
+      - CORE_PEER_GOSSIP_ORGLEADER=false
+    ports:
+      - 7251:7051
+    volumes:
+      - ./fabric/crypto-config/peerOrganizations/org1.example.com/peers/peer2.org1.example.com/msp:/etc/hyperledger/msp/peer
+      - ./fabric/crypto-config/peerOrganizations/org1.example.com/peers/peer2.org1.example.com/tls:/etc/hyperledger/fabric/tls
     depends_on:
       - builder
       - orderer.example.com
@@ -117,13 +140,36 @@ services:
       - CORE_PEER_ADDRESS=peer1.org2.example.com:7051
       - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.org2.example.com:7051
       - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.org2.example.com:7051
-      - CORE_LEDGER_ROLES=endorser
+      - CORE_LEDGER_ROLES=endorser,validator
       - CORE_PEER_GOSSIP_ORGLEADER=false
     ports:
       - 8151:7051
     volumes:
       - ./fabric/crypto-config/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/msp:/etc/hyperledger/msp/peer
       - ./fabric/crypto-config/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/tls:/etc/hyperledger/fabric/tls
+    depends_on:
+      - builder
+      - orderer.example.com
+      - shared.couchdb.com
+
+  peer2.org2.example.com:
+    extends:
+      file: docker-compose-base.yml
+      service: peer
+    container_name: peer2.org2.example.com
+    environment:
+      - CORE_PEER_ID=peer2.org2.example.com
+      - CORE_PEER_LOCALMSPID=Org2MSP
+      - CORE_PEER_ADDRESS=peer2.org2.example.com:7051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.org2.example.com:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer2.org2.example.com:7051
+      - CORE_LEDGER_ROLES=endorser,validator
+      - CORE_PEER_GOSSIP_ORGLEADER=false
+    ports:
+      - 8251:7051
+    volumes:
+      - ./fabric/crypto-config/peerOrganizations/org2.example.com/peers/peer2.org2.example.com/msp:/etc/hyperledger/msp/peer
+      - ./fabric/crypto-config/peerOrganizations/org2.example.com/peers/peer2.org2.example.com/tls:/etc/hyperledger/fabric/tls
     depends_on:
       - builder
       - orderer.example.com

@@ -230,6 +230,13 @@ func (h *handler) validate(ctx context.Context, block *cb.Block, responder appda
 
 	var errStr string
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			logger.Debugf("[%s] Validation of block %d was cancelled", h.channelID, block.Header.Number)
+
+			// Don't send a response
+			return
+		}
+
 		logger.Warningf("[%s] Error validating partial block %d: %s", h.channelID, block.Header.Number, err)
 		errStr = err.Error()
 	} else {

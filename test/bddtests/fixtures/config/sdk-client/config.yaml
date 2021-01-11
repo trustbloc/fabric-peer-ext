@@ -140,6 +140,12 @@ channels:
         ledgerQuery: true
         eventSource: true
 
+      peer2.org1.example.com:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
+
       peer0.org2.example.com:
         endorsingPeer: true
         chaincodeQuery: true
@@ -147,6 +153,12 @@ channels:
         eventSource: true
 
       peer1.org2.example.com:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
+
+      peer2.org2.example.com:
         endorsingPeer: true
         chaincodeQuery: true
         ledgerQuery: true
@@ -169,6 +181,12 @@ channels:
         ledgerQuery: true
         eventSource: true
 
+      peer2.org1.example.com:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
+
       peer0.org2.example.com:
         endorsingPeer: false
         chaincodeQuery: true
@@ -181,6 +199,11 @@ channels:
         ledgerQuery: true
         eventSource: true
 
+      peer2.org2.example.com:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
 
 orderers:
   orderer.example.com:
@@ -221,6 +244,7 @@ organizations:
     peers:
       - peer0.org1.example.com
       - peer1.org1.example.com
+      - peer2.org1.example.com
 
     # [Optional]. Certificate Authorities issue certificates for identification purposes in a Fabric based
     # network. Typically certificates provisioning is done in a separate process outside of the
@@ -241,6 +265,7 @@ organizations:
     peers:
       - peer0.org2.example.com
       - peer1.org2.example.com
+      - peer2.org2.example.com
 
     # [Optional]. Certificate Authorities issue certificates for identification purposes in a Fabric based
     # network. Typically certificates provisioning is done in a separate process outside of the
@@ -304,6 +329,27 @@ peers:
       # Certificate location absolute path
       path: ${PROJECT_PATH}/test/bddtests/fixtures/fabric/crypto-config/peerOrganizations/org1.example.com/tlsca/tlsca.org1.example.com-cert.pem
 
+  peer2.org1.example.com:
+    # this URL is used to send endorsement and query requests
+    url: localhost:7251
+
+    grpcOptions:
+      ssl-target-name-override: peer2.org1.example.com
+      grpc.http2.keepalive_time: 15
+      #     These parameters should be set in coordination with the keepalive policy on the server,
+      #     as incompatible settings can result in closing of connection.
+      #     When duration of the 'keep-alive-time' is set to 0 or less the keep alive client parameters are disabled
+      keep-alive-time: 0s
+      keep-alive-timeout: 20s
+      keep-alive-permit: false
+      fail-fast: false
+      #will be taken into consideration if address has no protocol defined and secured connection fails
+      allow-insecure: false
+
+    tlsCACerts:
+      # Certificate location absolute path
+      path: ${PROJECT_PATH}/test/bddtests/fixtures/fabric/crypto-config/peerOrganizations/org1.example.com/tlsca/tlsca.org1.example.com-cert.pem
+
   peer0.org2.example.com:
     # this URL is used to send endorsement and query requests
     url: localhost:8051
@@ -346,6 +392,27 @@ peers:
       # Certificate location absolute path
       path: ${PROJECT_PATH}/test/bddtests/fixtures/fabric/crypto-config/peerOrganizations/org2.example.com/tlsca/tlsca.org2.example.com-cert.pem
 
+  peer2.org2.example.com:
+    # this URL is used to send endorsement and query requests
+    url: localhost:8251
+
+    grpcOptions:
+      ssl-target-name-override: peer2.org2.example.com
+      grpc.http2.keepalive_time: 15
+      #     These parameters should be set in coordination with the keepalive policy on the server,
+      #     as incompatible settings can result in closing of connection.
+      #     When duration of the 'keep-alive-time' is set to 0 or less the keep alive client parameters are disabled
+      keep-alive-time: 0s
+      keep-alive-timeout: 20s
+      keep-alive-permit: false
+      fail-fast: false
+      #will be taken into consideration if address has no protocol defined and secured connection fails
+      allow-insecure: false
+
+    tlsCACerts:
+      # Certificate location absolute path
+      path: ${PROJECT_PATH}/test/bddtests/fixtures/fabric/crypto-config/peerOrganizations/org2.example.com/tlsca/tlsca.org2.example.com-cert.pem
+
 entityMatchers:
 
   peer:
@@ -357,6 +424,10 @@ entityMatchers:
       urlSubstitutionExp: localhost:7151
       mappedHost: peer1.org1.example.com
 
+    - pattern: peer2.org1.example.com:(\d+)
+      urlSubstitutionExp: localhost:7251
+      mappedHost: peer2.org1.example.com
+
     - pattern: peer0.org2.example.com:(\d+)
       urlSubstitutionExp: localhost:8051
       mappedHost: peer0.org2.example.com
@@ -364,6 +435,10 @@ entityMatchers:
     - pattern: peer1.org2.example.com:(\d+)
       urlSubstitutionExp: localhost:8151
       mappedHost: peer1.org2.example.com
+
+    - pattern: peer2.org2.example.com:(\d+)
+      urlSubstitutionExp: localhost:8251
+      mappedHost: peer2.org2.example.com
 
   orderer:
     - pattern: (\w+).example.(\w+)

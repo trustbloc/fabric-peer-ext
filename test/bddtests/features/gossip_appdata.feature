@@ -21,13 +21,17 @@ Feature: Application-specific data over Gossip
   @gossip_appdata_retrieve
   Scenario: Retrieve application-specific data from other peers using Gossip
     When client invokes chaincode "hellocc" with args "sayhello,Hello everyone!,3" on peers "peer0.org1.example.com" on the "mychannel" channel
-    Then the JSON path "#" of the response has 3 items
+    Then the JSON path "#" of the response has 5 items
     And the JSON path "#.Name" of the response contains "peer1.org1.example.com:7051"
+    And the JSON path "#.Name" of the response contains "peer2.org1.example.com:7051"
     And the JSON path "#.Name" of the response contains "peer0.org2.example.com:7051"
     And the JSON path "#.Name" of the response contains "peer1.org2.example.com:7051"
+    And the JSON path "#.Name" of the response contains "peer2.org2.example.com:7051"
     And the JSON path "0.Message" of the response equals "Hello peer0.org1.example.com:7051! I received your message 'Hello everyone!'."
     And the JSON path "1.Message" of the response equals "Hello peer0.org1.example.com:7051! I received your message 'Hello everyone!'."
     And the JSON path "2.Message" of the response equals "Hello peer0.org1.example.com:7051! I received your message 'Hello everyone!'."
+    And the JSON path "3.Message" of the response equals "Hello peer0.org1.example.com:7051! I received your message 'Hello everyone!'."
+    And the JSON path "4.Message" of the response equals "Hello peer0.org1.example.com:7051! I received your message 'Hello everyone!'."
 
     Then we wait 5 seconds
     When client queries chaincode "hellocc" with args "gethellomessage" on a single peer in the "peerorg1" org on the "mychannel" channel
