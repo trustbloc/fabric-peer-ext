@@ -3,6 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 name: $(SourceBranchName)-$(Date:yyyyMMdd).$(Rev:r)
+trigger:
+  - main
+pr:
+  - main
+
 variables:
   GO_VERSION: 1.14.4
   GOPATH: $(Agent.BuildDirectory)/go
@@ -11,7 +16,7 @@ jobs:
   - job: UnitTest
     condition: in(variables['test-type'],'','unit-test') # Run if test-type is not set or if test-type is 'unit-test'
     pool:
-      vmImage: ubuntu-18.04
+      vmImage: ubuntu-20.04
     timeoutInMinutes: 30
     steps:
     - template: azp-dependencies.yml
@@ -30,7 +35,7 @@ jobs:
   - job: BDDTest_lscc
     condition: in(variables['test-type'],'','bdd-test') # Run if test-type is not set or if test-type is 'bdd-test'
     pool:
-      vmImage: ubuntu-18.04
+      vmImage: ubuntu-20.04
     strategy:
       parallel: 3
     timeoutInMinutes: 60
@@ -46,7 +51,7 @@ jobs:
   - job: BDDTest_lifecycle
     condition: in(variables['test-type'],'','bdd-test') # Run if test-type is not set or if test-type is 'bdd-test'
     pool:
-      vmImage: ubuntu-18.04
+      vmImage: ubuntu-20.04
     strategy:
       parallel: 3
     timeoutInMinutes: 60
@@ -62,7 +67,7 @@ jobs:
   - job: FabricUnitTest
     condition: eq(variables['test-type'],'fabric-unit-test') # Run only if test-type is 'fabric-unit-test'
     pool:
-      vmImage: ubuntu-18.04
+      vmImage: ubuntu-20.04
     timeoutInMinutes: 60
     steps:
     - template: azp-dependencies.yml
