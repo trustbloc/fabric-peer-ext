@@ -76,6 +76,11 @@ func (m *Ledger) NewQueryExecutor() (ledger2.QueryExecutor, error) {
 	return m.QueryExecutor, m.Error
 }
 
+// NewQueryExecutorNoLock returns the query executor
+func (m *Ledger) NewQueryExecutorNoLock() (ledger2.QueryExecutor, error) {
+	return m.QueryExecutor, m.Error
+}
+
 // NewHistoryQueryExecutor returns the history query executor
 func (m *Ledger) NewHistoryQueryExecutor() (ledger2.HistoryQueryExecutor, error) {
 	panic("not implemented")

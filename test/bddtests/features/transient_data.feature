@@ -45,6 +45,9 @@ Feature:
     And client queries chaincode "tdata_examplecc" with args "getprivate,collection1,key1" on the "mychannel" channel
     Then response from "tdata_examplecc" to client equal value "value1"
 
+    When txn service is invoked on channel "mychannel" with chaincode "tdata_examplecc" with args "getprivatenolock,collection1,key1" on peers "peer1.org1.example.com"
+    Then response from "tdata_examplecc" to client equal value "value1"
+
     When client queries chaincode "tdata_examplecc" with args "putprivate,collection2,key2,value2" on the "mychannel" channel
     And client queries chaincode "tdata_examplecc" with args "getprivate,collection2,key2" on the "mychannel" channel
     Then response from "tdata_examplecc" to client equal value "value2"

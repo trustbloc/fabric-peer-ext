@@ -9,6 +9,7 @@ package statedb
 import (
 	"sync"
 
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
 )
 
@@ -44,9 +45,25 @@ type StateDB interface {
 	UpdateCache(blockNum uint64, updates []byte) error
 }
 
+// QueryExecutorProvider provides a query executor with and without a commit lock
+type QueryExecutorProvider interface {
+	// NewQueryExecutor returns a query executor that first acquires a commit read lock.
+	// Done() must be called when finished using it.
+	NewQueryExecutor() (ledger.QueryExecutor, error)
+
+	// NewQueryExecutorNoLock returns a query executor that does not acquire a commit read lock.
+	// Done() must NOT be called.
+	NewQueryExecutorNoLock() (ledger.QueryExecutor, error)
+}
+
+type channelDB struct {
+	stateDB    StateDB
+	qeProvider QueryExecutorProvider
+}
+
 // Provider is a state database Provider
 type Provider struct {
-	channelDBs map[string]StateDB
+	channelDBs map[string]*channelDB
 	mutex      sync.RWMutex
 }
 
@@ -57,7 +74,7 @@ func GetProvider() *Provider {
 
 func newProvider() *Provider {
 	return &Provider{
-		channelDBs: make(map[string]StateDB),
+		channelDBs: make(map[string]*channelDB),
 	}
 }
 
@@ -66,13 +83,24 @@ func (p *Provider) StateDBForChannel(channelID string) StateDB {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 
-	return p.channelDBs[channelID]
+	return p.channelDBs[channelID].stateDB
+}
+
+// QueryExecutorProviderForChannel returns the query executor provider for the given channel
+func (p *Provider) QueryExecutorProviderForChannel(channelID string) QueryExecutorProvider {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	return p.channelDBs[channelID].qeProvider
 }
 
 // Register registers a state database for the given channel
-func (p *Provider) Register(channelID string, db StateDB) {
+func (p *Provider) Register(channelID string, db StateDB, qep QueryExecutorProvider) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	p.channelDBs[channelID] = db
+	p.channelDBs[channelID] = &channelDB{
+		stateDB:    db,
+		qeProvider: qep,
+	}
 }

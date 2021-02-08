@@ -93,5 +93,5 @@ func TestAddCCUpgradeHandlerAsCommitter(t *testing.T) {
 func TestRegister(t *testing.T) {
 	// NOTE: statedb.VersionedDB cannot be mocked since this interface references an internal package: github.com/hyperledger/fabric/core/ledger/internal/version.
 	// Therefore, stateDB cannot be fully tested
-	require.NotPanics(t, func() { Register("channel1", nil) })
+	require.NotPanics(t, func() { Register("channel1", nil, nil) })
 }

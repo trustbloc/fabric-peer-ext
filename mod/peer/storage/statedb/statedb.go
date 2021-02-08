@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package statedb
 
 import (
+	"github.com/hyperledger/fabric/core/ledger"
 	"github.com/hyperledger/fabric/core/ledger/kvledger/txmgmt/statedb"
 	gossipapi "github.com/hyperledger/fabric/extensions/gossip/api"
 	"github.com/hyperledger/fabric/extensions/gossip/blockpublisher"
@@ -14,6 +15,17 @@ import (
 
 	extstatedb "github.com/trustbloc/fabric-peer-ext/pkg/statedb"
 )
+
+// QueryExecutorProvider provides a query executor with and without a commit lock
+type QueryExecutorProvider interface {
+	// NewQueryExecutor returns a query executor that first acquires a commit read lock.
+	// Done() must be called when finished using it.
+	NewQueryExecutor() (ledger.QueryExecutor, error)
+
+	// NewQueryExecutorNoLock returns a query executor that does not acquire a commit read lock.
+	// Done() must NOT be called.
+	NewQueryExecutorNoLock() (ledger.QueryExecutor, error)
+}
 
 //AddCCUpgradeHandler adds chaincode upgrade handler to blockpublisher
 func AddCCUpgradeHandler(chainName string, handler gossipapi.ChaincodeUpgradeHandler) {
@@ -23,8 +35,8 @@ func AddCCUpgradeHandler(chainName string, handler gossipapi.ChaincodeUpgradeHan
 }
 
 // Register registers a state database for a given channel
-func Register(channelID string, db statedb.VersionedDB) {
-	extstatedb.GetProvider().Register(channelID, &stateDB{db: db})
+func Register(channelID string, db statedb.VersionedDB, qep QueryExecutorProvider) {
+	extstatedb.GetProvider().Register(channelID, &stateDB{db: db}, qep)
 }
 
 type stateDB struct {

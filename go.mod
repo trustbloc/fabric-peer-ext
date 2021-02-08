@@ -34,7 +34,7 @@ require (
 	google.golang.org/grpc v1.29.1
 )
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.6-0.20210106200132-8b87450ce0f4
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.6-0.20210209215355-966ca0cc520e
 
 replace github.com/hyperledger/fabric/extensions => ./mod/peer
 
