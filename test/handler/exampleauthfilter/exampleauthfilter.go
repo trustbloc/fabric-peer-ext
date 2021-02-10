@@ -25,6 +25,7 @@ import (
 	gcommon "github.com/hyperledger/fabric/gossip/common"
 	"github.com/hyperledger/fabric/protoutil"
 	"github.com/pkg/errors"
+	"github.com/trustbloc/fabric-peer-ext/pkg/statedb"
 
 	dcasclient "github.com/trustbloc/fabric-peer-ext/pkg/collections/offledger/dcas/client"
 	"github.com/trustbloc/fabric-peer-ext/pkg/txn/api"
@@ -41,13 +42,14 @@ const (
 	putCASFunc                    = "putcas"
 	getCASFunc                    = "getcas"
 	getCASNodeFunc                = "getcasnode"
+	getPrivateDataNoLockFunc      = "getprivatenolock"
 )
 
 type gossipProvider interface {
 	GetGossipService() gossipapi.GossipService
 }
 
-type function func(string, [][]byte) pb.Response
+type function func(channelID, ccName string, args [][]byte) pb.Response
 
 type txnServiceProvider interface {
 	ForChannel(channelID string) (api.Service, error)
@@ -55,6 +57,10 @@ type txnServiceProvider interface {
 
 type dcasClientProvider interface {
 	GetDCASClient(channelID string, namespace string, coll string) (dcasclient.DCAS, error)
+}
+
+type qeChannelProvider interface {
+	QueryExecutorProviderForChannel(channelID string) statedb.QueryExecutorProvider
 }
 
 // AuthFilter is a sample Auth filter used in the BDD test. It demonstrates the handler registry and
@@ -65,14 +71,16 @@ type AuthFilter struct {
 	functionRegistry   map[string]function
 	txnProvider        txnServiceProvider
 	dcasClientProvider dcasClientProvider
+	qeChannelProvider  qeChannelProvider
 }
 
 // New returns a new example auth AuthFilter. The Gossip provider is supplied via dependency injection.
-func New(gossip gossipProvider, txnProvider txnServiceProvider, dcasClientProvider dcasClientProvider) *AuthFilter {
+func New(gossip gossipProvider, txnProvider txnServiceProvider, dcasClientProvider dcasClientProvider, qep qeChannelProvider) *AuthFilter {
 	f := &AuthFilter{
 		gossipProvider:     gossip,
 		txnProvider:        txnProvider,
 		dcasClientProvider: dcasClientProvider,
+		qeChannelProvider:  qep,
 	}
 
 	f.initFunctionRegistry()
@@ -108,7 +116,7 @@ func (f *AuthFilter) ProcessProposal(ctx context.Context, signedProp *pb.SignedP
 		funcName = string(ccSpec.Input.Args[0])
 	}
 
-	if ccSpec.ChaincodeId.Name != "e2e_cc" {
+	if ccSpec.ChaincodeId.Name != "e2e_cc" && ccSpec.ChaincodeId.Name != "tdata_examplecc" {
 		return f.next.ProcessProposal(ctx, signedProp)
 	}
 
@@ -135,7 +143,7 @@ func (f *AuthFilter) ProcessProposal(ctx context.Context, signedProp *pb.SignedP
 		return f.next.ProcessProposal(ctx, signedProp)
 	}
 
-	resp := fctn(channelID, ccSpec.Input.Args[1:])
+	resp := fctn(channelID, ccSpec.ChaincodeId.Name, ccSpec.Input.Args[1:])
 
 	return &pb.ProposalResponse{
 		Version:     0,
@@ -205,7 +213,7 @@ func getChaincodeProposalPayload(bytes []byte) (*pb.ChaincodeProposalPayload, er
 	return cpp, errors.Wrap(err, "error unmarshaling ChaincodeProposalPayload")
 }
 
-func (f *AuthFilter) endorse(channelID string, args [][]byte) pb.Response {
+func (f *AuthFilter) endorse(channelID, _ string, args [][]byte) pb.Response {
 	req, err := getEndorsementRequest(args)
 	if err != nil {
 		logger.Errorf("Error getting endorsement request for channel [%s]: %s", channelID, err)
@@ -254,7 +262,7 @@ func (f *AuthFilter) endorse(channelID string, args [][]byte) pb.Response {
 	return shim.Success(respBytes)
 }
 
-func (f *AuthFilter) endorseAndCommit(channelID string, args [][]byte) pb.Response {
+func (f *AuthFilter) endorseAndCommit(channelID, _ string, args [][]byte) pb.Response {
 	req, err := getEndorsementRequest(args)
 	if err != nil {
 		logger.Errorf("Error getting endorsement request for channel [%s]: %s", channelID, err)
@@ -295,7 +303,7 @@ func (f *AuthFilter) endorseAndCommit(channelID string, args [][]byte) pb.Respon
 	return shim.Success(respBytes)
 }
 
-func (f *AuthFilter) commit(channelID string, args [][]byte) pb.Response {
+func (f *AuthFilter) commit(channelID, _ string, args [][]byte) pb.Response {
 	req, err := getCommitRequest(args)
 	if err != nil {
 		logger.Errorf("Error getting endorsement request for channel [%s]: %s", channelID, err)
@@ -332,7 +340,7 @@ func (f *AuthFilter) commit(channelID string, args [][]byte) pb.Response {
 	return shim.Success(respBytes)
 }
 
-func (f *AuthFilter) verifyProposalSignature(channelID string, args [][]byte) pb.Response {
+func (f *AuthFilter) verifyProposalSignature(channelID, _ string, args [][]byte) pb.Response {
 	logger.Infof("[%s] Verifying proposal signature. Signed proposal: %s", channelID, args[0])
 
 	signedProposal := &pb.SignedProposal{}
@@ -357,7 +365,7 @@ func (f *AuthFilter) verifyProposalSignature(channelID string, args [][]byte) pb
 	return shim.Success(nil)
 }
 
-func (f *AuthFilter) validateProposalResponses(channelID string, args [][]byte) pb.Response {
+func (f *AuthFilter) validateProposalResponses(channelID, _ string, args [][]byte) pb.Response {
 	if len(args) != 2 {
 		return shim.Error("Expecting args: signed proposal bytes and proposal responses bytes")
 	}
@@ -393,7 +401,7 @@ func (f *AuthFilter) validateProposalResponses(channelID string, args [][]byte) 
 	return shim.Success(codeBytes)
 }
 
-func (f *AuthFilter) putCAS(channelID string, args [][]byte) pb.Response {
+func (f *AuthFilter) putCAS(channelID, _ string, args [][]byte) pb.Response {
 	if len(args) < 3 {
 		return shim.Error("Expecting args: namespace, collection, value and options")
 	}
@@ -425,7 +433,7 @@ func (f *AuthFilter) putCAS(channelID string, args [][]byte) pb.Response {
 	return shim.Success([]byte(cid))
 }
 
-func (f *AuthFilter) getCAS(channelID string, args [][]byte) pb.Response {
+func (f *AuthFilter) getCAS(channelID, _ string, args [][]byte) pb.Response {
 	if len(args) != 3 {
 		return shim.Error("Expecting args: namespace, collection, and CID")
 	}
@@ -448,7 +456,7 @@ func (f *AuthFilter) getCAS(channelID string, args [][]byte) pb.Response {
 	return shim.Success(value.Bytes())
 }
 
-func (f *AuthFilter) getCASNode(channelID string, args [][]byte) pb.Response {
+func (f *AuthFilter) getCASNode(channelID, _ string, args [][]byte) pb.Response {
 	if len(args) != 3 {
 		return shim.Error("Expecting args: namespace, collection, and CID")
 	}
@@ -475,6 +483,29 @@ func (f *AuthFilter) getCASNode(channelID string, args [][]byte) pb.Response {
 	return shim.Success(bytes)
 }
 
+func (f *AuthFilter) getPrivateDataNoLock(channelID, ccName string, args [][]byte) pb.Response {
+	if len(args) != 2 {
+		return shim.Error("Expecting args: collection, and key")
+	}
+
+	coll := string(args[0])
+	key := string(args[1])
+
+	qe, err := f.qeChannelProvider.QueryExecutorProviderForChannel(channelID).NewQueryExecutorNoLock()
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Failed to create DCAS client: %s", err))
+	}
+
+	data, err := qe.GetPrivateData(ccName, coll, key)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Failed to retrieve private data: %s", err))
+	}
+
+	logger.Infof("[%s] Returning private data for [%s:%s:%s]: %s", channelID, ccName, coll, key, data)
+
+	return shim.Success(data)
+}
+
 func (f *AuthFilter) initFunctionRegistry() {
 	f.functionRegistry = make(map[string]function)
 	f.functionRegistry[endorseFunc] = f.endorse
@@ -485,6 +516,7 @@ func (f *AuthFilter) initFunctionRegistry() {
 	f.functionRegistry[putCASFunc] = f.putCAS
 	f.functionRegistry[getCASFunc] = f.getCAS
 	f.functionRegistry[getCASNodeFunc] = f.getCASNode
+	f.functionRegistry[getPrivateDataNoLockFunc] = f.getPrivateDataNoLock
 }
 
 func (f *AuthFilter) newInvalidTxnResponse(txnSvc api.Service) pb.Response {
