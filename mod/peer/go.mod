@@ -4,7 +4,7 @@
 
 module github.com/trustbloc/fabric-peer-ext/mod/peer
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.6-0.20210209215355-966ca0cc520e
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.6
 
 replace github.com/hyperledger/fabric/extensions => ./
 
@@ -15,7 +15,7 @@ replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-p
 replace github.com/spf13/viper2015 => github.com/spf13/viper v0.0.0-20150908122457-1967d93db724
 
 require (
-	github.com/golang/protobuf v1.3.3
+	github.com/golang/protobuf v1.4.3
 	github.com/hyperledger/fabric v2.0.0+incompatible
 	github.com/hyperledger/fabric-chaincode-go v0.0.0-20200128192331-2d899240a7ed
 	github.com/hyperledger/fabric-protos-go v0.0.0-20200707132912-fee30f3ccd23
@@ -26,5 +26,9 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/trustbloc/fabric-peer-ext v0.0.0
 )
+
+replace github.com/go-kit/kit => github.com/go-kit/kit v0.8.0
+
+replace github.com/golang/protobuf => github.com/golang/protobuf v1.3.2
 
 go 1.14

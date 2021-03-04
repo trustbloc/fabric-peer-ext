@@ -5,6 +5,7 @@
 module github.com/trustbloc/fabric-peer-ext/test/bddtests/fixtures/fabric/peer/cmd
 
 require (
+	github.com/Microsoft/hcsshim v0.8.15 // indirect
 	github.com/hyperledger/fabric v2.0.0+incompatible
 	github.com/hyperledger/fabric/extensions v0.0.0
 	github.com/spf13/cobra v0.0.5
@@ -12,7 +13,7 @@ require (
 	github.com/trustbloc/fabric-peer-ext v0.0.0
 )
 
-replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.6-0.20210209215355-966ca0cc520e
+replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.1.6
 
 replace github.com/hyperledger/fabric/extensions => ../../../../../../mod/peer
 
@@ -21,5 +22,9 @@ replace github.com/trustbloc/fabric-peer-ext => ../../../../../..
 replace github.com/spf13/viper2015 => github.com/spf13/viper v0.0.0-20150908122457-1967d93db724
 
 replace github.com/hyperledger/fabric-protos-go => github.com/trustbloc/fabric-protos-go-ext v0.1.5
+
+replace github.com/go-kit/kit => github.com/go-kit/kit v0.8.0
+
+replace github.com/golang/protobuf => github.com/golang/protobuf v1.3.2
 
 go 1.14
