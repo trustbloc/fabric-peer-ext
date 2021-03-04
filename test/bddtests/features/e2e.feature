@@ -38,39 +38,39 @@ Feature:
 
     # Test transactions
     When client invokes chaincode "e2e_cc" with args "del,k1" on the "mychannel" channel
-    And we wait 2 seconds
+    And we wait 10 seconds
     And client queries chaincode "e2e_cc" with args "get,k1" on a single peer in the "peerorg1" org on the "mychannel" channel
     Then response from "e2e_cc" to client equal value ""
 
     When client invokes chaincode "e2e_cc" with args "put,k1,20" on the "mychannel" channel
-    And we wait 2 seconds
+    And we wait 10 seconds
     And client queries chaincode "e2e_cc" with args "get,k1" on a single peer in the "peerorg1" org on the "mychannel" channel
     Then response from "e2e_cc" to client equal value "20"
 
     When client invokes chaincode "e2e_cc" with args "put,k1,20" on the "mychannel" channel
-    And we wait 2 seconds
+    And we wait 10 seconds
     And client queries chaincode "e2e_cc" with args "get,k1" on a single peer in the "peerorg1" org on the "mychannel" channel
     Then response from "e2e_cc" to client equal value "20-20"
 
     When client invokes chaincode "e2e_cc" with args "del,k1" on the "mychannel" channel
-    And we wait 2 seconds
+    And we wait 10 seconds
     And client queries chaincode "e2e_cc" with args "get,k1" on a single peer in the "peerorg1" org on the "mychannel" channel
     Then response from "e2e_cc" to client equal value ""
 
     # Test private data collection transactions
     When client invokes chaincode "e2e_cc" with args "putprivate,collection3,pvtKey,pvtVal" on the "mychannel" channel
-    And we wait 2 seconds
+    And we wait 10 seconds
     And client queries chaincode "e2e_cc" with args "getprivate,collection3,pvtKey" on the "mychannel" channel
     Then response from "e2e_cc" to client equal value "pvtVal"
 
     # Update the value to ensure that the state cache is updated/invalidated
     When client invokes chaincode "e2e_cc" with args "putprivate,collection3,pvtKey,pvtVal2" on the "mychannel" channel
-    And we wait 2 seconds
+    And we wait 10 seconds
     And client queries chaincode "e2e_cc" with args "getprivate,collection3,pvtKey" on the "mychannel" channel
     Then response from "e2e_cc" to client equal value "pvtVal2"
 
     When client invokes chaincode "e2e_cc" with args "delprivate,collection3,pvtKey" on the "mychannel" channel
-    And we wait 2 seconds
+    And we wait 10 seconds
     And client queries chaincode "e2e_cc" with args "getprivate,collection3,pvtKey" on the "mychannel" channel
     Then response from "e2e_cc" to client equal value ""
 
